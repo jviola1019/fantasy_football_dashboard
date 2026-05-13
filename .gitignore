@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+coverage/
+.env*.local
+.env
+*.tsbuildinfo
+.DS_Store
+
+# Locally generated binary audit artifacts are not reviewable in text-only GitHub diffs.
+artifacts/screenshots/*.png
+artifacts/screenshots/*.jpg
+artifacts/screenshots/*.jpeg
+artifacts/screenshots/*.webp
