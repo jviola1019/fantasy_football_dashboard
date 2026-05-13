@@ -49,16 +49,3 @@ Use a focused Next.js + TypeScript application because the repo has no incumbent
 ## Non-goals for this pass
 - Paid/private APIs, league OAuth, database persistence, and production-grade Monte Carlo calibration are planned boundaries, not fabricated implementations.
 - No hardcoded live metrics will be represented as production data.
-
-
-## Sprint correction — visual fidelity, roster imagery, and operational polish
-
-Brutal assessment: the first implementation was an architecture/governance skeleton, not a flagship interface. It satisfied several data-integrity constraints but underdelivered on the user's visual bar and did not prove player imagery/roster presentation. This correction focuses on repo-native, push-safe visual systems rather than committing binary assets.
-
-### Execution plan
-1. Keep exactly five top-level systems and preserve non-fabrication governance.
-2. Extend player records with roster slot, status, jersey number, remote headshot URL, and image source metadata.
-3. Verify remote player headshot URLs during development with HTTP HEAD checks; do not commit downloaded images.
-4. Rebuild the interface around an institutional command surface: loading sigil, hero console, 3D CSS topology, roster rail, player image cards, orbital universe, narrative flow field, and multiverse simulation.
-5. Validate desktop/mobile layout with build-time checks, unit/product-contract tests, and local screenshot capture only.
-6. Document that the original reference image is not present in the repository/context, so implementation targets the stated visual language and must be visually compared by the user/reviewer against the private reference.

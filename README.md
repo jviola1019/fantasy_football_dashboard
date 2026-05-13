@@ -30,7 +30,7 @@ Current implementation:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `RAE_ALLOW_FIXTURES` | No | Set to `true` to render clearly labeled dev/test fixture records, roster slots, and remote player headshots. Defaults to unavailable/missing states. |
+| `RAE_ALLOW_FIXTURES` | No | Set to `true` to render clearly labeled dev/test fixture records. Defaults to unavailable/missing states. |
 
 Secrets and API keys must remain server-side. Do not expose league tokens or paid data credentials through `NEXT_PUBLIC_*` variables.
 
@@ -153,7 +153,7 @@ Planned tests:
 
 ## Design philosophy
 
-RAE intentionally avoids cyberpunk, gamer, neon, and decorative sci-fi patterns. The UI uses graphite surfaces, cream contrast, amber highlights, restrained red/green status semantics, blue telemetry accents, asymmetrical density, and operational whitespace. The corrected interface adds a premium boot sigil, institutional hero console, roster rail with remote player imagery, CSS 3D topology depth, orbital player ecosystem, narrative flow field, and replayable multiverse surface while keeping the five-tab constraint intact.
+RAE intentionally avoids cyberpunk, gamer, neon, and decorative sci-fi patterns. The UI uses graphite surfaces, cream contrast, amber highlights, restrained red/green status semantics, blue telemetry accents, asymmetrical density, and operational whitespace.
 
 ## Motion philosophy
 
@@ -161,7 +161,7 @@ Motion is restrained and data-encoded. Topology nodes, liquidity flows, narrativ
 
 ## No-synthetic-data philosophy
 
-RAE does not fabricate production intelligence. If live data is unavailable, the UI exposes unavailable, missing, stale, or fixture states honestly. Development fixtures are labeled and gated by `RAE_ALLOW_FIXTURES=true`. Fixture headshots are remote ESPN CDN URLs with source metadata; the repository does not commit player-image binaries.
+RAE does not fabricate production intelligence. If live data is unavailable, the UI exposes unavailable, missing, stale, or fixture states honestly. Development fixtures are labeled and gated by `RAE_ALLOW_FIXTURES=true`.
 
 ## Troubleshooting
 
@@ -178,4 +178,3 @@ RAE does not fabricate production intelligence. If live data is unavailable, the
 - Fixture data is not production intelligence.
 - Monte Carlo calibration is structurally deterministic but not production-calibrated without real projections and league settings.
 - Automated screenshot, accessibility, and performance audits require a running browser workflow.
-- Pixel-level reference-image matching still requires the private source image to be available to the reviewer; this repository does not contain that image.
