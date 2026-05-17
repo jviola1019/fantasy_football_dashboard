@@ -6,7 +6,7 @@ export type FreshnessState = z.infer<typeof FreshnessStateSchema>;
 export const SourceMetaSchema = z.object({
   source: z.string().min(1),
   fetchedAt: z.string().datetime().nullable(),
-  ttlSeconds: z.number().int().positive(),
+  ttlSeconds: z.number().int().nonnegative(),
   freshness: FreshnessStateSchema,
   confidence: z.number().min(0).max(1),
   validation: z.enum(["valid", "invalid", "not-run"]),

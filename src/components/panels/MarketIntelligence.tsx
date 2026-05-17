@@ -99,9 +99,13 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
 }
 
 function TopInefficiencies({ players }: { players: PlayerMarketRecord[] }) {
+  // With ~800 players, render only the 30 widest |edge| rows.
+  const rows = [...players]
+    .sort((a, b) => Math.abs(reputationEdge(b)) - Math.abs(reputationEdge(a)))
+    .slice(0, 30);
   return (
     <div className="table-wrap">
-      <div className="section-label">TOP INEFFICIENCIES</div>
+      <div className="section-label">TOP INEFFICIENCIES · TOP {rows.length} OF {players.length}</div>
       <table>
         <thead>
           <tr>
@@ -115,12 +119,12 @@ function TopInefficiencies({ players }: { players: PlayerMarketRecord[] }) {
           </tr>
         </thead>
         <tbody>
-          {players.length === 0 ? (
+          {rows.length === 0 ? (
             <tr>
               <td colSpan={7}>No validated market records. Enable fixture mode or connect adapters.</td>
             </tr>
           ) : (
-            players.map((p) => {
+            rows.map((p) => {
               const edge = reputationEdge(p);
               const ci = confidenceInterval(p.trueValue, p.confidence);
               return (

@@ -32,14 +32,18 @@ const SleeperPlayersSchema = z.record(z.string(), SleeperPlayerRawSchema);
 
 export const SLEEPER_PLAYERS_URL = "https://api.sleeper.app/v1/players/nfl";
 
-const SKILL_POSITIONS = new Set(["QB", "RB", "WR", "TE"]);
+const SKILL_POSITIONS = new Set(["QB", "RB", "WR", "TE", "K", "DEF"]);
 
 const POSITION_BASE: Record<string, { perceived: number; true: number }> = {
-  QB: { perceived: 80, true: 80 },
-  RB: { perceived: 70, true: 70 },
-  WR: { perceived: 70, true: 70 },
-  TE: { perceived: 60, true: 60 },
+  QB:  { perceived: 80, true: 80 },
+  RB:  { perceived: 70, true: 70 },
+  WR:  { perceived: 70, true: 70 },
+  TE:  { perceived: 60, true: 60 },
+  K:   { perceived: 35, true: 35 },
+  DEF: { perceived: 40, true: 40 },
 };
+
+const POSITION_SORT_ORDER = ["QB", "RB", "WR", "TE", "K", "DEF"] as const;
 
 function deriveStatus(raw: z.infer<typeof SleeperPlayerRawSchema>): PlayerMarketRecord["status"] {
   if (!raw.active) return "unknown";
@@ -69,12 +73,17 @@ function toPlayerMarketRecord(
     [raw.first_name, raw.last_name].filter(Boolean).join(" ").trim();
   if (!name) return null;
 
-  const depthOrder = raw.depth_chart_order ?? 3;
+  const isTeamDefense = pos === "DEF";
+  const depthOrder = isTeamDefense ? 1 : raw.depth_chart_order ?? 3;
   const yearsExp = raw.years_exp ?? 2;
   const age = raw.age ?? 25;
 
   const posBase = POSITION_BASE[pos] ?? { perceived: 60, true: 60 };
-  const depthAdj = depthOrder === 1 ? 18 : depthOrder === 2 ? 2 : -16;
+  const depthAdj = isTeamDefense
+    ? 0
+    : pos === "K"
+      ? (depthOrder === 1 ? 8 : depthOrder === 2 ? 0 : -8)
+      : (depthOrder === 1 ? 18 : depthOrder === 2 ? 2 : -16);
   const expAdj = yearsExp < 3 ? 3 : yearsExp > 8 ? -3 : 0;
 
   const perceivedValue = Math.min(100, Math.max(0, Math.round(posBase.perceived + depthAdj)));
@@ -110,7 +119,7 @@ function toPlayerMarketRecord(
   const source: SourceMeta = {
     source: "Sleeper public players API",
     fetchedAt,
-    ttlSeconds: 86_400,
+    ttlSeconds: 0,
     freshness: "fresh",
     confidence: 0.35,
     validation: "valid",
@@ -119,6 +128,7 @@ function toPlayerMarketRecord(
       "perceivedValue and trueValue are position-tier + depth-chart estimates; no real pricing data is available from Sleeper's public API.",
       "fragility is derived from Sleeper injury_status field.",
       "ownershipLeverage and narrativePressure default to 0; no behavioral-market data is in this adapter.",
+      "Live fetch on every request; no edge cache (rosters change daily).",
     ],
     failure: null,
   };
@@ -152,7 +162,7 @@ export async function loadRAEEnvelope(
 
   try {
     const response = await fetcher(SLEEPER_PLAYERS_URL, {
-      next: { revalidate: 86_400 },
+      cache: "no-store",
     });
     if (!response.ok) throw new Error(`Sleeper returned ${response.status}`);
 
@@ -164,18 +174,15 @@ export async function loadRAEEnvelope(
         const isActive = player.active === true;
         const isSkill = SKILL_POSITIONS.has(String(player.position ?? ""));
         const hasTeam = Boolean(player.team);
-        const isRelevantDepth = (player.depth_chart_order ?? 99) <= 3;
-        return isActive && isSkill && hasTeam && isRelevantDepth;
+        return isActive && isSkill && hasTeam;
       })
       .map(([id, player]) => toPlayerMarketRecord(id, player, fetchedAt))
       .filter((r): r is PlayerMarketRecord => r !== null)
       .sort((a, b) => {
-        const posOrder = ["QB", "RB", "WR", "TE"];
-        const pa = posOrder.indexOf(a.position);
-        const pb = posOrder.indexOf(b.position);
+        const pa = POSITION_SORT_ORDER.indexOf(a.position as typeof POSITION_SORT_ORDER[number]);
+        const pb = POSITION_SORT_ORDER.indexOf(b.position as typeof POSITION_SORT_ORDER[number]);
         return pa !== pb ? pa - pb : a.perceivedValue - b.perceivedValue;
-      })
-      .slice(0, 120);
+      });
 
     if (records.length === 0) {
       if (options.allowFixtures) return RAEEnvelopeSchema.parse(fixtureEnvelope());
@@ -186,16 +193,16 @@ export async function loadRAEEnvelope(
         sourceState: {
           source: "Sleeper public players API",
           fetchedAt,
-          ttlSeconds: 86_400,
+          ttlSeconds: 0,
           freshness: "missing",
           confidence: 0,
           validation: "valid",
-          missingFields: ["market_value", "true_value", "ownership", "narrative_pressure", "depth_chart_order"],
+          missingFields: ["market_value", "true_value", "ownership", "narrative_pressure"],
           assumptions: [
-            "Sleeper returned no active skill players with depth chart data.",
+            "Sleeper returned no active fantasy-relevant players (QB/RB/WR/TE/K/DEF) with a team.",
             "RAE refuses to fabricate market intelligence from empty records.",
           ],
-          failure: "No active skill players with depth chart data found.",
+          failure: "No active fantasy-relevant players with a team found.",
         },
       };
     }
@@ -203,7 +210,7 @@ export async function loadRAEEnvelope(
     const sourceState: SourceMeta = {
       source: "Sleeper public players API",
       fetchedAt,
-      ttlSeconds: 86_400,
+      ttlSeconds: 0,
       freshness: "fresh",
       confidence: 0.35,
       validation: "valid",
@@ -211,6 +218,8 @@ export async function loadRAEEnvelope(
       assumptions: [
         "Market metrics are derived from position tier and depth-chart data; no proprietary pricing source is connected.",
         "Confidence is set to 0.35 to reflect estimated rather than measured market values.",
+        "Live fetch on every request; no edge cache (rosters change daily).",
+        `Universe size: ${records.length} fantasy-relevant active players across QB/RB/WR/TE/K/DEF.`,
       ],
       failure: null,
     };

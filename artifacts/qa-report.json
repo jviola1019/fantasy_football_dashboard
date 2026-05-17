@@ -1,0 +1,150 @@
+{
+  "results": [
+    {
+      "name": "body background has >=3 radial gradients",
+      "pass": true,
+      "detail": "found 4 radial-gradient layers; backgroundImage=\"radial-gradient(at 16% -6%, rgba(123, 183, 206, 0.26) 0%, rgba(0, 0, 0, 0) 40%), radial-gradient(at 84% 98%, rgba(119, 215, 176, 0.15) 0%, r...\""
+    },
+    {
+      "name": ".panel-command::before has glow (box-shadow or background)",
+      "pass": true,
+      "detail": "boxShadow=\"rgba(123, 183, 206, 0.3) 0px 0px 10px 0px\" bg=\"linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(123, 183, 206, 0.7), rgba(0, 0, 0, 0))\""
+    },
+    {
+      "name": ".panel-command::before contains rgb(123, 183, 206)",
+      "pass": true,
+      "detail": "bg/shadow combined: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(123, 183, 206, 0.7), rgba(0, 0, 0, 0)) rgba(123, 183, 206, 0.3) 0px 0px 10px 0px"
+    },
+    {
+      "name": ".panel-market::before contains rgb(119, 215, 176)",
+      "pass": true,
+      "detail": "bg/shadow combined: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(119, 215, 176, 0.7), rgba(0, 0, 0, 0)) rgba(119, 215, 176, 0.3) 0px 0px 10px 0px"
+    },
+    {
+      "name": ".panel-universe::before contains rgb(215, 168, 87)",
+      "pass": true,
+      "detail": "bg/shadow combined: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(215, 168, 87, 0.6), rgba(0, 0, 0, 0)) rgba(215, 168, 87, 0.25) 0px 0px 10px 0px"
+    },
+    {
+      "name": ".panel-narrative::before contains rgb(155, 127, 232)",
+      "pass": true,
+      "detail": "bg/shadow combined: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(155, 127, 232, 0.6), rgba(0, 0, 0, 0)) rgba(155, 127, 232, 0.25) 0px 0px 10px 0px"
+    },
+    {
+      "name": ".panel-nexus::before contains rgb(77, 217, 192)",
+      "pass": true,
+      "detail": "bg/shadow combined: linear-gradient(90deg, rgba(0, 0, 0, 0), rgba(77, 217, 192, 0.6), rgba(0, 0, 0, 0)) rgba(77, 217, 192, 0.25) 0px 0px 10px 0px"
+    },
+    {
+      "name": ".kpi-card strong has non-zero text-shadow",
+      "pass": true,
+      "detail": "count=11 samples=[\"rgba(119, 215, 176, 0.45) 0px 0px 24px\",\"rgba(215, 168, 87, 0.4) 0px 0px 24px\",\"rgba(119, 215, 176, 0.45) 0px 0px 24px\",\"rgba(119, 215, 176, 0.45) 0px 0px 24px\",\"rgba(215, 168, 87, 0.4) 0px 0px 24px"
+    },
+    {
+      "name": ".pulse-3d-tilt has computed transform (perspective+rotateX)",
+      "pass": true,
+      "detail": "count=2 transform=matrix3d(0.97, 0, 0, 0, 0, 0.96277, 0.118213, -0.000131348, 0, -0.121869, 0.992546, -0.00110283, 0, 0, 0, 1)"
+    },
+    {
+      "name": ".pulse-3d-tilt CSS rule includes 'perspective'",
+      "pass": true,
+      "detail": "rule.transform=\"perspective(900px) rotateX(7deg) scale(0.97)\""
+    },
+    {
+      "name": ".system-panel has 28px grid texture",
+      "pass": true,
+      "detail": "backgroundSize=\"28px 28px, 28px 28px, auto\" bg=\"linear-gradient(rgba(123, 183, 206, 0.024) 1px, rgba(0, 0, 0, 0) 1px), linear-gradient(90deg, rgba(123, 183, 206, 0.02) 1px, rgba(0, 0, 0, 0) 1px), linear-gradient(150deg, rgba(11, 17, 26, 0.99) 0%, r\""
+    },
+    {
+      "name": "Galaxy star-field has ~180 stars",
+      "pass": true,
+      "detail": "found 205 star nodes inside .galaxy-field"
+    },
+    {
+      "name": "top-tab click: Command Center",
+      "pass": true,
+      "detail": "clicked and screenshotted"
+    },
+    {
+      "name": "top-tab click: Market Intelligence",
+      "pass": true,
+      "detail": "clicked and screenshotted"
+    },
+    {
+      "name": "top-tab click: Player Universe",
+      "pass": true,
+      "detail": "clicked and screenshotted"
+    },
+    {
+      "name": "top-tab click: Narrative Engine",
+      "pass": true,
+      "detail": "clicked and screenshotted"
+    },
+    {
+      "name": "top-tab click: Nexus Simulator",
+      "pass": true,
+      "detail": "clicked and screenshotted"
+    },
+    {
+      "name": "sub-tab MI > Liquidity Flow",
+      "pass": true,
+      "detail": "clicked"
+    },
+    {
+      "name": "sub-tab MI > Sentiment",
+      "pass": true,
+      "detail": "clicked"
+    },
+    {
+      "name": "sub-tab Nexus > Scenarios",
+      "pass": true,
+      "detail": "clicked"
+    },
+    {
+      "name": "sub-tab Nexus > Risk Analysis",
+      "pass": true,
+      "detail": "clicked"
+    },
+    {
+      "name": "mobile sidebar hidden (display:none)",
+      "pass": true,
+      "detail": "exists=true display=\"none\""
+    },
+    {
+      "name": "mobile KPIs in ~2-col grid",
+      "pass": true,
+      "detail": "grid-template-columns=\"163px 163px\" (token count=2)"
+    },
+    {
+      "name": "reduced-motion: no firing animations on sampled selectors",
+      "pass": true,
+      "detail": "samples=[{\"sel\":\".kpi-card\",\"animation\":\"1e-06s ease 0s 1 normal none running none\",\"transition\":\"1e-06s\"},{\"sel\":\".system-panel\",\"animation\":\"1e-06s ease 0s 1 normal none running none\",\"transition\":\"1e-06s\"},{\"sel\":\".galaxy-field circle\",\"animation\":\"1e-06s ease-in-out 0.352954s 1 normal none running star-twinkle\",\"transition\":\"1e-06s\"}] offenders=[]"
+    }
+  ],
+  "errors": [
+    {
+      "type": "console:error@desktop",
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "location": "http://localhost:3456/favicon.ico:0"
+    },
+    {
+      "type": "console:error@desktop",
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <RaeApp envelope={{mode:\"fixture\", ...}}>\n          <div className=\"rae-shell\">\n            <Sidebar>\n            <div className=\"rae-content\">\n              <header>\n              <div>\n              <div className=\"dashboard-...\">\n                <CommandCenter players={[...]} envelope={{mode:\"fixture\", ...}} sim={{seed:20260513, ...}} ...>\n                  <section className=\"system-pan...\" id=\"command-ce...\" aria-labelledby=\"cc-title\">\n                    <PanelHeader>\n                    <MetricStrip>\n                    <div className=\"pulse-wrapper\">\n                      <LeaguePulse players={[...]} marketEdge={50} timeRange=\"7D\">\n                        <div className=\"league-pulse\" aria-label=\"League pul...\">\n                          <div>\n                          <div className=\"pulse-3d-tilt\">\n                            <svg viewBox=\"0 0 620 310\" width=\"100%\" aria-hidden=\"true\">\n                              <defs>\n                              <ellipse>\n                              <ellipse>\n                              <ellipse>\n                              <ellipse>\n                              <ellipse>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line\n                                x1={310}\n                                y1={155}\n                                x2={199.9999999999999}\n+                               y2={29.42631645125644}\n-                               y2=\"29.426316451256426\"\n                                stroke=\"rgba(123,183,206,0.05)\"\n                                strokeWidth=\"1\"\n                              >\n                              ...\n                              ...\n                      ...\n                    ...\n                ...\n              ...\n    ...\n",
+      "location": "http://localhost:3456/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318"
+    },
+    {
+      "type": "console:error@mobile",
+      "text": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n      <SegmentTrieNode>\n      <Home>\n        <RaeApp envelope={{mode:\"fixture\", ...}}>\n          <div className=\"rae-shell\">\n            <Sidebar>\n            <div className=\"rae-content\">\n              <header>\n              <div>\n              <div className=\"dashboard-...\">\n                <CommandCenter players={[...]} envelope={{mode:\"fixture\", ...}} sim={{seed:20260513, ...}} ...>\n                  <section className=\"system-pan...\" id=\"command-ce...\" aria-labelledby=\"cc-title\">\n                    <PanelHeader>\n                    <MetricStrip>\n                    <div className=\"pulse-wrapper\">\n                      <LeaguePulse players={[...]} marketEdge={50} timeRange=\"7D\">\n                        <div className=\"league-pulse\" aria-label=\"League pul...\">\n                          <div>\n                          <div className=\"pulse-3d-tilt\">\n                            <svg viewBox=\"0 0 620 310\" width=\"100%\" aria-hidden=\"true\">\n                              <defs>\n                              <ellipse>\n                              <ellipse>\n                              <ellipse>\n                              <ellipse>\n                              <ellipse>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line>\n                              <line\n                                x1={310}\n                                y1={155}\n                                x2={199.9999999999999}\n+                               y2={29.42631645125644}\n-                               y2=\"29.426316451256426\"\n                                stroke=\"rgba(123,183,206,0.05)\"\n                                strokeWidth=\"1\"\n                              >\n                              ...\n                              ...\n                      ...\n                    ...\n                ...\n              ...\n    ...\n",
+      "location": "http://localhost:3456/_next/static/chunks/node_modules_next_dist_115brz8._.js:3318"
+    },
+    {
+      "type": "console:warning@reduced-motion",
+      "text": "You have Reduced Motion enabled on your device. Animations may not appear as expected.. For more information and steps for solving, visit https://motion.dev/troubleshooting/reduced-motion-disabled",
+      "location": "http://localhost:3456/_next/static/chunks/node_modules_next_dist_115brz8._.js:2477"
+    },
+    {
+      "type": "pageerror@reduced-motion",
+      "text": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\nhttps://react.dev/link/hydration-mismatch\n\n  ...\n    <RedirectBoundary>\n      <RedirectErrorBoundary router={{...}}>\n        <InnerLayoutRouter url=\"/\" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>\n          <SegmentViewNode type=\"page\" pagePath=\"page.tsx\">\n            <SegmentTrieNode>\n            <Home>\n              <RaeApp envelope={{mode:\"fixture\", ...}}>\n                <div className=\"rae-shell\">\n                  <Sidebar>\n                  <div className=\"rae-content\">\n                    <header>\n                    <div>\n                    <div className=\"dashboard-...\">\n                      <CommandCenter players={[...]} envelope={{mode:\"fixture\", ...}} sim={{seed:20260513, ...}} ...>\n                        <section className=\"system-pan...\" id=\"command-ce...\" aria-labelledby=\"cc-title\">\n                          <PanelHeader>\n                          <MetricStrip>\n                          <div className=\"pulse-wrapper\">\n                            <LeaguePulse players={[...]} marketEdge={50} timeRange=\"7D\">\n                              <div className=\"league-pulse\" aria-label=\"League pul...\">\n                                <div>\n                                <div\n+                                 className={undefined}\n-                                 className=\"pulse-3d-tilt\"\n                                >\n                                  <svg viewBox=\"0 0 620 310\" width=\"100%\" aria-hidden=\"true\">\n                                    <defs>\n                                    <ellipse>\n                                    <ellipse>\n                                    <ellipse>\n                                    <ellipse>\n                                    <ellipse>\n                                    <line>\n                                    <line>\n                                    <line>\n                                    <line>\n                                    <line>\n                                    <line>\n                                    <line>\n                                    <line>\n                                    <line\n                                      x1={310}\n                                      y1={155}\n                                      x2={199.9999999999999}\n+                                     y2={29.42631645125644}\n-                                     y2=\"29.426316451256426\"\n                                      stroke=\"rgba(123,183,206,0.05)\"\n                                      strokeWidth=\"1\"\n                                    >\n                                    ...\n                                    ...\n-                                   <circle\n-                                     cx=\"310\"\n-                                     cy=\"155\"\n-                                     fill=\"none\"\n-                                     stroke=\"rgba(123,183,206,0.45)\"\n-                                     stroke-width=\"1.5\"\n-                                   >\n-                                   <circle\n-                                     cx=\"310\"\n-                                     cy=\"155\"\n-                                     fill=\"none\"\n-                                     stroke=\"rgba(119,215,176,0.32)\"\n-                                     stroke-width=\"1\"\n-                                   >\n                            ...\n                          ...\n                      ...\n                    ...\n          ...\n        ...\n"
+    }
+  ]
+}
