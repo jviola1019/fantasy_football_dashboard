@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import type { PlayerMarketRecord } from "@/lib/governance";
 import type { SimulationResult } from "@/lib/simulation";
 import type { ScenarioComparison } from "@/lib/derivedMetrics";
@@ -104,7 +104,6 @@ function OutcomeMultiverse({
   sim: SimulationResult;
   running: boolean;
 }) {
-  const reduceMotion = useReducedMotion();
   const outcomes = [
     { label: "Championship", pct: sim.championshipProbability, y: 40, color: "#d7a857" },
     { label: "Top 3 Finish", pct: Math.round(sim.championshipProbability * 4.1 * 10) / 10, y: 95, color: "#77d7b0" },
@@ -116,7 +115,7 @@ function OutcomeMultiverse({
   return (
     <div className="multiverse-wrap">
       <div className="section-label">OUTCOME MULTIVERSE — {sim.params.iterations.toLocaleString()} SIMULATIONS</div>
-      <div className={reduceMotion ? undefined : "pulse-3d-tilt"}>
+      <div className="pulse-3d-tilt">
       <svg viewBox="0 0 580 310" width="100%" aria-hidden="true">
         <defs>
           <filter id="multiverseGlow" x="-100%" y="-100%" width="300%" height="300%">

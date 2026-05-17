@@ -123,10 +123,11 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
   // Subset to top 16 by trueValue — typical fantasy league size; keeps the graph readable.
   const top = [...players].sort((a, b) => b.trueValue - a.trueValue).slice(0, 16);
 
+  const r2 = (n: number) => Math.round(n * 100) / 100;
   const nodePositions = top.map((p, i) => {
     const angle = (i / Math.max(top.length, 1)) * Math.PI * 2 - Math.PI / 2;
     const r = 95 + p.trueValue * 0.55;
-    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) * 0.68, player: p };
+    return { x: r2(cx + r * Math.cos(angle)), y: r2(cy + r * Math.sin(angle) * 0.68), player: p };
   });
 
   const edges: Array<[number, number]> = [];
@@ -142,7 +143,7 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
   return (
     <div className="league-pulse" aria-label="League pulse network topology">
       <div className="league-pulse-label">LEAGUE PULSE · NETWORK TOPOLOGY · TOP {top.length}</div>
-      <div className={reduceMotion ? undefined : "pulse-3d-tilt"}>
+      <div className="pulse-3d-tilt">
         <svg viewBox="0 0 620 310" width="100%" aria-hidden="true">
           <defs>
             <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
@@ -186,15 +187,15 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
             />
           ))}
 
-          {/* twelve radial spokes */}
+          {/* twelve radial spokes — coordinates rounded to avoid SSR/client float mismatch */}
           {Array.from({ length: 12 }, (_, i) => {
             const angle = (i / 12) * Math.PI * 2;
             return (
               <line
                 key={`spoke-${i}`}
                 x1={cx} y1={cy}
-                x2={cx + 220 * Math.cos(angle)}
-                y2={cy + 145 * Math.sin(angle)}
+                x2={r2(cx + 220 * Math.cos(angle))}
+                y2={r2(cy + 145 * Math.sin(angle))}
                 stroke="rgba(123,183,206,0.05)"
                 strokeWidth="1"
               />
@@ -260,23 +261,19 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
             {timeRange} · {players.length}P
           </text>
 
-          {/* animated pulse rings from center */}
-          {!reduceMotion && (
-            <>
-              <motion.circle
-                cx={cx} cy={cy}
-                fill="none" stroke="rgba(123,183,206,0.45)" strokeWidth="1.5"
-                animate={{ r: [44, 80, 44], opacity: [0.4, 0, 0.4] }}
-                transition={{ duration: 3.5, repeat: Infinity, ease: "easeOut" }}
-              />
-              <motion.circle
-                cx={cx} cy={cy}
-                fill="none" stroke="rgba(119,215,176,0.32)" strokeWidth="1"
-                animate={{ r: [44, 72, 44], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 3.5, delay: 1.2, repeat: Infinity, ease: "easeOut" }}
-              />
-            </>
-          )}
+          {/* animated pulse rings — always rendered; CSS @prefers-reduced-motion kills animation */}
+          <motion.circle
+            cx={cx} cy={cy}
+            fill="none" stroke="rgba(123,183,206,0.45)" strokeWidth="1.5"
+            animate={reduceMotion ? { r: 44, opacity: 0.4 } : { r: [44, 80, 44], opacity: [0.4, 0, 0.4] }}
+            transition={{ duration: 3.5, repeat: Infinity, ease: "easeOut" }}
+          />
+          <motion.circle
+            cx={cx} cy={cy}
+            fill="none" stroke="rgba(119,215,176,0.32)" strokeWidth="1"
+            animate={reduceMotion ? { r: 44, opacity: 0.3 } : { r: [44, 72, 44], opacity: [0.3, 0, 0.3] }}
+            transition={{ duration: 3.5, delay: 1.2, repeat: Infinity, ease: "easeOut" }}
+          />
         </svg>
       </div>
     </div>

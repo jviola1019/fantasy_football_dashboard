@@ -154,7 +154,7 @@ function GalaxyView({
 
   return (
     <div className="galaxy-field" aria-label="Galaxy player ecosystem">
-      <div className={reduceMotion ? undefined : "galaxy-3d-tilt"}>
+      <div className="galaxy-3d-tilt">
         <svg viewBox="0 0 560 290" width="100%" aria-hidden="true">
           <defs>
             <radialGradient id="galaxyCore" cx="50%" cy="50%" r="40%">

@@ -496,4 +496,5 @@ td small { color: var(--muted); }
     scroll-behavior: auto !important;
     transition-duration: .001ms !important;
   }
+  .pulse-3d-tilt, .galaxy-3d-tilt { transform: none !important; }
 }
