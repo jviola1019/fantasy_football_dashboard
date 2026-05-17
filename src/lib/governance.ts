@@ -29,7 +29,11 @@ export const PlayerMarketRecordSchema = z.object({
   volatility: z.number().min(0).max(100),
   opportunity: z.number().min(0).max(100),
   confidence: z.number().min(0).max(1),
-  sources: z.array(SourceMetaSchema)
+  sources: z.array(SourceMetaSchema),
+  rosterSlot: z.string(),
+  status: z.enum(["active", "questionable", "out", "ir", "bye", "unknown"]),
+  imageUrl: z.string().url(),
+  imageSource: z.string()
 });
 export type PlayerMarketRecord = z.infer<typeof PlayerMarketRecordSchema>;
 
