@@ -60,9 +60,9 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
           <div className="topbar-right">
             <div className="ops-status" aria-live="polite">
               <b className={envelope.mode === "live" ? "status-live" : envelope.mode === "fixture" ? "status-fixture" : "status-err"}>
-                {envelope.mode.toUpperCase()}
+                {envelope.mode === "live" ? "● LIVE" : envelope.mode === "fixture" ? "FIXTURE" : "UNAVAILABLE"}
               </b>
-              <span>{envelope.sourceState.freshness}</span>
+              <span>{envelope.records.length} players</span>
             </div>
           </div>
         </header>
