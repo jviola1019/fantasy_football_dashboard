@@ -16,6 +16,10 @@ export function chaosExposure(player: PlayerMarketRecord): number {
   return round(player.volatility * 0.45 + player.fragility * 0.4 + Math.abs(player.narrativePressure) * 0.15);
 }
 
+export function liquidityScore(player: PlayerMarketRecord): number {
+  return round((player.opportunity * 0.6 + marketInefficiency(player) * 0.4) / 10);
+}
+
 export function confidenceInterval(center: number, confidence: number): [number, number] {
   const width = (1 - confidence) * 18;
   return [round(Math.max(0, center - width)), round(Math.min(100, center + width))];
