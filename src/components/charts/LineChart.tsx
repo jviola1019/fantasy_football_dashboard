@@ -24,42 +24,68 @@ export function LineChart({ series, labels, height = 130 }: LineChartProps) {
 
   const px = (i: number) => padL + (i / (maxN - 1)) * innerW;
   const py = (v: number) => padT + (1 - (v - minV) / range) * innerH;
+  const baseline = padT + innerH;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" aria-hidden="true" style={{ display: "block" }}>
+      <defs>
+        {series.map((s, i) => (
+          <linearGradient key={i} id={`area-fill-${i}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={s.color} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+          </linearGradient>
+        ))}
+      </defs>
+
+      {/* Horizontal grid lines */}
       {[0, 0.5, 1].map((t) => (
         <line
           key={t}
-          x1={padL}
-          x2={W - padR}
-          y1={padT + t * innerH}
-          y2={padT + t * innerH}
-          stroke="rgba(214,226,226,0.07)"
-          strokeWidth="1"
+          x1={padL} x2={W - padR}
+          y1={padT + t * innerH} y2={padT + t * innerH}
+          stroke="rgba(123,183,206,0.07)" strokeWidth="1"
         />
       ))}
-      {series.map((s) => (
-        <g key={s.label}>
+
+      {/* Area fills */}
+      {series.map((s, si) => {
+        const pts = s.points
+          .map((v, i) => `${px(i)},${py(v)}`)
+          .join(" ");
+        const first = `${px(0)},${baseline}`;
+        const last = `${px(s.points.length - 1)},${baseline}`;
+        return (
+          <polygon
+            key={`area-${si}`}
+            points={`${first} ${pts} ${last}`}
+            fill={`url(#area-fill-${si})`}
+          />
+        );
+      })}
+
+      {/* Lines and dots */}
+      {series.map((s, si) => (
+        <g key={`series-${si}`}>
           <polyline
             points={s.points.map((v, i) => `${px(i)},${py(v)}`).join(" ")}
             fill="none"
             stroke={s.color}
-            strokeWidth="1.5"
-            opacity="0.85"
+            strokeWidth="1.8"
+            opacity="0.9"
           />
           {s.points.map((v, i) => (
-            <circle key={i} cx={px(i)} cy={py(v)} r="2" fill={s.color} opacity="0.9" />
+            <circle key={i} cx={px(i)} cy={py(v)} r="2.2" fill={s.color} opacity="0.95" />
           ))}
         </g>
       ))}
+
+      {/* X-axis labels */}
       {labels.map((l, i) => (
         <text
           key={i}
-          x={px(i)}
-          y={H - 6}
-          textAnchor="middle"
-          fontSize="9"
-          fill="rgba(141,154,160,0.75)"
+          x={px(i)} y={H - 6}
+          textAnchor="middle" fontSize="9"
+          fill="rgba(122,136,148,0.75)"
         >
           {l}
         </text>

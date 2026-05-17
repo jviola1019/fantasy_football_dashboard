@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord } from "@/lib/governance";
 import type { SimulationResult } from "@/lib/simulation";
 import type { ScenarioComparison } from "@/lib/derivedMetrics";
@@ -104,53 +104,78 @@ function OutcomeMultiverse({
   sim: SimulationResult;
   running: boolean;
 }) {
+  const reduceMotion = useReducedMotion();
   const outcomes = [
-    { label: "Championship", pct: sim.championshipProbability, y: 50, color: "#d7a857" },
-    { label: "Top 3 Finish", pct: Math.round(sim.championshipProbability * 4.1 * 10) / 10, y: 100, color: "#77d7b0" },
+    { label: "Championship", pct: sim.championshipProbability, y: 40, color: "#d7a857" },
+    { label: "Top 3 Finish", pct: Math.round(sim.championshipProbability * 4.1 * 10) / 10, y: 95, color: "#77d7b0" },
     { label: "Playoffs", pct: sim.playoffProbability, y: 150, color: "#7bb7ce" },
-    { label: "Middle Pack", pct: Math.max(0, Math.round((100 - sim.playoffProbability - sim.catastrophicRisk) * 10) / 10), y: 200, color: "#8d9aa0" },
-    { label: "Bottom 3", pct: sim.catastrophicRisk, y: 250, color: "#d9866f" },
+    { label: "Middle Pack", pct: Math.max(0, Math.round((100 - sim.playoffProbability - sim.catastrophicRisk) * 10) / 10), y: 210, color: "#8d9aa0" },
+    { label: "Bottom 3", pct: sim.catastrophicRisk, y: 265, color: "#d9866f" },
   ];
 
   return (
     <div className="multiverse-wrap">
-      <div className="section-label">OUTCOME MULTIVERSE</div>
-      <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
+      <div className="section-label">OUTCOME MULTIVERSE — {sim.params.iterations.toLocaleString()} SIMULATIONS</div>
+      <div className={reduceMotion ? undefined : "pulse-3d-tilt"}>
+      <svg viewBox="0 0 580 310" width="100%" aria-hidden="true">
         <defs>
-          <filter id="multiverseGlow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
+          <filter id="multiverseGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
+          {outcomes.map((o, i) => (
+            <linearGradient key={`grad-${i}`} id={`branchGrad${i}`} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={o.color} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={o.color} stopOpacity="0.35" />
+            </linearGradient>
+          ))}
         </defs>
-        <circle cx="50" cy="150" r="12" fill="rgba(9,13,18,0.9)" stroke="rgba(123,183,206,0.6)" strokeWidth="1.5" />
-        <text x="50" y="154" textAnchor="middle" fontSize="8" fill="var(--blue)">NOW</text>
+
+        {/* Vertical guide lines */}
+        {[150, 300, 450].map((gx) => (
+          <line key={gx} x1={gx} y1={10} x2={gx} y2={300} stroke="rgba(123,183,206,0.05)" strokeWidth="1" />
+        ))}
+
+        {/* Source node */}
+        <circle cx={60} cy={155} r={16} fill="rgba(9,13,18,0.95)" stroke="rgba(123,183,206,0.55)" strokeWidth="1.5" filter="url(#multiverseGlow)" />
+        <circle cx={60} cy={155} r={10} fill="none" stroke="rgba(123,183,206,0.25)" strokeWidth="1" strokeDasharray="3 3" />
+        <text x={60} y={159} textAnchor="middle" fontSize="8" fill="var(--blue)" fontWeight="700">NOW</text>
+
+        {/* Branches */}
         {outcomes.map((o, i) => {
           const cpX = 220;
-          const d = `M 50 150 C ${cpX} ${150}, ${cpX + 80} ${o.y}, 460 ${o.y}`;
+          const d = `M 60 155 C ${cpX} ${155}, ${cpX + 80} ${o.y}, 470 ${o.y}`;
           return (
             <g key={o.label}>
               <motion.path
                 d={d}
                 fill="none"
-                stroke={o.color}
-                strokeWidth="1.5"
-                opacity="0.65"
+                stroke={`url(#branchGrad${i})`}
+                strokeWidth="2.5"
+                opacity="0.78"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: running ? 0 : 1 }}
                 transition={{ duration: 1.2 + i * 0.2, ease: "easeOut" }}
               />
-              <circle cx="460" cy={o.y} r="8" fill="rgba(9,13,18,0.9)" stroke={o.color} strokeWidth="1.5" filter="url(#multiverseGlow)" />
-              <text x="470" y={o.y + 4} fontSize="9" fill={o.color}>{o.pct}%</text>
-              <text x="470" y={o.y - 6} fontSize="8" fill="var(--muted)">{o.label}</text>
+              <circle cx={472} cy={o.y} r={14} fill={o.color} opacity="0.08" />
+              <circle cx={472} cy={o.y} r={11} fill="rgba(9,13,18,0.95)" stroke={o.color} strokeWidth="1.8" filter="url(#multiverseGlow)" />
+              <text x={490} y={o.y - 4} fontSize="8" fill="var(--muted)" style={{ textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                {o.label}
+              </text>
+              <text x={490} y={o.y + 8} fontSize="12" fill={o.color} fontWeight="700">
+                {o.pct}%
+              </text>
             </g>
           );
         })}
+
         {players.length === 0 && (
           <text x="280" y="150" textAnchor="middle" fontSize="12" fill="rgba(232,225,207,0.3)">
             No player data
           </text>
         )}
       </svg>
+      </div>
     </div>
   );
 }

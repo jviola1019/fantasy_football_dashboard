@@ -17,17 +17,26 @@ export function BarChart({ items, max }: BarChartProps) {
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" aria-hidden="true" style={{ display: "block" }}>
+      <defs>
+        <filter id="barGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
       {items.map((item, i) => {
         const barW = Math.max(2, (item.value / maxVal) * barMaxW);
         const y = i * (barH + gap);
-        const color = item.color ?? "var(--green)";
+        const color = item.color ?? "#77d7b0";
         return (
           <g key={item.label}>
-            <text x="0" y={y + barH - 2} fontSize="10" fill="rgba(141,154,160,0.9)" textAnchor="start">
+            <text x="0" y={y + barH - 2} fontSize="10" fill="rgba(122,136,148,0.9)" textAnchor="start">
               {item.label}
             </text>
-            <rect x={labelW} y={y} width={barW} height={barH} fill={color} opacity="0.75" rx="2" />
-            <text x={labelW + barW + 5} y={y + barH - 2} fontSize="10" fill="rgba(232,225,207,0.8)">
+            {/* Bar body */}
+            <rect x={labelW} y={y} width={barW} height={barH} fill={color} opacity="0.55" rx="2" />
+            {/* Glowing end cap */}
+            <rect x={labelW + barW - 3} y={y} width={3} height={barH} fill={color} opacity="0.95" rx="1" filter="url(#barGlow)" />
+            <text x={labelW + barW + 7} y={y + barH - 2} fontSize="10" fill="rgba(232,225,207,0.82)">
               {item.value}%
             </text>
           </g>
