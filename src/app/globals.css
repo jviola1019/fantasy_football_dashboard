@@ -293,6 +293,72 @@ ul { margin: 0; padding: 0; list-style: none; }
   color: var(--muted);
 }
 .pulse-node { animation: node-glow 2.8s ease-in-out infinite; }
+.league-pulse-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  pointer-events: none;
+  text-align: center;
+}
+.league-pulse-center-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--cream);
+  text-shadow: 0 0 20px rgba(123, 183, 206, .45);
+}
+.league-pulse-center-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.league-pulse-center-sub {
+  font-size: 10px;
+  color: var(--green);
+  margin-top: 2px;
+}
+.league-pulse-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  color: rgba(232, 225, 207, .3);
+  font-size: 13px;
+}
+
+.galaxy-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  color: rgba(232, 225, 207, .3);
+  font-size: 12px;
+  pointer-events: none;
+}
+.galaxy-cycler {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+.galaxy-cycler button {
+  color: var(--blue);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.galaxy-cycler button:hover { color: var(--cream); }
+
+.vol-surface-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-top: 6px;
+}
 
 /* ─── Narrative Momentum ─────────────────────────────────────────────────── */
 .narrative-momentum {

@@ -14,6 +14,7 @@ import { MarketIntelligence } from "./panels/MarketIntelligence";
 import { PlayerUniverse } from "./panels/PlayerUniverse";
 import { NarrativeEngine } from "./panels/NarrativeEngine";
 import { NexusSimulator } from "./panels/NexusSimulator";
+import { DraftIntelligence } from "./panels/DraftIntelligence";
 
 export const systems = [
   "Command Center",
@@ -21,6 +22,7 @@ export const systems = [
   "Player Universe",
   "Narrative Engine",
   "Nexus Simulator",
+  "Draft Intelligence",
 ] as const;
 
 export type SystemName = (typeof systems)[number];
@@ -89,6 +91,10 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
           <PlayerUniverse players={players} />
           <NarrativeEngine players={players} />
           <NexusSimulator players={players} sim={sim} scenarios={scenarios} />
+        </div>
+
+        <div className="bottom-panels">
+          <DraftIntelligence players={players} />
         </div>
       </div>
     </div>

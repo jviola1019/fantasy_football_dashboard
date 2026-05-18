@@ -5,9 +5,16 @@ import { RAEEnvelopeSchema } from "./governance";
 import { fixtureEnvelope } from "./fixtures";
 
 describe("RAE visual/product contract", () => {
-  it("locks the product to exactly five top-level systems", () => {
-    expect(systems).toEqual(["Command Center", "Market Intelligence", "Player Universe", "Narrative Engine", "Nexus Simulator"]);
-    expect(systems).toHaveLength(5);
+  it("locks the product to exactly six top-level systems (five core + Draft Intelligence)", () => {
+    expect(systems).toEqual([
+      "Command Center",
+      "Market Intelligence",
+      "Player Universe",
+      "Narrative Engine",
+      "Nexus Simulator",
+      "Draft Intelligence"
+    ]);
+    expect(systems).toHaveLength(6);
   });
 
   it("keeps roster and player imagery as validated remote metadata, not committed binary assets", () => {

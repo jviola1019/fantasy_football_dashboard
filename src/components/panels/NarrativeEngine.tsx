@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import { Canvas3D } from "../three/Canvas3D";
+import { NarrativeField } from "../three/scenes/NarrativeField";
 
 import {
   deriveNarrativeHalfLife,
@@ -82,58 +83,17 @@ export function NarrativeEngine({ players }: Props) {
 }
 
 function NarrativeFlowField({ players }: { players: PlayerMarketRecord[] }) {
-  const reduceMotion = useReducedMotion();
   if (players.length === 0) {
     return <div className="empty-state"><b>No narrative data</b></div>;
   }
   return (
-    <div className="narrative-flow-svg" aria-label="Narrative flow field">
-      <svg viewBox="0 0 480 260" width="100%" aria-hidden="true">
-        <defs>
-          <filter id="flowBlur">
-            <feGaussianBlur stdDeviation="1.5" />
-          </filter>
-        </defs>
-        {players.map((p, i) => {
-          const isPos = p.narrativePressure >= 0;
-          const color = isPos ? "rgba(119,215,176,0.55)" : "rgba(215,134,111,0.55)";
-          const baseY = 40 + (i / players.length) * 180;
-          const amp = 20 + Math.abs(p.narrativePressure) * 0.4;
-          const freq = 0.008 + p.volatility * 0.0001;
-          const points = Array.from({ length: 20 }, (_, j) => {
-            const x = (j / 19) * 460 + 10;
-            const y = baseY + Math.sin(j * freq * 100 + i) * amp;
-            return `${x},${y}`;
-          }).join(" ");
-          return (
-            <motion.polyline
-              key={p.id}
-              points={points}
-              fill="none"
-              stroke={color}
-              strokeWidth={1 + p.confidence * 1.5}
-              className="narrative-path"
-              animate={reduceMotion ? {} : { opacity: [0.4, 0.8, 0.4] }}
-              transition={{ duration: 4 + i * 0.6, repeat: Infinity }}
-            />
-          );
-        })}
-        {players.map((p, i) => {
-          const baseY = 40 + (i / players.length) * 180;
-          const labelX = 100 + (i % 3) * 140;
-          const labelY = baseY - 10;
-          return (
-            <g key={`label-${p.id}`}>
-              <rect x={labelX - 4} y={labelY - 11} width={p.name.length * 5.2 + 8} height={14} rx="3"
-                fill="rgba(9,13,18,0.75)" />
-              <text x={labelX} y={labelY} fontSize="9" fill="var(--cream)">{p.name}</text>
-              <text x={labelX} y={labelY + 10} fontSize="8" fill="var(--muted)">
-                Strength: {Math.abs(Math.round(p.narrativePressure))}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+    <div className="narrative-flow-svg" aria-label="3-D narrative flow field">
+      <Canvas3D
+        ariaLabel="3-D narrative ribbons encoding velocity and direction"
+        height={260}
+      >
+        <NarrativeField players={players} />
+      </Canvas3D>
     </div>
   );
 }

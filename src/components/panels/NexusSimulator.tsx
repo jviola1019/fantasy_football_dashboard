@@ -7,6 +7,8 @@ import type { SimulationResult } from "@/lib/simulation";
 import type { ScenarioComparison } from "@/lib/derivedMetrics";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
+import { Canvas3D } from "../three/Canvas3D";
+import { VolatilitySurface } from "../three/scenes/VolatilitySurface";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -115,6 +117,12 @@ function OutcomeMultiverse({
   return (
     <div className="multiverse-wrap">
       <div className="section-label">OUTCOME MULTIVERSE</div>
+      <Canvas3D
+        ariaLabel="3-D volatility surface encoding playoff probability and catastrophic risk"
+        height={200}
+      >
+        <VolatilitySurface sim={sim} />
+      </Canvas3D>
       <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
         <defs>
           <filter id="multiverseGlow">

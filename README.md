@@ -30,9 +30,26 @@ Current implementation:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `RAE_ALLOW_FIXTURES` | No | Set to `true` to render clearly labeled dev/test fixture records. Defaults to unavailable/missing states. |
+| `AUTH_SECRET` | Yes (prod/dev) | Auth.js session signing key. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. |
+| `DATABASE_URL` | No (defaults to `file:.data/rae.sqlite`) | SQLite for dev, Postgres URL for production (Vercel Marketplace Postgres / Neon). |
+| `CREDENTIAL_ENCRYPTION_KEY` | Yes | Base64-encoded 32 bytes. Encrypts ESPN cookies and OAuth tokens at rest with AES-256-GCM. |
+| `RAE_ALLOW_FIXTURES` | No | `true` to render clearly labeled dev/test fixture records. Defaults to unavailable/missing states. |
+| `RAE_LIVE_TESTS` | No | `1` to enable live API round-trip vitest specs. |
+| `RAE_LIVE_SLEEPER_LEAGUE_ID` | No | Public Sleeper league for live tests. |
+| `ESPN_S2`, `ESPN_SWID`, `ESPN_LEAGUE_ID`, `ESPN_SEASON` | No | Live ESPN private-league round-trip tests. |
 
 Secrets and API keys must remain server-side. Do not expose league tokens or paid data credentials through `NEXT_PUBLIC_*` variables.
+
+## Auth and league connection
+
+RAE ships multi-user authentication via Auth.js (NextAuth v5) with the Drizzle adapter (SQLite locally, Postgres in production).
+
+- Passwords are hashed with scrypt (`src/lib/passwords.ts`) — plaintext is never stored.
+- ESPN private-league cookies (`espn_s2` + `SWID`) are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) and never returned to the browser after creation. They are decrypted only inside the server-only `/api/leagues/[id]/refresh` route.
+- Sleeper integration uses public endpoints (no auth required).
+- Visit `/login` to sign up, `/settings/leagues` to add leagues, and `POST /api/leagues/[id]/refresh` to pull the live envelope for a specific league.
+
+The full Sleeper and ESPN adapter surfaces are in `src/lib/sleeper/` and `src/lib/espn/` and produce records that pass `PlayerMarketRecordSchema` via `src/lib/normalize.ts`. Behavioral-market metrics still default to zero (unavailable) — RAE refuses to fabricate them from identity records alone.
 
 ## Local setup
 
@@ -87,16 +104,13 @@ Current probabilities are development-calibration outputs when fixture mode is e
 
 ## Draft systems
 
-Draft Intelligence is contextual, not a sixth top-level tab. It appears inside operational workflows and is designed to support:
-- live draft board,
-- recommendation categories,
-- tier collapse forecasts,
-- draft fragility,
-- league meta detection,
-- multiverse draft simulation,
-- draft heat topology.
+Draft Intelligence is the sixth top-level system (`src/components/panels/DraftIntelligence.tsx`). It ships with:
+- Live Board — click rows to draft to your roster.
+- Recommendation Queue — categories (`Value`, `Need`, `Stash`, `Run`) with a deterministic scoring function in `src/lib/draft/recommend.ts`.
+- Tier Collapse Forecast — per-position tier breaks and intensity, from `src/lib/draft/tiers.ts`.
+- Multiverse — 3-D branching path scene driven by branch probability and projected roster delta.
 
-This pass implements the contextual drawer and governance language. Live draft ingestion remains a planned adapter extension.
+Recommendation and tier logic are pure functions with unit tests in `src/lib/draft/*.test.ts`. Live draft ingestion can be wired by calling `getDraftPicks(draftId)` (Sleeper) or `getDraft(client, { leagueId, season })` (ESPN) and feeding the result into the panel.
 
 ## Stale-data handling
 
@@ -153,7 +167,13 @@ Planned tests:
 
 ## Design philosophy
 
-RAE intentionally avoids cyberpunk, gamer, neon, and decorative sci-fi patterns. The UI uses graphite surfaces, cream contrast, amber highlights, restrained red/green status semantics, blue telemetry accents, asymmetrical density, and operational whitespace.
+RAE pairs a graphite-and-cream institutional base with restrained neon accents that are only emitted by data-bright pixels — never used decoratively. Reference set: Bloomberg Terminal density discipline, Tremor-style information hierarchy, Awwwards-winning WebGL signal visualizations. The result is dense and operational with selectively dimensional 3-D where the metaphor (orbital topology, liquidity ribbons, volatility surface, multiverse paths) genuinely encodes signal.
+
+Implementation rules:
+- DOM owns KPI cards, tables, lists, gauges, and controls (a11y, copy, selection).
+- WebGL (`react-three-fiber`) owns topology and surface visualizations only. One `<Canvas>` per scene, `frameloop="demand"` so idle GPU is zero.
+- Every animation responds to `prefers-reduced-motion` via Framer Motion's `useReducedMotion()` — including the canvas auto-rotation in `OrbitalTopology`, `LiquidityFlow`, `NarrativeField`, `PlayerGalaxy`, `VolatilitySurface`, and `DraftMultiverse`.
+- Neon palette is restricted to cyan/lime/magenta tokens used inside WebGL scenes; the DOM layer stays on the original cream/amber/green/red/blue tokens.
 
 ## Motion philosophy
 
@@ -172,9 +192,10 @@ RAE does not fabricate production intelligence. If live data is unavailable, the
 
 ## Known limitations
 
-- No database persistence yet.
-- No league OAuth/private league sync yet.
+- ESPN cookies (`espn_s2`, `SWID`) expire periodically. When ESPN refresh starts returning `unavailable`, the user needs to paste fresh cookies into `/settings/leagues`. There is no programmatic refresh path.
+- The Sleeper `/v1/players/nfl` payload is now ~19 MB (Next.js's per-item data cache cap is 2 MB). PR 5's planned cron snapshot path (`/api/cron/players-refresh` → Vercel Blob or Postgres `players_snapshots`) is not yet implemented; the route currently fetches on demand. Acceptable for dev; not for production traffic.
 - No paid sentiment/news/injury adapters yet.
 - Fixture data is not production intelligence.
 - Monte Carlo calibration is structurally deterministic but not production-calibrated without real projections and league settings.
-- Automated screenshot, accessibility, and performance audits require a running browser workflow.
+- Multi-tenant organizations / shared teams are out of scope in this pass — single user per account, per-user data isolation enforced by `userId` foreign key and verified by `src/lib/leagues.test.ts`.
+- Automated screenshot, accessibility, and Lighthouse audits require a running browser workflow.

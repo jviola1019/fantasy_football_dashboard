@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
+import { Canvas3D } from "../three/Canvas3D";
+import { OrbitalTopology } from "../three/scenes/OrbitalTopology";
 import type { SimulationResult } from "@/lib/simulation";
 import type { CommandMetrics, PositionGrades } from "@/lib/derivedMetrics";
-import { reputationEdge, narrativeVelocity } from "@/lib/models";
+import { narrativeVelocity } from "@/lib/models";
 import {
   deriveNarrativeMovers,
   derivePositionGrades,
@@ -116,87 +117,20 @@ function MetricStrip({ metrics }: { metrics: CommandMetrics }) {
 }
 
 function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarketRecord[]; marketEdge: number; timeRange: string }) {
-  const reduceMotion = useReducedMotion();
-  const cx = 300;
-  const cy = 150;
-
-  const nodePositions = players.map((p, i) => {
-    const angle = (i / players.length) * Math.PI * 2 - Math.PI / 2;
-    const r = 80 + p.trueValue * 0.65;
-    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) * 0.72, player: p };
-  });
-
-  const edges: Array<[number, number]> = [];
-  for (let a = 0; a < nodePositions.length; a++) {
-    for (let b = a + 1; b < nodePositions.length; b++) {
-      if (Math.abs(nodePositions[a].player.trueValue - nodePositions[b].player.trueValue) < 18) {
-        edges.push([a, b]);
-      }
-    }
-  }
-
   return (
-    <div className="league-pulse" aria-label="League pulse network topology">
+    <div className="league-pulse" aria-label="League pulse 3-D topology">
       <div className="league-pulse-label">LEAGUE PULSE</div>
-      <svg viewBox="0 0 600 300" width="100%" aria-hidden="true">
-        <defs>
-          <radialGradient id="pulseGlow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="rgba(123,183,206,0.18)" />
-            <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-          </radialGradient>
-          <filter id="nodeGlow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-          </filter>
-        </defs>
-        <ellipse cx={cx} cy={cy} rx={240} ry={140} fill="url(#pulseGlow)" />
-        {[40, 90, 140].map((r2) => (
-          <ellipse key={r2} cx={cx} cy={cy} rx={r2 * 2.2} ry={r2 * 1.4}
-            fill="none" stroke="rgba(123,183,206,0.08)" strokeWidth="1" />
-        ))}
-        {edges.map(([a, b], i) => (
-          <line
-            key={i}
-            x1={nodePositions[a].x} y1={nodePositions[a].y}
-            x2={nodePositions[b].x} y2={nodePositions[b].y}
-            stroke="rgba(119,215,176,0.18)" strokeWidth="1"
-          />
-        ))}
-        {players.length === 0 && (
-          <text x={cx} y={cy} textAnchor="middle" fill="rgba(232,225,207,0.3)" fontSize="13">No data</text>
-        )}
-        {nodePositions.map(({ x, y, player }, i) => {
-          const edge = reputationEdge(player);
-          const r = 8 + player.opportunity / 9;
-          const color = edge >= 0 ? "#77d7b0" : "#d9866f";
-          return (
-            <motion.g
-              key={player.id}
-              animate={reduceMotion ? {} : { y: [0, -3 - player.volatility / 20, 0] }}
-              transition={{ duration: 4 + i * 0.4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <circle cx={x} cy={y} r={r + 4} fill={color} opacity="0.08" />
-              <circle cx={x} cy={y} r={r} fill="rgba(7,10,13,0.88)" stroke={color} strokeWidth="1.5" filter="url(#nodeGlow)" className="pulse-node" />
-              <text x={x} y={y - r - 5} textAnchor="middle" fontSize="9" fill="var(--cream)" opacity="0.9">
-                {player.name.split(" ").pop()}
-              </text>
-              <text x={x} y={y - r - 15} textAnchor="middle" fontSize="8" fill="var(--muted)">
-                {player.position}·{player.team}
-              </text>
-            </motion.g>
-          );
-        })}
-        <circle cx={cx} cy={cy} r={36} fill="rgba(9,13,18,0.92)" stroke="rgba(123,183,206,0.3)" strokeWidth="1" />
-        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="22" fill="var(--cream)" fontWeight="700">
-          {marketEdge}
-        </text>
-        <text x={cx} y={cy + 8} textAnchor="middle" fontSize="8" fill="var(--muted)" style={{ textTransform: "uppercase", letterSpacing: "0.1em" }}>
-          MARKET EDGE
-        </text>
-        <text x={cx} y={cy + 20} textAnchor="middle" fontSize="9" fill="var(--green)">
-          {timeRange} view
-        </text>
-      </svg>
+      <Canvas3D ariaLabel="3-D player topology encoding true value, narrative pressure, and market inefficiency" height={300}>
+        <OrbitalTopology players={players} />
+      </Canvas3D>
+      <div className="league-pulse-center">
+        <div className="league-pulse-center-value">{marketEdge}</div>
+        <div className="league-pulse-center-label">Market Edge</div>
+        <div className="league-pulse-center-sub">{timeRange} view</div>
+      </div>
+      {players.length === 0 && (
+        <div className="league-pulse-empty" role="status">Awaiting league data</div>
+      )}
     </div>
   );
 }

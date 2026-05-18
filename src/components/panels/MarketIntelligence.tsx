@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import { Canvas3D } from "../three/Canvas3D";
+import { LiquidityFlow as LiquidityFlowScene } from "../three/scenes/LiquidityFlow";
+import { VolatilitySurface as VolatilitySurfaceScene } from "../three/scenes/VolatilitySurface";
+import { runNexusSimulation } from "@/lib/simulation";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, narrativeVelocity, marketInefficiency, confidenceInterval } from "@/lib/models";
 import { deriveLiquidityDepth } from "@/lib/derivedMetrics";
@@ -148,7 +151,6 @@ function TopInefficiencies({ players }: { players: PlayerMarketRecord[] }) {
 }
 
 function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
-  const reduceMotion = useReducedMotion();
   if (players.length === 0) {
     return <div className="empty-state"><b>No data</b></div>;
   }
@@ -157,35 +159,14 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
       <div className="section-label">LIQUIDITY FLOW</div>
       <div className="flow-legend">
         <span className="legend-dot" style={{ background: "#4dd9c0" }} /> High Liquidity
-        <span className="legend-dot" style={{ background: "#d9866f", marginLeft: 12 }} /> Low Liquidity
+        <span className="legend-dot" style={{ background: "#f0abfc", marginLeft: 12 }} /> High Inefficiency
       </div>
-      <svg viewBox="0 0 580 220" width="100%" aria-hidden="true">
-        {players.map((p, i) => {
-          const isHigh = p.opportunity > 60;
-          const color = isHigh ? "#4dd9c0" : "#d9866f";
-          const y0 = 30 + (i / (players.length - 1 || 1)) * 160;
-          const cp1x = 180 + p.opportunity * 0.8;
-          const cp1y = y0 - p.volatility * 0.4;
-          const cp2x = 360 - p.fragility * 0.5;
-          const cp2y = y0 + p.volatility * 0.3;
-          const y1 = 30 + ((players.length - 1 - i) / (players.length - 1 || 1)) * 160;
-          const d = `M 10 ${y0} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, 570 ${y1}`;
-          return (
-            <motion.path
-              key={p.id}
-              d={d}
-              fill="none"
-              stroke={color}
-              strokeWidth={1 + p.confidence * 1.5}
-              opacity="0.5"
-              className="flow-path"
-              initial={false}
-              animate={reduceMotion ? {} : { pathLength: [0.2, 1, 0.2] }}
-              transition={{ duration: 6 + i * 0.4, repeat: Infinity }}
-            />
-          );
-        })}
-      </svg>
+      <Canvas3D
+        ariaLabel="3-D liquidity flow ribbons encoding opportunity and market inefficiency"
+        height={220}
+      >
+        <LiquidityFlowScene players={players} />
+      </Canvas3D>
     </div>
   );
 }
@@ -252,47 +233,20 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
 }
 
 function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
-  const cols = 7;
-  const rows = 4;
-  const W = 560;
-  const H = 180;
-  const amplitude = avg(players.map((p) => p.volatility)) / 2 || 20;
-  const cellW = W / (cols - 1);
-  const baseY = H / 2;
-
-  const vertices = Array.from({ length: rows }, (_, row) =>
-    Array.from({ length: cols }, (_, col) => {
-      const x = col * cellW;
-      const y = baseY + Math.sin(col * 0.9 + row * 0.7) * amplitude * (0.5 + row * 0.2);
-      return { x, y };
-    })
-  );
-
+  const sim = runNexusSimulation(players, { seed: 20260513, iterations: 1000, rosterSlots: 6, riskTolerance: 0.5 });
   return (
     <div className="chart-wrap">
       <div className="section-label">VOLATILITY SURFACE — Simulated Envelope</div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" aria-hidden="true">
-        {vertices.map((rowPts, row) => (
-          <polyline
-            key={`h-${row}`}
-            points={rowPts.map((p) => `${p.x},${p.y}`).join(" ")}
-            fill="none"
-            stroke={`rgba(123,183,206,${0.15 + row * 0.08})`}
-            strokeWidth="1"
-          />
-        ))}
-        {Array.from({ length: cols }, (_, col) => (
-          <polyline
-            key={`v-${col}`}
-            points={vertices.map((r) => `${r[col]?.x},${r[col]?.y}`).join(" ")}
-            fill="none"
-            stroke="rgba(123,183,206,0.12)"
-            strokeWidth="1"
-          />
-        ))}
-        <text x="0" y={H - 4} fontSize="9" fill="var(--muted)">High Volatility</text>
-        <text x={W} y={H - 4} fontSize="9" fill="var(--green)" textAnchor="end">Low Volatility</text>
-      </svg>
+      <Canvas3D
+        ariaLabel="3-D volatility surface encoding playoff probability and catastrophic risk"
+        height={220}
+      >
+        <VolatilitySurfaceScene sim={sim} />
+      </Canvas3D>
+      <div className="vol-surface-legend">
+        <span className="muted-text">High Volatility</span>
+        <span className="pos-text">Low Volatility</span>
+      </div>
     </div>
   );
 }

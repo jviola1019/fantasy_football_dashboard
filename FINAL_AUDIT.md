@@ -1,6 +1,27 @@
 # RAE Final Audit
 
-Audit date: 2026-05-13.
+Audit date: 2026-05-18.
+
+## Quant upgrade rollout (PRs 1–5)
+
+This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper adapters, multi-user auth with encrypted league credentials, a WebGL visualization layer across all six panels, and Draft Intelligence as a top-level system.
+
+| PR | Scope | Status |
+| --- | --- | --- |
+| 1 | Shared HTTP envelope, expanded Sleeper (league/rosters/matchups/drafts/trending/state), ESPN client + league + schemas + positions, normalize.ts, live tests gated by env. | Shipped. 5 new schemas, 6 new league endpoints, full Zod validation, offline+live tests. |
+| 2 | Auth.js v5 + Drizzle (SQLite local / Postgres prod), scrypt-hashed passwords, AES-256-GCM cookie storage, `/login`, `/settings/leagues`, `/api/leagues/[id]/refresh`. | Shipped. Auth isolation + crypto round-trip tests pass. |
+| 3 | WebGL visual system via react-three-fiber, scenes: OrbitalTopology, LiquidityFlow, VolatilitySurface, PlayerGalaxy, NarrativeField. Each panel mounts at least one `<canvas>`. | Shipped. `frameloop="demand"` keeps idle GPU at 0; `useReducedMotion()` honored throughout. |
+| 4 | Draft Intelligence as sixth top-level system. Live Board, Recommendation Queue, Tier Collapse Forecast, 3-D Draft Multiverse. Pure recommend/tiers logic with unit tests. | Shipped. `systems` array length = 6; visualContract test updated. |
+| 5 | README rewrite (design philosophy + auth + integrations + limitations), `.env.example`, drizzle.config.ts, this audit update. | Shipped this pass. |
+
+## Validation results (rerun this pass)
+
+- `npx tsc --noEmit` — clean.
+- `npx eslint .` — clean.
+- `npx vitest run` — 52 passed, 3 skipped (live tests, gated by `RAE_LIVE_TESTS=1`).
+- `npx next build` — clean. 6 routes built (`/`, `/_not-found`, `/api/auth/[...nextauth]`, `/api/leagues/[id]/refresh`, `/login`, `/settings/leagues`). Sleeper 19 MB data-cache warning documented in Known Limitations.
+
+
 
 ## Pass/fail checklist
 - [x] ONLY 5 top-level tabs — verified by Playwright locator count against `nav[aria-label="Top-level systems"]`.
