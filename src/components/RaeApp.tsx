@@ -60,6 +60,10 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
             ))}
           </nav>
           <div className="topbar-right">
+            <nav className="topbar-account" aria-label="Account">
+              <a href="/login" className="topbar-link">Sign in</a>
+              <a href="/settings/leagues" className="topbar-link">Leagues</a>
+            </nav>
             <div className="ops-status" aria-live="polite">
               <b className={envelope.mode === "live" ? "status-live" : envelope.mode === "fixture" ? "status-fixture" : "status-err"}>
                 {envelope.mode.toUpperCase()}

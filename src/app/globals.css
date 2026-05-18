@@ -98,7 +98,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: 200px 1fr 160px;
+  grid-template-columns: 200px 1fr 280px;
   gap: 16px;
   align-items: center;
   padding: 10px 16px;
@@ -123,7 +123,19 @@ ul { margin: 0; padding: 0; list-style: none; }
 }
 .tab-link:hover { color: white; }
 .tab-link.active { color: var(--cream); border-bottom-color: var(--amber); }
-.topbar-right { display: flex; justify-content: flex-end; }
+.topbar-right { display: flex; justify-content: flex-end; align-items: center; gap: 16px; }
+.topbar-account { display: flex; gap: 12px; align-items: center; }
+.topbar-link {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--blue);
+  border: 1px solid rgba(123, 183, 206, .35);
+  padding: 4px 10px;
+  border-radius: 3px;
+  transition: background .15s, color .15s;
+}
+.topbar-link:hover { color: var(--cream); background: rgba(123, 183, 206, .12); }
 .ops-status { display: flex; gap: 10px; font-size: 11px; text-transform: uppercase; align-items: center; }
 .status-live { color: var(--green); }
 .status-fixture { color: var(--amber); }
