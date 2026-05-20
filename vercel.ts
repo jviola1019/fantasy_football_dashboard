@@ -30,9 +30,11 @@ const config: VercelConfig = {
     // request. The route is gated by the `Authorization: Bearer $CRON_SECRET`
     // header Vercel sends automatically when CRON_SECRET env var is set.
     { path: "/api/cron/players-refresh", schedule: "0 8 * * *" },
-    // Every 30 minutes: walk every stored league and emit drift notifications
-    // (stacked bye weeks, FAAB drained, injured starters).
-    { path: "/api/cron/lifecycle-check", schedule: "*/30 * * * *" }
+    // Once daily at 09:00 UTC (an hour after the players snapshot): walk every
+    // stored league and emit drift notifications (stacked bye weeks, FAAB
+    // drained, injured starters). Vercel's Hobby plan caps each cron job at one
+    // run per day; on Pro this can return to a tighter interval.
+    { path: "/api/cron/lifecycle-check", schedule: "0 9 * * *" }
   ],
   headers: [
     {
