@@ -1,5 +1,4 @@
 import { pgTable, text, integer, timestamp, primaryKey, customType, jsonb } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 
 const bytea = customType<{ data: Buffer; default: false }>({
   dataType() {
@@ -97,7 +96,10 @@ export const playersSnapshots = pgTable("players_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
-export const INIT_SQL = sql`
+// Multi-statement DDL kept as a plain string. The bootstrap route splits it on
+// `;` and applies each statement individually — postgres.js sends one command
+// per query, so a single multi-statement call would be rejected.
+export const INIT_SQL = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT,
