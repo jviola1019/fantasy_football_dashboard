@@ -6,65 +6,85 @@ import { registerWithCredentials, signInWithCredentials } from "./actions";
 
 type Mode = "signin" | "register";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  background: "rgba(0,0,0,0.35)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 8,
-  color: "var(--cream)",
-  fontSize: 14
-};
-const labelStyle: React.CSSProperties = { color: "var(--muted)", fontSize: 12, display: "block", marginBottom: 4 };
-const buttonStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "10px 12px",
-  background: "var(--amber)",
-  color: "#000",
-  border: "none",
-  borderRadius: 8,
-  fontWeight: 600,
-  cursor: "pointer"
-};
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function LoginForm() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("signin");
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [passwordTouched, setPasswordTouched] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const emailValid = EMAIL_REGEX.test(email);
+  const passwordValid = password.length >= 8;
+  const showEmailHint = emailTouched && !emailValid && email.length > 0;
+  const showPasswordHint = passwordTouched && !passwordValid && password.length > 0;
+  const canSubmit = emailValid && passwordValid && !pending;
 
   const onSubmit: React.FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
     setError(null);
     const formData = new FormData(event.currentTarget);
     startTransition(async () => {
+      // Server actions throw NEXT_REDIRECT on success; we never observe ok=true.
+      // Only render errors here.
       const result =
         mode === "signin"
           ? await signInWithCredentials(formData)
           : await registerWithCredentials(formData);
-      if (result.ok) {
-        router.push("/settings/leagues");
-        router.refresh();
-      } else {
+      if (!result.ok) {
         setError(result.error);
+        return;
       }
+      router.push("/settings/leagues");
+      router.refresh();
     });
   };
 
   return (
-    <form onSubmit={onSubmit} style={{ display: "grid", gap: 12, marginTop: 16 }}>
+    <form onSubmit={onSubmit} className="login-form" noValidate>
       {mode === "register" && (
-        <div>
-          <label htmlFor="name" style={labelStyle}>Name (optional)</label>
-          <input id="name" name="name" autoComplete="name" style={inputStyle} />
+        <div className="login-field">
+          <label htmlFor="name" className="login-label">Name (optional)</label>
+          <input
+            id="name"
+            name="name"
+            autoComplete="name"
+            className="login-input"
+          />
         </div>
       )}
-      <div>
-        <label htmlFor="email" style={labelStyle}>Email</label>
-        <input id="email" name="email" type="email" required autoComplete="email" style={inputStyle} />
+
+      <div className="login-field">
+        <label htmlFor="email" className="login-label">Email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          className={`login-input${showEmailHint ? " login-input-invalid" : ""}`}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => setEmailTouched(true)}
+          aria-invalid={showEmailHint ? "true" : "false"}
+          aria-describedby={showEmailHint ? "email-hint" : undefined}
+        />
+        {showEmailHint ? (
+          <p id="email-hint" className="field-hint field-hint-error">
+            Enter a valid email address.
+          </p>
+        ) : null}
       </div>
-      <div>
-        <label htmlFor="password" style={labelStyle}>Password</label>
+
+      <div className="login-field">
+        <div className="login-label-row">
+          <label htmlFor="password" className="login-label">Password</label>
+          <span className="login-label-aux" aria-hidden>{password.length}/8+</span>
+        </div>
         <input
           id="password"
           name="password"
@@ -72,26 +92,40 @@ export function LoginForm() {
           required
           minLength={8}
           autoComplete={mode === "signin" ? "current-password" : "new-password"}
-          style={inputStyle}
+          className={`login-input${showPasswordHint ? " login-input-invalid" : ""}`}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onBlur={() => setPasswordTouched(true)}
+          aria-invalid={showPasswordHint ? "true" : "false"}
+          aria-describedby={showPasswordHint ? "password-hint" : undefined}
         />
+        {showPasswordHint ? (
+          <p id="password-hint" className="field-hint field-hint-error">
+            At least 8 characters.
+          </p>
+        ) : null}
       </div>
-      {error ? <p style={{ color: "var(--red)", margin: 0, fontSize: 13 }}>{error}</p> : null}
-      <button type="submit" disabled={pending} style={{ ...buttonStyle, opacity: pending ? 0.7 : 1 }}>
+
+      {error ? (
+        <p className="error-banner" role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <button
+        type="submit"
+        disabled={!canSubmit}
+        className="login-submit"
+      >
         {pending ? "Working…" : mode === "signin" ? "Sign in" : "Create account"}
       </button>
+
       <button
         type="button"
+        className="login-switch"
         onClick={() => {
           setMode(mode === "signin" ? "register" : "signin");
           setError(null);
-        }}
-        style={{
-          background: "transparent",
-          color: "var(--blue)",
-          border: "none",
-          cursor: "pointer",
-          fontSize: 13,
-          padding: 0
         }}
       >
         {mode === "signin" ? "Need an account? Register" : "Already have an account? Sign in"}

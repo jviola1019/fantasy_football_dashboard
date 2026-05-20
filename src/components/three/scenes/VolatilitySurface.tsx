@@ -1,24 +1,32 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useReducedMotion } from "framer-motion";
 import type { SimulationResult } from "@/lib/simulation";
+import { StudioLighting } from "../lighting/StudioLighting";
+import { SurfaceMaterial } from "../shaders/surfaceMaterial";
 
 interface Props {
   sim: SimulationResult;
 }
 
-const GRID = 32;
+const GRID = 64;
 
+/**
+ * Monte Carlo volatility surface. Height = a smooth + bumpy function of
+ * playoff probability and catastrophic risk. Custom shader gradient runs
+ * cyan → magenta → amber on z-height with a fresnel rim and subtle pulse.
+ */
 export function VolatilitySurface({ sim }: Props) {
   const reduced = useReducedMotion();
   const meshRef = useRef<THREE.Mesh>(null);
-  const invalidate = useThree((state) => state.invalidate);
+  const wireRef = useRef<THREE.Mesh>(null);
+  const materialRef = useRef<InstanceType<typeof SurfaceMaterial>>(null);
 
   const geometry = useMemo(() => {
-    const geom = new THREE.PlaneGeometry(5, 3.2, GRID, GRID);
+    const geom = new THREE.PlaneGeometry(5, 3.4, GRID, GRID);
     const positions = geom.attributes.position as THREE.BufferAttribute;
     const fragility = sim.catastrophicRisk / 100;
     const playoff = sim.playoffProbability / 100;
@@ -26,9 +34,9 @@ export function VolatilitySurface({ sim }: Props) {
       const x = positions.getX(i);
       const y = positions.getY(i);
       const r = Math.sqrt(x * x + y * y);
-      const wave = Math.sin(r * 2.2 - playoff * 4) * 0.45;
-      const bumps = Math.sin(x * 3 + sim.regretIndex / 12) * Math.cos(y * 2.5) * 0.3;
-      const z = wave * (0.5 + fragility * 1.2) + bumps * playoff;
+      const wave = Math.sin(r * 2.2 - playoff * 4) * 0.55;
+      const bumps = Math.sin(x * 3 + sim.regretIndex / 12) * Math.cos(y * 2.5) * 0.35;
+      const z = wave * (0.55 + fragility * 1.4) + bumps * playoff;
       positions.setZ(i, z);
     }
     positions.needsUpdate = true;
@@ -37,35 +45,37 @@ export function VolatilitySurface({ sim }: Props) {
   }, [sim]);
 
   useFrame((state) => {
-    if (reduced || !meshRef.current) return;
-    meshRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.12) * 0.04;
-    invalidate();
+    if (reduced) return;
+    const t = state.clock.elapsedTime;
+    if (meshRef.current) meshRef.current.rotation.z = Math.sin(t * 0.1) * 0.04;
+    if (wireRef.current) wireRef.current.rotation.z = Math.sin(t * 0.1) * 0.04;
+    if (materialRef.current) {
+      (materialRef.current as unknown as { uTime: number }).uTime = t;
+    }
   });
-
-  const colorTop = useMemo(() => new THREE.Color("#7dd3fc"), []);
-  const colorBottom = useMemo(() => new THREE.Color("#9b7fe8"), []);
 
   return (
     <group>
-      <ambientLight intensity={0.45} />
-      <directionalLight position={[3, 6, 4]} intensity={1.1} color="#d3e8ff" />
-      <directionalLight position={[-4, -2, 2]} intensity={0.35} color="#f6c8ff" />
-      <mesh ref={meshRef} rotation={[-Math.PI / 3, 0, 0]} position={[0, -0.3, 0]}>
+      <StudioLighting />
+
+      {/* Soft floor grid for depth reference */}
+      <gridHelper args={[6, 12, "#1a2330", "#0c1119"]} position={[0, -1.45, 0]} />
+
+      <mesh ref={meshRef} rotation={[-Math.PI / 3, 0, 0]} position={[0, -0.25, 0]}>
         <primitive object={geometry} attach="geometry" />
-        <meshStandardMaterial
-          color={colorTop}
-          emissive={colorBottom}
-          emissiveIntensity={0.18}
-          metalness={0.25}
-          roughness={0.55}
-          wireframe={false}
-          flatShading
+        <surfaceMaterial
+          ref={materialRef}
+          attach="material"
+          uHeightScale={1.6}
+          uIntensity={1.15}
           side={THREE.DoubleSide}
         />
       </mesh>
-      <mesh rotation={[-Math.PI / 3, 0, 0]} position={[0, -0.299, 0]}>
+
+      {/* Wireframe overlay traces the surface */}
+      <mesh ref={wireRef} rotation={[-Math.PI / 3, 0, 0]} position={[0, -0.245, 0]}>
         <primitive object={geometry} attach="geometry" />
-        <meshBasicMaterial color={"#0f1825"} wireframe transparent opacity={0.35} />
+        <meshBasicMaterial color="#0f1825" wireframe transparent opacity={0.32} />
       </mesh>
     </group>
   );

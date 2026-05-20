@@ -1,14 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { Atom } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
-import type { SimulationResult } from "@/lib/simulation";
-import type { ScenarioComparison } from "@/lib/derivedMetrics";
+import { runNexusSimulation, type SimulationResult } from "@/lib/simulation";
+import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derivedMetrics";
+import { bootstrapCI } from "@/lib/stats/distribution";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { Canvas3D } from "../three/Canvas3D";
 import { VolatilitySurface } from "../three/scenes/VolatilitySurface";
+import { PanelCard } from "../ui/PanelCard";
+import { PanelTabs } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -30,17 +34,15 @@ export function NexusSimulator({ players, sim, scenarios }: Props) {
   const hasData = players.length > 0;
 
   return (
-    <section className="system-panel panel-nexus" id="nexus-simulator" aria-labelledby="ns-title">
-      <div className="panel-header-row">
-        <div className="panel-title">
-          <div className="panel-icon">⊕</div>
-          <div>
-            <h2 id="ns-title">Nexus Simulator</h2>
-            <p className="panel-eyebrow">Simulate future. Master uncertainty.</p>
-          </div>
-        </div>
-        <div className="panel-header-controls">
-          <select className="galaxy-select" defaultValue="Baseline">
+    <PanelCard
+      id="nexus-simulator"
+      titleId="ns-title"
+      title="Nexus Simulator"
+      eyebrow="Simulate future. Master uncertainty."
+      icon={<Atom />}
+      controls={
+        <>
+          <select className="galaxy-select" defaultValue="Baseline" aria-label="Simulation scenario">
             <option>Baseline</option>
             <option>Best Case</option>
             <option>Worst Case</option>
@@ -53,22 +55,15 @@ export function NexusSimulator({ players, sim, scenarios }: Props) {
           >
             {running ? "RUNNING…" : "RUN SIMULATION"}
           </button>
-        </div>
-      </div>
-
-      <div className="tab-row" role="tablist" aria-label="Nexus Simulator tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={activeTab === t}
-            className={`tab-btn${activeTab === t ? " active" : ""}`}
-            onClick={() => setActiveTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+        </>
+      }
+    >
+      <PanelTabs
+        tabs={TABS}
+        active={activeTab}
+        onSelect={setActiveTab}
+        ariaLabel="Nexus Simulator tabs"
+      />
 
       <div className="nexus-layout">
         {(activeTab === "Multiverse" || activeTab === "Projections") && (
@@ -77,6 +72,7 @@ export function NexusSimulator({ players, sim, scenarios }: Props) {
               <OutcomeMultiverse players={players} sim={sim} running={running} />
             </div>
             <div className="nexus-side">
+              <ConfidenceBands players={players} sim={sim} />
               <KeyDrivers sim={sim} hasData={hasData} />
               <RiskOfRegret sim={sim} hasData={hasData} />
             </div>
@@ -95,7 +91,7 @@ export function NexusSimulator({ players, sim, scenarios }: Props) {
           </div>
         )}
       </div>
-    </section>
+    </PanelCard>
   );
 }
 
@@ -106,12 +102,15 @@ function OutcomeMultiverse({
   sim: SimulationResult;
   running: boolean;
 }) {
+  // Five mutually exclusive final-standing buckets that always sum to 100 and
+  // are each ≥ 0 — no impossible >100% or negative percentages.
+  const dist = deriveOutcomeDistribution(sim);
   const outcomes = [
-    { label: "Championship", pct: sim.championshipProbability, y: 50, color: "#d7a857" },
-    { label: "Top 3 Finish", pct: Math.round(sim.championshipProbability * 4.1 * 10) / 10, y: 100, color: "#77d7b0" },
-    { label: "Playoffs", pct: sim.playoffProbability, y: 150, color: "#7bb7ce" },
-    { label: "Middle Pack", pct: Math.max(0, Math.round((100 - sim.playoffProbability - sim.catastrophicRisk) * 10) / 10), y: 200, color: "#8d9aa0" },
-    { label: "Bottom 3", pct: sim.catastrophicRisk, y: 250, color: "#d9866f" },
+    { label: "Championship", pct: dist.championship, y: 50, color: "#d7a857" },
+    { label: "Top 3 Finish", pct: dist.topThree, y: 100, color: "#77d7b0" },
+    { label: "Playoffs", pct: dist.playoffs, y: 150, color: "#7bb7ce" },
+    { label: "Middle Pack", pct: dist.middlePack, y: 200, color: "#8d9aa0" },
+    { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: "#d9866f" },
   ];
 
   return (
@@ -163,6 +162,66 @@ function OutcomeMultiverse({
   );
 }
 
+function ConfidenceBands({ players, sim }: { players: PlayerMarketRecord[]; sim: SimulationResult }) {
+  const REPLICATES = 20;
+  const ITER = 800;
+  const bands = useMemo(() => {
+    if (players.length === 0) return null;
+    const champ: number[] = [];
+    const playoff: number[] = [];
+    for (let i = 0; i < REPLICATES; i++) {
+      const r = runNexusSimulation(players, {
+        seed: sim.params.seed + i,
+        iterations: ITER,
+        rosterSlots: sim.params.rosterSlots,
+        riskTolerance: sim.params.riskTolerance
+      });
+      champ.push(r.championshipProbability);
+      playoff.push(r.playoffProbability);
+    }
+    return {
+      championship: bootstrapCI(champ, 0.95, 500, 1019),
+      playoff: bootstrapCI(playoff, 0.95, 500, 1019)
+    };
+  }, [players, sim.params.seed, sim.params.rosterSlots, sim.params.riskTolerance]);
+
+  if (!bands) {
+    return (
+      <div className="mini-panel">
+        <div className="mini-panel-title">Confidence Bands</div>
+        <p className="muted-note">No data — confidence intervals unavailable.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mini-panel">
+      <div className="mini-panel-title">95% Confidence Bands</div>
+      <ul className="ci-list">
+        <li className="ci-row">
+          <span>Championship</span>
+          <b>
+            {sim.championshipProbability.toFixed(1)}%
+            <small className="ci-range">
+              {" "}[{bands.championship.lower.toFixed(1)} – {bands.championship.upper.toFixed(1)}]
+            </small>
+          </b>
+        </li>
+        <li className="ci-row">
+          <span>Playoffs</span>
+          <b>
+            {sim.playoffProbability.toFixed(1)}%
+            <small className="ci-range">
+              {" "}[{bands.playoff.lower.toFixed(1)} – {bands.playoff.upper.toFixed(1)}]
+            </small>
+          </b>
+        </li>
+      </ul>
+      <p className="small-note">{REPLICATES} replicates × {ITER.toLocaleString()} iterations · bootstrap N=500.</p>
+    </div>
+  );
+}
+
 function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioComparison; hasData: boolean }) {
   const rows = [
     { label: "Championship %", best: `${scenarios.bestCase.championship}%`, base: `${scenarios.baseline.championship}%`, worst: `${scenarios.worstCase.championship}%` },
@@ -174,7 +233,7 @@ function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioCo
   ];
 
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <div className="section-label">SCENARIO COMPARISON</div>
       {!hasData ? (
         <p className="muted-note">No data available.</p>

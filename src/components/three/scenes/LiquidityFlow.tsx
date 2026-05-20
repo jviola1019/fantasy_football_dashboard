@@ -1,81 +1,117 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useReducedMotion } from "framer-motion";
+import { MeshReflectorMaterial } from "@react-three/drei";
 import type { PlayerMarketRecord } from "@/lib/governance";
 import { liquidityScore, marketInefficiency } from "@/lib/models";
+import { StudioLighting } from "../lighting/StudioLighting";
+import { FlowMaterial } from "../shaders/flowMaterial";
 
 interface Props {
   players: PlayerMarketRecord[];
-  /** Per-ribbon flow speed multiplier. */
-  speed?: number;
-  /** Color override for the secondary stop. */
-  accent?: string;
 }
 
-export function LiquidityFlow({ players, speed = 0.35, accent = "#f0abfc" }: Props) {
-  const reduced = useReducedMotion();
-  const invalidate = useThree((state) => state.invalidate);
-  const groupRef = useRef<THREE.Group>(null);
+interface Ribbon {
+  curve: THREE.CubicBezierCurve3;
+  radius: number;
+  colorStart: THREE.Color;
+  colorMid: THREE.Color;
+  colorEnd: THREE.Color;
+  intensity: number;
+  progress: number;
+}
 
-  const ribbons = useMemo(() => {
+/**
+ * Liquidity Flow ribbons — gradient-shimmer tubes whose color stops and
+ * intensity encode liquidityScore and marketInefficiency. Blueprint match:
+ * cyan → magenta → amber arcs sweeping across a graphite reflective ground.
+ */
+export function LiquidityFlow({ players }: Props) {
+  const reduced = useReducedMotion();
+  const materialRefs = useRef<InstanceType<typeof FlowMaterial>[]>([]);
+
+  const ribbons = useMemo<Ribbon[]>(() => {
     if (players.length === 0) return [];
-    const top = [...players].sort((a, b) => liquidityScore(b) - liquidityScore(a)).slice(0, 6);
+    const top = [...players].sort((a, b) => liquidityScore(b) - liquidityScore(a)).slice(0, 8);
     return top.map((p, i) => {
       const t = i / Math.max(top.length - 1, 1);
-      const start = new THREE.Vector3(-3 + t * 0.4, -1.2 + t * 2.4, -0.4);
-      const ctrl1 = new THREE.Vector3(-1.4, 0.6 + Math.sin(i) * 0.6, 0.6);
-      const ctrl2 = new THREE.Vector3(0.8, -0.4 + Math.cos(i * 0.7) * 0.7, -0.6);
-      const end = new THREE.Vector3(3, -0.8 + t * 1.6, 0.4);
+      const ySpread = (t - 0.5) * 2.4;
+      const start = new THREE.Vector3(-3.2 + t * 0.3, ySpread, -0.5);
+      const ctrl1 = new THREE.Vector3(-1.4, ySpread + Math.sin(i * 0.9) * 0.8, 0.7);
+      const ctrl2 = new THREE.Vector3(0.9, -ySpread + Math.cos(i * 0.7) * 0.7, -0.7);
+      const end = new THREE.Vector3(3.2, -ySpread, 0.4);
       const curve = new THREE.CubicBezierCurve3(start, ctrl1, ctrl2, end);
-      const tubeRadius = 0.045 + (liquidityScore(p) / 30);
+      const liq = liquidityScore(p);
       const ineff = marketInefficiency(p);
-      const hue = THREE.MathUtils.lerp(0.55, 0.85, Math.min(ineff / 30, 1));
-      const color = new THREE.Color().setHSL(hue, 0.7, 0.55);
-      return { curve, radius: tubeRadius, color, offset: i * 0.13 };
+      const radius = 0.055 + Math.min(liq / 25, 0.06);
+
+      // Three-color gradient seeded from liquidity + inefficiency
+      const hueStart = THREE.MathUtils.lerp(0.55, 0.6, Math.min(liq / 12, 1));
+      const hueMid = THREE.MathUtils.lerp(0.78, 0.9, Math.min(ineff / 30, 1));
+      const hueEnd = 0.12;
+
+      return {
+        curve,
+        radius,
+        colorStart: new THREE.Color().setHSL(hueStart, 0.75, 0.6),
+        colorMid: new THREE.Color().setHSL(hueMid, 0.75, 0.62),
+        colorEnd: new THREE.Color().setHSL(hueEnd, 0.85, 0.6),
+        intensity: 1.0 + Math.min(liq / 15, 0.8),
+        progress: i * 0.15
+      };
     });
   }, [players]);
 
-  const meshRefs = useRef<THREE.Mesh[]>([]);
-
   useFrame((state) => {
     if (reduced) return;
-    const t = state.clock.getElapsedTime();
-    meshRefs.current.forEach((mesh, i) => {
-      if (!mesh) return;
-      const mat = mesh.material as THREE.MeshStandardMaterial;
+    const t = state.clock.elapsedTime;
+    materialRefs.current.forEach((mat) => {
       if (mat) {
-        const ribbon = ribbons[i];
-        const pulse = 0.65 + 0.35 * Math.sin(t * speed + ribbon!.offset * Math.PI * 2);
-        mat.emissiveIntensity = pulse;
+        (mat as unknown as { uTime: number }).uTime = t;
       }
     });
-    invalidate();
   });
 
   return (
-    <group ref={groupRef}>
-      <ambientLight intensity={0.6} />
-      <pointLight position={[4, 4, 4]} intensity={0.8} color="#9bd1ff" />
-      <pointLight position={[-4, -2, 2]} intensity={0.5} color={accent} />
+    <group>
+      <StudioLighting />
+
+      {/* Reflective ground catches the ribbon glow */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.6, 0]}>
+        <planeGeometry args={[18, 14]} />
+        <MeshReflectorMaterial
+          blur={[300, 100]}
+          resolution={512}
+          mixBlur={1}
+          mixStrength={1.2}
+          roughness={0.85}
+          depthScale={1.2}
+          minDepthThreshold={0.4}
+          maxDepthThreshold={1.4}
+          color="#0c1119"
+          metalness={0.5}
+        />
+      </mesh>
+
       {ribbons.map((ribbon, i) => (
-        <mesh
-          key={i}
-          ref={(node) => {
-            if (node) meshRefs.current[i] = node;
-          }}
-        >
-          <tubeGeometry args={[ribbon.curve, 64, ribbon.radius, 12, false]} />
-          <meshStandardMaterial
-            color={ribbon.color}
-            emissive={ribbon.color}
-            emissiveIntensity={0.8}
-            metalness={0.3}
-            roughness={0.4}
+        <mesh key={i}>
+          <tubeGeometry args={[ribbon.curve, 96, ribbon.radius, 14, false]} />
+          <flowMaterial
+            ref={(node) => {
+              if (node) materialRefs.current[i] = node;
+            }}
+            attach="material"
+            uColorStart={ribbon.colorStart}
+            uColorMid={ribbon.colorMid}
+            uColorEnd={ribbon.colorEnd}
+            uIntensity={ribbon.intensity}
+            uProgress={ribbon.progress}
+            uOpacity={0.95}
             transparent
-            opacity={0.85}
+            depthWrite={false}
           />
         </mesh>
       ))}

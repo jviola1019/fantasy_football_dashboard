@@ -15,8 +15,25 @@ const config: VercelConfig = {
     "src/app/api/auth/[...nextauth]/route.ts": {
       memory: 512,
       maxDuration: 15
+    },
+    "src/app/api/cron/players-refresh/route.ts": {
+      memory: 1024,
+      maxDuration: 60
+    },
+    "src/app/api/cron/lifecycle-check/route.ts": {
+      memory: 512,
+      maxDuration: 60
     }
   },
+  crons: [
+    // Daily Sleeper players snapshot. Avoids the 19MB live fetch on every
+    // request. The route is gated by the `Authorization: Bearer $CRON_SECRET`
+    // header Vercel sends automatically when CRON_SECRET env var is set.
+    { path: "/api/cron/players-refresh", schedule: "0 8 * * *" },
+    // Every 30 minutes: walk every stored league and emit drift notifications
+    // (stacked bye weeks, FAAB drained, injured starters).
+    { path: "/api/cron/lifecycle-check", schedule: "*/30 * * * *" }
+  ],
   headers: [
     {
       source: "/api/(.*)",

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { LineChart as LineChartIcon } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import { PanelCard } from "../ui/PanelCard";
+import { PanelTabs } from "../ui/PanelTabs";
 import { Canvas3D } from "../three/Canvas3D";
 import { LiquidityFlow as LiquidityFlowScene } from "../three/scenes/LiquidityFlow";
 import { VolatilitySurface as VolatilitySurfaceScene } from "../three/scenes/VolatilitySurface";
@@ -24,32 +27,21 @@ export function MarketIntelligence({ players, marketMetrics }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Market Pulse");
 
   return (
-    <section className="system-panel panel-market" id="market-intelligence" aria-labelledby="mi-title">
-      <div className="panel-header-row">
-        <div className="panel-title">
-          <div className="panel-icon">📊</div>
-          <div>
-            <h2 id="mi-title">Market Intelligence</h2>
-            <p className="panel-eyebrow">Find edges. Exploit inefficiencies.</p>
-          </div>
-        </div>
-      </div>
-
+    <PanelCard
+      id="market-intelligence"
+      titleId="mi-title"
+      title="Market Intelligence"
+      eyebrow="Find edges. Exploit inefficiencies."
+      icon={<LineChartIcon />}
+    >
       <MarketKPIRow metrics={marketMetrics} players={players} />
 
-      <div className="tab-row" role="tablist" aria-label="Market Intelligence tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={activeTab === t}
-            className={`tab-btn${activeTab === t ? " active" : ""}`}
-            onClick={() => setActiveTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+      <PanelTabs
+        tabs={TABS}
+        active={activeTab}
+        onSelect={setActiveTab}
+        ariaLabel="Market Intelligence tabs"
+      />
 
       <div className="tab-content">
         {(activeTab === "Market Pulse" || activeTab === "Arbitrage") && (
@@ -73,7 +65,7 @@ export function MarketIntelligence({ players, marketMetrics }: Props) {
           <PriceDiscoveryView players={players} />
         )}
       </div>
-    </section>
+    </PanelCard>
   );
 }
 
@@ -103,7 +95,7 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
 
 function TopInefficiencies({ players }: { players: PlayerMarketRecord[] }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <div className="section-label">TOP INEFFICIENCIES</div>
       <table>
         <thead>

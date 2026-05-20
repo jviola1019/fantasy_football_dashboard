@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Zap } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
+import { PanelCard } from "../ui/PanelCard";
 import { Canvas3D } from "../three/Canvas3D";
 import { OrbitalTopology } from "../three/scenes/OrbitalTopology";
 import type { SimulationResult } from "@/lib/simulation";
@@ -33,16 +35,31 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
   const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + avgEdge * 1.4)));
 
   return (
-    <section className="system-panel panel-command" id="command-center" aria-labelledby="cc-title">
-      <PanelHeader
-        title="Command Center"
-        eyebrow="Real-time intelligence. Smarter decisions."
-        mode={envelope.mode}
-        timeRanges={TIME_RANGES as unknown as string[]}
-        activeRange={timeRange}
-        onRange={setTimeRange}
-      />
-
+    <PanelCard
+      id="command-center"
+      titleId="cc-title"
+      title="Command Center"
+      eyebrow="Real-time intelligence. Smarter decisions."
+      icon={<Zap />}
+      controls={
+        <>
+          <div className="time-range-tabs" role="group" aria-label="Time range">
+            {TIME_RANGES.map((r) => (
+              <button
+                key={r}
+                type="button"
+                className={`time-tab${timeRange === r ? " active" : ""}`}
+                onClick={() => setTimeRange(r)}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          {envelope.mode === "live" && <span className="live-badge">● LIVE</span>}
+          {envelope.mode === "fixture" && <span className="fixture-badge">FIXTURE</span>}
+        </>
+      }
+    >
       <MetricStrip metrics={metrics} />
 
       <div className="pulse-wrapper">
@@ -57,41 +74,7 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
         <RosterFragilityXRay players={players} />
         <StartSitEdge rows={startSit} hasData={hasData} />
       </div>
-    </section>
-  );
-}
-
-function PanelHeader({
-  title, eyebrow, mode, timeRanges, activeRange, onRange,
-}: {
-  title: string; eyebrow: string; mode: string;
-  timeRanges: string[]; activeRange: string; onRange: (r: string) => void;
-}) {
-  return (
-    <div className="panel-header-row">
-      <div className="panel-title">
-        <div className="panel-icon">⚡</div>
-        <div>
-          <h2 id="cc-title">{title}</h2>
-          <p className="panel-eyebrow">{eyebrow}</p>
-        </div>
-      </div>
-      <div className="panel-header-controls">
-        <div className="time-range-tabs" role="group" aria-label="Time range">
-          {timeRanges.map((r) => (
-            <button
-              key={r}
-              className={`time-tab${activeRange === r ? " active" : ""}`}
-              onClick={() => onRange(r)}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-        {mode === "live" && <span className="live-badge">● LIVE</span>}
-        {mode === "fixture" && <span className="fixture-badge">FIXTURE</span>}
-      </div>
-    </div>
+    </PanelCard>
   );
 }
 
@@ -198,9 +181,11 @@ function IntelFeed({ envelope }: { envelope: RAEEnvelope }) {
 }
 
 function LineupWinProb({ sim }: { sim: SimulationResult }) {
-  const mid = sim.playoffProbability;
-  const p10 = Math.round(mid * 0.68 * 10) / 10;
-  const p90 = Math.round(mid * 1.32 * 10) / 10;
+  // mid is a probability in [0,100]; the p10/p90 band must stay inside [0,100]
+  // — a confidence bound can never report an impossible probability.
+  const mid = Math.min(100, Math.max(0, sim.playoffProbability));
+  const p10 = Math.round(Math.max(0, mid * 0.68) * 10) / 10;
+  const p90 = Math.round(Math.min(100, mid * 1.32) * 10) / 10;
   const tCx = 60;
   const tTop = 10;
   const tBot = 95;
@@ -209,20 +194,27 @@ function LineupWinProb({ sim }: { sim: SimulationResult }) {
     <div className="mini-panel">
       <div className="mini-panel-title">Lineup Win Probability</div>
       <div className="triangle-wrap">
-        <svg viewBox="0 0 120 110" width="100%" aria-hidden="true">
+        {/* viewBox is padded on every side so the corner labels (which sit
+            outside the triangle) are never clipped by the panel edge. */}
+        <svg
+          viewBox="-14 -6 148 138"
+          width="100%"
+          preserveAspectRatio="xMidYMid meet"
+          aria-hidden="true"
+        >
           <polygon
             points={`${tCx},${tTop} ${tCx - halfW},${tBot} ${tCx + halfW},${tBot}`}
             fill="rgba(119,215,176,0.08)"
             stroke="rgba(119,215,176,0.5)"
             strokeWidth="1.5"
           />
-          <text x={tCx} y={tTop - 2} textAnchor="middle" fontSize="9" fill="var(--muted)">P90</text>
-          <text x={tCx} y={tTop + 10} textAnchor="middle" fontSize="10" fill="var(--green)">{p90}%</text>
+          <text x={tCx} y={tTop - 8} textAnchor="middle" fontSize="9" fill="var(--muted)">P90</text>
+          <text x={tCx} y={tTop + 2} textAnchor="middle" fontSize="10" fill="var(--green)">{p90}%</text>
           <text x={tCx} y={(tTop + tBot) / 2 + 4} textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">{mid}%</text>
-          <text x={tCx - halfW - 2} y={tBot + 10} textAnchor="middle" fontSize="9" fill="var(--muted)">P10</text>
-          <text x={tCx - halfW - 2} y={tBot + 20} textAnchor="middle" fontSize="10" fill="var(--red)">{p10}%</text>
-          <text x={tCx + halfW + 2} y={tBot + 10} textAnchor="middle" fontSize="9" fill="var(--muted)">P90</text>
-          <text x={tCx + halfW + 2} y={tBot + 20} textAnchor="middle" fontSize="10" fill="var(--green)">{p90}%</text>
+          <text x={tCx - halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">P10</text>
+          <text x={tCx - halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--red)">{p10}%</text>
+          <text x={tCx + halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">P90</text>
+          <text x={tCx + halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--green)">{p90}%</text>
         </svg>
       </div>
       <div className="small-note">Based on {sim.params.iterations.toLocaleString()} simulations</div>

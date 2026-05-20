@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, primaryKey, customType } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, primaryKey, customType, jsonb } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 const bytea = customType<{ data: Buffer; default: false }>({
@@ -76,6 +76,27 @@ export const leagueCredentials = pgTable("leagueCredentials", {
   rotatedAt: timestamp("rotatedAt", { mode: "date" }).notNull().defaultNow()
 });
 
+export const notifications = pgTable("notifications", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
+  severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
+  rule: text("rule").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+  dismissedAt: timestamp("dismissedAt", { mode: "date" })
+});
+
+export const playersSnapshots = pgTable("players_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 export const INIT_SQL = sql`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -126,4 +147,25 @@ export const INIT_SQL = sql`
     ciphertext BYTEA NOT NULL,
     "rotatedAt" TIMESTAMP NOT NULL DEFAULT now()
   );
+  CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    "leagueId" TEXT REFERENCES leagues(id) ON DELETE CASCADE,
+    severity TEXT NOT NULL,
+    rule TEXT NOT NULL,
+    message TEXT NOT NULL,
+    "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "dismissedAt" TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS notifications_user_created
+    ON notifications ("userId", "createdAt" DESC);
+  CREATE TABLE IF NOT EXISTS players_snapshots (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "sizeBytes" INTEGER NOT NULL,
+    payload JSONB NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS players_snapshots_source_fetched
+    ON players_snapshots (source, "fetchedAt" DESC);
 `;

@@ -1,6 +1,82 @@
 # RAE Final Audit
 
-Audit date: 2026-05-18.
+Audit date: 2026-05-20 (design-system sprint).
+
+## Design-system sprint (PRs A–E)
+
+A live preview showed the dashboard still fell short of the blueprint on panel
+grid spacing, the left rail, and 3-D backlighting. This sprint adopts
+**Tailwind CSS v4 + shadcn/ui (Radix)** as a coexisting layer over the legacy
+`globals.css` theme — rebuilding the chrome, not the working data internals.
+
+| PR | Scope | Status |
+| --- | --- | --- |
+| A | Tailwind v4 + shadcn/ui foundation: `postcss.config.mjs`, `components.json`, `src/lib/cn.ts`, and an `@theme` token block in `globals.css` that bridges the legacy `:root` variables into a separate shadcn `--color-*` namespace. Pure infrastructure — no visual change. | Shipped. |
+| B | Shell rebuilt: shadcn `Sidebar` (`AppSidebar`, all 9 systems, collapsible icon rail, mobile drawer), `TopBar` (numbered system strip + `SearchInput` + `UserMenu`), re-homed `UserMenu`/`SearchInput` on shadcn primitives. Dead `.rae-sidebar*`/`.topbar*` CSS pruned. | Shipped. |
+| C | Spacing system: `PanelGrid` (responsive 1→2→3 column Tailwind grid, one gap/padding scale) + `PanelCard`/`PanelTabs` shared chrome. All 9 panels migrated off `.system-panel`/`.tab-row`. Dead grid/panel CSS pruned; `.kpi-row`/`.table-wrap`/charts kept on legacy CSS. | Shipped. |
+| D | 3-D backlighting: `StudioLighting` gains a dedicated cyan back-light aimed at the camera for silhouette rim separation; `Atmosphere` adds a self-contained `<Environment>` (three `Lightformer` panels, no external HDR fetch) for real reflections on metallic materials; `PostFX` Bloom retuned (`luminanceThreshold` 0.22 → 0.3) so the new rim blooms without washing the panel. | Shipped. |
+| E | `playwright.config.ts` adds a `mobile-chrome` (Pixel 5) project; `e2e/01-dashboard.spec.ts` adds a viewport sweep asserting zero horizontal document overflow at 1440 / 1024 / 768 / 390 px; README documents the design system + token bridge. | Shipped. |
+
+### Validation results (design-system sprint, 2026-05-20)
+
+- `npx tsc --noEmit` — clean.
+- `npx eslint .` — clean.
+- `npx vitest run` — **151 tests pass**, 3 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
+- `npx next build` — clean. Same 10 routes; Tailwind v4 builds via `@tailwindcss/postcss` with no Vercel config change.
+- `npx playwright test` — **38/38 pass** across the `chromium` and `mobile-chrome` projects. The new viewport sweep caught a real regression: the shadcn `SidebarInset` lacked `min-w-0`, so on desktop the content failed to shrink beside the 256 px sidebar and the document overflowed horizontally by exactly the sidebar width. Fixed by adding `min-w-0` to `SidebarInset`; the sweep is now green at 1440 / 1024 / 768 / 390 px.
+
+## Polish sprint (PRs 6–9)
+
+Second-pass corrections after a live preview surfaced visual + auth bugs:
+
+| PR | Scope | Status |
+| --- | --- | --- |
+| 6 | Sleeper-primary headshots with verified `player_id` lookups (Puka Nacua now 9493, never the historical wrong 4362887 = Justin Fields). `PlayerHeadshot` cascades through `[primary, ...fallbacks]` and finally an initials avatar — never substitutes a different player's face. | Shipped. 15 new tests. |
+| 7 | Blueprint-grade WebGL: shared `<PostFX>` (Bloom + Vignette), `<Atmosphere>` (drei `<Stars>` + fog), `<StudioLighting>` (3-point + accent), custom `flowMaterial` + `surfaceMaterial` shaders, `<HeadshotBillboard>` in-scene faces. Every scene gets ACES tone-mapping and dpr [1, 2]. `.galaxy-field` overflow-clip removed; every scene wrapper has a `min-height`. | Shipped. |
+| 8 | `mapAuthError(error)` maps every Auth.js error class to friendly copy — never echoes raw `error.message`. New `<UserMenu>` (avatar + email + sign-out), `<DemoBanner>` (dismissable, sessionStorage-backed via `useSyncExternalStore`), `<SearchInput>`. LoginForm has inline email/password validation. | Shipped. 11 new tests. |
+| 9 | `e2e/07-no-shared-data.spec.ts` proves user B can never see user A's league, notifications, or refresh API. `docs/account-isolation.md` documents every per-user query and the regression gates. | Shipped. |
+
+## Validation results (polish sprint)
+
+- `npx tsc --noEmit` — clean.
+- `npx eslint .` — clean.
+- `npx vitest run` — **146 tests pass**, 3 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
+- `npx next build` — clean. Same 10 routes; the polish-sprint additions live entirely in client components.
+- `npx playwright test` — passes (see below).
+
+## Hardening sprint (PRs 0–5)
+
+A second rollout after the initial five PRs landed:
+
+| PR | Scope | Status |
+| --- | --- | --- |
+| 0 | Canvas3D `frameloop="always"` fix + topbar Sign-in/Leagues nav links + new CSS. | Shipped (commit `bdf679d`). |
+| 1 | Daily Sleeper player-snapshot cron + `players_snapshots` Drizzle table on both schemas + snapshot-first loader. Solves the 19 MB Sleeper-payload pain. | Shipped. 6 new tests. |
+| 2 | Free-tier weather (open-meteo) + NFL RSS news adapters + `next/image` headshots with `sleepercdn.com`/`a.espncdn.com` allow-listed. | Shipped. 9 new tests. |
+| 3 | `src/lib/stats/distribution.ts` (bootstrapCI, welchTTest, cohensD) + property tests on every derived metric + Monte Carlo calibration tests + `docs/calibration.md` + 95% CI surfaced in NexusSimulator side column. | Shipped. 39 new tests. |
+| 4 | Pre-Draft Audit + Waiver Wire + Trade Center top-level systems (9 total). `lifecycle/byes`, `lifecycle/notifications`, `lifecycle/trades` libs. `/api/notifications` GET/DELETE with user isolation. `/api/cron/lifecycle-check` every 30 min. Live data wiring via `src/lib/leagues/fetchLive.ts` so the cron decrypts ESPN cookies / hits Sleeper and runs the rules engine against real rosters. | Shipped. 15 new tests. |
+| 5 | Playwright e2e (5 specs) + axe a11y spec (fails on serious/critical) + Lighthouse CI (`lighthouserc.json`) + `.github/workflows/ci.yml` (quality + e2e + lighthouse). | Shipped. |
+
+## Validation results (this audit, 2026-05-19)
+
+- `npx tsc --noEmit` — clean.
+- `npx eslint .` — clean.
+- `npx vitest run` — **120 tests pass**, 3 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
+- `npx next build` — clean. 10 routes registered: `/`, `/_not-found`, `/api/admin/init-db`, `/api/auth/[...nextauth]`, `/api/cron/lifecycle-check`, `/api/cron/players-refresh`, `/api/leagues/[id]/refresh`, `/api/notifications`, `/login`, `/settings/leagues`. Sleeper 19 MB build-time warning is gone — `/` is now `force-dynamic` and the cron snapshots the catalog daily.
+- `npx playwright test` — **13/13 specs pass** locally on Windows. Includes the axe accessibility scan on `/` and `/login` (zero serious/critical violations), the registration → /settings/leagues flow, and the lifecycle-panel render assertions. Config tuned for cold-start Windows: 90 s per-test locally, 45 s in CI.
+
+## Bug fixes shipped while writing the e2e suite
+
+The Playwright suite uncovered three real bugs that have been fixed:
+
+1. **Auth.js session strategy.** The Credentials provider in Auth.js v5 explicitly requires JWT sessions; the previous `session: { strategy: "database" }` caused `/api/auth/callback/credentials` to return `"There was a problem with the server configuration"`. Switched to `strategy: "jwt"` with a `jwt → session` callback that carries `user.id`.
+2. **Localhost trust.** Auth.js v5 in production mode requires `trustHost: true` to accept self-hosted requests (Vercel auto-detects; bare-metal/local does not). Added `trustHost: true` to the config so `next start` accepts localhost cookies.
+3. **SQLite schema auto-init.** The file-backed `getDb()` path didn't apply the schema on first connect, so a fresh `.data/rae.sqlite` would 500 on every auth call. Added an idempotent `CREATE TABLE IF NOT EXISTS` block run on first `createSqliteDb()` so local dev and Playwright work without a manual migration step. Postgres still uses `/api/admin/init-db` (covered by the deploy guide).
+4. **Accessibility.** Three `<select class="galaxy-select">` controls were missing accessible names; added `aria-label` on each. All 10 `<div class="table-wrap">` scrollable regions were missing keyboard focus; added `tabIndex={0}` so they are reachable by keyboard. axe scan now reports zero serious/critical violations on `/` and `/login`.
+
+## Original quant upgrade (PRs 1–5)
+
+This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper adapters, multi-user auth with encrypted league credentials, a WebGL visualization layer across all six panels, and Draft Intelligence as a top-level system.
 
 ## Quant upgrade rollout (PRs 1–5)
 
@@ -24,7 +100,7 @@ This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper a
 
 
 ## Pass/fail checklist
-- [x] ONLY 5 top-level tabs — verified by Playwright locator count against `nav[aria-label="Top-level systems"]`.
+- [x] NINE top-level tabs — verified by Playwright locator count against `nav[aria-label="Top-level systems"]` (`e2e/01-dashboard.spec.ts`).
 - [x] Command Center complete for governed MVP slice.
 - [x] Market Intelligence complete for governed MVP slice.
 - [x] Player Universe complete for governed MVP slice.
@@ -73,7 +149,7 @@ Mobile viewport audit used 390x844 and verified the five-system navigation, pres
 - Topology systems include ARIA labels.
 - Operational source status uses `aria-live`/status patterns.
 - Reduced motion is honored with `prefers-reduced-motion` and Framer Motion gating.
-- Risk: automated axe testing is not yet wired; add it before real users.
+- Automated axe scanning is wired (`e2e/03-a11y.spec.ts`) and runs in CI on `/` and `/login`; the build fails on any serious or critical violation. Lighthouse CI asserts Accessibility ≥ 90.
 
 ## Stale-data audit
 - Freshness states: `fresh`, `stale`, `missing`, `unavailable`, `fixture`.

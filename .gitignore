@@ -7,6 +7,13 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 
+# Local dev/test databases and the cached Sleeper player catalog.
+.data/
+
+# Playwright run output.
+test-results/
+playwright-report/
+
 # Locally generated binary audit artifacts are not reviewable in text-only GitHub diffs.
 artifacts/screenshots/*.png
 artifacts/screenshots/*.jpg

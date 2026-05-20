@@ -12,13 +12,23 @@ const credentialsSchema = z.object({
 
 function buildConfig(): NextAuthConfig {
   return {
+    // Auth.js v5 refuses to issue cookies in production unless it can verify
+    // the request host. On self-hosted Next.js (Vercel auto-detects), we need
+    // to opt-in explicitly. Local dev + Playwright both run against localhost,
+    // which is not on Auth.js's default trust list.
+    trustHost: true,
+    // Adapter still needed so OAuth providers and verificationTokens have a
+    // place to live; Credentials provider itself just uses JWT sessions.
     adapter: DrizzleAdapter(getDb(), {
       usersTable: schema.users,
       accountsTable: schema.accounts,
       sessionsTable: schema.sessions,
       verificationTokensTable: schema.verificationTokens
     }),
-    session: { strategy: "database" },
+    // Auth.js v5 explicitly requires JWT sessions for the Credentials provider.
+    // The user id is carried in the token via the `jwt` callback and re-exposed
+    // on `session.user.id` via the `session` callback.
+    session: { strategy: "jwt" },
     providers: [
       Credentials({
         name: "Email",
@@ -39,8 +49,12 @@ function buildConfig(): NextAuthConfig {
       signIn: "/login"
     },
     callbacks: {
-      session: ({ session, user }) => {
-        if (session.user) session.user.id = user.id;
+      jwt: ({ token, user }) => {
+        if (user) token.id = user.id;
+        return token;
+      },
+      session: ({ session, token }) => {
+        if (session.user && token.id) session.user.id = token.id as string;
         return session;
       }
     }

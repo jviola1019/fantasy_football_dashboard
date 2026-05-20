@@ -1,0 +1,62 @@
+# Statistical Calibration Plan
+
+Status: **structural** — the simulation engine is deterministic, replayable, and statistically well-behaved on its inputs. It is **not** production-calibrated yet. This document is the contract for what production calibration will require and how the dashboard will report uncertainty in the meantime.
+
+## What every metric encodes
+
+| Metric | Definition | Bounds | Sensitivity |
+| --- | --- | --- | --- |
+| `reputationEdge` | `trueValue − perceivedValue + 0.18·ownershipLeverage − 0.08·fragility` | ±200 (theoretical), typically ±25 | monotone ↑ in `trueValue`, ↓ in `fragility` |
+| `marketInefficiency` | `|trueValue − perceivedValue|·confidence + 0.12·max(0, ownershipLeverage)` | ≥ 0 | rises with disagreement |
+| `narrativeVelocity` | `0.54·narrativePressure + 0.28·volatility − 0.11·fragility` | ≈ ±90 | monotone ↑ in `narrativePressure` |
+| `chaosExposure` | `0.45·volatility + 0.4·fragility + 0.15·|narrativePressure|` | ≥ 0 | monotone ↑ in `volatility` |
+| `liquidityScore` | `(0.6·opportunity + 0.4·marketInefficiency)/10` | ≥ 0 | rises with opportunity |
+| `championshipProbability` | fraction of Monte Carlo rosters with mean score > 83 | [0, 100]% | rises with `riskTolerance` and `trueValue` |
+| `playoffProbability` | fraction with mean score > 73 (superset of championship) | [0, 100]% | rises with `riskTolerance` and `trueValue` |
+| `catastrophicRisk` | fraction containing a chaos-exposed starter and score < 69 | [0, 100]% | rises with `chaosExposure`, falls with `riskTolerance` |
+| `regretIndex` | catastrophe rate + 0.35·playoff-miss rate | [0, 100]% | composite of above |
+
+The full set is unit-tested in `src/lib/derivedMetrics.stats.test.ts` for determinism, range bounds, and sensitivity. The simulation's response to `riskTolerance` is hypothesis-tested in `src/lib/simulation.calibration.test.ts` with a Welch t-test (p < 0.001) and Cohen's d effect size (|d| ≥ 0.5).
+
+## What the simulation consumes today
+
+The engine reads `PlayerMarketRecord` fields (`trueValue`, `perceivedValue`, `volatility`, `fragility`, `ownershipLeverage`, `narrativePressure`, `confidence`) and a `SimulationParams` tuple (`seed`, `iterations`, `rosterSlots`, `riskTolerance`). When connected to fixture data those inputs are documented dev calibration. When connected to real Sleeper/ESPN league data they default to zero (see `src/lib/normalize.ts`) — the dashboard correctly surfaces an `unavailable` envelope rather than fabricating signal.
+
+## What production calibration requires
+
+To claim accuracy against real-world outcomes the engine needs all of:
+
+1. **Projections** — weekly point projections per player. Source candidates: FantasyPros consensus (paid), nflverse `ffanalytics` (free), Sleeper's projections if exposed. Maps to `trueValue`.
+2. **Schedule** — opponent strength + matchup difficulty per week. Maps to a per-week multiplier on `trueValue`.
+3. **Injury and depth chart** — current designation + percentile risk. Maps to `fragility`. Source: ESPN injury feed (already wired in `src/lib/espn/league.ts`), Sleeper `/v1/players/nfl` (which includes `injury_status`).
+4. **Scoring rules** — league-specific PPR/half/std + bonus categories. Read from Sleeper `getLeague().scoring_settings` / ESPN `mSettings`. Modulates the projection → score transform.
+5. **Ownership baseline** — league-wide ownership %. Maps to `ownershipLeverage`. Source: Sleeper trending + ESPN `mPositionalRatings`.
+6. **News/sentiment** — narrative direction with timestamp. Maps to `narrativePressure`. Source: RSS adapter in `src/lib/news/rss.ts` (currently lexical only; sentiment classifier is future work).
+7. **Weather** — wind/precip at outdoor venues. Maps to a per-game adjustment on `volatility`. Source: `src/lib/weather/openmeteo.ts` (already wired).
+
+## Calibration procedure (when those inputs arrive)
+
+1. **Historical replay.** Use prior seasons' settled outcomes as ground truth. For each completed week, run the simulation against the inputs available *at kickoff* (not in hindsight) and record predicted vs. actual.
+2. **Brier score per probability metric.** Brier = mean((forecast − outcome)²). Targets, drawn from analogous fantasy/betting literature:
+   - `playoffProbability`: Brier ≤ 0.20
+   - `championshipProbability`: Brier ≤ 0.10
+   - `catastrophicRisk`: Brier ≤ 0.15
+3. **Reliability diagram.** Bin forecasts into deciles and plot observed frequency vs. predicted. Calibration is good when the diagonal is followed within ±5 percentage points per decile.
+4. **K-fold cross-validation across seasons.** k = 3 (e.g., train on 2022–2023, validate on 2024). Avoids in-season leakage.
+5. **Parameter tuning.** Use grid search over the documented constants in `src/lib/models.ts` (`0.18`, `0.08`, `0.54`, `0.28`, `0.11`, etc.). Each constant change is a PR that must improve the validation Brier scores without regressing test sensitivities in `derivedMetrics.stats.test.ts`.
+6. **Recalibration cadence.** Quarterly during the season (post-Week 4, Week 9, Week 13). The cron in `vercel.ts` is the right place to schedule the recalibration job once the data pipeline exists.
+
+## Confidence-band reporting standard
+
+Wherever the dashboard displays a probability or rate computed from Monte Carlo output, it must also display the 95% confidence interval derived via `bootstrapCI` from `src/lib/stats/distribution.ts`. The CI uses 1000 bootstrap resamples, alpha = 0.05, and the same Mulberry32 RNG as the simulation engine — so the band is reproducible from `(seed, iterations, samples)` alone.
+
+For point estimates that are not Monte Carlo outputs (e.g. `reputationEdge` of a single player), no CI is displayed — the value is a deterministic function of inputs and uncertainty lives in the inputs themselves. Source confidence (`PlayerMarketRecord.confidence` ∈ [0, 1]) is surfaced verbatim in the source-state envelope.
+
+## Out-of-scope this pass
+
+- Bayesian updating of `trueValue` from in-game performance.
+- Multi-week joint forecasting (correlation between consecutive weeks).
+- Strategy-conditional simulations (e.g. "if I trade X for Y, replay 10k rosters").
+- Public benchmarking against ESPN's or Yahoo's playoff projections.
+
+All of the above are tractable extensions of the current engine; none are required to surface honest uncertainty today.

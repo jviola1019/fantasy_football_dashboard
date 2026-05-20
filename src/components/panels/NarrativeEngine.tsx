@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Waves } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import { PanelCard } from "../ui/PanelCard";
+import { PanelTabs } from "../ui/PanelTabs";
 import { Canvas3D } from "../three/Canvas3D";
 import { NarrativeField } from "../three/scenes/NarrativeField";
 
@@ -29,35 +32,31 @@ export function NarrativeEngine({ players }: Props) {
   const collisions = deriveStoryCollisions(players);
 
   return (
-    <section className="system-panel panel-narrative" id="narrative-engine" aria-labelledby="ne-title">
-      <div className="panel-header-row">
-        <div className="panel-title">
-          <div className="panel-icon">〜</div>
-          <div>
-            <h2 id="ne-title">Narrative Engine</h2>
-            <p className="panel-eyebrow">Decode stories. Anticipate outcomes.</p>
-          </div>
-        </div>
-        <div className="panel-header-controls">
-          <select className="galaxy-select" value={timeRange} onChange={(e) => setTimeRange(e.target.value)}>
-            {["1D", "7D", "30D", "3M"].map((r) => <option key={r}>{r}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="tab-row" role="tablist" aria-label="Narrative Engine tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={activeTab === t}
-            className={`tab-btn${activeTab === t ? " active" : ""}`}
-            onClick={() => setActiveTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+    <PanelCard
+      id="narrative-engine"
+      titleId="ne-title"
+      title="Narrative Engine"
+      eyebrow="Decode stories. Anticipate outcomes."
+      icon={<Waves />}
+      controls={
+        <select
+          className="galaxy-select"
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value)}
+          aria-label="Time range"
+        >
+          {["1D", "7D", "30D", "3M"].map((r) => (
+            <option key={r}>{r}</option>
+          ))}
+        </select>
+      }
+    >
+      <PanelTabs
+        tabs={TABS}
+        active={activeTab}
+        onSelect={setActiveTab}
+        ariaLabel="Narrative Engine tabs"
+      />
 
       {activeTab === "Narrative Flow" && (
         <div className="narrative-layout">
@@ -78,7 +77,7 @@ export function NarrativeEngine({ players }: Props) {
       {activeTab === "Sentiment Map" && (
         <SentimentMap players={players} />
       )}
-    </section>
+    </PanelCard>
   );
 }
 
@@ -184,7 +183,7 @@ function StoryCollisions({
   collisions: ReturnType<typeof deriveStoryCollisions>;
 }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <div className="section-label">STORY COLLISIONS</div>
       <table>
         <thead>
@@ -214,7 +213,7 @@ function StoryCollisions({
 
 function SentimentMap({ players }: { players: PlayerMarketRecord[] }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <div className="section-label">TOP NARRATIVES — Sentiment Map</div>
       <table>
         <thead>

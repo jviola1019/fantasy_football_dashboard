@@ -74,6 +74,33 @@ export const leagueCredentials = sqliteTable("leagueCredentials", {
     .default(sql`(unixepoch() * 1000)`)
 });
 
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
+  severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
+  rule: text("rule").notNull(),
+  message: text("message").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  dismissedAt: integer("dismissedAt", { mode: "timestamp_ms" })
+});
+
+export const playersSnapshots = sqliteTable("players_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(), // e.g. "sleeper-nfl"
+  fetchedAt: integer("fetchedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: text("payload").notNull() // JSON-encoded map; SQLite has no native JSON
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;
+export type DbPlayersSnapshot = typeof playersSnapshots.$inferSelect;
+export type DbNotification = typeof notifications.$inferSelect;

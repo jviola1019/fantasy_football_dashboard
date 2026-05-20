@@ -42,4 +42,23 @@
 - [x] PR 3 — react-three-fiber Canvas3D + scenes (OrbitalTopology, LiquidityFlow, VolatilitySurface, PlayerGalaxy, NarrativeField) wired into all five core panels.
 - [x] PR 4 — Draft Intelligence as sixth top-level system (Live Board, Recommendation Queue, Tier Collapse, 3-D Multiverse) with pure recommend/tiers unit tests.
 - [x] PR 5 — README rewrite, .env.example, drizzle.config.ts, FINAL_AUDIT update.
-- [ ] PR 6 (out of scope) — Yahoo Fantasy adapter, paid sentiment/injury adapters, cron-backed players-snapshot pipeline, Playwright e2e suite, CI workflow.
+
+## Phase 7 — Hardening sprint (PRs 0–5, shipped)
+- [x] Cron-backed daily Sleeper players-snapshot pipeline (`/api/cron/players-refresh` → Postgres `players_snapshots`).
+- [x] Free-tier weather (open-meteo) + NFL RSS news adapters; `next/image` headshots.
+- [x] Statistical validation of every derived metric + Monte Carlo calibration plan (`docs/calibration.md`).
+- [x] Season lifecycle: Pre-Draft Audit + Waiver Wire + Trade Center panels; lifecycle cron + notifications.
+- [x] Playwright e2e suite + GitHub Actions CI + axe a11y + Lighthouse CI.
+
+## Phase 8 — Polish sprint (PRs 6–9, shipped)
+- [x] PR 6 — Sleeper-primary headshots, verified player ids, wrong-id regression fixed + tested.
+- [x] PR 7 — Blueprint-grade WebGL: bloom + Environment + atmosphere + custom flow/surface shaders + in-scene headshot billboards; overflow-clip removed.
+- [x] PR 8 — Friendly auth-error map, signed-in UserMenu + sign-out, DemoBanner, inline login validation.
+- [x] PR 9 — Per-account isolation e2e gate + `docs/account-isolation.md`.
+
+## Still deferred (genuine future work)
+- [ ] Yahoo Fantasy adapter (needs a registered Yahoo developer app for OAuth).
+- [ ] Paid projection / injury / sentiment feeds (only free-tier adapters wired today).
+- [ ] FAAB-ratio extraction from league settings (the FAAB-depleted lifecycle rule stays dormant until then).
+- [ ] Sleeper `user_id ↔ RAE userId` capture at league-add time (cron currently scores the first roster).
+- [ ] Auto-load the signed-in user's first league on the homepage (the DemoBanner bridges the gap for now).

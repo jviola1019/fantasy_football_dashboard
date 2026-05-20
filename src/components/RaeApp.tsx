@@ -8,13 +8,20 @@ import {
   deriveMarketMetrics,
   deriveScenarioComparison,
 } from "@/lib/derivedMetrics";
-import { Sidebar } from "./Sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppSidebar } from "./shell/AppSidebar";
+import { TopBar } from "./shell/TopBar";
+import { PanelGrid, PanelRow } from "./shell/PanelGrid";
 import { CommandCenter } from "./panels/CommandCenter";
 import { MarketIntelligence } from "./panels/MarketIntelligence";
 import { PlayerUniverse } from "./panels/PlayerUniverse";
 import { NarrativeEngine } from "./panels/NarrativeEngine";
 import { NexusSimulator } from "./panels/NexusSimulator";
 import { DraftIntelligence } from "./panels/DraftIntelligence";
+import { PreDraftAudit } from "./panels/PreDraftAudit";
+import { WaiverWire } from "./panels/WaiverWire";
+import { TradeCenter } from "./panels/TradeCenter";
+import { DemoBanner } from "./topbar/DemoBanner";
 
 export const systems = [
   "Command Center",
@@ -23,9 +30,25 @@ export const systems = [
   "Narrative Engine",
   "Nexus Simulator",
   "Draft Intelligence",
+  "Pre-Draft",
+  "Waiver Wire",
+  "Trade Center",
 ] as const;
 
 export type SystemName = (typeof systems)[number];
+
+/** Maps each top-level system to the DOM id of its rendered panel section. */
+const SYSTEM_ANCHORS: Record<string, string> = {
+  "Command Center": "command-center",
+  "Market Intelligence": "market-intelligence",
+  "Player Universe": "player-universe",
+  "Narrative Engine": "narrative-engine",
+  "Nexus Simulator": "nexus-simulator",
+  "Draft Intelligence": "draft-intelligence",
+  "Pre-Draft": "pre-draft-audit",
+  "Waiver Wire": "waiver-wire",
+  "Trade Center": "trade-center"
+};
 
 const SIM_PARAMS = { seed: 20260513, iterations: 2500, rosterSlots: 6, riskTolerance: 0.58 } as const;
 
@@ -38,69 +61,57 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
   const marketMetrics = deriveMarketMetrics(players);
   const scenarios = deriveScenarioComparison(players, sim);
 
-  return (
-    <div className="rae-shell">
-      <Sidebar active={activeSystem} onChange={setActiveSystem} />
+  // Selecting a system highlights its nav entry AND scrolls its panel into
+  // view. scroll-mt-* on PanelCard clears the sticky TopBar.
+  const goToSystem = (system: string) => {
+    setActiveSystem(system);
+    const anchor = SYSTEM_ANCHORS[system];
+    if (!anchor) return;
+    const el = typeof document !== "undefined" ? document.getElementById(anchor) : null;
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
-      <div className="rae-content">
-        <header className="topbar" aria-label="RAE primary navigation">
-          <div className="brand">
-            <span>RAE</span>
-            <small>Reputation<br />Arbitrage<br />Engine</small>
-          </div>
-          <nav className="system-tabs" aria-label="Top-level systems">
-            {systems.map((system, index) => (
-              <button
-                key={system}
-                className={`tab-link${activeSystem === system ? " active" : ""}`}
-                onClick={() => setActiveSystem(system)}
-              >
-                {index + 1}. {system}
-              </button>
-            ))}
-          </nav>
-          <div className="topbar-right">
-            <nav className="topbar-account" aria-label="Account">
-              <a href="/login" className="topbar-link">Sign in</a>
-              <a href="/settings/leagues" className="topbar-link">Leagues</a>
-            </nav>
-            <div className="ops-status" aria-live="polite">
-              <b className={envelope.mode === "live" ? "status-live" : envelope.mode === "fixture" ? "status-fixture" : "status-err"}>
-                {envelope.mode.toUpperCase()}
-              </b>
-              <span>{envelope.sourceState.freshness}</span>
-            </div>
-          </div>
-        </header>
+  return (
+    <SidebarProvider>
+      <AppSidebar active={activeSystem} onSelect={goToSystem} />
+      <SidebarInset>
+        <TopBar envelope={envelope} active={activeSystem} onSelect={goToSystem} />
+
+        <DemoBanner visible={envelope.mode === "fixture"} />
 
         <div className="governance-banner" role="status">
           <b>Source state:</b> {envelope.sourceState.source} · freshness {envelope.sourceState.freshness} · confidence {(envelope.sourceState.confidence * 100).toFixed(0)}% · validation {envelope.sourceState.validation}.
           {envelope.sourceState.failure ? <span> Failure: {envelope.sourceState.failure}</span> : null}
         </div>
 
-        <div className="dashboard-grid">
-          <CommandCenter
-            players={players}
-            envelope={envelope}
-            sim={sim}
-            metrics={commandMetrics}
-          />
-          <MarketIntelligence
-            players={players}
-            marketMetrics={marketMetrics}
-          />
-        </div>
+        <PanelGrid>
+          <PanelRow cols={2}>
+            <CommandCenter
+              players={players}
+              envelope={envelope}
+              sim={sim}
+              metrics={commandMetrics}
+            />
+            <MarketIntelligence players={players} marketMetrics={marketMetrics} />
+          </PanelRow>
 
-        <div className="bottom-panels">
-          <PlayerUniverse players={players} />
-          <NarrativeEngine players={players} />
-          <NexusSimulator players={players} sim={sim} scenarios={scenarios} />
-        </div>
+          <PanelRow cols={3}>
+            <PlayerUniverse players={players} />
+            <NarrativeEngine players={players} />
+            <NexusSimulator players={players} sim={sim} scenarios={scenarios} />
+          </PanelRow>
 
-        <div className="bottom-panels">
-          <DraftIntelligence players={players} />
-        </div>
-      </div>
-    </div>
+          <PanelRow cols={1}>
+            <DraftIntelligence players={players} />
+          </PanelRow>
+
+          <PanelRow cols={3}>
+            <PreDraftAudit players={players} />
+            <WaiverWire players={players} />
+            <TradeCenter players={players} />
+          </PanelRow>
+        </PanelGrid>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }

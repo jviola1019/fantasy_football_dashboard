@@ -75,15 +75,67 @@ export function deriveMarketMetrics(players: PlayerMarketRecord[]): MarketMetric
   };
 }
 
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 function simToRow(sim: SimulationResult, players: PlayerMarketRecord[], scale = 1.0): ScenarioRow {
   const basePoints = players.reduce((s, p) => s + p.trueValue, 0) * 16;
+
+  // Every probability is clamped to [0, 100]. The three tiers are also forced
+  // into the only ordering that is logically possible: winning the title
+  // implies a top-3 finish, which implies making the playoffs. Without this a
+  // best-case scale could print e.g. "Top 3: 114.8%".
+  const championship = clamp(sim.championshipProbability * scale, 0, 100);
+  const playoffs = clamp(sim.playoffProbability * scale, 0, 100);
+  const topThree = clamp(championship * 3.4, championship, playoffs);
+
   return {
-    championship: Math.round(sim.championshipProbability * scale * 10) / 10,
-    topThree: Math.round(sim.championshipProbability * scale * 4.1 * 10) / 10,
-    playoffs: Math.round(sim.playoffProbability * scale * 10) / 10,
+    championship: round1(championship),
+    topThree: round1(topThree),
+    playoffs: round1(playoffs),
     pointsFor: Math.round(basePoints * scale),
     pointsAgainst: Math.round(basePoints * (2 - scale) * 0.97),
-    finalRank: Math.min(12, Math.max(1, Math.round((100 - sim.playoffProbability * scale) / 11))),
+    finalRank: Math.min(12, Math.max(1, Math.round((100 - playoffs) / 11) + 1)),
+  };
+}
+
+export type OutcomeDistribution = {
+  championship: number;
+  topThree: number;
+  playoffs: number;
+  middlePack: number;
+  bottomThree: number;
+};
+
+/**
+ * Partition the season into five mutually exclusive final-standing buckets that
+ * always sum to 100 and are each ≥ 0. Derived from the three simulation
+ * outputs (championship %, playoff %, catastrophic risk %), then normalized so
+ * the dashboard never shows buckets that over- or under-sum.
+ */
+export function deriveOutcomeDistribution(sim: SimulationResult): OutcomeDistribution {
+  const champ = clamp(sim.championshipProbability, 0, 100);
+  const playoff = clamp(sim.playoffProbability, 0, 100);
+  const bottom = clamp(sim.catastrophicRisk, 0, 100);
+
+  // Made playoffs but not 1st, split into "top 3" and "rest of playoffs".
+  const aboveChamp = Math.max(0, playoff - champ);
+  const topThree = Math.min(aboveChamp, champ * 2.0);
+  const playoffsRest = Math.max(0, aboveChamp - topThree);
+  // Missed playoffs and did not bottom out.
+  const middlePack = Math.max(0, 100 - champ - topThree - playoffsRest - bottom);
+
+  const raw = [champ, topThree, playoffsRest, middlePack, bottom];
+  const sum = raw.reduce((a, b) => a + b, 0) || 1;
+  const norm = raw.map((v) => round1((v / sum) * 100));
+
+  return {
+    championship: norm[0]!,
+    topThree: norm[1]!,
+    playoffs: norm[2]!,
+    middlePack: norm[3]!,
+    bottomThree: norm[4]!
   };
 }
 

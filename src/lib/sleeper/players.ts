@@ -7,6 +7,7 @@ import {
   type SleeperPlayer,
   type SleeperPlayersMap
 } from "./schemas";
+import { getLatestPlayersSnapshot } from "./snapshot";
 
 export const SLEEPER_BASE = "https://api.sleeper.app";
 export const SLEEPER_PLAYERS_URL = `${SLEEPER_BASE}/v1/players/nfl`;
@@ -18,9 +19,47 @@ const SLEEPER_HEADSHOT = "https://sleepercdn.com/content/nfl/players/thumb";
 export interface LoadRAEEnvelopeOptions {
   allowFixtures?: boolean;
   fetcher?: Fetcher;
+  /** If true, skip the DB snapshot and always fetch live. Tests should leave this false. */
+  forceLive?: boolean;
 }
 
+const SNAPSHOT_MAX_AGE_MS = 36 * 60 * 60 * 1000; // 36h — daily cron is 24h cadence + buffer.
+
 export async function loadRAEEnvelope(options: LoadRAEEnvelopeOptions = {}): Promise<RAEEnvelope> {
+  // Tests pass `fetcher` to mock the network; in that path we never touch the DB.
+  if (!options.fetcher && !options.forceLive) {
+    try {
+      const snapshot = await getLatestPlayersSnapshot();
+      if (snapshot) {
+        const ageMs = Date.now() - snapshot.fetchedAt.getTime();
+        if (ageMs <= SNAPSHOT_MAX_AGE_MS) {
+          if (options.allowFixtures) return RAEEnvelopeSchema.parse(fixtureEnvelope());
+          return {
+            mode: "unavailable",
+            generatedAt: new Date().toISOString(),
+            records: [],
+            sourceState: {
+              source: "Sleeper players snapshot",
+              fetchedAt: snapshot.fetchedAt.toISOString(),
+              ttlSeconds: PLAYERS_TTL,
+              freshness: "fresh",
+              confidence: 0.9,
+              validation: "valid",
+              missingFields: ["market_value", "true_value", "ownership", "narrative_pressure"],
+              assumptions: [
+                "Snapshot stored by daily cron from Sleeper public players API.",
+                "RAE refuses to fabricate market intelligence from identity records alone."
+              ],
+              failure: null
+            }
+          };
+        }
+      }
+    } catch {
+      // DB unavailable in dev without setup — fall through to live fetch.
+    }
+  }
+
   const { data, source } = await fetchWithEnvelope({
     url: SLEEPER_PLAYERS_URL,
     schema: SleeperPlayersMapSchema,

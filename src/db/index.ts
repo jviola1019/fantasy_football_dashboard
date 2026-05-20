@@ -46,7 +46,86 @@ function createSqliteDb(filename: string): Db {
   const sqlite = new BetterSqlite(filename);
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
+  // Idempotent schema init so file-backed dev DBs (and Playwright's SQLite
+  // fixture) don't require a separate migration step. Postgres uses
+  // /api/admin/init-db instead — see DEPLOY_TO_VERCEL.md.
+  applySqliteSchemaIfNeeded(sqlite);
   return drizzle(sqlite, { schema: sqliteSchema }) as Db;
+}
+
+function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; prepare: (sql: string) => { get: () => unknown } }): void {
+  const present = sqlite
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    .get();
+  if (present) return;
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT,
+      email TEXT UNIQUE,
+      emailVerified INTEGER,
+      image TEXT,
+      passwordHash TEXT
+    );
+    CREATE TABLE IF NOT EXISTS accounts (
+      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      providerAccountId TEXT NOT NULL,
+      refresh_token TEXT,
+      access_token TEXT,
+      expires_at INTEGER,
+      token_type TEXT,
+      scope TEXT,
+      id_token TEXT,
+      session_state TEXT,
+      PRIMARY KEY (provider, providerAccountId)
+    );
+    CREATE TABLE IF NOT EXISTS sessions (
+      sessionToken TEXT PRIMARY KEY,
+      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS verificationTokens (
+      identifier TEXT NOT NULL,
+      token TEXT NOT NULL,
+      expires INTEGER NOT NULL,
+      PRIMARY KEY (identifier, token)
+    );
+    CREATE TABLE IF NOT EXISTS leagues (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      platform TEXT NOT NULL,
+      externalLeagueId TEXT NOT NULL,
+      season INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS leagueCredentials (
+      leagueId TEXT PRIMARY KEY REFERENCES leagues(id) ON DELETE CASCADE,
+      iv BLOB NOT NULL,
+      authTag BLOB NOT NULL,
+      ciphertext BLOB NOT NULL,
+      rotatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS players_snapshots (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS notifications (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      leagueId TEXT REFERENCES leagues(id) ON DELETE CASCADE,
+      severity TEXT NOT NULL,
+      rule TEXT NOT NULL,
+      message TEXT NOT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      dismissedAt INTEGER
+    );
+  `);
 }
 
 function createPostgresDb(connectionUrl: string): Db {
@@ -132,6 +211,23 @@ function applyTestSchema(sqlite: MinimalSqliteHandle) {
       authTag BLOB NOT NULL,
       ciphertext BLOB NOT NULL,
       rotatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE players_snapshots (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
+    CREATE TABLE notifications (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      leagueId TEXT REFERENCES leagues(id) ON DELETE CASCADE,
+      severity TEXT NOT NULL,
+      rule TEXT NOT NULL,
+      message TEXT NOT NULL,
+      createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      dismissedAt INTEGER
     );
   `);
 }

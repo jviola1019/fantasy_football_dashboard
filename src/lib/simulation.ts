@@ -74,7 +74,13 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
     championshipProbability: pct(championshipHits / iterations),
     playoffProbability: pct(playoffHits / iterations),
     catastrophicRisk: pct(catastropheHits / iterations),
-    regretIndex: pct((catastropheHits + (iterations - playoffHits) * 0.35) / iterations),
+    // regretIndex is a weighted composite (catastrophes + a fraction of
+    // playoff misses). The raw weighted sum can exceed the iteration count, so
+    // it is normalized by the worst-case weight before being expressed as a
+    // percentage — it can never report an impossible >100%.
+    regretIndex: pct(
+      (catastropheHits + (iterations - playoffHits) * 0.35) / (iterations * 1.35)
+    ),
     keyDrivers: Array.from(drivers.entries())
       .map(([id, contribution]) => ({ id, name: players.find((player) => player.id === id)?.name ?? id, contribution: Math.round(contribution * 10) / 10 }))
       .sort((a, b) => b.contribution - a.contribution)
@@ -88,6 +94,12 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
   };
 }
 
+/**
+ * Convert a 0..1 ratio to a one-decimal percentage, clamped to [0, 100].
+ * The clamp is a hard guard: a probability or risk index must never render an
+ * impossible value, regardless of upstream weighting.
+ */
 function pct(value: number): number {
-  return Math.round(value * 1000) / 10;
+  const bounded = Math.min(1, Math.max(0, value));
+  return Math.round(bounded * 1000) / 10;
 }

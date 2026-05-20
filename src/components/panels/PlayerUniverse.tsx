@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { Orbit } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import { PanelCard } from "../ui/PanelCard";
+import { PanelTabs } from "../ui/PanelTabs";
 import { marketInefficiency, narrativeVelocity } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { avg, narrativeLabel, fmt } from "@/lib/utils";
 import { Canvas3D } from "../three/Canvas3D";
 import { PlayerGalaxy } from "../three/scenes/PlayerGalaxy";
+import { PlayerHeadshot } from "../PlayerHeadshot";
+import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -29,17 +34,15 @@ export function PlayerUniverse({ players }: Props) {
   const avgIneff = avg(players.map(marketInefficiency));
 
   return (
-    <section className="system-panel panel-universe" id="player-universe" aria-labelledby="pu-title">
-      <div className="panel-header-row">
-        <div className="panel-title">
-          <div className="panel-icon">✦</div>
-          <div>
-            <h2 id="pu-title">Player Universe</h2>
-            <p className="panel-eyebrow">Explore the player ecosystem.</p>
-          </div>
-        </div>
-        <div className="panel-header-controls">
-          <select className="galaxy-select" defaultValue="GALAXY VIEW">
+    <PanelCard
+      id="player-universe"
+      titleId="pu-title"
+      title="Player Universe"
+      eyebrow="Explore the player ecosystem."
+      icon={<Orbit />}
+      controls={
+        <>
+          <select className="galaxy-select" defaultValue="GALAXY VIEW" aria-label="Galaxy view mode">
             <option>GALAXY VIEW</option>
             <option>ORBITAL VIEW</option>
             <option>TIER VIEW</option>
@@ -52,22 +55,15 @@ export function PlayerUniverse({ players }: Props) {
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search players"
           />
-        </div>
-      </div>
-
-      <div className="tab-row" role="tablist" aria-label="Player Universe tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={activeTab === t}
-            className={`tab-btn${activeTab === t ? " active" : ""}`}
-            onClick={() => setActiveTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+        </>
+      }
+    >
+      <PanelTabs
+        tabs={TABS}
+        active={activeTab}
+        onSelect={setActiveTab}
+        ariaLabel="Player Universe tabs"
+      />
 
       <div className="universe-layout">
         <GalaxyView
@@ -100,7 +96,7 @@ export function PlayerUniverse({ players }: Props) {
           )}
         </div>
       </div>
-    </section>
+    </PanelCard>
   );
 }
 
@@ -140,9 +136,16 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
   return (
     <div className="player-profile-card">
       <div className="profile-header">
-        <div>
-          <div className="profile-name">{player.name}</div>
-          <div className="profile-pos">{player.position} · {player.team}</div>
+        <div className="profile-id-row">
+          <PlayerHeadshot
+            player={player}
+            fallbacks={fixtureHeadshotFallbacks[player.id] ?? []}
+            size={44}
+          />
+          <div>
+            <div className="profile-name">{player.name}</div>
+            <div className="profile-pos">{player.position} · {player.team}</div>
+          </div>
         </div>
         <div className="profile-rep">{Math.round(player.trueValue)}</div>
       </div>

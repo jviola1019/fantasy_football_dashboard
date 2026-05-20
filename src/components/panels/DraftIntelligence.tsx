@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ClipboardList } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
 import { recommend, type Recommendation } from "@/lib/draft/recommend";
 import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
@@ -9,6 +10,8 @@ import { derivePositionGrades } from "@/lib/derivedMetrics";
 import { Canvas3D } from "../three/Canvas3D";
 import { DraftMultiverse } from "../three/scenes/DraftMultiverse";
 import { reputationEdge } from "@/lib/models";
+import { PanelCard } from "../ui/PanelCard";
+import { PanelTabs } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -36,33 +39,22 @@ export function DraftIntelligence({ players }: Props) {
     });
 
   return (
-    <section className="system-panel panel-draft" id="draft-intelligence" aria-labelledby="dr-title">
-      <div className="panel-header-row">
-        <div className="panel-title">
-          <div className="panel-icon">◬</div>
-          <div>
-            <h2 id="dr-title">Draft Intelligence</h2>
-            <p className="panel-eyebrow">Read the room. Anticipate the run.</p>
-          </div>
-        </div>
-        <div className="panel-header-controls">
-          <span className="muted-text">{myRoster.length} on roster · {available.length} available</span>
-        </div>
-      </div>
-
-      <div className="tab-row" role="tablist" aria-label="Draft Intelligence tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            role="tab"
-            aria-selected={activeTab === t}
-            className={`tab-btn${activeTab === t ? " active" : ""}`}
-            onClick={() => setActiveTab(t)}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+    <PanelCard
+      id="draft-intelligence"
+      titleId="dr-title"
+      title="Draft Intelligence"
+      eyebrow="Read the room. Anticipate the run."
+      icon={<ClipboardList />}
+      controls={
+        <span className="muted-text">{myRoster.length} on roster · {available.length} available</span>
+      }
+    >
+      <PanelTabs
+        tabs={TABS}
+        active={activeTab}
+        onSelect={setActiveTab}
+        ariaLabel="Draft Intelligence tabs"
+      />
 
       {activeTab === "Live Board" && (
         <LiveBoard
@@ -92,7 +84,7 @@ export function DraftIntelligence({ players }: Props) {
           </p>
         </div>
       )}
-    </section>
+    </PanelCard>
   );
 }
 
@@ -110,7 +102,7 @@ function LiveBoard({
   const topPick = recommendations[0];
   return (
     <div className="universe-layout">
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <div className="section-label">AVAILABLE — click to add to roster</div>
         <table>
           <thead>
@@ -191,7 +183,7 @@ function LiveBoard({
 
 function RecommendationQueue({ recommendations }: { recommendations: Recommendation[] }) {
   return (
-    <div className="table-wrap">
+    <div className="table-wrap" tabIndex={0}>
       <div className="section-label">RECOMMENDATION QUEUE</div>
       <table>
         <thead>
@@ -237,7 +229,7 @@ function TierCollapseView({
 }) {
   return (
     <div className="nexus-full">
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <div className="section-label">TIER COLLAPSE FORECAST</div>
         <table>
           <thead>
