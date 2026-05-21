@@ -37,6 +37,32 @@ export function spearman(xs: number[], ys: number[]): number {
 }
 
 /**
+ * Standardize a numeric array to z-scores: `(v - mean) / sampleStdev`.
+ *
+ * Used to pool realized VOR and trade value across NFL seasons. Absolute VOR is
+ * not comparable season to season — scoring environments and injury years
+ * differ — so each season's values are z-scored *within that season* before the
+ * pairs are pooled. A constant input (zero variance) yields all zeros rather
+ * than NaN, so degenerate buckets do not poison the pooled correlation.
+ */
+export function zScores(values: number[]): number[] {
+  const n = values.length;
+  if (n === 0) return [];
+  let sum = 0;
+  for (const v of values) sum += v;
+  const mean = sum / n;
+  if (n < 2) return values.map(() => 0);
+  let sse = 0;
+  for (const v of values) {
+    const d = v - mean;
+    sse += d * d;
+  }
+  const sd = Math.sqrt(sse / (n - 1));
+  if (sd === 0) return values.map(() => 0);
+  return values.map((v) => (v - mean) / sd);
+}
+
+/**
  * Compute realized Value Over Replacement per player. The replacement baseline
  * for a position is the points of the player at `ranks[position]` (1-indexed),
  * or the lowest-scoring player at that position if the list is shorter.
