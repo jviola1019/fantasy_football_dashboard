@@ -84,6 +84,25 @@ export const EspnScheduleMatchupSchema = z
   })
   .passthrough();
 
+export const EspnTransactionItemSchema = z
+  .object({
+    type: z.string().nullable().optional(),
+    playerId: z.number().int().nullable().optional(),
+    fromTeamId: z.number().int().nullable().optional(),
+    toTeamId: z.number().int().nullable().optional()
+  })
+  .passthrough();
+
+export const EspnTransactionSchema = z
+  .object({
+    id: z.union([z.string(), z.number()]).nullable().optional(),
+    type: z.string().nullable().optional(),
+    status: z.string().nullable().optional(),
+    proposedDate: z.number().nullable().optional(),
+    items: z.array(EspnTransactionItemSchema).nullable().optional()
+  })
+  .passthrough();
+
 export const EspnLeagueResponseSchema = z
   .object({
     id: z.number().int().nullable().optional(),
@@ -100,7 +119,8 @@ export const EspnLeagueResponseSchema = z
       .nullable()
       .optional(),
     settings: z.record(z.string(), z.unknown()).nullable().optional(),
-    status: z.record(z.string(), z.unknown()).nullable().optional()
+    status: z.record(z.string(), z.unknown()).nullable().optional(),
+    transactions: z.array(EspnTransactionSchema).nullable().optional()
   })
   .passthrough();
 export type EspnLeagueResponse = z.infer<typeof EspnLeagueResponseSchema>;
