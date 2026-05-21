@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "../topbar/UserMenu";
 import { SearchInput } from "../topbar/SearchInput";
-import { systems } from "../RaeApp";
+import { systems } from "../systems";
 
 interface Props {
   envelope: RAEEnvelope;

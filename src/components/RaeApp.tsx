@@ -22,33 +22,9 @@ import { PreDraftAudit } from "./panels/PreDraftAudit";
 import { WaiverWire } from "./panels/WaiverWire";
 import { TradeCenter } from "./panels/TradeCenter";
 import { DemoBanner } from "./topbar/DemoBanner";
+import { SYSTEM_ANCHORS } from "./systems";
 
-export const systems = [
-  "Command Center",
-  "Market Intelligence",
-  "Player Universe",
-  "Narrative Engine",
-  "Nexus Simulator",
-  "Draft Intelligence",
-  "Pre-Draft",
-  "Waiver Wire",
-  "Trade Center",
-] as const;
-
-export type SystemName = (typeof systems)[number];
-
-/** Maps each top-level system to the DOM id of its rendered panel section. */
-const SYSTEM_ANCHORS: Record<string, string> = {
-  "Command Center": "command-center",
-  "Market Intelligence": "market-intelligence",
-  "Player Universe": "player-universe",
-  "Narrative Engine": "narrative-engine",
-  "Nexus Simulator": "nexus-simulator",
-  "Draft Intelligence": "draft-intelligence",
-  "Pre-Draft": "pre-draft-audit",
-  "Waiver Wire": "waiver-wire",
-  "Trade Center": "trade-center"
-};
+export { systems, type SystemName } from "./systems";
 
 const SIM_PARAMS = { seed: 20260513, iterations: 2500, rosterSlots: 6, riskTolerance: 0.58 } as const;
 
