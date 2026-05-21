@@ -37,8 +37,13 @@ export interface Canvas3DProps {
  *   rendered first frame.
  * - Atmosphere + PostFX are opt-out so non-volumetric scenes can disable them.
  * - Wrapped in <SceneErrorBoundary>: a failed WebGL context (GPU OOM, context
- *   exhaustion, shader compile error) degrades to a static placeholder rather
+ *   exhaustion, shader compile error) degrades to a static fallback rather
  *   than crashing the whole dashboard.
+ *
+ * The <Canvas> renders unconditionally — server and client produce the same
+ * markup, so hydration is clean. (An earlier IntersectionObserver lazy-mount
+ * was removed: it returned different values on the server and client, which
+ * triggered a hydration mismatch on every scene.)
  */
 export function Canvas3D({
   children,

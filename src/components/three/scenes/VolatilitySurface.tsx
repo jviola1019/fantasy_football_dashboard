@@ -6,7 +6,13 @@ import * as THREE from "three";
 import { useReducedMotion } from "framer-motion";
 import type { SimulationResult } from "@/lib/simulation";
 import { StudioLighting } from "../lighting/StudioLighting";
-import { SurfaceMaterial } from "../shaders/surfaceMaterial";
+// `surfaceMaterial` is registered with R3F via a module-level `extend()` side
+// effect. The `SurfaceMaterial` symbol below is referenced only in a type
+// position, so the bundler (SWC/Turbopack) would otherwise elide the whole
+// module and the `<surfaceMaterial>` intrinsic would be unknown to R3F. The
+// bare import keeps the side effect alive.
+import "../shaders/surfaceMaterial";
+import type { SurfaceMaterial } from "../shaders/surfaceMaterial";
 
 interface Props {
   sim: SimulationResult;

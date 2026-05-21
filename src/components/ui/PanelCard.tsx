@@ -36,13 +36,15 @@ export function PanelCard({
       id={id}
       aria-labelledby={titleId}
       className={cn(
-        "scroll-mt-28 overflow-hidden rounded-xl border border-border",
+        // scroll-mt clears the 78px sticky TopBar (+ a small breathing gap) so
+        // nav-driven scrollIntoView lands the panel flush, not 30px low.
+        "scroll-mt-[88px] overflow-hidden rounded-xl border border-border",
         "bg-gradient-to-br from-card to-[#090d12] shadow-[0_4px_32px_rgba(0,0,0,0.4)]",
         "flex flex-col",
         className
       )}
     >
-      <header className="flex items-start justify-between gap-3 border-b border-border/70 px-4 py-3">
+      <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-2.5">
           {icon ? (
             <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-secondary text-rae-blue [&_svg]:size-4">

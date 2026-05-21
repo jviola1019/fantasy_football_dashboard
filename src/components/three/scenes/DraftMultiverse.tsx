@@ -6,7 +6,13 @@ import * as THREE from "three";
 import { useReducedMotion } from "framer-motion";
 import { mulberry32 } from "@/lib/simulation";
 import { StudioLighting } from "../lighting/StudioLighting";
-import { FlowMaterial } from "../shaders/flowMaterial";
+// `flowMaterial` is registered with R3F via a module-level `extend()` side
+// effect. The `FlowMaterial` symbol below is referenced only in a type
+// position, so the bundler (SWC/Turbopack) would otherwise elide the whole
+// module and the `<flowMaterial>` intrinsic would be unknown to R3F. The bare
+// import keeps the side effect alive.
+import "../shaders/flowMaterial";
+import type { FlowMaterial } from "../shaders/flowMaterial";
 
 interface Branch {
   probability: number;

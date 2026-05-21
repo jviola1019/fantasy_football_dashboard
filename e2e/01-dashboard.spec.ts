@@ -12,20 +12,42 @@ test.describe("public dashboard", () => {
     const tabs = nav.locator("button");
     await expect(tabs).toHaveCount(9);
 
-    // At least one WebGL scene must mount and paint. We assert ≥ 1 rather than a
-    // fixed count: the number of *concurrent* WebGL contexts a browser grants
-    // is GPU-dependent — headless software rendering (CI) caps it lower than a
-    // real GPU. Panels that can't get a context degrade to a static fallback
-    // via <SceneErrorBoundary> instead of crashing the page, so the meaningful
-    // assertions are "WebGL works at all" + "page did not crash".
+    // At least one WebGL scene must mount and paint near the top of the page.
+    // We assert ≥ 1 rather than a fixed count: the number of *concurrent*
+    // WebGL contexts a browser grants is GPU-dependent — headless software
+    // rendering (CI) caps it lower than a real GPU. Panels that can't get a
+    // context degrade to a static fallback via <SceneErrorBoundary> instead of
+    // crashing the page, so the meaningful assertions are "WebGL works at all"
+    // + "page did not crash".
     const canvases = page.locator("canvas");
     await expect(canvases.first()).toBeVisible({ timeout: 30_000 });
     expect(await canvases.count()).toBeGreaterThanOrEqual(1);
 
-    // Every panel either shows its canvas or the graceful fallback — never a
-    // blank/broken region.
-    const scenes = await page.locator("canvas, .scene-fallback").count();
-    expect(scenes).toBeGreaterThanOrEqual(4);
+    // Every panel's scene region must be exactly one of: a live WebGL canvas
+    // or the graceful <SceneErrorBoundary> fallback — never a blank/broken
+    // region. A browser that refuses a WebGL context degrades to the fallback
+    // rather than crashing the page.
+    const sceneRegionCount = await page.locator("canvas, .scene-fallback").count();
+    expect(sceneRegionCount).toBeGreaterThanOrEqual(4);
+
+    // Each 3-D panel whose default tab embeds a scene must resolve to a real
+    // WebGL canvas (or the honest error fallback if the GPU refuses a context).
+    // Market Intelligence and Draft Intelligence keep their scenes behind a
+    // non-default tab, so they are excluded here.
+    for (const panelId of [
+      "command-center",
+      "player-universe",
+      "narrative-engine",
+      "nexus-simulator"
+    ]) {
+      const panel = page.locator(`#${panelId}`);
+      await panel.scrollIntoViewIfNeeded();
+      // After scroll-in the panel resolves to a canvas or the error fallback;
+      // the placeholder is transient and must not be the resting state.
+      await expect(
+        panel.locator("canvas, .scene-fallback").first()
+      ).toBeVisible({ timeout: 30_000 });
+    }
   });
 
   test("topbar shows the Sign in entry point when logged out", async ({ page }) => {
