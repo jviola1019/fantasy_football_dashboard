@@ -57,7 +57,16 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
   const present = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
     .get();
-  if (present) return;
+  if (present) {
+    // Existing database: apply additive column migrations idempotently.
+    // SQLite ADD COLUMN throws if the column already exists, so swallow that.
+    try {
+      sqlite.exec("ALTER TABLE leagues ADD COLUMN settings TEXT");
+    } catch {
+      // column already present
+    }
+    return;
+  }
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
