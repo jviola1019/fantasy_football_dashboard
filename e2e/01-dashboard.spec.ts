@@ -46,6 +46,17 @@ test.describe("public dashboard", () => {
     await expect(banner).toContainText(/freshness/i);
   });
 
+  test("trade builder renders and accepts a player search", async ({ page }) => {
+    await page.goto("/");
+    const panel = page.locator("#trade-center");
+    await expect(panel).toBeVisible();
+    // The builder loads values async; it shows either the search box (ready)
+    // or an honest loading/unavailable message — never a crash.
+    await expect(
+      panel.locator('input[aria-label="Search players"], .muted-note')
+    ).toBeVisible({ timeout: 30_000 });
+  });
+
   // The shadcn/Tailwind shell must reflow without the document itself
   // overflowing horizontally at any common breakpoint. Internal scroll
   // containers (tables, the tab strip) clip their own overflow, so the

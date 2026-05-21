@@ -108,6 +108,17 @@ The Nexus Simulator uses:
 
 Current probabilities are development-calibration outputs when fixture mode is enabled. Production calibration requires validated projections, schedule, roster, injury, and scoring settings. RAE does not claim fixture probabilities are live production forecasts.
 
+## Trade value simulator
+
+The Trade Center (`src/components/panels/TradeCenter.tsx`) is a top-level system backed by real market data from the **FantasyCalc** free API, with a **DynastyProcess** CSV fallback — no API keys and no paid feeds required. It has two tabs:
+
+- **Trade Builder** — search players by name, build two sides of a trade, and get a live fairness verdict (balanced / slight-edge / lopsided) based on positionally-adjusted market values.
+- **Recent League Trades** — grades real transactions pulled from a connected **Sleeper or ESPN** league, showing the value each side received and the verdict for each executed trade.
+
+League format (PPR / Superflex / team count) is auto-detected at league-add time via the Sleeper public API or ESPN `mSettings` and persisted per league. The format feeds the value weights used in both the Trade Builder and the grading engine.
+
+See `docs/trade-calibration.md` for the full backtest and validation methodology (concurrent-validity Spearman ρ ≈ 0.65 across 784 player-seasons pooled from four independent seasons, 2022–2025).
+
 ## Draft systems
 
 Draft Intelligence is the sixth top-level system (`src/components/panels/DraftIntelligence.tsx`). It ships with:
@@ -177,7 +188,7 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 151 unit/integration tests; CI runs typecheck + lint + vitest + Playwright +
+`vitest` holds 180 unit/integration tests; CI runs typecheck + lint + vitest + Playwright +
 Lighthouse on every push (`.github/workflows/ci.yml`).
 
 ## Design philosophy

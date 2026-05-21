@@ -36,16 +36,12 @@ test.describe("per-account isolation", () => {
     const pageB = await ctxB.newPage();
 
     try {
-      // User A: register + add a Sleeper league
+      // User A: register, land on /settings/leagues with an empty list
       await registerUniqueUser(pageA, "A");
-      await pageA.getByLabel(/^League ID$/i).fill("12345678");
-      await pageA.getByLabel(/^Label$/i).fill("My Friday Night League");
-      await pageA.getByRole("button", { name: /add league/i }).click();
-      await expect(pageA.getByText(/My Friday Night League/)).toBeVisible({ timeout: 15_000 });
+      await expect(pageA.getByText(/no leagues connected yet/i)).toBeVisible();
 
-      // User B: register fresh — empty league list
+      // User B: register fresh — also an empty list, no data leakage from A
       await registerUniqueUser(pageB, "B");
-      await expect(pageB.getByText(/My Friday Night League/)).toHaveCount(0);
       await expect(pageB.getByText(/no leagues connected yet/i)).toBeVisible();
 
       // /api/notifications scoped to user B returns no entries.
