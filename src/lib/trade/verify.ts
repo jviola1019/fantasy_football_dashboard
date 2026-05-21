@@ -1,4 +1,6 @@
-import { getLeague } from "../sleeper/league";
+import { getLeague as getSleeperLeague } from "../sleeper/league";
+import { getLeague as getEspnLeague } from "../espn/league";
+import { EspnClient } from "../espn/client";
 import { parseSleeperFormat, parseEspnFormat, type LeagueFormat } from "./format";
 
 export type VerifyResult =
@@ -33,20 +35,35 @@ export function interpretEspnLeague(settings: unknown): VerifyResult {
 
 /**
  * Verify a league exists and derive its format. Sleeper uses the public API;
- * ESPN settings verification is wired through the existing ESPN client by the
- * caller, which passes the already-fetched `mSettings` payload as `espnSettings`.
+ * ESPN fetches the `mSettings` view with the user's espn_s2 + SWID cookies.
  */
 export async function verifyLeague(input: {
   platform: "sleeper" | "espn";
   externalLeagueId: string;
-  espnSettings?: unknown;
+  season: number;
+  credentials?: { espnS2: string; swid: string };
 }): Promise<VerifyResult> {
   if (input.platform === "sleeper") {
-    const envelope = await getLeague(input.externalLeagueId);
+    const envelope = await getSleeperLeague(input.externalLeagueId);
     if (envelope.source.failure || !envelope.data) {
       return { ok: false, error: "League not found on Sleeper. Check the league ID and season." };
     }
     return interpretSleeperLeague(envelope.data);
   }
-  return interpretEspnLeague(input.espnSettings);
+  if (!input.credentials) {
+    return { ok: false, error: "ESPN leagues require espn_s2 and SWID cookies." };
+  }
+  const client = new EspnClient({ credentials: input.credentials });
+  const result = await getEspnLeague(
+    client,
+    { leagueId: input.externalLeagueId, season: input.season },
+    ["mSettings"]
+  );
+  if (result.source.failure || !result.data) {
+    return {
+      ok: false,
+      error: "ESPN league not reachable. Check the league ID, season, and espn_s2/SWID cookies."
+    };
+  }
+  return interpretEspnLeague(result.data.settings);
 }

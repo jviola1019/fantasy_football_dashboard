@@ -39,17 +39,19 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     return { ok: false, error: "ESPN leagues require both espn_s2 and SWID cookies" };
   }
 
-  // Sleeper leagues are verified at add-time via the public API; the detected
-  // format is persisted. ESPN settings verification is deferred — those leagues
-  // are added without verification and fall back to the default format.
-  let detectedSettings: LeagueFormat | undefined;
-  if (platform === "sleeper") {
-    const verification = await verifyLeague({ platform, externalLeagueId });
-    if (!verification.ok) {
-      return { ok: false, error: verification.error };
-    }
-    detectedSettings = verification.format;
+  // Both Sleeper and ESPN leagues are verified at add-time. Sleeper uses the
+  // public API; ESPN fetches mSettings with the user's espn_s2 + SWID cookies.
+  // The detected format is persisted for both platforms.
+  const verification = await verifyLeague({
+    platform,
+    externalLeagueId,
+    season,
+    credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined
+  });
+  if (!verification.ok) {
+    return { ok: false, error: verification.error };
   }
+  const detectedSettings: LeagueFormat = verification.format;
 
   try {
     const league = await createLeague(getDb(), {
