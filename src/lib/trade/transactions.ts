@@ -4,6 +4,7 @@ import { getTransactions, getNflState } from "../sleeper/league";
 import { getTransactions as getEspnTransactions } from "../espn/league";
 import type { EspnClient } from "../espn/client";
 import type { EspnLeagueRef } from "../espn/league";
+import type { EspnTransaction } from "../espn/schemas";
 
 export interface GradedTrade {
   id: string;
@@ -74,20 +75,6 @@ export async function fetchSleeperLeagueTrades(
   return graded;
 }
 
-interface EspnTxnItem {
-  type?: string | null;
-  playerId?: number | null;
-  fromTeamId?: number | null;
-  toTeamId?: number | null;
-}
-interface EspnTxn {
-  id?: string | number | null;
-  type?: string | null;
-  status?: string | null;
-  proposedDate?: number | null;
-  items?: EspnTxnItem[] | null;
-}
-
 /** Re-key a sleeperId-keyed value map by espnId (skips players with no espnId). */
 export function indexByEspnId(valueMap: Map<string, PlayerValue>): Map<string, PlayerValue> {
   const byEspn = new Map<string, PlayerValue>();
@@ -102,12 +89,15 @@ export function indexByEspnId(valueMap: Map<string, PlayerValue>): Map<string, P
  * `fromTeamId`/`toTeamId`; side A is the first team that receives a player.
  */
 export function normalizeEspnTrades(
-  txns: EspnTxn[],
+  txns: EspnTransaction[],
   valueByEspnId: Map<string, PlayerValue>
 ): GradedTrade[] {
   const out: GradedTrade[] = [];
   for (const t of txns) {
     if (!t.type || !t.type.includes("TRADE")) continue;
+    // Only grade trades that actually went through; ESPN reports proposed,
+    // declined, and pending trades with TRADE-prefixed types too.
+    if (t.status && t.status !== "EXECUTED") continue;
     const items = (t.items ?? []).filter(
       (i) => i.playerId != null && i.fromTeamId != null && i.toTeamId != null && i.fromTeamId !== i.toTeamId
     );
@@ -142,6 +132,6 @@ export async function fetchEspnLeagueTrades(
 ): Promise<GradedTrade[]> {
   const envelope = await getEspnTransactions(client, ref);
   if (envelope.source.failure || !envelope.data) return [];
-  const txns = (envelope.data.transactions ?? []) as unknown as EspnTxn[];
+  const txns = (envelope.data.transactions ?? []) as unknown as EspnTransaction[];
   return normalizeEspnTrades(txns, indexByEspnId(valueMap));
 }

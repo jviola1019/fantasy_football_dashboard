@@ -92,6 +92,7 @@ export const EspnTransactionItemSchema = z
     toTeamId: z.number().int().nullable().optional()
   })
   .passthrough();
+export type EspnTransactionItem = z.infer<typeof EspnTransactionItemSchema>;
 
 export const EspnTransactionSchema = z
   .object({
@@ -102,6 +103,7 @@ export const EspnTransactionSchema = z
     items: z.array(EspnTransactionItemSchema).nullable().optional()
   })
   .passthrough();
+export type EspnTransaction = z.infer<typeof EspnTransactionSchema>;
 
 export const EspnLeagueResponseSchema = z
   .object({

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { normalizeSleeperTrades, normalizeEspnTrades, indexByEspnId } from "./transactions";
 import type { PlayerValue } from "./values";
+import type { EspnTransaction } from "../espn/schemas";
 
 // Minimal shape accepted by normalizeSleeperTrades (internal SleeperTxn is not exported).
 interface RawTxn {
@@ -66,14 +67,7 @@ describe("normalizeEspnTrades", () => {
     ["111", pvE("111", 9000)],
     ["222", pvE("222", 4000)]
   ]);
-  interface RawEspnTxn {
-    id?: number;
-    type?: string;
-    status?: string;
-    proposedDate?: number;
-    items?: { type?: string; playerId?: number; fromTeamId?: number; toTeamId?: number }[];
-  }
-  const txns: RawEspnTxn[] = [
+  const txns: EspnTransaction[] = [
     {
       id: 1, type: "TRADE_ACCEPT", status: "EXECUTED", proposedDate: 1_700_000_000_000,
       items: [
@@ -93,5 +87,18 @@ describe("normalizeEspnTrades", () => {
 
   it("returns an empty list when there are no trades", () => {
     expect(normalizeEspnTrades([], byEspnId)).toEqual([]);
+  });
+
+  it("skips a declined trade", () => {
+    const declined: EspnTransaction[] = [
+      {
+        id: 9, type: "TRADE_DECLINE", status: "REJECTED",
+        items: [
+          { type: "TRADE", playerId: 111, fromTeamId: 5, toTeamId: 3 },
+          { type: "TRADE", playerId: 222, fromTeamId: 3, toTeamId: 5 }
+        ]
+      }
+    ];
+    expect(normalizeEspnTrades(declined, byEspnId)).toEqual([]);
   });
 });
