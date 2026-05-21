@@ -23,20 +23,15 @@ test.describe("public dashboard", () => {
     await expect(canvases.first()).toBeVisible({ timeout: 30_000 });
     expect(await canvases.count()).toBeGreaterThanOrEqual(1);
 
-    // 3-D scenes lazy-mount: Canvas3D only spins up its WebGL <Canvas> once the
-    // wrapper scrolls near the viewport (IntersectionObserver), and shows a
-    // `.scene-placeholder` before that. So every panel's scene region must, at
-    // any time, be exactly one of: a live canvas, the lazy placeholder, or the
-    // graceful error fallback — never a blank/broken region.
-    const sceneRegionCount = await page
-      .locator("canvas, .scene-fallback, .scene-placeholder")
-      .count();
+    // Every panel's scene region must be exactly one of: a live WebGL canvas
+    // or the graceful <SceneErrorBoundary> fallback — never a blank/broken
+    // region. A browser that refuses a WebGL context degrades to the fallback
+    // rather than crashing the page.
+    const sceneRegionCount = await page.locator("canvas, .scene-fallback").count();
     expect(sceneRegionCount).toBeGreaterThanOrEqual(4);
 
-    // Scrolling each 3-D panel into view must lazy-mount a real WebGL canvas
-    // for it (or the honest error fallback if the GPU refuses a context) —
-    // proving the lazy-mount path actually delivers the scene, not a permanent
-    // placeholder. Only panels whose *default* tab embeds a scene are listed:
+    // Each 3-D panel whose default tab embeds a scene must resolve to a real
+    // WebGL canvas (or the honest error fallback if the GPU refuses a context).
     // Market Intelligence and Draft Intelligence keep their scenes behind a
     // non-default tab, so they are excluded here.
     for (const panelId of [
