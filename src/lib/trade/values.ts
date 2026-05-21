@@ -67,7 +67,48 @@ export function parseFantasyCalc(raw: unknown): Map<string, PlayerValue> {
   return map;
 }
 
-/** Fetch live trade values, governance-wrapped. DynastyProcess fallback is added in Task 4. */
+const DYNASTYPROCESS_CSV_URL =
+  "https://raw.githubusercontent.com/dynastyprocess/data/master/files/values.csv";
+
+/** Parse the DynastyProcess values.csv text into a "<pos>-<name>"-keyed map. */
+export function parseDynastyProcessCsv(csv: string, format: LeagueFormat): Map<string, PlayerValue> {
+  const lines = csv.trim().split(/\r?\n/);
+  const header = lines[0]!.split(",");
+  const col = (name: string) => header.indexOf(name);
+  const iName = col("player");
+  const iPos = col("pos");
+  const iTeam = col("team");
+  const iVal = format.numQbs === 2 ? col("value_2qb") : col("value_1qb");
+  const map = new Map<string, PlayerValue>();
+  for (const line of lines.slice(1)) {
+    const cells = line.split(",");
+    const name = cells[iName];
+    const pos = cells[iPos];
+    const value = Number(cells[iVal]);
+    if (!name || !pos || !Number.isFinite(value)) continue;
+    map.set(`${pos.toLowerCase()}-${name.toLowerCase()}`, {
+      sleeperId: null,
+      espnId: null,
+      name,
+      position: pos,
+      team: cells[iTeam] ?? null,
+      value,
+      overallRank: 0,
+      positionRank: 0,
+      trend30Day: 0
+    });
+  }
+  return map;
+}
+
+/** Fetch the DynastyProcess fallback values. */
+export async function fetchDynastyProcessValues(format: LeagueFormat): Promise<Map<string, PlayerValue>> {
+  const res = await fetch(DYNASTYPROCESS_CSV_URL, { next: { revalidate: FANTASYCALC_TTL_SECONDS } });
+  if (!res.ok) throw new Error(`DynastyProcess HTTP ${res.status}`);
+  return parseDynastyProcessCsv(await res.text(), format);
+}
+
+/** Fetch live trade values, governance-wrapped. */
 export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValueData> {
   const url = buildFantasyCalcUrl(format);
   try {
@@ -88,13 +129,36 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
         failure: null
       }
     };
-  } catch (err) {
-    return {
-      values: new Map(),
-      source: unavailableSource(
-        "FantasyCalc redraft values",
-        err instanceof Error ? err.message : String(err)
-      )
-    };
+  } catch (primaryErr) {
+    try {
+      const values = await fetchDynastyProcessValues(format);
+      return {
+        values,
+        source: {
+          source: "DynastyProcess values (fallback)",
+          fetchedAt: new Date().toISOString(),
+          ttlSeconds: FANTASYCALC_TTL_SECONDS,
+          freshness: "stale",
+          confidence: 0.6,
+          validation: "valid",
+          missingFields: ["sleeperId"],
+          assumptions: [
+            "FantasyCalc unavailable; using DynastyProcess ECR-derived values keyed by name.",
+            `Primary failure: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`
+          ],
+          failure: null
+        }
+      };
+    } catch (fallbackErr) {
+      return {
+        values: new Map(),
+        source: unavailableSource(
+          "Trade values",
+          `FantasyCalc and DynastyProcess both failed: ${
+            fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+          }`
+        )
+      };
+    }
   }
 }

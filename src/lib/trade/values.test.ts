@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseFantasyCalc, buildFantasyCalcUrl } from "./values";
+import { parseFantasyCalc, buildFantasyCalcUrl, parseDynastyProcessCsv } from "./values";
 
 const SAMPLE = [
   {
@@ -32,5 +32,23 @@ describe("parseFantasyCalc", () => {
 
   it("throws on a malformed payload", () => {
     expect(() => parseFantasyCalc([{ player: {} }])).toThrow();
+  });
+});
+
+describe("parseDynastyProcessCsv", () => {
+  const CSV = [
+    "player,pos,team,age,ecr_1qb,ecr_2qb,ecr_pos,value_1qb,value_2qb,fp_id,scrape_date",
+    "Jahmyr Gibbs,RB,DET,23,2,4,1,9800,9200,24189,2026-05-19",
+    "Caleb Williams,QB,CHI,24,80,30,15,1200,4800,23090,2026-05-19"
+  ].join("\n");
+
+  it("selects value_1qb for a 1QB format", () => {
+    const map = parseDynastyProcessCsv(CSV, { ppr: 1, numQbs: 1, numTeams: 12 });
+    expect(map.get("rb-jahmyr gibbs")?.value).toBe(9800);
+  });
+
+  it("selects value_2qb for a superflex format", () => {
+    const map = parseDynastyProcessCsv(CSV, { ppr: 1, numQbs: 2, numTeams: 12 });
+    expect(map.get("qb-caleb williams")?.value).toBe(4800);
   });
 });
