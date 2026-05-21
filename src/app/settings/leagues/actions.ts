@@ -5,6 +5,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { createLeague, deleteLeagueForUser } from "@/lib/leagues";
+import { verifyLeague } from "@/lib/trade/verify";
 
 const addLeagueSchema = z.object({
   platform: z.enum(["sleeper", "espn"]),
@@ -37,6 +38,11 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     return { ok: false, error: "ESPN leagues require both espn_s2 and SWID cookies" };
   }
 
+  const verification = await verifyLeague({ platform, externalLeagueId });
+  if (!verification.ok) {
+    return { ok: false, error: verification.error };
+  }
+
   try {
     const league = await createLeague(getDb(), {
       userId,
@@ -44,7 +50,8 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
       externalLeagueId,
       season,
       label,
-      credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined
+      credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined,
+      settings: verification.format
     });
     revalidatePath("/settings/leagues");
     return { ok: true, leagueId: league.id };
