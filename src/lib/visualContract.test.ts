@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { systems } from "@/components/RaeApp";
+import { systems } from "@/components/systems";
 import { fixturePlayers } from "./fixtures";
 import { RAEEnvelopeSchema } from "./governance";
 import { fixtureEnvelope } from "./fixtures";

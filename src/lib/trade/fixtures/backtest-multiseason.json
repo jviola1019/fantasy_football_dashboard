@@ -1,0 +1,5490 @@
+[
+  {
+    "season": 2022,
+    "name": "Josh Allen",
+    "position": "QB",
+    "tradeValue": 5753,
+    "fantasyPoints": 395.5
+  },
+  {
+    "season": 2022,
+    "name": "Patrick Mahomes II",
+    "position": "QB",
+    "tradeValue": 4689,
+    "fantasyPoints": 417.4
+  },
+  {
+    "season": 2022,
+    "name": "Jalen Hurts",
+    "position": "QB",
+    "tradeValue": 3858,
+    "fantasyPoints": 378
+  },
+  {
+    "season": 2022,
+    "name": "Joe Burrow",
+    "position": "QB",
+    "tradeValue": 3787,
+    "fantasyPoints": 350.7
+  },
+  {
+    "season": 2022,
+    "name": "Justin Herbert",
+    "position": "QB",
+    "tradeValue": 3273,
+    "fantasyPoints": 281.3
+  },
+  {
+    "season": 2022,
+    "name": "Lamar Jackson",
+    "position": "QB",
+    "tradeValue": 2764,
+    "fantasyPoints": 236.1
+  },
+  {
+    "season": 2022,
+    "name": "Justin Fields",
+    "position": "QB",
+    "tradeValue": 2119,
+    "fantasyPoints": 296
+  },
+  {
+    "season": 2022,
+    "name": "Trevor Lawrence",
+    "position": "QB",
+    "tradeValue": 1911,
+    "fantasyPoints": 295.6
+  },
+  {
+    "season": 2022,
+    "name": "Kyler Murray",
+    "position": "QB",
+    "tradeValue": 1621,
+    "fantasyPoints": 200.5
+  },
+  {
+    "season": 2022,
+    "name": "Tua Tagovailoa",
+    "position": "QB",
+    "tradeValue": 1395,
+    "fantasyPoints": 230.9
+  },
+  {
+    "season": 2022,
+    "name": "Deshaun Watson",
+    "position": "QB",
+    "tradeValue": 1321,
+    "fantasyPoints": 85.6
+  },
+  {
+    "season": 2022,
+    "name": "Dak Prescott",
+    "position": "QB",
+    "tradeValue": 1229,
+    "fantasyPoints": 198.6
+  },
+  {
+    "season": 2022,
+    "name": "Trey Lance",
+    "position": "QB",
+    "tradeValue": 797,
+    "fantasyPoints": 12.5
+  },
+  {
+    "season": 2022,
+    "name": "Kirk Cousins",
+    "position": "QB",
+    "tradeValue": 626,
+    "fantasyPoints": 291.6
+  },
+  {
+    "season": 2022,
+    "name": "Derek Carr",
+    "position": "QB",
+    "tradeValue": 437,
+    "fantasyPoints": 219.1
+  },
+  {
+    "season": 2022,
+    "name": "Daniel Jones",
+    "position": "QB",
+    "tradeValue": 393,
+    "fantasyPoints": 289
+  },
+  {
+    "season": 2022,
+    "name": "Geno Smith",
+    "position": "QB",
+    "tradeValue": 373,
+    "fantasyPoints": 303.9
+  },
+  {
+    "season": 2022,
+    "name": "Kenny Pickett",
+    "position": "QB",
+    "tradeValue": 362,
+    "fantasyPoints": 149.9
+  },
+  {
+    "season": 2022,
+    "name": "Aaron Rodgers",
+    "position": "QB",
+    "tradeValue": 337,
+    "fantasyPoints": 239.2
+  },
+  {
+    "season": 2022,
+    "name": "Jared Goff",
+    "position": "QB",
+    "tradeValue": 295,
+    "fantasyPoints": 284.3
+  },
+  {
+    "season": 2022,
+    "name": "Russell Wilson",
+    "position": "QB",
+    "tradeValue": 239,
+    "fantasyPoints": 225.8
+  },
+  {
+    "season": 2022,
+    "name": "Mac Jones",
+    "position": "QB",
+    "tradeValue": 238,
+    "fantasyPoints": 170.1
+  },
+  {
+    "season": 2022,
+    "name": "Matthew Stafford",
+    "position": "QB",
+    "tradeValue": 197,
+    "fantasyPoints": 108.4
+  },
+  {
+    "season": 2022,
+    "name": "Tom Brady",
+    "position": "QB",
+    "tradeValue": 113,
+    "fantasyPoints": 271.7
+  },
+  {
+    "season": 2022,
+    "name": "Jimmy Garoppolo",
+    "position": "QB",
+    "tradeValue": 86,
+    "fantasyPoints": 164.8
+  },
+  {
+    "season": 2022,
+    "name": "Ryan Tannehill",
+    "position": "QB",
+    "tradeValue": 74,
+    "fantasyPoints": 161.2
+  },
+  {
+    "season": 2022,
+    "name": "Desmond Ridder",
+    "position": "QB",
+    "tradeValue": 42,
+    "fantasyPoints": 38.7
+  },
+  {
+    "season": 2022,
+    "name": "Malik Willis",
+    "position": "QB",
+    "tradeValue": 34,
+    "fantasyPoints": 19.3
+  },
+  {
+    "season": 2022,
+    "name": "Jonathan Taylor",
+    "position": "RB",
+    "tradeValue": 9336,
+    "fantasyPoints": 146.4
+  },
+  {
+    "season": 2022,
+    "name": "Breece Hall",
+    "position": "RB",
+    "tradeValue": 8783,
+    "fantasyPoints": 115.1
+  },
+  {
+    "season": 2022,
+    "name": "Christian McCaffrey",
+    "position": "RB",
+    "tradeValue": 8660,
+    "fantasyPoints": 356.4
+  },
+  {
+    "season": 2022,
+    "name": "Kenneth Walker III",
+    "position": "RB",
+    "tradeValue": 8498,
+    "fantasyPoints": 202.5
+  },
+  {
+    "season": 2022,
+    "name": "Saquon Barkley",
+    "position": "RB",
+    "tradeValue": 8340,
+    "fantasyPoints": 284
+  },
+  {
+    "season": 2022,
+    "name": "Travis Etienne Jr.",
+    "position": "RB",
+    "tradeValue": 7009,
+    "fantasyPoints": 205.1
+  },
+  {
+    "season": 2022,
+    "name": "Austin Ekeler",
+    "position": "RB",
+    "tradeValue": 6671,
+    "fantasyPoints": 372.7
+  },
+  {
+    "season": 2022,
+    "name": "D'Andre Swift",
+    "position": "RB",
+    "tradeValue": 5580,
+    "fantasyPoints": 191.1
+  },
+  {
+    "season": 2022,
+    "name": "Javonte Williams",
+    "position": "RB",
+    "tradeValue": 5438,
+    "fantasyPoints": 42
+  },
+  {
+    "season": 2022,
+    "name": "Josh Jacobs",
+    "position": "RB",
+    "tradeValue": 5400,
+    "fantasyPoints": 328.3
+  },
+  {
+    "season": 2022,
+    "name": "Nick Chubb",
+    "position": "RB",
+    "tradeValue": 5262,
+    "fantasyPoints": 281.4
+  },
+  {
+    "season": 2022,
+    "name": "Rhamondre Stevenson",
+    "position": "RB",
+    "tradeValue": 5068,
+    "fantasyPoints": 249.1
+  },
+  {
+    "season": 2022,
+    "name": "Joe Mixon",
+    "position": "RB",
+    "tradeValue": 4538,
+    "fantasyPoints": 239.5
+  },
+  {
+    "season": 2022,
+    "name": "Najee Harris",
+    "position": "RB",
+    "tradeValue": 4219,
+    "fantasyPoints": 225.5
+  },
+  {
+    "season": 2022,
+    "name": "Dalvin Cook",
+    "position": "RB",
+    "tradeValue": 3913,
+    "fantasyPoints": 237.8
+  },
+  {
+    "season": 2022,
+    "name": "Derrick Henry",
+    "position": "RB",
+    "tradeValue": 3699,
+    "fantasyPoints": 302.8
+  },
+  {
+    "season": 2022,
+    "name": "Tony Pollard",
+    "position": "RB",
+    "tradeValue": 3681,
+    "fantasyPoints": 248.8
+  },
+  {
+    "season": 2022,
+    "name": "Dameon Pierce",
+    "position": "RB",
+    "tradeValue": 3266,
+    "fantasyPoints": 166.4
+  },
+  {
+    "season": 2022,
+    "name": "Alvin Kamara",
+    "position": "RB",
+    "tradeValue": 2612,
+    "fantasyPoints": 211.7
+  },
+  {
+    "season": 2022,
+    "name": "Aaron Jones",
+    "position": "RB",
+    "tradeValue": 2540,
+    "fantasyPoints": 248.6
+  },
+  {
+    "season": 2022,
+    "name": "Miles Sanders",
+    "position": "RB",
+    "tradeValue": 2486,
+    "fantasyPoints": 216.7
+  },
+  {
+    "season": 2022,
+    "name": "J.K. Dobbins",
+    "position": "RB",
+    "tradeValue": 2317,
+    "fantasyPoints": 81.2
+  },
+  {
+    "season": 2022,
+    "name": "Rachaad White",
+    "position": "RB",
+    "tradeValue": 2221,
+    "fantasyPoints": 141.1
+  },
+  {
+    "season": 2022,
+    "name": "AJ Dillon",
+    "position": "RB",
+    "tradeValue": 1952,
+    "fantasyPoints": 167.6
+  },
+  {
+    "season": 2022,
+    "name": "David Montgomery",
+    "position": "RB",
+    "tradeValue": 1760,
+    "fantasyPoints": 177.7
+  },
+  {
+    "season": 2022,
+    "name": "Brian Robinson Jr.",
+    "position": "RB",
+    "tradeValue": 1418,
+    "fantasyPoints": 112.7
+  },
+  {
+    "season": 2022,
+    "name": "James Cook",
+    "position": "RB",
+    "tradeValue": 1337,
+    "fantasyPoints": 105.7
+  },
+  {
+    "season": 2022,
+    "name": "James Conner",
+    "position": "RB",
+    "tradeValue": 1226,
+    "fantasyPoints": 200.2
+  },
+  {
+    "season": 2022,
+    "name": "Antonio Gibson",
+    "position": "RB",
+    "tradeValue": 1172,
+    "fantasyPoints": 165.9
+  },
+  {
+    "season": 2022,
+    "name": "Cam Akers",
+    "position": "RB",
+    "tradeValue": 1172,
+    "fantasyPoints": 141.3
+  },
+  {
+    "season": 2022,
+    "name": "Khalil Herbert",
+    "position": "RB",
+    "tradeValue": 1129,
+    "fantasyPoints": 117.8
+  },
+  {
+    "season": 2022,
+    "name": "Leonard Fournette",
+    "position": "RB",
+    "tradeValue": 1113,
+    "fantasyPoints": 226.1
+  },
+  {
+    "season": 2022,
+    "name": "Ezekiel Elliott",
+    "position": "RB",
+    "tradeValue": 1042,
+    "fantasyPoints": 185.8
+  },
+  {
+    "season": 2022,
+    "name": "Isiah Pacheco",
+    "position": "RB",
+    "tradeValue": 967,
+    "fantasyPoints": 135
+  },
+  {
+    "season": 2022,
+    "name": "Devin Singletary",
+    "position": "RB",
+    "tradeValue": 716,
+    "fantasyPoints": 177.9
+  },
+  {
+    "season": 2022,
+    "name": "Kareem Hunt",
+    "position": "RB",
+    "tradeValue": 656,
+    "fantasyPoints": 126.8
+  },
+  {
+    "season": 2022,
+    "name": "Tyler Allgeier",
+    "position": "RB",
+    "tradeValue": 648,
+    "fantasyPoints": 159.4
+  },
+  {
+    "season": 2022,
+    "name": "Elijah Mitchell",
+    "position": "RB",
+    "tradeValue": 619,
+    "fantasyPoints": 43.6
+  },
+  {
+    "season": 2022,
+    "name": "Damien Harris",
+    "position": "RB",
+    "tradeValue": 484,
+    "fantasyPoints": 90.9
+  },
+  {
+    "season": 2022,
+    "name": "Jamaal Williams",
+    "position": "RB",
+    "tradeValue": 483,
+    "fantasyPoints": 225.9
+  },
+  {
+    "season": 2022,
+    "name": "Michael Carter",
+    "position": "RB",
+    "tradeValue": 456,
+    "fantasyPoints": 126
+  },
+  {
+    "season": 2022,
+    "name": "Alexander Mattison",
+    "position": "RB",
+    "tradeValue": 429,
+    "fantasyPoints": 88.4
+  },
+  {
+    "season": 2022,
+    "name": "Clyde Edwards-Helaire",
+    "position": "RB",
+    "tradeValue": 375,
+    "fantasyPoints": 98.3
+  },
+  {
+    "season": 2022,
+    "name": "Jeff Wilson Jr.",
+    "position": "RB",
+    "tradeValue": 345,
+    "fantasyPoints": 158.5
+  },
+  {
+    "season": 2022,
+    "name": "D'Onta Foreman",
+    "position": "RB",
+    "tradeValue": 290,
+    "fantasyPoints": 131
+  },
+  {
+    "season": 2022,
+    "name": "Zamir White",
+    "position": "RB",
+    "tradeValue": 256,
+    "fantasyPoints": 7
+  },
+  {
+    "season": 2022,
+    "name": "Cordarrelle Patterson",
+    "position": "RB",
+    "tradeValue": 246,
+    "fantasyPoints": 154.7
+  },
+  {
+    "season": 2022,
+    "name": "Kenneth Gainwell",
+    "position": "RB",
+    "tradeValue": 242,
+    "fantasyPoints": 87.9
+  },
+  {
+    "season": 2022,
+    "name": "James Robinson",
+    "position": "RB",
+    "tradeValue": 205,
+    "fantasyPoints": 88.6
+  },
+  {
+    "season": 2022,
+    "name": "Rashaad Penny",
+    "position": "RB",
+    "tradeValue": 201,
+    "fantasyPoints": 52.2
+  },
+  {
+    "season": 2022,
+    "name": "Gus Edwards",
+    "position": "RB",
+    "tradeValue": 183,
+    "fantasyPoints": 59.3
+  },
+  {
+    "season": 2022,
+    "name": "Chuba Hubbard",
+    "position": "RB",
+    "tradeValue": 167,
+    "fantasyPoints": 89.7
+  },
+  {
+    "season": 2022,
+    "name": "Jaylen Warren",
+    "position": "RB",
+    "tradeValue": 163,
+    "fantasyPoints": 93.3
+  },
+  {
+    "season": 2022,
+    "name": "Raheem Mostert",
+    "position": "RB",
+    "tradeValue": 158,
+    "fantasyPoints": 168.3
+  },
+  {
+    "season": 2022,
+    "name": "Isaiah Spiller",
+    "position": "RB",
+    "tradeValue": 154,
+    "fantasyPoints": 8.4
+  },
+  {
+    "season": 2022,
+    "name": "Kyren Williams",
+    "position": "RB",
+    "tradeValue": 144,
+    "fantasyPoints": 30.5
+  },
+  {
+    "season": 2022,
+    "name": "Jerick McKinnon",
+    "position": "RB",
+    "tradeValue": 142,
+    "fantasyPoints": 196.3
+  },
+  {
+    "season": 2022,
+    "name": "Nyheim Hines",
+    "position": "RB",
+    "tradeValue": 116,
+    "fantasyPoints": 81.4
+  },
+  {
+    "season": 2022,
+    "name": "Pierre Strong Jr.",
+    "position": "RB",
+    "tradeValue": 90,
+    "fantasyPoints": 27.2
+  },
+  {
+    "season": 2022,
+    "name": "Tyrion Davis-Price",
+    "position": "RB",
+    "tradeValue": 89,
+    "fantasyPoints": 9.9
+  },
+  {
+    "season": 2022,
+    "name": "Justin Jefferson",
+    "position": "WR",
+    "tradeValue": 10113,
+    "fantasyPoints": 368.7
+  },
+  {
+    "season": 2022,
+    "name": "Ja'Marr Chase",
+    "position": "WR",
+    "tradeValue": 9808,
+    "fantasyPoints": 242.4
+  },
+  {
+    "season": 2022,
+    "name": "CeeDee Lamb",
+    "position": "WR",
+    "tradeValue": 9076,
+    "fantasyPoints": 301.6
+  },
+  {
+    "season": 2022,
+    "name": "A.J. Brown",
+    "position": "WR",
+    "tradeValue": 8866,
+    "fantasyPoints": 299.6
+  },
+  {
+    "season": 2022,
+    "name": "Jaylen Waddle",
+    "position": "WR",
+    "tradeValue": 8360,
+    "fantasyPoints": 259.2
+  },
+  {
+    "season": 2022,
+    "name": "Stefon Diggs",
+    "position": "WR",
+    "tradeValue": 7329,
+    "fantasyPoints": 316.6
+  },
+  {
+    "season": 2022,
+    "name": "Amon-Ra St. Brown",
+    "position": "WR",
+    "tradeValue": 7209,
+    "fantasyPoints": 267.6
+  },
+  {
+    "season": 2022,
+    "name": "Tee Higgins",
+    "position": "WR",
+    "tradeValue": 7075,
+    "fantasyPoints": 220.9
+  },
+  {
+    "season": 2022,
+    "name": "Tyreek Hill",
+    "position": "WR",
+    "tradeValue": 6960,
+    "fantasyPoints": 341.2
+  },
+  {
+    "season": 2022,
+    "name": "Garrett Wilson",
+    "position": "WR",
+    "tradeValue": 6782,
+    "fantasyPoints": 215.7
+  },
+  {
+    "season": 2022,
+    "name": "DK Metcalf",
+    "position": "WR",
+    "tradeValue": 6159,
+    "fantasyPoints": 226.8
+  },
+  {
+    "season": 2022,
+    "name": "Davante Adams",
+    "position": "WR",
+    "tradeValue": 5932,
+    "fantasyPoints": 335.5
+  },
+  {
+    "season": 2022,
+    "name": "Chris Olave",
+    "position": "WR",
+    "tradeValue": 5593,
+    "fantasyPoints": 198.2
+  },
+  {
+    "season": 2022,
+    "name": "Drake London",
+    "position": "WR",
+    "tradeValue": 5451,
+    "fantasyPoints": 178.6
+  },
+  {
+    "season": 2022,
+    "name": "Cooper Kupp",
+    "position": "WR",
+    "tradeValue": 5438,
+    "fantasyPoints": 201.4
+  },
+  {
+    "season": 2022,
+    "name": "DeVonta Smith",
+    "position": "WR",
+    "tradeValue": 4892,
+    "fantasyPoints": 256.6
+  },
+  {
+    "season": 2022,
+    "name": "Chris Godwin",
+    "position": "WR",
+    "tradeValue": 4443,
+    "fantasyPoints": 222.8
+  },
+  {
+    "season": 2022,
+    "name": "Deebo Samuel",
+    "position": "WR",
+    "tradeValue": 4229,
+    "fantasyPoints": 168.4
+  },
+  {
+    "season": 2022,
+    "name": "Michael Pittman Jr.",
+    "position": "WR",
+    "tradeValue": 4025,
+    "fantasyPoints": 216.5
+  },
+  {
+    "season": 2022,
+    "name": "Treylon Burks",
+    "position": "WR",
+    "tradeValue": 3613,
+    "fantasyPoints": 88.1
+  },
+  {
+    "season": 2022,
+    "name": "DJ Moore",
+    "position": "WR",
+    "tradeValue": 3529,
+    "fantasyPoints": 199.1
+  },
+  {
+    "season": 2022,
+    "name": "George Pickens",
+    "position": "WR",
+    "tradeValue": 3212,
+    "fantasyPoints": 166.5
+  },
+  {
+    "season": 2022,
+    "name": "Jameson Williams",
+    "position": "WR",
+    "tradeValue": 3205,
+    "fantasyPoints": 15.1
+  },
+  {
+    "season": 2022,
+    "name": "Terry McLaurin",
+    "position": "WR",
+    "tradeValue": 3029,
+    "fantasyPoints": 229
+  },
+  {
+    "season": 2022,
+    "name": "Marquise Brown",
+    "position": "WR",
+    "tradeValue": 2836,
+    "fantasyPoints": 156
+  },
+  {
+    "season": 2022,
+    "name": "Christian Watson",
+    "position": "WR",
+    "tradeValue": 2810,
+    "fantasyPoints": 164.1
+  },
+  {
+    "season": 2022,
+    "name": "Jerry Jeudy",
+    "position": "WR",
+    "tradeValue": 2434,
+    "fantasyPoints": 204.2
+  },
+  {
+    "season": 2022,
+    "name": "Jahan Dotson",
+    "position": "WR",
+    "tradeValue": 2378,
+    "fantasyPoints": 130.6
+  },
+  {
+    "season": 2022,
+    "name": "Brandon Aiyuk",
+    "position": "WR",
+    "tradeValue": 2258,
+    "fantasyPoints": 227.8
+  },
+  {
+    "season": 2022,
+    "name": "DeAndre Hopkins",
+    "position": "WR",
+    "tradeValue": 2226,
+    "fantasyPoints": 151.7
+  },
+  {
+    "season": 2022,
+    "name": "Rashod Bateman",
+    "position": "WR",
+    "tradeValue": 2164,
+    "fantasyPoints": 53.5
+  },
+  {
+    "season": 2022,
+    "name": "Mike Williams",
+    "position": "WR",
+    "tradeValue": 1989,
+    "fantasyPoints": 176.5
+  },
+  {
+    "season": 2022,
+    "name": "Amari Cooper",
+    "position": "WR",
+    "tradeValue": 1970,
+    "fantasyPoints": 246
+  },
+  {
+    "season": 2022,
+    "name": "Diontae Johnson",
+    "position": "WR",
+    "tradeValue": 1925,
+    "fantasyPoints": 180.7
+  },
+  {
+    "season": 2022,
+    "name": "Mike Evans",
+    "position": "WR",
+    "tradeValue": 1898,
+    "fantasyPoints": 225.4
+  },
+  {
+    "season": 2022,
+    "name": "Christian Kirk",
+    "position": "WR",
+    "tradeValue": 1836,
+    "fantasyPoints": 241.9
+  },
+  {
+    "season": 2022,
+    "name": "Gabe Davis",
+    "position": "WR",
+    "tradeValue": 1580,
+    "fantasyPoints": 171.6
+  },
+  {
+    "season": 2022,
+    "name": "JuJu Smith-Schuster",
+    "position": "WR",
+    "tradeValue": 1359,
+    "fantasyPoints": 185.3
+  },
+  {
+    "season": 2022,
+    "name": "Keenan Allen",
+    "position": "WR",
+    "tradeValue": 1273,
+    "fantasyPoints": 164
+  },
+  {
+    "season": 2022,
+    "name": "Courtland Sutton",
+    "position": "WR",
+    "tradeValue": 1237,
+    "fantasyPoints": 159.4
+  },
+  {
+    "season": 2022,
+    "name": "Darnell Mooney",
+    "position": "WR",
+    "tradeValue": 1069,
+    "fantasyPoints": 101.5
+  },
+  {
+    "season": 2022,
+    "name": "Elijah Moore",
+    "position": "WR",
+    "tradeValue": 1055,
+    "fantasyPoints": 88.1
+  },
+  {
+    "season": 2022,
+    "name": "Tyler Lockett",
+    "position": "WR",
+    "tradeValue": 1030,
+    "fantasyPoints": 239.3
+  },
+  {
+    "season": 2022,
+    "name": "Kadarius Toney",
+    "position": "WR",
+    "tradeValue": 807,
+    "fantasyPoints": 59.3
+  },
+  {
+    "season": 2022,
+    "name": "Jakobi Meyers",
+    "position": "WR",
+    "tradeValue": 733,
+    "fantasyPoints": 182.3
+  },
+  {
+    "season": 2022,
+    "name": "Rondale Moore",
+    "position": "WR",
+    "tradeValue": 729,
+    "fantasyPoints": 87.9
+  },
+  {
+    "season": 2022,
+    "name": "Wan'Dale Robinson",
+    "position": "WR",
+    "tradeValue": 711,
+    "fantasyPoints": 51.6
+  },
+  {
+    "season": 2022,
+    "name": "Skyy Moore",
+    "position": "WR",
+    "tradeValue": 624,
+    "fantasyPoints": 49.4
+  },
+  {
+    "season": 2022,
+    "name": "Chase Claypool",
+    "position": "WR",
+    "tradeValue": 583,
+    "fantasyPoints": 105
+  },
+  {
+    "season": 2022,
+    "name": "Brandin Cooks",
+    "position": "WR",
+    "tradeValue": 488,
+    "fantasyPoints": 145.6
+  },
+  {
+    "season": 2022,
+    "name": "Alec Pierce",
+    "position": "WR",
+    "tradeValue": 453,
+    "fantasyPoints": 112.3
+  },
+  {
+    "season": 2022,
+    "name": "Allen Lazard",
+    "position": "WR",
+    "tradeValue": 443,
+    "fantasyPoints": 174.8
+  },
+  {
+    "season": 2022,
+    "name": "Curtis Samuel",
+    "position": "WR",
+    "tradeValue": 415,
+    "fantasyPoints": 176.3
+  },
+  {
+    "season": 2022,
+    "name": "Romeo Doubs",
+    "position": "WR",
+    "tradeValue": 379,
+    "fantasyPoints": 101.6
+  },
+  {
+    "season": 2022,
+    "name": "Michael Gallup",
+    "position": "WR",
+    "tradeValue": 373,
+    "fantasyPoints": 105.4
+  },
+  {
+    "season": 2022,
+    "name": "Donovan Peoples-Jones",
+    "position": "WR",
+    "tradeValue": 358,
+    "fantasyPoints": 167.1
+  },
+  {
+    "season": 2022,
+    "name": "Tyler Boyd",
+    "position": "WR",
+    "tradeValue": 349,
+    "fantasyPoints": 167.1
+  },
+  {
+    "season": 2022,
+    "name": "Nico Collins",
+    "position": "WR",
+    "tradeValue": 314,
+    "fantasyPoints": 97.1
+  },
+  {
+    "season": 2022,
+    "name": "Michael Thomas",
+    "position": "WR",
+    "tradeValue": 260,
+    "fantasyPoints": 51.1
+  },
+  {
+    "season": 2022,
+    "name": "Hunter Renfrow",
+    "position": "WR",
+    "tradeValue": 248,
+    "fantasyPoints": 79
+  },
+  {
+    "season": 2022,
+    "name": "Zay Jones",
+    "position": "WR",
+    "tradeValue": 239,
+    "fantasyPoints": 198.1
+  },
+  {
+    "season": 2022,
+    "name": "DJ Chark Jr.",
+    "position": "WR",
+    "tradeValue": 184,
+    "fantasyPoints": 98.2
+  },
+  {
+    "season": 2022,
+    "name": "Adam Thielen",
+    "position": "WR",
+    "tradeValue": 177,
+    "fantasyPoints": 180
+  },
+  {
+    "season": 2022,
+    "name": "David Bell",
+    "position": "WR",
+    "tradeValue": 163,
+    "fantasyPoints": 45.4
+  },
+  {
+    "season": 2022,
+    "name": "Tyquan Thornton",
+    "position": "WR",
+    "tradeValue": 149,
+    "fantasyPoints": 66.3
+  },
+  {
+    "season": 2022,
+    "name": "Allen Robinson II",
+    "position": "WR",
+    "tradeValue": 133,
+    "fantasyPoints": 84.9
+  },
+  {
+    "season": 2022,
+    "name": "Khalil Shakir",
+    "position": "WR",
+    "tradeValue": 121,
+    "fantasyPoints": 34.1
+  },
+  {
+    "season": 2022,
+    "name": "Parris Campbell",
+    "position": "WR",
+    "tradeValue": 119,
+    "fantasyPoints": 149.1
+  },
+  {
+    "season": 2022,
+    "name": "K.J. Osborn",
+    "position": "WR",
+    "tradeValue": 117,
+    "fantasyPoints": 155.6
+  },
+  {
+    "season": 2022,
+    "name": "Terrace Marshall Jr.",
+    "position": "WR",
+    "tradeValue": 115,
+    "fantasyPoints": 83
+  },
+  {
+    "season": 2022,
+    "name": "Isaiah McKenzie",
+    "position": "WR",
+    "tradeValue": 101,
+    "fantasyPoints": 119.8
+  },
+  {
+    "season": 2022,
+    "name": "Russell Gage",
+    "position": "WR",
+    "tradeValue": 95,
+    "fantasyPoints": 123.6
+  },
+  {
+    "season": 2022,
+    "name": "Mecole Hardman",
+    "position": "WR",
+    "tradeValue": 90,
+    "fantasyPoints": 93.8
+  },
+  {
+    "season": 2022,
+    "name": "Corey Davis",
+    "position": "WR",
+    "tradeValue": 77,
+    "fantasyPoints": 97.6
+  },
+  {
+    "season": 2022,
+    "name": "Marquez Valdes-Scantling",
+    "position": "WR",
+    "tradeValue": 75,
+    "fantasyPoints": 122.4
+  },
+  {
+    "season": 2022,
+    "name": "Van Jefferson",
+    "position": "WR",
+    "tradeValue": 65,
+    "fantasyPoints": 78.9
+  },
+  {
+    "season": 2022,
+    "name": "Darius Slayton",
+    "position": "WR",
+    "tradeValue": 59,
+    "fantasyPoints": 128.4
+  },
+  {
+    "season": 2022,
+    "name": "KJ Hamler",
+    "position": "WR",
+    "tradeValue": 57,
+    "fantasyPoints": 25.8
+  },
+  {
+    "season": 2022,
+    "name": "Robert Woods",
+    "position": "WR",
+    "tradeValue": 54,
+    "fantasyPoints": 117.7
+  },
+  {
+    "season": 2022,
+    "name": "Devin Duvernay",
+    "position": "WR",
+    "tradeValue": 51,
+    "fantasyPoints": 116.1
+  },
+  {
+    "season": 2022,
+    "name": "Kyle Pitts",
+    "position": "TE",
+    "tradeValue": 7142,
+    "fantasyPoints": 75.6
+  },
+  {
+    "season": 2022,
+    "name": "Mark Andrews",
+    "position": "TE",
+    "tradeValue": 6335,
+    "fantasyPoints": 190.5
+  },
+  {
+    "season": 2022,
+    "name": "Travis Kelce",
+    "position": "TE",
+    "tradeValue": 5699,
+    "fantasyPoints": 316.3
+  },
+  {
+    "season": 2022,
+    "name": "T.J. Hockenson",
+    "position": "TE",
+    "tradeValue": 2938,
+    "fantasyPoints": 217.4
+  },
+  {
+    "season": 2022,
+    "name": "George Kittle",
+    "position": "TE",
+    "tradeValue": 2668,
+    "fantasyPoints": 200.5
+  },
+  {
+    "season": 2022,
+    "name": "Dallas Goedert",
+    "position": "TE",
+    "tradeValue": 2301,
+    "fantasyPoints": 141.2
+  },
+  {
+    "season": 2022,
+    "name": "Pat Freiermuth",
+    "position": "TE",
+    "tradeValue": 1920,
+    "fantasyPoints": 148.2
+  },
+  {
+    "season": 2022,
+    "name": "David Njoku",
+    "position": "TE",
+    "tradeValue": 1132,
+    "fantasyPoints": 142
+  },
+  {
+    "season": 2022,
+    "name": "Greg Dulcich",
+    "position": "TE",
+    "tradeValue": 1025,
+    "fantasyPoints": 86.1
+  },
+  {
+    "season": 2022,
+    "name": "Dalton Schultz",
+    "position": "TE",
+    "tradeValue": 1018,
+    "fantasyPoints": 142.7
+  },
+  {
+    "season": 2022,
+    "name": "Cole Kmet",
+    "position": "TE",
+    "tradeValue": 768,
+    "fantasyPoints": 147.3
+  },
+  {
+    "season": 2022,
+    "name": "Darren Waller",
+    "position": "TE",
+    "tradeValue": 759,
+    "fantasyPoints": 84.8
+  },
+  {
+    "season": 2022,
+    "name": "Evan Engram",
+    "position": "TE",
+    "tradeValue": 546,
+    "fantasyPoints": 176.9
+  },
+  {
+    "season": 2022,
+    "name": "Trey McBride",
+    "position": "TE",
+    "tradeValue": 457,
+    "fantasyPoints": 61.5
+  },
+  {
+    "season": 2022,
+    "name": "Dawson Knox",
+    "position": "TE",
+    "tradeValue": 401,
+    "fantasyPoints": 135.7
+  },
+  {
+    "season": 2022,
+    "name": "Noah Fant",
+    "position": "TE",
+    "tradeValue": 351,
+    "fantasyPoints": 122.6
+  },
+  {
+    "season": 2022,
+    "name": "Gerald Everett",
+    "position": "TE",
+    "tradeValue": 323,
+    "fantasyPoints": 139.5
+  },
+  {
+    "season": 2022,
+    "name": "Isaiah Likely",
+    "position": "TE",
+    "tradeValue": 321,
+    "fantasyPoints": 91.3
+  },
+  {
+    "season": 2022,
+    "name": "Tyler Higbee",
+    "position": "TE",
+    "tradeValue": 200,
+    "fantasyPoints": 152
+  },
+  {
+    "season": 2022,
+    "name": "Zach Ertz",
+    "position": "TE",
+    "tradeValue": 186,
+    "fantasyPoints": 115.6
+  },
+  {
+    "season": 2022,
+    "name": "Mike Gesicki",
+    "position": "TE",
+    "tradeValue": 163,
+    "fantasyPoints": 98.2
+  },
+  {
+    "season": 2022,
+    "name": "Cade Otton",
+    "position": "TE",
+    "tradeValue": 163,
+    "fantasyPoints": 93.1
+  },
+  {
+    "season": 2022,
+    "name": "Daniel Bellinger",
+    "position": "TE",
+    "tradeValue": 158,
+    "fantasyPoints": 75
+  },
+  {
+    "season": 2022,
+    "name": "Jelani Woods",
+    "position": "TE",
+    "tradeValue": 137,
+    "fantasyPoints": 74.2
+  },
+  {
+    "season": 2022,
+    "name": "Juwan Johnson",
+    "position": "TE",
+    "tradeValue": 65,
+    "fantasyPoints": 134.8
+  },
+  {
+    "season": 2022,
+    "name": "Irv Smith Jr.",
+    "position": "TE",
+    "tradeValue": 60,
+    "fantasyPoints": 55.2
+  },
+  {
+    "season": 2022,
+    "name": "Hunter Henry",
+    "position": "TE",
+    "tradeValue": 50,
+    "fantasyPoints": 103.9
+  },
+  {
+    "season": 2022,
+    "name": "Hayden Hurst",
+    "position": "TE",
+    "tradeValue": 47,
+    "fantasyPoints": 105.4
+  },
+  {
+    "season": 2023,
+    "name": "Josh Allen",
+    "position": "QB",
+    "tradeValue": 5740,
+    "fantasyPoints": 392.6
+  },
+  {
+    "season": 2023,
+    "name": "Patrick Mahomes II",
+    "position": "QB",
+    "tradeValue": 5324,
+    "fantasyPoints": 280.2
+  },
+  {
+    "season": 2023,
+    "name": "Jalen Hurts",
+    "position": "QB",
+    "tradeValue": 5056,
+    "fantasyPoints": 356.8
+  },
+  {
+    "season": 2023,
+    "name": "Lamar Jackson",
+    "position": "QB",
+    "tradeValue": 4422,
+    "fantasyPoints": 331.2
+  },
+  {
+    "season": 2023,
+    "name": "C.J. Stroud",
+    "position": "QB",
+    "tradeValue": 3997,
+    "fantasyPoints": 276
+  },
+  {
+    "season": 2023,
+    "name": "Joe Burrow",
+    "position": "QB",
+    "tradeValue": 3463,
+    "fantasyPoints": 147.2
+  },
+  {
+    "season": 2023,
+    "name": "Justin Herbert",
+    "position": "QB",
+    "tradeValue": 2777,
+    "fantasyPoints": 234.2
+  },
+  {
+    "season": 2023,
+    "name": "Anthony Richardson",
+    "position": "QB",
+    "tradeValue": 2612,
+    "fantasyPoints": 72.7
+  },
+  {
+    "season": 2023,
+    "name": "Trevor Lawrence",
+    "position": "QB",
+    "tradeValue": 1356,
+    "fantasyPoints": 262.5
+  },
+  {
+    "season": 2023,
+    "name": "Dak Prescott",
+    "position": "QB",
+    "tradeValue": 1200,
+    "fantasyPoints": 342.8
+  },
+  {
+    "season": 2023,
+    "name": "Kyler Murray",
+    "position": "QB",
+    "tradeValue": 1132,
+    "fantasyPoints": 146.4
+  },
+  {
+    "season": 2023,
+    "name": "Tua Tagovailoa",
+    "position": "QB",
+    "tradeValue": 1095,
+    "fantasyPoints": 270.4
+  },
+  {
+    "season": 2023,
+    "name": "Justin Fields",
+    "position": "QB",
+    "tradeValue": 1095,
+    "fantasyPoints": 230.2
+  },
+  {
+    "season": 2023,
+    "name": "Brock Purdy",
+    "position": "QB",
+    "tradeValue": 846,
+    "fantasyPoints": 295.6
+  },
+  {
+    "season": 2023,
+    "name": "Jordan Love",
+    "position": "QB",
+    "tradeValue": 810,
+    "fantasyPoints": 319.1
+  },
+  {
+    "season": 2023,
+    "name": "Jared Goff",
+    "position": "QB",
+    "tradeValue": 642,
+    "fantasyPoints": 289.1
+  },
+  {
+    "season": 2023,
+    "name": "Deshaun Watson",
+    "position": "QB",
+    "tradeValue": 614,
+    "fantasyPoints": 86.8
+  },
+  {
+    "season": 2023,
+    "name": "Bryce Young",
+    "position": "QB",
+    "tradeValue": 486,
+    "fantasyPoints": 156.4
+  },
+  {
+    "season": 2023,
+    "name": "Kirk Cousins",
+    "position": "QB",
+    "tradeValue": 344,
+    "fantasyPoints": 149.7
+  },
+  {
+    "season": 2023,
+    "name": "Geno Smith",
+    "position": "QB",
+    "tradeValue": 311,
+    "fantasyPoints": 227.3
+  },
+  {
+    "season": 2023,
+    "name": "Matthew Stafford",
+    "position": "QB",
+    "tradeValue": 235,
+    "fantasyPoints": 243.1
+  },
+  {
+    "season": 2023,
+    "name": "Baker Mayfield",
+    "position": "QB",
+    "tradeValue": 232,
+    "fantasyPoints": 274.1
+  },
+  {
+    "season": 2023,
+    "name": "Will Levis",
+    "position": "QB",
+    "tradeValue": 222,
+    "fantasyPoints": 102
+  },
+  {
+    "season": 2023,
+    "name": "Daniel Jones",
+    "position": "QB",
+    "tradeValue": 209,
+    "fantasyPoints": 57
+  },
+  {
+    "season": 2023,
+    "name": "Russell Wilson",
+    "position": "QB",
+    "tradeValue": 197,
+    "fantasyPoints": 256.9
+  },
+  {
+    "season": 2023,
+    "name": "Sam Howell",
+    "position": "QB",
+    "tradeValue": 166,
+    "fantasyPoints": 257.5
+  },
+  {
+    "season": 2023,
+    "name": "Derek Carr",
+    "position": "QB",
+    "tradeValue": 150,
+    "fantasyPoints": 241.1
+  },
+  {
+    "season": 2023,
+    "name": "Aaron Rodgers",
+    "position": "QB",
+    "tradeValue": 106,
+    "fantasyPoints": 0
+  },
+  {
+    "season": 2023,
+    "name": "Bijan Robinson",
+    "position": "RB",
+    "tradeValue": 9469,
+    "fantasyPoints": 246.3
+  },
+  {
+    "season": 2023,
+    "name": "Breece Hall",
+    "position": "RB",
+    "tradeValue": 8762,
+    "fantasyPoints": 290.5
+  },
+  {
+    "season": 2023,
+    "name": "Christian McCaffrey",
+    "position": "RB",
+    "tradeValue": 8741,
+    "fantasyPoints": 391.3
+  },
+  {
+    "season": 2023,
+    "name": "Jahmyr Gibbs",
+    "position": "RB",
+    "tradeValue": 8619,
+    "fantasyPoints": 242.1
+  },
+  {
+    "season": 2023,
+    "name": "Jonathan Taylor",
+    "position": "RB",
+    "tradeValue": 7192,
+    "fantasyPoints": 156.4
+  },
+  {
+    "season": 2023,
+    "name": "De'Von Achane",
+    "position": "RB",
+    "tradeValue": 6687,
+    "fantasyPoints": 190.7
+  },
+  {
+    "season": 2023,
+    "name": "Travis Etienne Jr.",
+    "position": "RB",
+    "tradeValue": 6486,
+    "fantasyPoints": 282.4
+  },
+  {
+    "season": 2023,
+    "name": "Kyren Williams",
+    "position": "RB",
+    "tradeValue": 5849,
+    "fantasyPoints": 255
+  },
+  {
+    "season": 2023,
+    "name": "Kenneth Walker III",
+    "position": "RB",
+    "tradeValue": 5463,
+    "fantasyPoints": 199.4
+  },
+  {
+    "season": 2023,
+    "name": "Rachaad White",
+    "position": "RB",
+    "tradeValue": 4973,
+    "fantasyPoints": 267.9
+  },
+  {
+    "season": 2023,
+    "name": "Saquon Barkley",
+    "position": "RB",
+    "tradeValue": 4602,
+    "fantasyPoints": 223.2
+  },
+  {
+    "season": 2023,
+    "name": "Josh Jacobs",
+    "position": "RB",
+    "tradeValue": 4474,
+    "fantasyPoints": 181.1
+  },
+  {
+    "season": 2023,
+    "name": "James Cook",
+    "position": "RB",
+    "tradeValue": 4006,
+    "fantasyPoints": 232.7
+  },
+  {
+    "season": 2023,
+    "name": "D'Andre Swift",
+    "position": "RB",
+    "tradeValue": 3895,
+    "fantasyPoints": 199.3
+  },
+  {
+    "season": 2023,
+    "name": "Javonte Williams",
+    "position": "RB",
+    "tradeValue": 3613,
+    "fantasyPoints": 179.2
+  },
+  {
+    "season": 2023,
+    "name": "Rhamondre Stevenson",
+    "position": "RB",
+    "tradeValue": 3496,
+    "fantasyPoints": 145.7
+  },
+  {
+    "season": 2023,
+    "name": "Tony Pollard",
+    "position": "RB",
+    "tradeValue": 3463,
+    "fantasyPoints": 222.6
+  },
+  {
+    "season": 2023,
+    "name": "Isiah Pacheco",
+    "position": "RB",
+    "tradeValue": 3439,
+    "fantasyPoints": 213.9
+  },
+  {
+    "season": 2023,
+    "name": "Alvin Kamara",
+    "position": "RB",
+    "tradeValue": 2816,
+    "fantasyPoints": 233
+  },
+  {
+    "season": 2023,
+    "name": "David Montgomery",
+    "position": "RB",
+    "tradeValue": 2612,
+    "fantasyPoints": 207.2
+  },
+  {
+    "season": 2023,
+    "name": "Joe Mixon",
+    "position": "RB",
+    "tradeValue": 2154,
+    "fantasyPoints": 267
+  },
+  {
+    "season": 2023,
+    "name": "Brian Robinson Jr.",
+    "position": "RB",
+    "tradeValue": 2070,
+    "fantasyPoints": 198.1
+  },
+  {
+    "season": 2023,
+    "name": "Austin Ekeler",
+    "position": "RB",
+    "tradeValue": 2046,
+    "fantasyPoints": 185.4
+  },
+  {
+    "season": 2023,
+    "name": "Zach Charbonnet",
+    "position": "RB",
+    "tradeValue": 2008,
+    "fantasyPoints": 106.1
+  },
+  {
+    "season": 2023,
+    "name": "Najee Harris",
+    "position": "RB",
+    "tradeValue": 1970,
+    "fantasyPoints": 195.5
+  },
+  {
+    "season": 2023,
+    "name": "Tyjae Spears",
+    "position": "RB",
+    "tradeValue": 1943,
+    "fantasyPoints": 153.8
+  },
+  {
+    "season": 2023,
+    "name": "Derrick Henry",
+    "position": "RB",
+    "tradeValue": 1902,
+    "fantasyPoints": 246.7
+  },
+  {
+    "season": 2023,
+    "name": "Nick Chubb",
+    "position": "RB",
+    "tradeValue": 1664,
+    "fantasyPoints": 23.1
+  },
+  {
+    "season": 2023,
+    "name": "Aaron Jones",
+    "position": "RB",
+    "tradeValue": 1539,
+    "fantasyPoints": 134.9
+  },
+  {
+    "season": 2023,
+    "name": "Jaylen Warren",
+    "position": "RB",
+    "tradeValue": 1455,
+    "fantasyPoints": 196.4
+  },
+  {
+    "season": 2023,
+    "name": "James Conner",
+    "position": "RB",
+    "tradeValue": 1148,
+    "fantasyPoints": 201.5
+  },
+  {
+    "season": 2023,
+    "name": "Roschon Johnson",
+    "position": "RB",
+    "tradeValue": 1047,
+    "fantasyPoints": 102.1
+  },
+  {
+    "season": 2023,
+    "name": "Jerome Ford",
+    "position": "RB",
+    "tradeValue": 1045,
+    "fantasyPoints": 211.2
+  },
+  {
+    "season": 2023,
+    "name": "Raheem Mostert",
+    "position": "RB",
+    "tradeValue": 814,
+    "fantasyPoints": 267.7
+  },
+  {
+    "season": 2023,
+    "name": "Khalil Herbert",
+    "position": "RB",
+    "tradeValue": 729,
+    "fantasyPoints": 112.5
+  },
+  {
+    "season": 2023,
+    "name": "Kendre Miller",
+    "position": "RB",
+    "tradeValue": 680,
+    "fantasyPoints": 43.3
+  },
+  {
+    "season": 2023,
+    "name": "Chuba Hubbard",
+    "position": "RB",
+    "tradeValue": 662,
+    "fantasyPoints": 182.5
+  },
+  {
+    "season": 2023,
+    "name": "Keaton Mitchell",
+    "position": "RB",
+    "tradeValue": 592,
+    "fantasyPoints": 69.9
+  },
+  {
+    "season": 2023,
+    "name": "Dameon Pierce",
+    "position": "RB",
+    "tradeValue": 586,
+    "fantasyPoints": 82.7
+  },
+  {
+    "season": 2023,
+    "name": "Tyler Allgeier",
+    "position": "RB",
+    "tradeValue": 527,
+    "fantasyPoints": 137.6
+  },
+  {
+    "season": 2023,
+    "name": "Antonio Gibson",
+    "position": "RB",
+    "tradeValue": 515,
+    "fantasyPoints": 127.4
+  },
+  {
+    "season": 2023,
+    "name": "Devin Singletary",
+    "position": "RB",
+    "tradeValue": 502,
+    "fantasyPoints": 167.3
+  },
+  {
+    "season": 2023,
+    "name": "AJ Dillon",
+    "position": "RB",
+    "tradeValue": 473,
+    "fantasyPoints": 117.6
+  },
+  {
+    "season": 2023,
+    "name": "Alexander Mattison",
+    "position": "RB",
+    "tradeValue": 416,
+    "fantasyPoints": 133.2
+  },
+  {
+    "season": 2023,
+    "name": "Miles Sanders",
+    "position": "RB",
+    "tradeValue": 396,
+    "fantasyPoints": 87.6
+  },
+  {
+    "season": 2023,
+    "name": "Chase Brown",
+    "position": "RB",
+    "tradeValue": 341,
+    "fantasyPoints": 53.5
+  },
+  {
+    "season": 2023,
+    "name": "Tank Bigsby",
+    "position": "RB",
+    "tradeValue": 311,
+    "fantasyPoints": 24.8
+  },
+  {
+    "season": 2023,
+    "name": "J.K. Dobbins",
+    "position": "RB",
+    "tradeValue": 305,
+    "fantasyPoints": 11.7
+  },
+  {
+    "season": 2023,
+    "name": "Elijah Mitchell",
+    "position": "RB",
+    "tradeValue": 270,
+    "fantasyPoints": 47.5
+  },
+  {
+    "season": 2023,
+    "name": "Gus Edwards",
+    "position": "RB",
+    "tradeValue": 220,
+    "fantasyPoints": 187
+  },
+  {
+    "season": 2023,
+    "name": "Zack Moss",
+    "position": "RB",
+    "tradeValue": 184,
+    "fantasyPoints": 169.6
+  },
+  {
+    "season": 2023,
+    "name": "Kenneth Gainwell",
+    "position": "RB",
+    "tradeValue": 179,
+    "fantasyPoints": 97.4
+  },
+  {
+    "season": 2023,
+    "name": "Zamir White",
+    "position": "RB",
+    "tradeValue": 165,
+    "fantasyPoints": 73.9
+  },
+  {
+    "season": 2023,
+    "name": "Ezekiel Elliott",
+    "position": "RB",
+    "tradeValue": 139,
+    "fantasyPoints": 174.5
+  },
+  {
+    "season": 2023,
+    "name": "Ty Chandler",
+    "position": "RB",
+    "tradeValue": 123,
+    "fantasyPoints": 101
+  },
+  {
+    "season": 2023,
+    "name": "Samaje Perine",
+    "position": "RB",
+    "tradeValue": 119,
+    "fantasyPoints": 121.3
+  },
+  {
+    "season": 2023,
+    "name": "Jamaal Williams",
+    "position": "RB",
+    "tradeValue": 107,
+    "fantasyPoints": 60.8
+  },
+  {
+    "season": 2023,
+    "name": "Kareem Hunt",
+    "position": "RB",
+    "tradeValue": 104,
+    "fantasyPoints": 118.5
+  },
+  {
+    "season": 2023,
+    "name": "Jaleel McLaughlin",
+    "position": "RB",
+    "tradeValue": 103,
+    "fantasyPoints": 106
+  },
+  {
+    "season": 2023,
+    "name": "Israel Abanikanda",
+    "position": "RB",
+    "tradeValue": 85,
+    "fantasyPoints": 18.3
+  },
+  {
+    "season": 2023,
+    "name": "Justin Jefferson",
+    "position": "WR",
+    "tradeValue": 10065,
+    "fantasyPoints": 202.2
+  },
+  {
+    "season": 2023,
+    "name": "Ja'Marr Chase",
+    "position": "WR",
+    "tradeValue": 9762,
+    "fantasyPoints": 262.7
+  },
+  {
+    "season": 2023,
+    "name": "CeeDee Lamb",
+    "position": "WR",
+    "tradeValue": 9626,
+    "fantasyPoints": 403.2
+  },
+  {
+    "season": 2023,
+    "name": "Amon-Ra St. Brown",
+    "position": "WR",
+    "tradeValue": 9141,
+    "fantasyPoints": 330.9
+  },
+  {
+    "season": 2023,
+    "name": "A.J. Brown",
+    "position": "WR",
+    "tradeValue": 8700,
+    "fantasyPoints": 289.6
+  },
+  {
+    "season": 2023,
+    "name": "Garrett Wilson",
+    "position": "WR",
+    "tradeValue": 8204,
+    "fantasyPoints": 213.2
+  },
+  {
+    "season": 2023,
+    "name": "Tyreek Hill",
+    "position": "WR",
+    "tradeValue": 7486,
+    "fantasyPoints": 376.4
+  },
+  {
+    "season": 2023,
+    "name": "Chris Olave",
+    "position": "WR",
+    "tradeValue": 7192,
+    "fantasyPoints": 231.3
+  },
+  {
+    "season": 2023,
+    "name": "Puka Nacua",
+    "position": "WR",
+    "tradeValue": 7092,
+    "fantasyPoints": 298.5
+  },
+  {
+    "season": 2023,
+    "name": "Jaylen Waddle",
+    "position": "WR",
+    "tradeValue": 6276,
+    "fantasyPoints": 198.6
+  },
+  {
+    "season": 2023,
+    "name": "Brandon Aiyuk",
+    "position": "WR",
+    "tradeValue": 6261,
+    "fantasyPoints": 249.2
+  },
+  {
+    "season": 2023,
+    "name": "DeVonta Smith",
+    "position": "WR",
+    "tradeValue": 5713,
+    "fantasyPoints": 227.6
+  },
+  {
+    "season": 2023,
+    "name": "Jordan Addison",
+    "position": "WR",
+    "tradeValue": 5020,
+    "fantasyPoints": 221.3
+  },
+  {
+    "season": 2023,
+    "name": "DJ Moore",
+    "position": "WR",
+    "tradeValue": 4938,
+    "fantasyPoints": 286.5
+  },
+  {
+    "season": 2023,
+    "name": "DK Metcalf",
+    "position": "WR",
+    "tradeValue": 4869,
+    "fantasyPoints": 225.4
+  },
+  {
+    "season": 2023,
+    "name": "Drake London",
+    "position": "WR",
+    "tradeValue": 4801,
+    "fantasyPoints": 174.4
+  },
+  {
+    "season": 2023,
+    "name": "Michael Pittman Jr.",
+    "position": "WR",
+    "tradeValue": 4745,
+    "fantasyPoints": 252.2
+  },
+  {
+    "season": 2023,
+    "name": "Jaxon Smith-Njigba",
+    "position": "WR",
+    "tradeValue": 4668,
+    "fantasyPoints": 149.8
+  },
+  {
+    "season": 2023,
+    "name": "Zay Flowers",
+    "position": "WR",
+    "tradeValue": 4485,
+    "fantasyPoints": 206.4
+  },
+  {
+    "season": 2023,
+    "name": "Tee Higgins",
+    "position": "WR",
+    "tradeValue": 4391,
+    "fantasyPoints": 137.6
+  },
+  {
+    "season": 2023,
+    "name": "Tank Dell",
+    "position": "WR",
+    "tradeValue": 4319,
+    "fantasyPoints": 165
+  },
+  {
+    "season": 2023,
+    "name": "Stefon Diggs",
+    "position": "WR",
+    "tradeValue": 4249,
+    "fantasyPoints": 273.8
+  },
+  {
+    "season": 2023,
+    "name": "Nico Collins",
+    "position": "WR",
+    "tradeValue": 3895,
+    "fantasyPoints": 260.4
+  },
+  {
+    "season": 2023,
+    "name": "Davante Adams",
+    "position": "WR",
+    "tradeValue": 3690,
+    "fantasyPoints": 265.4
+  },
+  {
+    "season": 2023,
+    "name": "Rashee Rice",
+    "position": "WR",
+    "tradeValue": 3415,
+    "fantasyPoints": 212.5
+  },
+  {
+    "season": 2023,
+    "name": "Deebo Samuel",
+    "position": "WR",
+    "tradeValue": 3167,
+    "fantasyPoints": 243.7
+  },
+  {
+    "season": 2023,
+    "name": "Cooper Kupp",
+    "position": "WR",
+    "tradeValue": 2757,
+    "fantasyPoints": 164.4
+  },
+  {
+    "season": 2023,
+    "name": "Jayden Reed",
+    "position": "WR",
+    "tradeValue": 2643,
+    "fantasyPoints": 217.2
+  },
+  {
+    "season": 2023,
+    "name": "Mike Evans",
+    "position": "WR",
+    "tradeValue": 2164,
+    "fantasyPoints": 282.5
+  },
+  {
+    "season": 2023,
+    "name": "Chris Godwin",
+    "position": "WR",
+    "tradeValue": 2017,
+    "fantasyPoints": 209.2
+  },
+  {
+    "season": 2023,
+    "name": "George Pickens",
+    "position": "WR",
+    "tradeValue": 2008,
+    "fantasyPoints": 208.8
+  },
+  {
+    "season": 2023,
+    "name": "Christian Kirk",
+    "position": "WR",
+    "tradeValue": 1998,
+    "fantasyPoints": 150.3
+  },
+  {
+    "season": 2023,
+    "name": "Christian Watson",
+    "position": "WR",
+    "tradeValue": 1902,
+    "fantasyPoints": 101.3
+  },
+  {
+    "season": 2023,
+    "name": "Amari Cooper",
+    "position": "WR",
+    "tradeValue": 1845,
+    "fantasyPoints": 227
+  },
+  {
+    "season": 2023,
+    "name": "Keenan Allen",
+    "position": "WR",
+    "tradeValue": 1836,
+    "fantasyPoints": 278.9
+  },
+  {
+    "season": 2023,
+    "name": "Calvin Ridley",
+    "position": "WR",
+    "tradeValue": 1777,
+    "fantasyPoints": 229.9
+  },
+  {
+    "season": 2023,
+    "name": "Terry McLaurin",
+    "position": "WR",
+    "tradeValue": 1723,
+    "fantasyPoints": 203.2
+  },
+  {
+    "season": 2023,
+    "name": "Diontae Johnson",
+    "position": "WR",
+    "tradeValue": 1621,
+    "fantasyPoints": 152.7
+  },
+  {
+    "season": 2023,
+    "name": "Josh Downs",
+    "position": "WR",
+    "tradeValue": 1291,
+    "fantasyPoints": 157.1
+  },
+  {
+    "season": 2023,
+    "name": "Marquise Brown",
+    "position": "WR",
+    "tradeValue": 1194,
+    "fantasyPoints": 134.7
+  },
+  {
+    "season": 2023,
+    "name": "Courtland Sutton",
+    "position": "WR",
+    "tradeValue": 1095,
+    "fantasyPoints": 190.2
+  },
+  {
+    "season": 2023,
+    "name": "Jahan Dotson",
+    "position": "WR",
+    "tradeValue": 1020,
+    "fantasyPoints": 124.8
+  },
+  {
+    "season": 2023,
+    "name": "Jameson Williams",
+    "position": "WR",
+    "tradeValue": 922,
+    "fantasyPoints": 80.3
+  },
+  {
+    "season": 2023,
+    "name": "DeAndre Hopkins",
+    "position": "WR",
+    "tradeValue": 846,
+    "fantasyPoints": 223.6
+  },
+  {
+    "season": 2023,
+    "name": "Jerry Jeudy",
+    "position": "WR",
+    "tradeValue": 824,
+    "fantasyPoints": 141.8
+  },
+  {
+    "season": 2023,
+    "name": "Gabe Davis",
+    "position": "WR",
+    "tradeValue": 794,
+    "fantasyPoints": 161.4
+  },
+  {
+    "season": 2023,
+    "name": "Jakobi Meyers",
+    "position": "WR",
+    "tradeValue": 782,
+    "fantasyPoints": 218.6
+  },
+  {
+    "season": 2023,
+    "name": "Marvin Mims Jr.",
+    "position": "WR",
+    "tradeValue": 686,
+    "fantasyPoints": 74.7
+  },
+  {
+    "season": 2023,
+    "name": "Elijah Moore",
+    "position": "WR",
+    "tradeValue": 624,
+    "fantasyPoints": 132.1
+  },
+  {
+    "season": 2023,
+    "name": "Tyler Lockett",
+    "position": "WR",
+    "tradeValue": 617,
+    "fantasyPoints": 202.4
+  },
+  {
+    "season": 2023,
+    "name": "Quentin Johnston",
+    "position": "WR",
+    "tradeValue": 540,
+    "fantasyPoints": 94
+  },
+  {
+    "season": 2023,
+    "name": "Mike Williams",
+    "position": "WR",
+    "tradeValue": 495,
+    "fantasyPoints": 50.2
+  },
+  {
+    "season": 2023,
+    "name": "Romeo Doubs",
+    "position": "WR",
+    "tradeValue": 453,
+    "fantasyPoints": 174.4
+  },
+  {
+    "season": 2023,
+    "name": "Treylon Burks",
+    "position": "WR",
+    "tradeValue": 399,
+    "fantasyPoints": 39.9
+  },
+  {
+    "season": 2023,
+    "name": "Rashid Shaheed",
+    "position": "WR",
+    "tradeValue": 346,
+    "fantasyPoints": 157.6
+  },
+  {
+    "season": 2023,
+    "name": "Jalin Hyatt",
+    "position": "WR",
+    "tradeValue": 325,
+    "fantasyPoints": 60.3
+  },
+  {
+    "season": 2023,
+    "name": "Brandin Cooks",
+    "position": "WR",
+    "tradeValue": 315,
+    "fantasyPoints": 173.2
+  },
+  {
+    "season": 2023,
+    "name": "Jonathan Mingo",
+    "position": "WR",
+    "tradeValue": 314,
+    "fantasyPoints": 84.8
+  },
+  {
+    "season": 2023,
+    "name": "Michael Wilson",
+    "position": "WR",
+    "tradeValue": 285,
+    "fantasyPoints": 114.5
+  },
+  {
+    "season": 2023,
+    "name": "Wan'Dale Robinson",
+    "position": "WR",
+    "tradeValue": 267,
+    "fantasyPoints": 133.2
+  },
+  {
+    "season": 2023,
+    "name": "Demario Douglas",
+    "position": "WR",
+    "tradeValue": 265,
+    "fantasyPoints": 107.2
+  },
+  {
+    "season": 2023,
+    "name": "Rashod Bateman",
+    "position": "WR",
+    "tradeValue": 264,
+    "fantasyPoints": 76.5
+  },
+  {
+    "season": 2023,
+    "name": "Adam Thielen",
+    "position": "WR",
+    "tradeValue": 191,
+    "fantasyPoints": 231
+  },
+  {
+    "season": 2023,
+    "name": "Cedric Tillman",
+    "position": "WR",
+    "tradeValue": 145,
+    "fantasyPoints": 44.2
+  },
+  {
+    "season": 2023,
+    "name": "Darnell Mooney",
+    "position": "WR",
+    "tradeValue": 143,
+    "fantasyPoints": 78.9
+  },
+  {
+    "season": 2023,
+    "name": "Curtis Samuel",
+    "position": "WR",
+    "tradeValue": 137,
+    "fantasyPoints": 157.2
+  },
+  {
+    "season": 2023,
+    "name": "Michael Thomas",
+    "position": "WR",
+    "tradeValue": 136,
+    "fantasyPoints": 89.8
+  },
+  {
+    "season": 2023,
+    "name": "Zay Jones",
+    "position": "WR",
+    "tradeValue": 129,
+    "fantasyPoints": 78.1
+  },
+  {
+    "season": 2023,
+    "name": "Rondale Moore",
+    "position": "WR",
+    "tradeValue": 127,
+    "fantasyPoints": 105
+  },
+  {
+    "season": 2023,
+    "name": "Skyy Moore",
+    "position": "WR",
+    "tradeValue": 120,
+    "fantasyPoints": 53.7
+  },
+  {
+    "season": 2023,
+    "name": "Tyler Boyd",
+    "position": "WR",
+    "tradeValue": 118,
+    "fantasyPoints": 144.8
+  },
+  {
+    "season": 2023,
+    "name": "Alec Pierce",
+    "position": "WR",
+    "tradeValue": 102,
+    "fantasyPoints": 95.4
+  },
+  {
+    "season": 2023,
+    "name": "Kadarius Toney",
+    "position": "WR",
+    "tradeValue": 92,
+    "fantasyPoints": 53
+  },
+  {
+    "season": 2023,
+    "name": "Tutu Atwell",
+    "position": "WR",
+    "tradeValue": 88,
+    "fantasyPoints": 112.4
+  },
+  {
+    "season": 2023,
+    "name": "Khalil Shakir",
+    "position": "WR",
+    "tradeValue": 86,
+    "fantasyPoints": 113.1
+  },
+  {
+    "season": 2023,
+    "name": "Odell Beckham Jr.",
+    "position": "WR",
+    "tradeValue": 81,
+    "fantasyPoints": 107.5
+  },
+  {
+    "season": 2023,
+    "name": "Dontayvion Wicks",
+    "position": "WR",
+    "tradeValue": 70,
+    "fantasyPoints": 119.8
+  },
+  {
+    "season": 2023,
+    "name": "DJ Chark Jr.",
+    "position": "WR",
+    "tradeValue": 66,
+    "fantasyPoints": 115.5
+  },
+  {
+    "season": 2023,
+    "name": "Trey Palmer",
+    "position": "WR",
+    "tradeValue": 64,
+    "fantasyPoints": 95.7
+  },
+  {
+    "season": 2023,
+    "name": "JuJu Smith-Schuster",
+    "position": "WR",
+    "tradeValue": 58,
+    "fantasyPoints": 61
+  },
+  {
+    "season": 2023,
+    "name": "Sam LaPorta",
+    "position": "TE",
+    "tradeValue": 7346,
+    "fantasyPoints": 239.3
+  },
+  {
+    "season": 2023,
+    "name": "Trey McBride",
+    "position": "TE",
+    "tradeValue": 4422,
+    "fantasyPoints": 181.5
+  },
+  {
+    "season": 2023,
+    "name": "Mark Andrews",
+    "position": "TE",
+    "tradeValue": 3950,
+    "fantasyPoints": 135.4
+  },
+  {
+    "season": 2023,
+    "name": "T.J. Hockenson",
+    "position": "TE",
+    "tradeValue": 3545,
+    "fantasyPoints": 219
+  },
+  {
+    "season": 2023,
+    "name": "Dalton Kincaid",
+    "position": "TE",
+    "tradeValue": 2904,
+    "fantasyPoints": 150.3
+  },
+  {
+    "season": 2023,
+    "name": "Travis Kelce",
+    "position": "TE",
+    "tradeValue": 2486,
+    "fantasyPoints": 219.4
+  },
+  {
+    "season": 2023,
+    "name": "Kyle Pitts",
+    "position": "TE",
+    "tradeValue": 2085,
+    "fantasyPoints": 137.3
+  },
+  {
+    "season": 2023,
+    "name": "George Kittle",
+    "position": "TE",
+    "tradeValue": 1956,
+    "fantasyPoints": 203.2
+  },
+  {
+    "season": 2023,
+    "name": "David Njoku",
+    "position": "TE",
+    "tradeValue": 1356,
+    "fantasyPoints": 201.2
+  },
+  {
+    "season": 2023,
+    "name": "Evan Engram",
+    "position": "TE",
+    "tradeValue": 1328,
+    "fantasyPoints": 230.3
+  },
+  {
+    "season": 2023,
+    "name": "Dallas Goedert",
+    "position": "TE",
+    "tradeValue": 1023,
+    "fantasyPoints": 136.3
+  },
+  {
+    "season": 2023,
+    "name": "Jake Ferguson",
+    "position": "TE",
+    "tradeValue": 794,
+    "fantasyPoints": 177.1
+  },
+  {
+    "season": 2023,
+    "name": "Pat Freiermuth",
+    "position": "TE",
+    "tradeValue": 707,
+    "fantasyPoints": 76.8
+  },
+  {
+    "season": 2023,
+    "name": "Cole Kmet",
+    "position": "TE",
+    "tradeValue": 694,
+    "fantasyPoints": 181.1
+  },
+  {
+    "season": 2023,
+    "name": "Michael Mayer",
+    "position": "TE",
+    "tradeValue": 576,
+    "fantasyPoints": 71.4
+  },
+  {
+    "season": 2023,
+    "name": "Dalton Schultz",
+    "position": "TE",
+    "tradeValue": 477,
+    "fantasyPoints": 150.5
+  },
+  {
+    "season": 2023,
+    "name": "Luke Musgrave",
+    "position": "TE",
+    "tradeValue": 462,
+    "fantasyPoints": 75.2
+  },
+  {
+    "season": 2023,
+    "name": "Isaiah Likely",
+    "position": "TE",
+    "tradeValue": 373,
+    "fantasyPoints": 101.1
+  },
+  {
+    "season": 2023,
+    "name": "Darren Waller",
+    "position": "TE",
+    "tradeValue": 290,
+    "fantasyPoints": 113.2
+  },
+  {
+    "season": 2023,
+    "name": "Greg Dulcich",
+    "position": "TE",
+    "tradeValue": 186,
+    "fantasyPoints": 5.5
+  },
+  {
+    "season": 2023,
+    "name": "Tucker Kraft",
+    "position": "TE",
+    "tradeValue": 166,
+    "fantasyPoints": 78.5
+  },
+  {
+    "season": 2023,
+    "name": "Cade Otton",
+    "position": "TE",
+    "tradeValue": 127,
+    "fantasyPoints": 118.5
+  },
+  {
+    "season": 2023,
+    "name": "Juwan Johnson",
+    "position": "TE",
+    "tradeValue": 99,
+    "fantasyPoints": 97.8
+  },
+  {
+    "season": 2023,
+    "name": "Hunter Henry",
+    "position": "TE",
+    "tradeValue": 97,
+    "fantasyPoints": 119.9
+  },
+  {
+    "season": 2023,
+    "name": "Gerald Everett",
+    "position": "TE",
+    "tradeValue": 83,
+    "fantasyPoints": 111.1
+  },
+  {
+    "season": 2023,
+    "name": "Tyler Higbee",
+    "position": "TE",
+    "tradeValue": 76,
+    "fantasyPoints": 108.5
+  },
+  {
+    "season": 2023,
+    "name": "Taysom Hill",
+    "position": "TE",
+    "tradeValue": 67,
+    "fantasyPoints": 143.5
+  },
+  {
+    "season": 2023,
+    "name": "Noah Fant",
+    "position": "TE",
+    "tradeValue": 51,
+    "fantasyPoints": 73.4
+  },
+  {
+    "season": 2024,
+    "name": "Josh Allen",
+    "position": "QB",
+    "tradeValue": 6671,
+    "fantasyPoints": 379
+  },
+  {
+    "season": 2024,
+    "name": "Lamar Jackson",
+    "position": "QB",
+    "tradeValue": 5387,
+    "fantasyPoints": 430.4
+  },
+  {
+    "season": 2024,
+    "name": "Jayden Daniels",
+    "position": "QB",
+    "tradeValue": 5092,
+    "fantasyPoints": 355.8
+  },
+  {
+    "season": 2024,
+    "name": "Patrick Mahomes II",
+    "position": "QB",
+    "tradeValue": 4657,
+    "fantasyPoints": 283
+  },
+  {
+    "season": 2024,
+    "name": "Jalen Hurts",
+    "position": "QB",
+    "tradeValue": 4485,
+    "fantasyPoints": 315.1
+  },
+  {
+    "season": 2024,
+    "name": "Joe Burrow",
+    "position": "QB",
+    "tradeValue": 3822,
+    "fantasyPoints": 372.8
+  },
+  {
+    "season": 2024,
+    "name": "C.J. Stroud",
+    "position": "QB",
+    "tradeValue": 3197,
+    "fantasyPoints": 220.4
+  },
+  {
+    "season": 2024,
+    "name": "Caleb Williams",
+    "position": "QB",
+    "tradeValue": 1998,
+    "fantasyPoints": 254.5
+  },
+  {
+    "season": 2024,
+    "name": "Jordan Love",
+    "position": "QB",
+    "tradeValue": 1880,
+    "fantasyPoints": 233.9
+  },
+  {
+    "season": 2024,
+    "name": "Justin Herbert",
+    "position": "QB",
+    "tradeValue": 1744,
+    "fantasyPoints": 285.4
+  },
+  {
+    "season": 2024,
+    "name": "Anthony Richardson",
+    "position": "QB",
+    "tradeValue": 1525,
+    "fantasyPoints": 163.4
+  },
+  {
+    "season": 2024,
+    "name": "Kyler Murray",
+    "position": "QB",
+    "tradeValue": 1479,
+    "fantasyPoints": 297.2
+  },
+  {
+    "season": 2024,
+    "name": "Drake Maye",
+    "position": "QB",
+    "tradeValue": 1378,
+    "fantasyPoints": 177.1
+  },
+  {
+    "season": 2024,
+    "name": "Bo Nix",
+    "position": "QB",
+    "tradeValue": 1153,
+    "fantasyPoints": 317.2
+  },
+  {
+    "season": 2024,
+    "name": "Brock Purdy",
+    "position": "QB",
+    "tradeValue": 803,
+    "fantasyPoints": 266.9
+  },
+  {
+    "season": 2024,
+    "name": "Baker Mayfield",
+    "position": "QB",
+    "tradeValue": 741,
+    "fantasyPoints": 365.8
+  },
+  {
+    "season": 2024,
+    "name": "Jared Goff",
+    "position": "QB",
+    "tradeValue": 721,
+    "fantasyPoints": 324.5
+  },
+  {
+    "season": 2024,
+    "name": "Tua Tagovailoa",
+    "position": "QB",
+    "tradeValue": 578,
+    "fantasyPoints": 181.6
+  },
+  {
+    "season": 2024,
+    "name": "Dak Prescott",
+    "position": "QB",
+    "tradeValue": 533,
+    "fantasyPoints": 116.5
+  },
+  {
+    "season": 2024,
+    "name": "Trevor Lawrence",
+    "position": "QB",
+    "tradeValue": 455,
+    "fantasyPoints": 145.2
+  },
+  {
+    "season": 2024,
+    "name": "Sam Darnold",
+    "position": "QB",
+    "tradeValue": 298,
+    "fantasyPoints": 308
+  },
+  {
+    "season": 2024,
+    "name": "Michael Penix Jr.",
+    "position": "QB",
+    "tradeValue": 281,
+    "fantasyPoints": 44.1
+  },
+  {
+    "season": 2024,
+    "name": "Bryce Young",
+    "position": "QB",
+    "tradeValue": 267,
+    "fantasyPoints": 195
+  },
+  {
+    "season": 2024,
+    "name": "Geno Smith",
+    "position": "QB",
+    "tradeValue": 193,
+    "fantasyPoints": 266
+  },
+  {
+    "season": 2024,
+    "name": "Russell Wilson",
+    "position": "QB",
+    "tradeValue": 174,
+    "fantasyPoints": 172.8
+  },
+  {
+    "season": 2024,
+    "name": "Matthew Stafford",
+    "position": "QB",
+    "tradeValue": 140,
+    "fantasyPoints": 214.6
+  },
+  {
+    "season": 2024,
+    "name": "Kirk Cousins",
+    "position": "QB",
+    "tradeValue": 98,
+    "fantasyPoints": 176.3
+  },
+  {
+    "season": 2024,
+    "name": "Justin Fields",
+    "position": "QB",
+    "tradeValue": 65,
+    "fantasyPoints": 119.1
+  },
+  {
+    "season": 2024,
+    "name": "Bijan Robinson",
+    "position": "RB",
+    "tradeValue": 9446,
+    "fantasyPoints": 341.7
+  },
+  {
+    "season": 2024,
+    "name": "Jahmyr Gibbs",
+    "position": "RB",
+    "tradeValue": 8824,
+    "fantasyPoints": 362.9
+  },
+  {
+    "season": 2024,
+    "name": "Breece Hall",
+    "position": "RB",
+    "tradeValue": 8223,
+    "fantasyPoints": 240.9
+  },
+  {
+    "season": 2024,
+    "name": "De'Von Achane",
+    "position": "RB",
+    "tradeValue": 6455,
+    "fantasyPoints": 299.9
+  },
+  {
+    "season": 2024,
+    "name": "Jonathan Taylor",
+    "position": "RB",
+    "tradeValue": 6116,
+    "fantasyPoints": 244.7
+  },
+  {
+    "season": 2024,
+    "name": "Bucky Irving",
+    "position": "RB",
+    "tradeValue": 6002,
+    "fantasyPoints": 244.4
+  },
+  {
+    "season": 2024,
+    "name": "Saquon Barkley",
+    "position": "RB",
+    "tradeValue": 5808,
+    "fantasyPoints": 355.3
+  },
+  {
+    "season": 2024,
+    "name": "Kenneth Walker III",
+    "position": "RB",
+    "tradeValue": 5412,
+    "fantasyPoints": 181.2
+  },
+  {
+    "season": 2024,
+    "name": "James Cook",
+    "position": "RB",
+    "tradeValue": 5213,
+    "fantasyPoints": 266.7
+  },
+  {
+    "season": 2024,
+    "name": "Christian McCaffrey",
+    "position": "RB",
+    "tradeValue": 4801,
+    "fantasyPoints": 47.8
+  },
+  {
+    "season": 2024,
+    "name": "Kyren Williams",
+    "position": "RB",
+    "tradeValue": 4646,
+    "fantasyPoints": 272.1
+  },
+  {
+    "season": 2024,
+    "name": "Chase Brown",
+    "position": "RB",
+    "tradeValue": 4570,
+    "fantasyPoints": 255
+  },
+  {
+    "season": 2024,
+    "name": "Josh Jacobs",
+    "position": "RB",
+    "tradeValue": 4140,
+    "fantasyPoints": 293.1
+  },
+  {
+    "season": 2024,
+    "name": "Isiah Pacheco",
+    "position": "RB",
+    "tradeValue": 3079,
+    "fantasyPoints": 56.9
+  },
+  {
+    "season": 2024,
+    "name": "David Montgomery",
+    "position": "RB",
+    "tradeValue": 2966,
+    "fantasyPoints": 221.7
+  },
+  {
+    "season": 2024,
+    "name": "Derrick Henry",
+    "position": "RB",
+    "tradeValue": 2952,
+    "fantasyPoints": 336.4
+  },
+  {
+    "season": 2024,
+    "name": "Joe Mixon",
+    "position": "RB",
+    "tradeValue": 2883,
+    "fantasyPoints": 240.5
+  },
+  {
+    "season": 2024,
+    "name": "Jonathon Brooks",
+    "position": "RB",
+    "tradeValue": 2618,
+    "fantasyPoints": 7.5
+  },
+  {
+    "season": 2024,
+    "name": "Travis Etienne Jr.",
+    "position": "RB",
+    "tradeValue": 2576,
+    "fantasyPoints": 130.2
+  },
+  {
+    "season": 2024,
+    "name": "Alvin Kamara",
+    "position": "RB",
+    "tradeValue": 2551,
+    "fantasyPoints": 265.3
+  },
+  {
+    "season": 2024,
+    "name": "Tyrone Tracy Jr.",
+    "position": "RB",
+    "tradeValue": 2481,
+    "fantasyPoints": 182.3
+  },
+  {
+    "season": 2024,
+    "name": "Brian Robinson Jr.",
+    "position": "RB",
+    "tradeValue": 2269,
+    "fantasyPoints": 159.8
+  },
+  {
+    "season": 2024,
+    "name": "Tony Pollard",
+    "position": "RB",
+    "tradeValue": 1943,
+    "fantasyPoints": 200.7
+  },
+  {
+    "season": 2024,
+    "name": "D'Andre Swift",
+    "position": "RB",
+    "tradeValue": 1836,
+    "fantasyPoints": 214.5
+  },
+  {
+    "season": 2024,
+    "name": "Chuba Hubbard",
+    "position": "RB",
+    "tradeValue": 1711,
+    "fantasyPoints": 241.6
+  },
+  {
+    "season": 2024,
+    "name": "Rhamondre Stevenson",
+    "position": "RB",
+    "tradeValue": 1625,
+    "fantasyPoints": 175.9
+  },
+  {
+    "season": 2024,
+    "name": "Trey Benson",
+    "position": "RB",
+    "tradeValue": 1550,
+    "fantasyPoints": 47
+  },
+  {
+    "season": 2024,
+    "name": "James Conner",
+    "position": "RB",
+    "tradeValue": 1493,
+    "fantasyPoints": 253.8
+  },
+  {
+    "season": 2024,
+    "name": "Najee Harris",
+    "position": "RB",
+    "tradeValue": 1391,
+    "fantasyPoints": 204.6
+  },
+  {
+    "season": 2024,
+    "name": "Rachaad White",
+    "position": "RB",
+    "tradeValue": 1346,
+    "fantasyPoints": 199.6
+  },
+  {
+    "season": 2024,
+    "name": "Zach Charbonnet",
+    "position": "RB",
+    "tradeValue": 1110,
+    "fantasyPoints": 186.9
+  },
+  {
+    "season": 2024,
+    "name": "Aaron Jones Sr.",
+    "position": "RB",
+    "tradeValue": 1080,
+    "fantasyPoints": 241.6
+  },
+  {
+    "season": 2024,
+    "name": "Jaylen Warren",
+    "position": "RB",
+    "tradeValue": 974,
+    "fantasyPoints": 124.1
+  },
+  {
+    "season": 2024,
+    "name": "J.K. Dobbins",
+    "position": "RB",
+    "tradeValue": 807,
+    "fantasyPoints": 191.8
+  },
+  {
+    "season": 2024,
+    "name": "Blake Corum",
+    "position": "RB",
+    "tradeValue": 629,
+    "fantasyPoints": 33.5
+  },
+  {
+    "season": 2024,
+    "name": "Rico Dowdle",
+    "position": "RB",
+    "tradeValue": 594,
+    "fantasyPoints": 197.8
+  },
+  {
+    "season": 2024,
+    "name": "Ray Davis",
+    "position": "RB",
+    "tradeValue": 578,
+    "fantasyPoints": 116.1
+  },
+  {
+    "season": 2024,
+    "name": "Jaylen Wright",
+    "position": "RB",
+    "tradeValue": 572,
+    "fantasyPoints": 26.7
+  },
+  {
+    "season": 2024,
+    "name": "Tyjae Spears",
+    "position": "RB",
+    "tradeValue": 564,
+    "fantasyPoints": 113.6
+  },
+  {
+    "season": 2024,
+    "name": "Tank Bigsby",
+    "position": "RB",
+    "tradeValue": 559,
+    "fantasyPoints": 129
+  },
+  {
+    "season": 2024,
+    "name": "Braelon Allen",
+    "position": "RB",
+    "tradeValue": 551,
+    "fantasyPoints": 85.2
+  },
+  {
+    "season": 2024,
+    "name": "Javonte Williams",
+    "position": "RB",
+    "tradeValue": 523,
+    "fantasyPoints": 157.9
+  },
+  {
+    "season": 2024,
+    "name": "Nick Chubb",
+    "position": "RB",
+    "tradeValue": 359,
+    "fantasyPoints": 63.3
+  },
+  {
+    "season": 2024,
+    "name": "Jordan Mason",
+    "position": "RB",
+    "tradeValue": 346,
+    "fantasyPoints": 115
+  },
+  {
+    "season": 2024,
+    "name": "Kendre Miller",
+    "position": "RB",
+    "tradeValue": 320,
+    "fantasyPoints": 29.1
+  },
+  {
+    "season": 2024,
+    "name": "Tyler Allgeier",
+    "position": "RB",
+    "tradeValue": 318,
+    "fantasyPoints": 106.2
+  },
+  {
+    "season": 2024,
+    "name": "Devin Singletary",
+    "position": "RB",
+    "tradeValue": 302,
+    "fantasyPoints": 96.6
+  },
+  {
+    "season": 2024,
+    "name": "MarShawn Lloyd",
+    "position": "RB",
+    "tradeValue": 283,
+    "fantasyPoints": 2.8
+  },
+  {
+    "season": 2024,
+    "name": "Jerome Ford",
+    "position": "RB",
+    "tradeValue": 278,
+    "fantasyPoints": 134
+  },
+  {
+    "season": 2024,
+    "name": "Austin Ekeler",
+    "position": "RB",
+    "tradeValue": 250,
+    "fantasyPoints": 132.3
+  },
+  {
+    "season": 2024,
+    "name": "Roschon Johnson",
+    "position": "RB",
+    "tradeValue": 250,
+    "fantasyPoints": 77.4
+  },
+  {
+    "season": 2024,
+    "name": "Isaac Guerendo",
+    "position": "RB",
+    "tradeValue": 241,
+    "fantasyPoints": 96.2
+  },
+  {
+    "season": 2024,
+    "name": "Kimani Vidal",
+    "position": "RB",
+    "tradeValue": 154,
+    "fantasyPoints": 32.7
+  },
+  {
+    "season": 2024,
+    "name": "Raheem Mostert",
+    "position": "RB",
+    "tradeValue": 128,
+    "fantasyPoints": 70.9
+  },
+  {
+    "season": 2024,
+    "name": "Antonio Gibson",
+    "position": "RB",
+    "tradeValue": 128,
+    "fantasyPoints": 103.4
+  },
+  {
+    "season": 2024,
+    "name": "Zack Moss",
+    "position": "RB",
+    "tradeValue": 117,
+    "fantasyPoints": 81.9
+  },
+  {
+    "season": 2024,
+    "name": "Jaleel McLaughlin",
+    "position": "RB",
+    "tradeValue": 109,
+    "fantasyPoints": 97.2
+  },
+  {
+    "season": 2024,
+    "name": "Zamir White",
+    "position": "RB",
+    "tradeValue": 105,
+    "fantasyPoints": 29.3
+  },
+  {
+    "season": 2024,
+    "name": "Justice Hill",
+    "position": "RB",
+    "tradeValue": 102,
+    "fantasyPoints": 127.1
+  },
+  {
+    "season": 2024,
+    "name": "Khalil Herbert",
+    "position": "RB",
+    "tradeValue": 100,
+    "fantasyPoints": 31.5
+  },
+  {
+    "season": 2024,
+    "name": "Ja'Marr Chase",
+    "position": "WR",
+    "tradeValue": 10208,
+    "fantasyPoints": 403
+  },
+  {
+    "season": 2024,
+    "name": "Justin Jefferson",
+    "position": "WR",
+    "tradeValue": 9971,
+    "fantasyPoints": 317.5
+  },
+  {
+    "season": 2024,
+    "name": "CeeDee Lamb",
+    "position": "WR",
+    "tradeValue": 9694,
+    "fantasyPoints": 263.4
+  },
+  {
+    "season": 2024,
+    "name": "Amon-Ra St. Brown",
+    "position": "WR",
+    "tradeValue": 9249,
+    "fantasyPoints": 316.2
+  },
+  {
+    "season": 2024,
+    "name": "Puka Nacua",
+    "position": "WR",
+    "tradeValue": 8619,
+    "fantasyPoints": 206.6
+  },
+  {
+    "season": 2024,
+    "name": "Malik Nabers",
+    "position": "WR",
+    "tradeValue": 8498,
+    "fantasyPoints": 273.6
+  },
+  {
+    "season": 2024,
+    "name": "Brian Thomas Jr.",
+    "position": "WR",
+    "tradeValue": 7809,
+    "fantasyPoints": 284
+  },
+  {
+    "season": 2024,
+    "name": "Marvin Harrison Jr.",
+    "position": "WR",
+    "tradeValue": 7610,
+    "fantasyPoints": 196.5
+  },
+  {
+    "season": 2024,
+    "name": "A.J. Brown",
+    "position": "WR",
+    "tradeValue": 7329,
+    "fantasyPoints": 216.9
+  },
+  {
+    "season": 2024,
+    "name": "Garrett Wilson",
+    "position": "WR",
+    "tradeValue": 7260,
+    "fantasyPoints": 251.9
+  },
+  {
+    "season": 2024,
+    "name": "Nico Collins",
+    "position": "WR",
+    "tradeValue": 7142,
+    "fantasyPoints": 210.6
+  },
+  {
+    "season": 2024,
+    "name": "Drake London",
+    "position": "WR",
+    "tradeValue": 6846,
+    "fantasyPoints": 280.8
+  },
+  {
+    "season": 2024,
+    "name": "Jaxon Smith-Njigba",
+    "position": "WR",
+    "tradeValue": 6203,
+    "fantasyPoints": 253
+  },
+  {
+    "season": 2024,
+    "name": "Ladd McConkey",
+    "position": "WR",
+    "tradeValue": 5515,
+    "fantasyPoints": 240.9
+  },
+  {
+    "season": 2024,
+    "name": "Rashee Rice",
+    "position": "WR",
+    "tradeValue": 5044,
+    "fantasyPoints": 64.9
+  },
+  {
+    "season": 2024,
+    "name": "DeVonta Smith",
+    "position": "WR",
+    "tradeValue": 4869,
+    "fantasyPoints": 199.4
+  },
+  {
+    "season": 2024,
+    "name": "Rome Odunze",
+    "position": "WR",
+    "tradeValue": 4689,
+    "fantasyPoints": 144.9
+  },
+  {
+    "season": 2024,
+    "name": "Zay Flowers",
+    "position": "WR",
+    "tradeValue": 4559,
+    "fantasyPoints": 209.5
+  },
+  {
+    "season": 2024,
+    "name": "Jaylen Waddle",
+    "position": "WR",
+    "tradeValue": 4453,
+    "fantasyPoints": 149.6
+  },
+  {
+    "season": 2024,
+    "name": "Tee Higgins",
+    "position": "WR",
+    "tradeValue": 4443,
+    "fantasyPoints": 222.1
+  },
+  {
+    "season": 2024,
+    "name": "Jordan Addison",
+    "position": "WR",
+    "tradeValue": 4340,
+    "fantasyPoints": 212.5
+  },
+  {
+    "season": 2024,
+    "name": "Tyreek Hill",
+    "position": "WR",
+    "tradeValue": 4279,
+    "fantasyPoints": 218.2
+  },
+  {
+    "season": 2024,
+    "name": "DK Metcalf",
+    "position": "WR",
+    "tradeValue": 4249,
+    "fantasyPoints": 191.2
+  },
+  {
+    "season": 2024,
+    "name": "George Pickens",
+    "position": "WR",
+    "tradeValue": 4229,
+    "fantasyPoints": 164.4
+  },
+  {
+    "season": 2024,
+    "name": "Chris Olave",
+    "position": "WR",
+    "tradeValue": 4189,
+    "fantasyPoints": 76.7
+  },
+  {
+    "season": 2024,
+    "name": "Brandon Aiyuk",
+    "position": "WR",
+    "tradeValue": 3751,
+    "fantasyPoints": 62.4
+  },
+  {
+    "season": 2024,
+    "name": "DJ Moore",
+    "position": "WR",
+    "tradeValue": 3604,
+    "fantasyPoints": 238.1
+  },
+  {
+    "season": 2024,
+    "name": "Terry McLaurin",
+    "position": "WR",
+    "tradeValue": 3197,
+    "fantasyPoints": 267.8
+  },
+  {
+    "season": 2024,
+    "name": "Jayden Reed",
+    "position": "WR",
+    "tradeValue": 2897,
+    "fantasyPoints": 197
+  },
+  {
+    "season": 2024,
+    "name": "Jameson Williams",
+    "position": "WR",
+    "tradeValue": 2662,
+    "fantasyPoints": 212.2
+  },
+  {
+    "season": 2024,
+    "name": "Michael Pittman Jr.",
+    "position": "WR",
+    "tradeValue": 2612,
+    "fantasyPoints": 165.8
+  },
+  {
+    "season": 2024,
+    "name": "Josh Downs",
+    "position": "WR",
+    "tradeValue": 2175,
+    "fantasyPoints": 183.5
+  },
+  {
+    "season": 2024,
+    "name": "Tank Dell",
+    "position": "WR",
+    "tradeValue": 2119,
+    "fantasyPoints": 140
+  },
+  {
+    "season": 2024,
+    "name": "Jerry Jeudy",
+    "position": "WR",
+    "tradeValue": 2036,
+    "fantasyPoints": 240.9
+  },
+  {
+    "season": 2024,
+    "name": "Mike Evans",
+    "position": "WR",
+    "tradeValue": 2008,
+    "fantasyPoints": 240.4
+  },
+  {
+    "season": 2024,
+    "name": "Khalil Shakir",
+    "position": "WR",
+    "tradeValue": 1889,
+    "fantasyPoints": 182.5
+  },
+  {
+    "season": 2024,
+    "name": "Xavier Worthy",
+    "position": "WR",
+    "tradeValue": 1889,
+    "fantasyPoints": 187.2
+  },
+  {
+    "season": 2024,
+    "name": "Chris Godwin",
+    "position": "WR",
+    "tradeValue": 1828,
+    "fantasyPoints": 137.8
+  },
+  {
+    "season": 2024,
+    "name": "Deebo Samuel Sr.",
+    "position": "WR",
+    "tradeValue": 1703,
+    "fantasyPoints": 155.6
+  },
+  {
+    "season": 2024,
+    "name": "Courtland Sutton",
+    "position": "WR",
+    "tradeValue": 1664,
+    "fantasyPoints": 240.3
+  },
+  {
+    "season": 2024,
+    "name": "Cooper Kupp",
+    "position": "WR",
+    "tradeValue": 1346,
+    "fantasyPoints": 175
+  },
+  {
+    "season": 2024,
+    "name": "Davante Adams",
+    "position": "WR",
+    "tradeValue": 1297,
+    "fantasyPoints": 241.3
+  },
+  {
+    "season": 2024,
+    "name": "Keon Coleman",
+    "position": "WR",
+    "tradeValue": 1214,
+    "fantasyPoints": 111.5
+  },
+  {
+    "season": 2024,
+    "name": "Calvin Ridley",
+    "position": "WR",
+    "tradeValue": 1158,
+    "fantasyPoints": 199.2
+  },
+  {
+    "season": 2024,
+    "name": "Darnell Mooney",
+    "position": "WR",
+    "tradeValue": 878,
+    "fantasyPoints": 193.2
+  },
+  {
+    "season": 2024,
+    "name": "Jakobi Meyers",
+    "position": "WR",
+    "tradeValue": 818,
+    "fantasyPoints": 218
+  },
+  {
+    "season": 2024,
+    "name": "Jalen McMillan",
+    "position": "WR",
+    "tradeValue": 788,
+    "fantasyPoints": 135.4
+  },
+  {
+    "season": 2024,
+    "name": "Amari Cooper",
+    "position": "WR",
+    "tradeValue": 711,
+    "fantasyPoints": 122.7
+  },
+  {
+    "season": 2024,
+    "name": "Ricky Pearsall",
+    "position": "WR",
+    "tradeValue": 694,
+    "fantasyPoints": 93.5
+  },
+  {
+    "season": 2024,
+    "name": "Romeo Doubs",
+    "position": "WR",
+    "tradeValue": 656,
+    "fantasyPoints": 132.1
+  },
+  {
+    "season": 2024,
+    "name": "Xavier Legette",
+    "position": "WR",
+    "tradeValue": 638,
+    "fantasyPoints": 125.1
+  },
+  {
+    "season": 2024,
+    "name": "Stefon Diggs",
+    "position": "WR",
+    "tradeValue": 597,
+    "fantasyPoints": 121.9
+  },
+  {
+    "season": 2024,
+    "name": "Christian Watson",
+    "position": "WR",
+    "tradeValue": 594,
+    "fantasyPoints": 105.3
+  },
+  {
+    "season": 2024,
+    "name": "Jauan Jennings",
+    "position": "WR",
+    "tradeValue": 556,
+    "fantasyPoints": 210.5
+  },
+  {
+    "season": 2024,
+    "name": "Quentin Johnston",
+    "position": "WR",
+    "tradeValue": 477,
+    "fantasyPoints": 174.7
+  },
+  {
+    "season": 2024,
+    "name": "Rashid Shaheed",
+    "position": "WR",
+    "tradeValue": 420,
+    "fantasyPoints": 81.8
+  },
+  {
+    "season": 2024,
+    "name": "Keenan Allen",
+    "position": "WR",
+    "tradeValue": 416,
+    "fantasyPoints": 184.4
+  },
+  {
+    "season": 2024,
+    "name": "DeAndre Hopkins",
+    "position": "WR",
+    "tradeValue": 395,
+    "fantasyPoints": 147
+  },
+  {
+    "season": 2024,
+    "name": "Cedric Tillman",
+    "position": "WR",
+    "tradeValue": 389,
+    "fantasyPoints": 80.4
+  },
+  {
+    "season": 2024,
+    "name": "Diontae Johnson",
+    "position": "WR",
+    "tradeValue": 386,
+    "fantasyPoints": 89.1
+  },
+  {
+    "season": 2024,
+    "name": "Rashod Bateman",
+    "position": "WR",
+    "tradeValue": 384,
+    "fantasyPoints": 174.6
+  },
+  {
+    "season": 2024,
+    "name": "Wan'Dale Robinson",
+    "position": "WR",
+    "tradeValue": 382,
+    "fantasyPoints": 182.7
+  },
+  {
+    "season": 2024,
+    "name": "Adonai Mitchell",
+    "position": "WR",
+    "tradeValue": 363,
+    "fantasyPoints": 53.8
+  },
+  {
+    "season": 2024,
+    "name": "Christian Kirk",
+    "position": "WR",
+    "tradeValue": 338,
+    "fantasyPoints": 70.9
+  },
+  {
+    "season": 2024,
+    "name": "Dontayvion Wicks",
+    "position": "WR",
+    "tradeValue": 305,
+    "fantasyPoints": 110.5
+  },
+  {
+    "season": 2024,
+    "name": "Marquise Brown",
+    "position": "WR",
+    "tradeValue": 249,
+    "fantasyPoints": 18.1
+  },
+  {
+    "season": 2024,
+    "name": "Jalen Coker",
+    "position": "WR",
+    "tradeValue": 197,
+    "fantasyPoints": 92.6
+  },
+  {
+    "season": 2024,
+    "name": "DeMario Douglas",
+    "position": "WR",
+    "tradeValue": 193,
+    "fantasyPoints": 147.7
+  },
+  {
+    "season": 2024,
+    "name": "Marvin Mims Jr.",
+    "position": "WR",
+    "tradeValue": 179,
+    "fantasyPoints": 129.5
+  },
+  {
+    "season": 2024,
+    "name": "Troy Franklin",
+    "position": "WR",
+    "tradeValue": 166,
+    "fantasyPoints": 67.1
+  },
+  {
+    "season": 2024,
+    "name": "Michael Wilson",
+    "position": "WR",
+    "tradeValue": 148,
+    "fantasyPoints": 124.5
+  },
+  {
+    "season": 2024,
+    "name": "Elijah Moore",
+    "position": "WR",
+    "tradeValue": 140,
+    "fantasyPoints": 120.9
+  },
+  {
+    "season": 2024,
+    "name": "Ja'Lynn Polk",
+    "position": "WR",
+    "tradeValue": 129,
+    "fantasyPoints": 32.7
+  },
+  {
+    "season": 2024,
+    "name": "Jermaine Burton",
+    "position": "WR",
+    "tradeValue": 127,
+    "fantasyPoints": 14.7
+  },
+  {
+    "season": 2024,
+    "name": "Alec Pierce",
+    "position": "WR",
+    "tradeValue": 125,
+    "fantasyPoints": 161.4
+  },
+  {
+    "season": 2024,
+    "name": "Tyler Lockett",
+    "position": "WR",
+    "tradeValue": 124,
+    "fantasyPoints": 121
+  },
+  {
+    "season": 2024,
+    "name": "Andrei Iosivas",
+    "position": "WR",
+    "tradeValue": 115,
+    "fantasyPoints": 119.9
+  },
+  {
+    "season": 2024,
+    "name": "Javon Baker",
+    "position": "WR",
+    "tradeValue": 97,
+    "fantasyPoints": 2.2
+  },
+  {
+    "season": 2024,
+    "name": "Jalen Tolbert",
+    "position": "WR",
+    "tradeValue": 96,
+    "fantasyPoints": 152
+  },
+  {
+    "season": 2024,
+    "name": "Gabe Davis",
+    "position": "WR",
+    "tradeValue": 92,
+    "fantasyPoints": 53.9
+  },
+  {
+    "season": 2024,
+    "name": "Brock Bowers",
+    "position": "TE",
+    "tradeValue": 6116,
+    "fantasyPoints": 262.7
+  },
+  {
+    "season": 2024,
+    "name": "Trey McBride",
+    "position": "TE",
+    "tradeValue": 5686,
+    "fantasyPoints": 243.8
+  },
+  {
+    "season": 2024,
+    "name": "Sam LaPorta",
+    "position": "TE",
+    "tradeValue": 5502,
+    "fantasyPoints": 174.6
+  },
+  {
+    "season": 2024,
+    "name": "George Kittle",
+    "position": "TE",
+    "tradeValue": 2751,
+    "fantasyPoints": 236.6
+  },
+  {
+    "season": 2024,
+    "name": "Dalton Kincaid",
+    "position": "TE",
+    "tradeValue": 2700,
+    "fantasyPoints": 100.8
+  },
+  {
+    "season": 2024,
+    "name": "Mark Andrews",
+    "position": "TE",
+    "tradeValue": 1925,
+    "fantasyPoints": 188.8
+  },
+  {
+    "season": 2024,
+    "name": "T.J. Hockenson",
+    "position": "TE",
+    "tradeValue": 1836,
+    "fantasyPoints": 86.5
+  },
+  {
+    "season": 2024,
+    "name": "Kyle Pitts",
+    "position": "TE",
+    "tradeValue": 1794,
+    "fantasyPoints": 131.2
+  },
+  {
+    "season": 2024,
+    "name": "David Njoku",
+    "position": "TE",
+    "tradeValue": 1500,
+    "fantasyPoints": 148.5
+  },
+  {
+    "season": 2024,
+    "name": "Travis Kelce",
+    "position": "TE",
+    "tradeValue": 1493,
+    "fantasyPoints": 195.4
+  },
+  {
+    "season": 2024,
+    "name": "Tucker Kraft",
+    "position": "TE",
+    "tradeValue": 1231,
+    "fantasyPoints": 163.3
+  },
+  {
+    "season": 2024,
+    "name": "Evan Engram",
+    "position": "TE",
+    "tradeValue": 1011,
+    "fantasyPoints": 89.5
+  },
+  {
+    "season": 2024,
+    "name": "Jake Ferguson",
+    "position": "TE",
+    "tradeValue": 714,
+    "fantasyPoints": 104.4
+  },
+  {
+    "season": 2024,
+    "name": "Cade Otton",
+    "position": "TE",
+    "tradeValue": 541,
+    "fantasyPoints": 140.6
+  },
+  {
+    "season": 2024,
+    "name": "Jonnu Smith",
+    "position": "TE",
+    "tradeValue": 528,
+    "fantasyPoints": 222.3
+  },
+  {
+    "season": 2024,
+    "name": "Dallas Goedert",
+    "position": "TE",
+    "tradeValue": 526,
+    "fantasyPoints": 103.6
+  },
+  {
+    "season": 2024,
+    "name": "Cole Kmet",
+    "position": "TE",
+    "tradeValue": 430,
+    "fantasyPoints": 120.4
+  },
+  {
+    "season": 2024,
+    "name": "Pat Freiermuth",
+    "position": "TE",
+    "tradeValue": 393,
+    "fantasyPoints": 170.3
+  },
+  {
+    "season": 2024,
+    "name": "Isaiah Likely",
+    "position": "TE",
+    "tradeValue": 249,
+    "fantasyPoints": 123.7
+  },
+  {
+    "season": 2024,
+    "name": "Ja'Tavion Sanders",
+    "position": "TE",
+    "tradeValue": 228,
+    "fantasyPoints": 73.2
+  },
+  {
+    "season": 2024,
+    "name": "Ben Sinnott",
+    "position": "TE",
+    "tradeValue": 184,
+    "fantasyPoints": 13.8
+  },
+  {
+    "season": 2024,
+    "name": "Hunter Henry",
+    "position": "TE",
+    "tradeValue": 174,
+    "fantasyPoints": 145.4
+  },
+  {
+    "season": 2024,
+    "name": "Dalton Schultz",
+    "position": "TE",
+    "tradeValue": 159,
+    "fantasyPoints": 118.2
+  },
+  {
+    "season": 2024,
+    "name": "Theo Johnson",
+    "position": "TE",
+    "tradeValue": 100,
+    "fantasyPoints": 68.1
+  },
+  {
+    "season": 2024,
+    "name": "Chig Okonkwo",
+    "position": "TE",
+    "tradeValue": 98,
+    "fantasyPoints": 113.6
+  },
+  {
+    "season": 2024,
+    "name": "Noah Fant",
+    "position": "TE",
+    "tradeValue": 85,
+    "fantasyPoints": 104
+  },
+  {
+    "season": 2024,
+    "name": "Noah Gray",
+    "position": "TE",
+    "tradeValue": 82,
+    "fantasyPoints": 113.3
+  },
+  {
+    "season": 2024,
+    "name": "Michael Mayer",
+    "position": "TE",
+    "tradeValue": 71,
+    "fantasyPoints": 36.6
+  },
+  {
+    "season": 2025,
+    "name": "Josh Allen",
+    "position": "QB",
+    "tradeValue": 6563,
+    "fantasyPoints": 364.6
+  },
+  {
+    "season": 2025,
+    "name": "Drake Maye",
+    "position": "QB",
+    "tradeValue": 5237,
+    "fantasyPoints": 352
+  },
+  {
+    "season": 2025,
+    "name": "Patrick Mahomes II",
+    "position": "QB",
+    "tradeValue": 4657,
+    "fantasyPoints": 285.7
+  },
+  {
+    "season": 2025,
+    "name": "Lamar Jackson",
+    "position": "QB",
+    "tradeValue": 4624,
+    "fantasyPoints": 214.9
+  },
+  {
+    "season": 2025,
+    "name": "Jayden Daniels",
+    "position": "QB",
+    "tradeValue": 4329,
+    "fantasyPoints": 114.3
+  },
+  {
+    "season": 2025,
+    "name": "Joe Burrow",
+    "position": "QB",
+    "tradeValue": 3840,
+    "fantasyPoints": 134.5
+  },
+  {
+    "season": 2025,
+    "name": "Jalen Hurts",
+    "position": "QB",
+    "tradeValue": 3415,
+    "fantasyPoints": 301.1
+  },
+  {
+    "season": 2025,
+    "name": "Caleb Williams",
+    "position": "QB",
+    "tradeValue": 2816,
+    "fantasyPoints": 318.2
+  },
+  {
+    "season": 2025,
+    "name": "Justin Herbert",
+    "position": "QB",
+    "tradeValue": 2463,
+    "fantasyPoints": 286.9
+  },
+  {
+    "season": 2025,
+    "name": "C.J. Stroud",
+    "position": "QB",
+    "tradeValue": 2211,
+    "fantasyPoints": 208.5
+  },
+  {
+    "season": 2025,
+    "name": "Trevor Lawrence",
+    "position": "QB",
+    "tradeValue": 1591,
+    "fantasyPoints": 338.2
+  },
+  {
+    "season": 2025,
+    "name": "Brock Purdy",
+    "position": "QB",
+    "tradeValue": 1543,
+    "fantasyPoints": 177.4
+  },
+  {
+    "season": 2025,
+    "name": "Jaxson Dart",
+    "position": "QB",
+    "tradeValue": 1469,
+    "fantasyPoints": 241.6
+  },
+  {
+    "season": 2025,
+    "name": "Bo Nix",
+    "position": "QB",
+    "tradeValue": 1428,
+    "fantasyPoints": 304.8
+  },
+  {
+    "season": 2025,
+    "name": "Jordan Love",
+    "position": "QB",
+    "tradeValue": 1097,
+    "fantasyPoints": 235.1
+  },
+  {
+    "season": 2025,
+    "name": "Dak Prescott",
+    "position": "QB",
+    "tradeValue": 999,
+    "fantasyPoints": 313.8
+  },
+  {
+    "season": 2025,
+    "name": "Baker Mayfield",
+    "position": "QB",
+    "tradeValue": 890,
+    "fantasyPoints": 271.9
+  },
+  {
+    "season": 2025,
+    "name": "Jared Goff",
+    "position": "QB",
+    "tradeValue": 610,
+    "fantasyPoints": 297.1
+  },
+  {
+    "season": 2025,
+    "name": "Sam Darnold",
+    "position": "QB",
+    "tradeValue": 473,
+    "fantasyPoints": 235.4
+  },
+  {
+    "season": 2025,
+    "name": "Cam Ward",
+    "position": "QB",
+    "tradeValue": 447,
+    "fantasyPoints": 186.7
+  },
+  {
+    "season": 2025,
+    "name": "Anthony Richardson Sr.",
+    "position": "QB",
+    "tradeValue": 361,
+    "fantasyPoints": 2.2
+  },
+  {
+    "season": 2025,
+    "name": "J.J. McCarthy",
+    "position": "QB",
+    "tradeValue": 335,
+    "fantasyPoints": 125.4
+  },
+  {
+    "season": 2025,
+    "name": "Kyler Murray",
+    "position": "QB",
+    "tradeValue": 327,
+    "fantasyPoints": 77.8
+  },
+  {
+    "season": 2025,
+    "name": "Tyler Shough",
+    "position": "QB",
+    "tradeValue": 297,
+    "fantasyPoints": 158
+  },
+  {
+    "season": 2025,
+    "name": "Matthew Stafford",
+    "position": "QB",
+    "tradeValue": 290,
+    "fantasyPoints": 350.4
+  },
+  {
+    "season": 2025,
+    "name": "Bryce Young",
+    "position": "QB",
+    "tradeValue": 269,
+    "fantasyPoints": 218
+  },
+  {
+    "season": 2025,
+    "name": "Michael Penix Jr.",
+    "position": "QB",
+    "tradeValue": 209,
+    "fantasyPoints": 120.3
+  },
+  {
+    "season": 2025,
+    "name": "Daniel Jones",
+    "position": "QB",
+    "tradeValue": 112,
+    "fantasyPoints": 226.4
+  },
+  {
+    "season": 2025,
+    "name": "Bijan Robinson",
+    "position": "RB",
+    "tradeValue": 9603,
+    "fantasyPoints": 370.8
+  },
+  {
+    "season": 2025,
+    "name": "Jahmyr Gibbs",
+    "position": "RB",
+    "tradeValue": 9141,
+    "fantasyPoints": 366.9
+  },
+  {
+    "season": 2025,
+    "name": "Ashton Jeanty",
+    "position": "RB",
+    "tradeValue": 8379,
+    "fantasyPoints": 245.1
+  },
+  {
+    "season": 2025,
+    "name": "Jonathan Taylor",
+    "position": "RB",
+    "tradeValue": 6563,
+    "fantasyPoints": 362.3
+  },
+  {
+    "season": 2025,
+    "name": "Omarion Hampton",
+    "position": "RB",
+    "tradeValue": 6501,
+    "fantasyPoints": 135.7
+  },
+  {
+    "season": 2025,
+    "name": "De'Von Achane",
+    "position": "RB",
+    "tradeValue": 6395,
+    "fantasyPoints": 322.8
+  },
+  {
+    "season": 2025,
+    "name": "TreVeyon Henderson",
+    "position": "RB",
+    "tradeValue": 6395,
+    "fantasyPoints": 206.2
+  },
+  {
+    "season": 2025,
+    "name": "Breece Hall",
+    "position": "RB",
+    "tradeValue": 6188,
+    "fantasyPoints": 207.7
+  },
+  {
+    "season": 2025,
+    "name": "James Cook III",
+    "position": "RB",
+    "tradeValue": 5646,
+    "fantasyPoints": 302.2
+  },
+  {
+    "season": 2025,
+    "name": "Christian McCaffrey",
+    "position": "RB",
+    "tradeValue": 5249,
+    "fantasyPoints": 416.6
+  },
+  {
+    "season": 2025,
+    "name": "Bucky Irving",
+    "position": "RB",
+    "tradeValue": 4881,
+    "fantasyPoints": 138.5
+  },
+  {
+    "season": 2025,
+    "name": "Chase Brown",
+    "position": "RB",
+    "tradeValue": 4646,
+    "fantasyPoints": 282.6
+  },
+  {
+    "season": 2025,
+    "name": "RJ Harvey",
+    "position": "RB",
+    "tradeValue": 4259,
+    "fantasyPoints": 206.6
+  },
+  {
+    "season": 2025,
+    "name": "Saquon Barkley",
+    "position": "RB",
+    "tradeValue": 4199,
+    "fantasyPoints": 232.3
+  },
+  {
+    "season": 2025,
+    "name": "Josh Jacobs",
+    "position": "RB",
+    "tradeValue": 3707,
+    "fantasyPoints": 237.1
+  },
+  {
+    "season": 2025,
+    "name": "Kyren Williams",
+    "position": "RB",
+    "tradeValue": 3479,
+    "fantasyPoints": 263.3
+  },
+  {
+    "season": 2025,
+    "name": "Quinshon Judkins",
+    "position": "RB",
+    "tradeValue": 3423,
+    "fantasyPoints": 169.8
+  },
+  {
+    "season": 2025,
+    "name": "Travis Etienne Jr.",
+    "position": "RB",
+    "tradeValue": 3375,
+    "fantasyPoints": 253.9
+  },
+  {
+    "season": 2025,
+    "name": "Kenneth Walker III",
+    "position": "RB",
+    "tradeValue": 2606,
+    "fantasyPoints": 191.9
+  },
+  {
+    "season": 2025,
+    "name": "Derrick Henry",
+    "position": "RB",
+    "tradeValue": 2263,
+    "fantasyPoints": 279.5
+  },
+  {
+    "season": 2025,
+    "name": "Cam Skattebo",
+    "position": "RB",
+    "tradeValue": 2195,
+    "fantasyPoints": 127.7
+  },
+  {
+    "season": 2025,
+    "name": "Javonte Williams",
+    "position": "RB",
+    "tradeValue": 2055,
+    "fantasyPoints": 242.8
+  },
+  {
+    "season": 2025,
+    "name": "D'Andre Swift",
+    "position": "RB",
+    "tradeValue": 1656,
+    "fantasyPoints": 228.6
+  },
+  {
+    "season": 2025,
+    "name": "Zach Charbonnet",
+    "position": "RB",
+    "tradeValue": 1539,
+    "fantasyPoints": 181.4
+  },
+  {
+    "season": 2025,
+    "name": "Kyle Monangai",
+    "position": "RB",
+    "tradeValue": 1276,
+    "fantasyPoints": 146.7
+  },
+  {
+    "season": 2025,
+    "name": "Jaylen Warren",
+    "position": "RB",
+    "tradeValue": 1197,
+    "fantasyPoints": 217.1
+  },
+  {
+    "season": 2025,
+    "name": "Woody Marks",
+    "position": "RB",
+    "tradeValue": 1172,
+    "fantasyPoints": 145.1
+  },
+  {
+    "season": 2025,
+    "name": "Trey Benson",
+    "position": "RB",
+    "tradeValue": 1090,
+    "fantasyPoints": 35.4
+  },
+  {
+    "season": 2025,
+    "name": "Bhayshul Tuten",
+    "position": "RB",
+    "tradeValue": 1040,
+    "fantasyPoints": 88.6
+  },
+  {
+    "season": 2025,
+    "name": "Rico Dowdle",
+    "position": "RB",
+    "tradeValue": 1023,
+    "fantasyPoints": 216.3
+  },
+  {
+    "season": 2025,
+    "name": "Blake Corum",
+    "position": "RB",
+    "tradeValue": 868,
+    "fantasyPoints": 122.2
+  },
+  {
+    "season": 2025,
+    "name": "David Montgomery",
+    "position": "RB",
+    "tradeValue": 711,
+    "fantasyPoints": 166.9
+  },
+  {
+    "season": 2025,
+    "name": "Tony Pollard",
+    "position": "RB",
+    "tradeValue": 683,
+    "fantasyPoints": 185.8
+  },
+  {
+    "season": 2025,
+    "name": "Tyrone Tracy Jr.",
+    "position": "RB",
+    "tradeValue": 654,
+    "fantasyPoints": 160.8
+  },
+  {
+    "season": 2025,
+    "name": "Chuba Hubbard",
+    "position": "RB",
+    "tradeValue": 585,
+    "fantasyPoints": 125.4
+  },
+  {
+    "season": 2025,
+    "name": "Jacory Croskey-Merritt",
+    "position": "RB",
+    "tradeValue": 547,
+    "fantasyPoints": 140.3
+  },
+  {
+    "season": 2025,
+    "name": "Rhamondre Stevenson",
+    "position": "RB",
+    "tradeValue": 530,
+    "fantasyPoints": 178.8
+  },
+  {
+    "season": 2025,
+    "name": "Kenneth Gainwell",
+    "position": "RB",
+    "tradeValue": 507,
+    "fantasyPoints": 221.3
+  },
+  {
+    "season": 2025,
+    "name": "Tyler Allgeier",
+    "position": "RB",
+    "tradeValue": 451,
+    "fantasyPoints": 123
+  },
+  {
+    "season": 2025,
+    "name": "Tyjae Spears",
+    "position": "RB",
+    "tradeValue": 330,
+    "fantasyPoints": 111.7
+  },
+  {
+    "season": 2025,
+    "name": "Dylan Sampson",
+    "position": "RB",
+    "tradeValue": 327,
+    "fantasyPoints": 87.6
+  },
+  {
+    "season": 2025,
+    "name": "Jordan Mason",
+    "position": "RB",
+    "tradeValue": 320,
+    "fantasyPoints": 128.9
+  },
+  {
+    "season": 2025,
+    "name": "Kaleb Johnson",
+    "position": "RB",
+    "tradeValue": 317,
+    "fantasyPoints": 8.8
+  },
+  {
+    "season": 2025,
+    "name": "Tank Bigsby",
+    "position": "RB",
+    "tradeValue": 279,
+    "fantasyPoints": 53.8
+  },
+  {
+    "season": 2025,
+    "name": "J.K. Dobbins",
+    "position": "RB",
+    "tradeValue": 266,
+    "fantasyPoints": 115.9
+  },
+  {
+    "season": 2025,
+    "name": "Alvin Kamara",
+    "position": "RB",
+    "tradeValue": 250,
+    "fantasyPoints": 100.7
+  },
+  {
+    "season": 2025,
+    "name": "Isiah Pacheco",
+    "position": "RB",
+    "tradeValue": 221,
+    "fantasyPoints": 87.3
+  },
+  {
+    "season": 2025,
+    "name": "Devin Neal",
+    "position": "RB",
+    "tradeValue": 208,
+    "fantasyPoints": 60
+  },
+  {
+    "season": 2025,
+    "name": "Rachaad White",
+    "position": "RB",
+    "tradeValue": 194,
+    "fantasyPoints": 143
+  },
+  {
+    "season": 2025,
+    "name": "Braelon Allen",
+    "position": "RB",
+    "tradeValue": 166,
+    "fantasyPoints": 15.3
+  },
+  {
+    "season": 2025,
+    "name": "Aaron Jones Sr.",
+    "position": "RB",
+    "tradeValue": 155,
+    "fantasyPoints": 118.7
+  },
+  {
+    "season": 2025,
+    "name": "James Conner",
+    "position": "RB",
+    "tradeValue": 154,
+    "fantasyPoints": 33.3
+  },
+  {
+    "season": 2025,
+    "name": "Ollie Gordon II",
+    "position": "RB",
+    "tradeValue": 142,
+    "fantasyPoints": 54.1
+  },
+  {
+    "season": 2025,
+    "name": "Jaylen Wright",
+    "position": "RB",
+    "tradeValue": 135,
+    "fantasyPoints": 48.2
+  },
+  {
+    "season": 2025,
+    "name": "Brian Robinson Jr.",
+    "position": "RB",
+    "tradeValue": 125,
+    "fantasyPoints": 62.5
+  },
+  {
+    "season": 2025,
+    "name": "Ray Davis",
+    "position": "RB",
+    "tradeValue": 109,
+    "fantasyPoints": 64.1
+  },
+  {
+    "season": 2025,
+    "name": "Kimani Vidal",
+    "position": "RB",
+    "tradeValue": 101,
+    "fantasyPoints": 117.9
+  },
+  {
+    "season": 2025,
+    "name": "Keaton Mitchell",
+    "position": "RB",
+    "tradeValue": 94,
+    "fantasyPoints": 55.4
+  },
+  {
+    "season": 2025,
+    "name": "DJ Giddens",
+    "position": "RB",
+    "tradeValue": 72,
+    "fantasyPoints": 9.6
+  },
+  {
+    "season": 2025,
+    "name": "Jaydon Blue",
+    "position": "RB",
+    "tradeValue": 67,
+    "fantasyPoints": 20.4
+  },
+  {
+    "season": 2025,
+    "name": "Ja'Marr Chase",
+    "position": "WR",
+    "tradeValue": 10232,
+    "fantasyPoints": 313.6
+  },
+  {
+    "season": 2025,
+    "name": "Justin Jefferson",
+    "position": "WR",
+    "tradeValue": 9446,
+    "fantasyPoints": 201.5
+  },
+  {
+    "season": 2025,
+    "name": "CeeDee Lamb",
+    "position": "WR",
+    "tradeValue": 9446,
+    "fantasyPoints": 200.9
+  },
+  {
+    "season": 2025,
+    "name": "Jaxon Smith-Njigba",
+    "position": "WR",
+    "tradeValue": 9314,
+    "fantasyPoints": 359.9
+  },
+  {
+    "season": 2025,
+    "name": "Puka Nacua",
+    "position": "WR",
+    "tradeValue": 9055,
+    "fantasyPoints": 375
+  },
+  {
+    "season": 2025,
+    "name": "Amon-Ra St. Brown",
+    "position": "WR",
+    "tradeValue": 8639,
+    "fantasyPoints": 324
+  },
+  {
+    "season": 2025,
+    "name": "Malik Nabers",
+    "position": "WR",
+    "tradeValue": 8051,
+    "fantasyPoints": 57.1
+  },
+  {
+    "season": 2025,
+    "name": "Drake London",
+    "position": "WR",
+    "tradeValue": 7363,
+    "fantasyPoints": 201.9
+  },
+  {
+    "season": 2025,
+    "name": "Nico Collins",
+    "position": "WR",
+    "tradeValue": 6846,
+    "fantasyPoints": 226.2
+  },
+  {
+    "season": 2025,
+    "name": "Tetairoa McMillan",
+    "position": "WR",
+    "tradeValue": 6609,
+    "fantasyPoints": 213.4
+  },
+  {
+    "season": 2025,
+    "name": "Garrett Wilson",
+    "position": "WR",
+    "tradeValue": 6547,
+    "fantasyPoints": 99.5
+  },
+  {
+    "season": 2025,
+    "name": "Rashee Rice",
+    "position": "WR",
+    "tradeValue": 6320,
+    "fantasyPoints": 150.1
+  },
+  {
+    "season": 2025,
+    "name": "Marvin Harrison Jr.",
+    "position": "WR",
+    "tradeValue": 5740,
+    "fantasyPoints": 127.8
+  },
+  {
+    "season": 2025,
+    "name": "Emeka Egbuka",
+    "position": "WR",
+    "tradeValue": 5567,
+    "fantasyPoints": 195.7
+  },
+  {
+    "season": 2025,
+    "name": "Chris Olave",
+    "position": "WR",
+    "tradeValue": 5374,
+    "fantasyPoints": 268
+  },
+  {
+    "season": 2025,
+    "name": "Rome Odunze",
+    "position": "WR",
+    "tradeValue": 5362,
+    "fantasyPoints": 146.1
+  },
+  {
+    "season": 2025,
+    "name": "Ladd McConkey",
+    "position": "WR",
+    "tradeValue": 5274,
+    "fantasyPoints": 180.9
+  },
+  {
+    "season": 2025,
+    "name": "A.J. Brown",
+    "position": "WR",
+    "tradeValue": 5237,
+    "fantasyPoints": 220.3
+  },
+  {
+    "season": 2025,
+    "name": "George Pickens",
+    "position": "WR",
+    "tradeValue": 4950,
+    "fantasyPoints": 291.9
+  },
+  {
+    "season": 2025,
+    "name": "Brian Thomas Jr.",
+    "position": "WR",
+    "tradeValue": 4646,
+    "fantasyPoints": 138.8
+  },
+  {
+    "season": 2025,
+    "name": "DeVonta Smith",
+    "position": "WR",
+    "tradeValue": 4401,
+    "fantasyPoints": 201.8
+  },
+  {
+    "season": 2025,
+    "name": "Jaylen Waddle",
+    "position": "WR",
+    "tradeValue": 4391,
+    "fantasyPoints": 194.1
+  },
+  {
+    "season": 2025,
+    "name": "Tee Higgins",
+    "position": "WR",
+    "tradeValue": 3804,
+    "fantasyPoints": 211.6
+  },
+  {
+    "season": 2025,
+    "name": "Jameson Williams",
+    "position": "WR",
+    "tradeValue": 3725,
+    "fantasyPoints": 219.9
+  },
+  {
+    "season": 2025,
+    "name": "Zay Flowers",
+    "position": "WR",
+    "tradeValue": 3521,
+    "fantasyPoints": 243.3
+  },
+  {
+    "season": 2025,
+    "name": "DK Metcalf",
+    "position": "WR",
+    "tradeValue": 3220,
+    "fantasyPoints": 187.2
+  },
+  {
+    "season": 2025,
+    "name": "Jordan Addison",
+    "position": "WR",
+    "tradeValue": 2440,
+    "fantasyPoints": 135.1
+  },
+  {
+    "season": 2025,
+    "name": "Travis Hunter",
+    "position": "WR",
+    "tradeValue": 2356,
+    "fantasyPoints": 63.8
+  },
+  {
+    "season": 2025,
+    "name": "Xavier Worthy",
+    "position": "WR",
+    "tradeValue": 2301,
+    "fantasyPoints": 109.9
+  },
+  {
+    "season": 2025,
+    "name": "Luther Burden III",
+    "position": "WR",
+    "tradeValue": 2232,
+    "fantasyPoints": 127.9
+  },
+  {
+    "season": 2025,
+    "name": "DJ Moore",
+    "position": "WR",
+    "tradeValue": 2144,
+    "fantasyPoints": 172.2
+  },
+  {
+    "season": 2025,
+    "name": "Michael Pittman Jr.",
+    "position": "WR",
+    "tradeValue": 2119,
+    "fantasyPoints": 202.4
+  },
+  {
+    "season": 2025,
+    "name": "Courtland Sutton",
+    "position": "WR",
+    "tradeValue": 1845,
+    "fantasyPoints": 219.7
+  },
+  {
+    "season": 2025,
+    "name": "Ricky Pearsall",
+    "position": "WR",
+    "tradeValue": 1715,
+    "fantasyPoints": 88.6
+  },
+  {
+    "season": 2025,
+    "name": "Terry McLaurin",
+    "position": "WR",
+    "tradeValue": 1679,
+    "fantasyPoints": 114.2
+  },
+  {
+    "season": 2025,
+    "name": "Tyreek Hill",
+    "position": "WR",
+    "tradeValue": 1572,
+    "fantasyPoints": 53.5
+  },
+  {
+    "season": 2025,
+    "name": "Davante Adams",
+    "position": "WR",
+    "tradeValue": 1518,
+    "fantasyPoints": 222.9
+  },
+  {
+    "season": 2025,
+    "name": "Quentin Johnston",
+    "position": "WR",
+    "tradeValue": 1324,
+    "fantasyPoints": 171.2
+  },
+  {
+    "season": 2025,
+    "name": "Jayden Higgins",
+    "position": "WR",
+    "tradeValue": 1237,
+    "fantasyPoints": 129.5
+  },
+  {
+    "season": 2025,
+    "name": "Christian Watson",
+    "position": "WR",
+    "tradeValue": 1075,
+    "fantasyPoints": 132.4
+  },
+  {
+    "season": 2025,
+    "name": "Jakobi Meyers",
+    "position": "WR",
+    "tradeValue": 1067,
+    "fantasyPoints": 175.8
+  },
+  {
+    "season": 2025,
+    "name": "Jayden Reed",
+    "position": "WR",
+    "tradeValue": 1040,
+    "fantasyPoints": 48.5
+  },
+  {
+    "season": 2025,
+    "name": "Josh Downs",
+    "position": "WR",
+    "tradeValue": 985,
+    "fantasyPoints": 138.4
+  },
+  {
+    "season": 2025,
+    "name": "Matthew Golden",
+    "position": "WR",
+    "tradeValue": 971,
+    "fantasyPoints": 70
+  },
+  {
+    "season": 2025,
+    "name": "Mike Evans",
+    "position": "WR",
+    "tradeValue": 931,
+    "fantasyPoints": 84.8
+  },
+  {
+    "season": 2025,
+    "name": "Chris Godwin Jr.",
+    "position": "WR",
+    "tradeValue": 876,
+    "fantasyPoints": 83
+  },
+  {
+    "season": 2025,
+    "name": "Khalil Shakir",
+    "position": "WR",
+    "tradeValue": 812,
+    "fantasyPoints": 166.4
+  },
+  {
+    "season": 2025,
+    "name": "Stefon Diggs",
+    "position": "WR",
+    "tradeValue": 714,
+    "fantasyPoints": 210.3
+  },
+  {
+    "season": 2025,
+    "name": "Deebo Samuel Sr.",
+    "position": "WR",
+    "tradeValue": 694,
+    "fantasyPoints": 188.2
+  },
+  {
+    "season": 2025,
+    "name": "Jauan Jennings",
+    "position": "WR",
+    "tradeValue": 681,
+    "fantasyPoints": 173.3
+  },
+  {
+    "season": 2025,
+    "name": "Wan'Dale Robinson",
+    "position": "WR",
+    "tradeValue": 599,
+    "fantasyPoints": 217.9
+  },
+  {
+    "season": 2025,
+    "name": "Michael Wilson",
+    "position": "WR",
+    "tradeValue": 578,
+    "fantasyPoints": 220.6
+  },
+  {
+    "season": 2025,
+    "name": "Jerry Jeudy",
+    "position": "WR",
+    "tradeValue": 556,
+    "fantasyPoints": 120.7
+  },
+  {
+    "season": 2025,
+    "name": "Alec Pierce",
+    "position": "WR",
+    "tradeValue": 468,
+    "fantasyPoints": 183.3
+  },
+  {
+    "season": 2025,
+    "name": "Rashid Shaheed",
+    "position": "WR",
+    "tradeValue": 403,
+    "fantasyPoints": 156.6
+  },
+  {
+    "season": 2025,
+    "name": "Tre Harris",
+    "position": "WR",
+    "tradeValue": 402,
+    "fantasyPoints": 69.4
+  },
+  {
+    "season": 2025,
+    "name": "Jaylin Noel",
+    "position": "WR",
+    "tradeValue": 400,
+    "fantasyPoints": 68.4
+  },
+  {
+    "season": 2025,
+    "name": "Darnell Mooney",
+    "position": "WR",
+    "tradeValue": 388,
+    "fantasyPoints": 82.3
+  },
+  {
+    "season": 2025,
+    "name": "Calvin Ridley",
+    "position": "WR",
+    "tradeValue": 374,
+    "fantasyPoints": 47.3
+  },
+  {
+    "season": 2025,
+    "name": "Keon Coleman",
+    "position": "WR",
+    "tradeValue": 373,
+    "fantasyPoints": 102.4
+  },
+  {
+    "season": 2025,
+    "name": "Jalen McMillan",
+    "position": "WR",
+    "tradeValue": 370,
+    "fantasyPoints": 29.9
+  },
+  {
+    "season": 2025,
+    "name": "Romeo Doubs",
+    "position": "WR",
+    "tradeValue": 345,
+    "fantasyPoints": 165.4
+  },
+  {
+    "season": 2025,
+    "name": "Troy Franklin",
+    "position": "WR",
+    "tradeValue": 330,
+    "fantasyPoints": 177.1
+  },
+  {
+    "season": 2025,
+    "name": "Adonai Mitchell",
+    "position": "WR",
+    "tradeValue": 320,
+    "fantasyPoints": 87.9
+  },
+  {
+    "season": 2025,
+    "name": "Pat Bryant",
+    "position": "WR",
+    "tradeValue": 273,
+    "fantasyPoints": 74.8
+  },
+  {
+    "season": 2025,
+    "name": "Kyle Williams",
+    "position": "WR",
+    "tradeValue": 273,
+    "fantasyPoints": 49.2
+  },
+  {
+    "season": 2025,
+    "name": "Jalen Coker",
+    "position": "WR",
+    "tradeValue": 247,
+    "fantasyPoints": 90.4
+  },
+  {
+    "season": 2025,
+    "name": "Elic Ayomanor",
+    "position": "WR",
+    "tradeValue": 244,
+    "fantasyPoints": 116.5
+  },
+  {
+    "season": 2025,
+    "name": "Isaac TeSlaa",
+    "position": "WR",
+    "tradeValue": 205,
+    "fantasyPoints": 75.9
+  },
+  {
+    "season": 2025,
+    "name": "Rashod Bateman",
+    "position": "WR",
+    "tradeValue": 204,
+    "fantasyPoints": 55.4
+  },
+  {
+    "season": 2025,
+    "name": "Marvin Mims Jr.",
+    "position": "WR",
+    "tradeValue": 185,
+    "fantasyPoints": 95
+  },
+  {
+    "season": 2025,
+    "name": "Tory Horton",
+    "position": "WR",
+    "tradeValue": 177,
+    "fantasyPoints": 65.1
+  },
+  {
+    "season": 2025,
+    "name": "Cooper Kupp",
+    "position": "WR",
+    "tradeValue": 173,
+    "fantasyPoints": 116.3
+  },
+  {
+    "season": 2025,
+    "name": "Cedric Tillman",
+    "position": "WR",
+    "tradeValue": 164,
+    "fantasyPoints": 60
+  },
+  {
+    "season": 2025,
+    "name": "Kayshon Boutte",
+    "position": "WR",
+    "tradeValue": 163,
+    "fantasyPoints": 124.1
+  },
+  {
+    "season": 2025,
+    "name": "Jack Bech",
+    "position": "WR",
+    "tradeValue": 163,
+    "fantasyPoints": 42.4
+  },
+  {
+    "season": 2025,
+    "name": "Xavier Legette",
+    "position": "WR",
+    "tradeValue": 154,
+    "fantasyPoints": 89.3
+  },
+  {
+    "season": 2025,
+    "name": "Parker Washington",
+    "position": "WR",
+    "tradeValue": 136,
+    "fantasyPoints": 184.7
+  },
+  {
+    "season": 2025,
+    "name": "Ryan Flournoy",
+    "position": "WR",
+    "tradeValue": 117,
+    "fantasyPoints": 114
+  },
+  {
+    "season": 2025,
+    "name": "Keenan Allen",
+    "position": "WR",
+    "tradeValue": 111,
+    "fantasyPoints": 182.7
+  },
+  {
+    "season": 2025,
+    "name": "Brock Bowers",
+    "position": "TE",
+    "tradeValue": 5960,
+    "fantasyPoints": 176.2
+  },
+  {
+    "season": 2025,
+    "name": "Trey McBride",
+    "position": "TE",
+    "tradeValue": 5753,
+    "fantasyPoints": 315.9
+  },
+  {
+    "season": 2025,
+    "name": "Sam LaPorta",
+    "position": "TE",
+    "tradeValue": 4073,
+    "fantasyPoints": 106.9
+  },
+  {
+    "season": 2025,
+    "name": "Tyler Warren",
+    "position": "TE",
+    "tradeValue": 3537,
+    "fantasyPoints": 188.5
+  },
+  {
+    "season": 2025,
+    "name": "Colston Loveland",
+    "position": "TE",
+    "tradeValue": 2904,
+    "fantasyPoints": 165.1
+  },
+  {
+    "season": 2025,
+    "name": "Tucker Kraft",
+    "position": "TE",
+    "tradeValue": 2600,
+    "fantasyPoints": 117.2
+  },
+  {
+    "season": 2025,
+    "name": "Harold Fannin Jr.",
+    "position": "TE",
+    "tradeValue": 2372,
+    "fantasyPoints": 186.4
+  },
+  {
+    "season": 2025,
+    "name": "Kyle Pitts Sr.",
+    "position": "TE",
+    "tradeValue": 2180,
+    "fantasyPoints": 210.8
+  },
+  {
+    "season": 2025,
+    "name": "George Kittle",
+    "position": "TE",
+    "tradeValue": 1966,
+    "fantasyPoints": 161.5
+  },
+  {
+    "season": 2025,
+    "name": "Dalton Kincaid",
+    "position": "TE",
+    "tradeValue": 1823,
+    "fantasyPoints": 126.1
+  },
+  {
+    "season": 2025,
+    "name": "Oronde Gadsden II",
+    "position": "TE",
+    "tradeValue": 1110,
+    "fantasyPoints": 131.4
+  },
+  {
+    "season": 2025,
+    "name": "Jake Ferguson",
+    "position": "TE",
+    "tradeValue": 912,
+    "fantasyPoints": 188.1
+  },
+  {
+    "season": 2025,
+    "name": "Brenton Strange",
+    "position": "TE",
+    "tradeValue": 847,
+    "fantasyPoints": 118
+  },
+  {
+    "season": 2025,
+    "name": "Dallas Goedert",
+    "position": "TE",
+    "tradeValue": 560,
+    "fantasyPoints": 185.1
+  },
+  {
+    "season": 2025,
+    "name": "Isaiah Likely",
+    "position": "TE",
+    "tradeValue": 505,
+    "fantasyPoints": 61.7
+  },
+  {
+    "season": 2025,
+    "name": "Terrance Ferguson",
+    "position": "TE",
+    "tradeValue": 484,
+    "fantasyPoints": 52.1
+  },
+  {
+    "season": 2025,
+    "name": "Mason Taylor",
+    "position": "TE",
+    "tradeValue": 460,
+    "fantasyPoints": 88.9
+  },
+  {
+    "season": 2025,
+    "name": "T.J. Hockenson",
+    "position": "TE",
+    "tradeValue": 395,
+    "fantasyPoints": 112.8
+  },
+  {
+    "season": 2025,
+    "name": "Mark Andrews",
+    "position": "TE",
+    "tradeValue": 374,
+    "fantasyPoints": 131
+  },
+  {
+    "season": 2025,
+    "name": "Theo Johnson",
+    "position": "TE",
+    "tradeValue": 325,
+    "fantasyPoints": 127.8
+  },
+  {
+    "season": 2025,
+    "name": "Hunter Henry",
+    "position": "TE",
+    "tradeValue": 238,
+    "fantasyPoints": 178.8
+  },
+  {
+    "season": 2025,
+    "name": "AJ Barner",
+    "position": "TE",
+    "tradeValue": 223,
+    "fantasyPoints": 147.3
+  },
+  {
+    "season": 2025,
+    "name": "Juwan Johnson",
+    "position": "TE",
+    "tradeValue": 214,
+    "fantasyPoints": 179.9
+  },
+  {
+    "season": 2025,
+    "name": "Dalton Schultz",
+    "position": "TE",
+    "tradeValue": 183,
+    "fantasyPoints": 177.7
+  },
+  {
+    "season": 2025,
+    "name": "Elijah Arroyo",
+    "position": "TE",
+    "tradeValue": 181,
+    "fantasyPoints": 36.9
+  },
+  {
+    "season": 2025,
+    "name": "David Njoku",
+    "position": "TE",
+    "tradeValue": 162,
+    "fantasyPoints": 86.3
+  },
+  {
+    "season": 2025,
+    "name": "Travis Kelce",
+    "position": "TE",
+    "tradeValue": 153,
+    "fantasyPoints": 193.2
+  },
+  {
+    "season": 2025,
+    "name": "Michael Mayer",
+    "position": "TE",
+    "tradeValue": 152,
+    "fantasyPoints": 73.8
+  }
+]

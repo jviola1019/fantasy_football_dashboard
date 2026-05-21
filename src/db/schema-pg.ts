@@ -62,6 +62,7 @@ export const leagues = pgTable("leagues", {
   externalLeagueId: text("externalLeagueId").notNull(),
   season: integer("season").notNull(),
   label: text("label").notNull(),
+  settings: text("settings"),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow()
 });
 
@@ -140,8 +141,10 @@ export const INIT_SQL = `
     "externalLeagueId" TEXT NOT NULL,
     season INTEGER NOT NULL,
     label TEXT NOT NULL,
+    settings JSONB,
     "createdAt" TIMESTAMP NOT NULL DEFAULT now()
   );
+  ALTER TABLE leagues ADD COLUMN IF NOT EXISTS settings JSONB;
   CREATE TABLE IF NOT EXISTS "leagueCredentials" (
     "leagueId" TEXT PRIMARY KEY REFERENCES leagues(id) ON DELETE CASCADE,
     iv BYTEA NOT NULL,

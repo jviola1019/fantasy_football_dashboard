@@ -5,6 +5,8 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { createLeague, deleteLeagueForUser } from "@/lib/leagues";
+import { verifyLeague } from "@/lib/trade/verify";
+import type { LeagueFormat } from "@/lib/trade/format";
 
 const addLeagueSchema = z.object({
   platform: z.enum(["sleeper", "espn"]),
@@ -37,6 +39,20 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     return { ok: false, error: "ESPN leagues require both espn_s2 and SWID cookies" };
   }
 
+  // Both Sleeper and ESPN leagues are verified at add-time. Sleeper uses the
+  // public API; ESPN fetches mSettings with the user's espn_s2 + SWID cookies.
+  // The detected format is persisted for both platforms.
+  const verification = await verifyLeague({
+    platform,
+    externalLeagueId,
+    season,
+    credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined
+  });
+  if (!verification.ok) {
+    return { ok: false, error: verification.error };
+  }
+  const detectedSettings: LeagueFormat = verification.format;
+
   try {
     const league = await createLeague(getDb(), {
       userId,
@@ -44,7 +60,8 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
       externalLeagueId,
       season,
       label,
-      credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined
+      credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined,
+      settings: detectedSettings
     });
     revalidatePath("/settings/leagues");
     return { ok: true, leagueId: league.id };

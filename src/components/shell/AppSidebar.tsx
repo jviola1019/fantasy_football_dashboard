@@ -24,7 +24,7 @@ import {
   SidebarMenuItem,
   SidebarRail
 } from "@/components/ui/sidebar";
-import { systems } from "../RaeApp";
+import { systems } from "../systems";
 
 const SYSTEM_ICONS: Record<string, LucideIcon> = {
   "Command Center": Gauge,

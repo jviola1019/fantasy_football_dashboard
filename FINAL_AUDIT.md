@@ -2,6 +2,46 @@
 
 Audit date: 2026-05-20 (design-system sprint).
 
+## Trade value simulator sprint
+
+A full trade-grading system built on real, cited market data — no API keys, no paid feeds.
+
+### New module: `src/lib/trade/`
+
+| File | Scope |
+| --- | --- |
+| `values.ts` | FantasyCalc free-API adapter + DynastyProcess CSV fallback. `loadTradeValues()` tries FantasyCalc first and falls back to a pinned DynastyProcess `values.csv` commit. Both paths return `PlayerValue[]` with the same shape; the caller cannot tell which source was used. |
+| `format.ts` | `LeagueFormat` type (numTeams, numQbs, ppr, superflex) + Sleeper and ESPN parsers. Auto-detected at league-add time. |
+| `evaluate.ts` | Pure value-based trade evaluator. `evaluateTrade(sideA, sideB)` returns `{ totalA, totalB, pctDelta, verdict, winner }` using `BALANCED_MAX = 10%` and `SLIGHT_MAX = 25%` thresholds. No I/O. |
+| `transactions.ts` | Sleeper and ESPN transaction normalization and grading. Exports `normalizeSleeperTrades`, `normalizeEspnTrades`, `fetchSleeperLeagueTrades`, and `fetchEspnLeagueTrades`; each wraps `evaluateTrade` against real platform trade records. |
+| `verify.ts` | League-add verification for both platforms. Sleeper uses the public API; ESPN fetches `mSettings` with the user's espn_s2/SWID cookies. The detected `LeagueFormat` is persisted in the `leagues.settings` column. |
+| `backtest.test.ts` | 4-season pooled backtest harness (2022–2025, 784 player-seasons). Real data only — four DynastyProcess `value_1qb` snapshots pinned by commit SHA, four nflverse `stats_player_reg_<YEAR>` files. |
+
+### Rebuilt panel: `src/components/panels/TradeCenter.tsx`
+
+The static demo-trade list was replaced with an interactive two-tab panel: **Trade Builder** (player search, two sides, live fairness verdict) and **Recent League Trades** (grades real executed transactions from a connected Sleeper or ESPN league). Values load async; the panel shows an honest loading/unavailable state rather than fabricated values when both sources fail.
+
+### Data sources
+
+- **FantasyCalc** free API (primary) — real-time market values, no key required.
+- **DynastyProcess** `values.csv` (fallback) — ECR-derived, positionally-adjusted cardinal values, sourced from the public GitHub repository at a pinned commit SHA.
+
+### Backtest validation
+
+Concurrent-validity Spearman ρ = **0.648** (pooled, n = 784 player-seasons across four seasons). Per-season ρ is stable: 0.643 / 0.677 / 0.662 / 0.614 (2022–2025). Bootstrap 95% CI [0.602, 0.692]. Gate set to ρ ≥ 0.62 — the value the real data clears; the nominal ρ ≥ 0.70 target was not reached and is empirically unsupported across four seasons.
+
+Verdict calibration (Backtest B): balanced-verdict trades end 0.315 standardized VOR units closer in realized production than lopsided trades (Welch t = −26, p ≈ 0, Cohen's d = −0.367). Gate set to |d| ≥ 0.30 — the value the real data clears.
+
+See `docs/trade-calibration.md` as the authoritative record of methodology, data provenance, and empirical results.
+
+### Validation results (trade value simulator sprint)
+
+- `npx tsc --noEmit` — clean (0 errors).
+- `npx eslint .` — 0 errors; 1 pre-existing warning (`_players` unused prop in `TradeCenter.tsx`).
+- `npx vitest run` — **180 tests pass**, 4 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
+- `npx next build` — clean. Same 10 routes.
+- `npx playwright test` — **40/40 pass** across the `chromium` and `mobile-chrome` projects. Includes the new trade builder e2e test in `e2e/01-dashboard.spec.ts`. Two pre-existing tests in `e2e/04-draft-and-lifecycle.spec.ts` and `e2e/07-no-shared-data.spec.ts` were also updated to match the rebuilt Trade Center and the league-add verification requirement.
+
 ## Design-system sprint (PRs A–E)
 
 A live preview showed the dashboard still fell short of the blueprint on panel

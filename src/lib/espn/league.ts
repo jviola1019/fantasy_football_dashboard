@@ -18,7 +18,8 @@ export type EspnLeagueView =
   | "mSettings"
   | "mDraftDetail"
   | "kona_player_info"
-  | "mPositionalRatings";
+  | "mPositionalRatings"
+  | "mTransactions2";
 
 export function getLeague(client: EspnClient, ref: EspnLeagueRef, views: EspnLeagueView[] = ["mTeam", "mSettings"]) {
   return client.fetchJson({
@@ -52,6 +53,15 @@ export function getDraft(client: EspnClient, ref: EspnLeagueRef) {
     url: client.leagueUrl(ref.season, ref.leagueId, ["mDraftDetail"]),
     schema: EspnLeagueResponseSchema,
     source: `ESPN draft ${ref.leagueId} (${ref.season})`,
+    ttlSeconds: LEAGUE_TTL
+  });
+}
+
+export function getTransactions(client: EspnClient, ref: EspnLeagueRef) {
+  return client.fetchJson({
+    url: client.leagueUrl(ref.season, ref.leagueId, ["mTransactions2"]),
+    schema: EspnLeagueResponseSchema,
+    source: `ESPN transactions ${ref.leagueId} (${ref.season})`,
     ttlSeconds: LEAGUE_TTL
   });
 }

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { decrypt, encrypt, getCredentialKey } from "./crypto";
 import { schema } from "../db";
+import type { LeagueFormat } from "./trade/format";
 
 export type LeaguePlatform = "sleeper" | "espn";
 
@@ -12,6 +13,8 @@ export interface CreateLeagueInput {
   label: string;
   /** ESPN private leagues; required for espn, optional/ignored otherwise. */
   credentials?: { espnS2: string; swid: string };
+  /** Detected league format from verification; persisted as JSON. */
+  settings?: LeagueFormat;
 }
 
 export interface DecryptedCredentials {
@@ -26,6 +29,7 @@ export interface LeagueRecord {
   externalLeagueId: string;
   season: number;
   label: string;
+  settings: LeagueFormat | null;
   createdAt: Date;
 }
 
@@ -42,7 +46,8 @@ export async function createLeague(db: Db, input: CreateLeagueInput): Promise<Le
       platform: input.platform,
       externalLeagueId: input.externalLeagueId,
       season: input.season,
-      label: input.label
+      label: input.label,
+      settings: input.settings ? JSON.stringify(input.settings) : null
     })
     .returning();
   const row = inserted[0]!;
@@ -109,6 +114,7 @@ function toRecord(row: typeof schema.leagues.$inferSelect): LeagueRecord {
     externalLeagueId: row.externalLeagueId,
     season: row.season,
     label: row.label,
+    settings: row.settings ? (JSON.parse(row.settings) as LeagueFormat) : null,
     createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt)
   };
 }
