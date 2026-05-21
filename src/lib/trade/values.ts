@@ -154,7 +154,9 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
         values: new Map(),
         source: unavailableSource(
           "Trade values",
-          `FantasyCalc and DynastyProcess both failed: ${
+          `Both value sources failed — FantasyCalc: ${
+            primaryErr instanceof Error ? primaryErr.message : String(primaryErr)
+          }; DynastyProcess: ${
             fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
           }`
         )
