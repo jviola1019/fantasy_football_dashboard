@@ -99,6 +99,7 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
       externalLeagueId TEXT NOT NULL,
       season INTEGER NOT NULL,
       label TEXT NOT NULL,
+      settings TEXT,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE TABLE IF NOT EXISTS leagueCredentials (
@@ -203,6 +204,7 @@ function applyTestSchema(sqlite: MinimalSqliteHandle) {
       externalLeagueId TEXT NOT NULL,
       season INTEGER NOT NULL,
       label TEXT NOT NULL,
+      settings TEXT,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE TABLE leagueCredentials (

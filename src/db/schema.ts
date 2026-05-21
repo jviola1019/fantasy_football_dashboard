@@ -57,6 +57,7 @@ export const leagues = sqliteTable("leagues", {
   externalLeagueId: text("externalLeagueId").notNull(),
   season: integer("season").notNull(),
   label: text("label").notNull(),
+  settings: text("settings"),
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)
