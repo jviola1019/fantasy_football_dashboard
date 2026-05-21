@@ -1,0 +1,572 @@
+[
+  {
+    "name": "Christian McCaffrey",
+    "position": "RB",
+    "tradeValue": 1000,
+    "fantasyPoints": 47.8
+  },
+  {
+    "name": "CeeDee Lamb",
+    "position": "WR",
+    "tradeValue": 994,
+    "fantasyPoints": 263.4
+  },
+  {
+    "name": "Tyreek Hill",
+    "position": "WR",
+    "tradeValue": 991,
+    "fantasyPoints": 218.2
+  },
+  {
+    "name": "Bijan Robinson",
+    "position": "RB",
+    "tradeValue": 984,
+    "fantasyPoints": 341.7
+  },
+  {
+    "name": "Breece Hall",
+    "position": "RB",
+    "tradeValue": 982,
+    "fantasyPoints": 240.9
+  },
+  {
+    "name": "Amon-Ra St. Brown",
+    "position": "WR",
+    "tradeValue": 980,
+    "fantasyPoints": 316.2
+  },
+  {
+    "name": "Ja'Marr Chase",
+    "position": "WR",
+    "tradeValue": 979,
+    "fantasyPoints": 403.0
+  },
+  {
+    "name": "Justin Jefferson",
+    "position": "WR",
+    "tradeValue": 977,
+    "fantasyPoints": 317.5
+  },
+  {
+    "name": "Saquon Barkley",
+    "position": "RB",
+    "tradeValue": 967,
+    "fantasyPoints": 355.3
+  },
+  {
+    "name": "A.J. Brown",
+    "position": "WR",
+    "tradeValue": 963,
+    "fantasyPoints": 216.9
+  },
+  {
+    "name": "Jonathan Taylor",
+    "position": "RB",
+    "tradeValue": 963,
+    "fantasyPoints": 244.7
+  },
+  {
+    "name": "Garrett Wilson",
+    "position": "WR",
+    "tradeValue": 950,
+    "fantasyPoints": 251.9
+  },
+  {
+    "name": "Jahmyr Gibbs",
+    "position": "RB",
+    "tradeValue": 949,
+    "fantasyPoints": 362.9
+  },
+  {
+    "name": "Puka Nacua",
+    "position": "WR",
+    "tradeValue": 943,
+    "fantasyPoints": 206.6
+  },
+  {
+    "name": "Kyren Williams",
+    "position": "RB",
+    "tradeValue": 936,
+    "fantasyPoints": 272.1
+  },
+  {
+    "name": "Marvin Harrison Jr.",
+    "position": "WR",
+    "tradeValue": 933,
+    "fantasyPoints": 196.5
+  },
+  {
+    "name": "Travis Etienne Jr.",
+    "position": "RB",
+    "tradeValue": 930,
+    "fantasyPoints": 130.2
+  },
+  {
+    "name": "Derrick Henry",
+    "position": "RB",
+    "tradeValue": 928,
+    "fantasyPoints": 336.4
+  },
+  {
+    "name": "Isiah Pacheco",
+    "position": "RB",
+    "tradeValue": 919,
+    "fantasyPoints": 56.9
+  },
+  {
+    "name": "Davante Adams",
+    "position": "WR",
+    "tradeValue": 912,
+    "fantasyPoints": 241.3
+  },
+  {
+    "name": "Josh Allen",
+    "position": "QB",
+    "tradeValue": 909,
+    "fantasyPoints": 385.1
+  },
+  {
+    "name": "Travis Kelce",
+    "position": "TE",
+    "tradeValue": 899,
+    "fantasyPoints": 195.4
+  },
+  {
+    "name": "Drake London",
+    "position": "WR",
+    "tradeValue": 897,
+    "fantasyPoints": 280.8
+  },
+  {
+    "name": "Chris Olave",
+    "position": "WR",
+    "tradeValue": 895,
+    "fantasyPoints": 107.4
+  },
+  {
+    "name": "De'Von Achane",
+    "position": "RB",
+    "tradeValue": 890,
+    "fantasyPoints": 299.9
+  },
+  {
+    "name": "Josh Jacobs",
+    "position": "RB",
+    "tradeValue": 887,
+    "fantasyPoints": 293.1
+  },
+  {
+    "name": "Nico Collins",
+    "position": "WR",
+    "tradeValue": 887,
+    "fantasyPoints": 210.6
+  },
+  {
+    "name": "Patrick Mahomes",
+    "position": "QB",
+    "tradeValue": 884,
+    "fantasyPoints": 293.9
+  },
+  {
+    "name": "James Cook",
+    "position": "RB",
+    "tradeValue": 875,
+    "fantasyPoints": 266.7
+  },
+  {
+    "name": "Mike Evans",
+    "position": "WR",
+    "tradeValue": 875,
+    "fantasyPoints": 240.4
+  },
+  {
+    "name": "Jalen Hurts",
+    "position": "QB",
+    "tradeValue": 875,
+    "fantasyPoints": 320.0
+  },
+  {
+    "name": "Rachaad White",
+    "position": "RB",
+    "tradeValue": 873,
+    "fantasyPoints": 199.6
+  },
+  {
+    "name": "Sam LaPorta",
+    "position": "TE",
+    "tradeValue": 872,
+    "fantasyPoints": 174.6
+  },
+  {
+    "name": "Deebo Samuel",
+    "position": "WR",
+    "tradeValue": 872,
+    "fantasyPoints": 123.2
+  },
+  {
+    "name": "Brandon Aiyuk",
+    "position": "WR",
+    "tradeValue": 863,
+    "fantasyPoints": 100.8
+  },
+  {
+    "name": "Michael Pittman Jr.",
+    "position": "WR",
+    "tradeValue": 861,
+    "fantasyPoints": 126.3
+  },
+  {
+    "name": "Cooper Kupp",
+    "position": "WR",
+    "tradeValue": 860,
+    "fantasyPoints": 175.0
+  },
+  {
+    "name": "Lamar Jackson",
+    "position": "QB",
+    "tradeValue": 848,
+    "fantasyPoints": 434.4
+  },
+  {
+    "name": "Joe Mixon",
+    "position": "RB",
+    "tradeValue": 844,
+    "fantasyPoints": 240.5
+  },
+  {
+    "name": "Alvin Kamara",
+    "position": "RB",
+    "tradeValue": 839,
+    "fantasyPoints": 265.3
+  },
+  {
+    "name": "DK Metcalf",
+    "position": "WR",
+    "tradeValue": 835,
+    "fantasyPoints": 191.2
+  },
+  {
+    "name": "Kenneth Walker III",
+    "position": "RB",
+    "tradeValue": 834,
+    "fantasyPoints": 181.2
+  },
+  {
+    "name": "Jaylen Waddle",
+    "position": "WR",
+    "tradeValue": 829,
+    "fantasyPoints": 136.9
+  },
+  {
+    "name": "Stefon Diggs",
+    "position": "WR",
+    "tradeValue": 827,
+    "fantasyPoints": 59.8
+  },
+  {
+    "name": "DJ Moore",
+    "position": "WR",
+    "tradeValue": 825,
+    "fantasyPoints": 238.1
+  },
+  {
+    "name": "DeVonta Smith",
+    "position": "WR",
+    "tradeValue": 823,
+    "fantasyPoints": 199.4
+  },
+  {
+    "name": "Mark Andrews",
+    "position": "TE",
+    "tradeValue": 817,
+    "fantasyPoints": 188.8
+  },
+  {
+    "name": "Trey McBride",
+    "position": "TE",
+    "tradeValue": 815,
+    "fantasyPoints": 249.8
+  },
+  {
+    "name": "Malik Nabers",
+    "position": "WR",
+    "tradeValue": 805,
+    "fantasyPoints": 273.6
+  },
+  {
+    "name": "C.J. Stroud",
+    "position": "QB",
+    "tradeValue": 805,
+    "fantasyPoints": 232.4
+  },
+  {
+    "name": "Dalton Kincaid",
+    "position": "TE",
+    "tradeValue": 786,
+    "fantasyPoints": 45.6
+  },
+  {
+    "name": "George Kittle",
+    "position": "TE",
+    "tradeValue": 775,
+    "fantasyPoints": 236.6
+  },
+  {
+    "name": "Anthony Richardson",
+    "position": "QB",
+    "tradeValue": 768,
+    "fantasyPoints": 175.5
+  },
+  {
+    "name": "James Conner",
+    "position": "RB",
+    "tradeValue": 769,
+    "fantasyPoints": 253.8
+  },
+  {
+    "name": "Aaron Jones",
+    "position": "RB",
+    "tradeValue": 762,
+    "fantasyPoints": 241.6
+  },
+  {
+    "name": "George Pickens",
+    "position": "WR",
+    "tradeValue": 762,
+    "fantasyPoints": 127.5
+  },
+  {
+    "name": "D'Andre Swift",
+    "position": "RB",
+    "tradeValue": 756,
+    "fantasyPoints": 214.5
+  },
+  {
+    "name": "Tee Higgins",
+    "position": "WR",
+    "tradeValue": 750,
+    "fantasyPoints": 222.1
+  },
+  {
+    "name": "Zay Flowers",
+    "position": "WR",
+    "tradeValue": 746,
+    "fantasyPoints": 209.5
+  },
+  {
+    "name": "Kyle Pitts",
+    "position": "TE",
+    "tradeValue": 742,
+    "fantasyPoints": 131.2
+  },
+  {
+    "name": "David Montgomery",
+    "position": "RB",
+    "tradeValue": 752,
+    "fantasyPoints": 221.7
+  },
+  {
+    "name": "Joe Burrow",
+    "position": "QB",
+    "tradeValue": 752,
+    "fantasyPoints": 381.9
+  },
+  {
+    "name": "Najee Harris",
+    "position": "RB",
+    "tradeValue": 716,
+    "fantasyPoints": 204.6
+  },
+  {
+    "name": "Kyler Murray",
+    "position": "QB",
+    "tradeValue": 717,
+    "fantasyPoints": 308.4
+  },
+  {
+    "name": "Terry McLaurin",
+    "position": "WR",
+    "tradeValue": 713,
+    "fantasyPoints": 267.8
+  },
+  {
+    "name": "Jordan Love",
+    "position": "QB",
+    "tradeValue": 712,
+    "fantasyPoints": 244.9
+  },
+  {
+    "name": "Dak Prescott",
+    "position": "QB",
+    "tradeValue": 726,
+    "fantasyPoints": 124.5
+  },
+  {
+    "name": "Calvin Ridley",
+    "position": "WR",
+    "tradeValue": 701,
+    "fantasyPoints": 199.2
+  },
+  {
+    "name": "Tony Pollard",
+    "position": "RB",
+    "tradeValue": 672,
+    "fantasyPoints": 200.7
+  },
+  {
+    "name": "Javonte Williams",
+    "position": "RB",
+    "tradeValue": 675,
+    "fantasyPoints": 157.9
+  },
+  {
+    "name": "Rhamondre Stevenson",
+    "position": "RB",
+    "tradeValue": 734,
+    "fantasyPoints": 175.9
+  },
+  {
+    "name": "Brock Purdy",
+    "position": "QB",
+    "tradeValue": 633,
+    "fantasyPoints": 279.0
+  },
+  {
+    "name": "Brock Bowers",
+    "position": "TE",
+    "tradeValue": 596,
+    "fantasyPoints": 262.7
+  },
+  {
+    "name": "Jaxon Smith-Njigba",
+    "position": "WR",
+    "tradeValue": 598,
+    "fantasyPoints": 253.0
+  },
+  {
+    "name": "Brian Thomas Jr.",
+    "position": "WR",
+    "tradeValue": 534,
+    "fantasyPoints": 284.0
+  },
+  {
+    "name": "Jayden Daniels",
+    "position": "QB",
+    "tradeValue": 589,
+    "fantasyPoints": 364.8
+  },
+  {
+    "name": "Ladd McConkey",
+    "position": "WR",
+    "tradeValue": 577,
+    "fantasyPoints": 240.9
+  },
+  {
+    "name": "Jordan Addison",
+    "position": "WR",
+    "tradeValue": 557,
+    "fantasyPoints": 212.5
+  },
+  {
+    "name": "Courtland Sutton",
+    "position": "WR",
+    "tradeValue": 549,
+    "fantasyPoints": 240.3
+  },
+  {
+    "name": "Chase Brown",
+    "position": "RB",
+    "tradeValue": 553,
+    "fantasyPoints": 255.0
+  },
+  {
+    "name": "Jameson Williams",
+    "position": "WR",
+    "tradeValue": 517,
+    "fantasyPoints": 212.2
+  },
+  {
+    "name": "David Njoku",
+    "position": "TE",
+    "tradeValue": 662,
+    "fantasyPoints": 148.5
+  },
+  {
+    "name": "Jerry Jeudy",
+    "position": "WR",
+    "tradeValue": 423,
+    "fantasyPoints": 240.9
+  },
+  {
+    "name": "Chuba Hubbard",
+    "position": "RB",
+    "tradeValue": 467,
+    "fantasyPoints": 241.6
+  },
+  {
+    "name": "Justin Herbert",
+    "position": "QB",
+    "tradeValue": 477,
+    "fantasyPoints": 288.6
+  },
+  {
+    "name": "Pat Freiermuth",
+    "position": "TE",
+    "tradeValue": 458,
+    "fantasyPoints": 168.3
+  },
+  {
+    "name": "Dalton Schultz",
+    "position": "TE",
+    "tradeValue": 497,
+    "fantasyPoints": 118.2
+  },
+  {
+    "name": "J.K. Dobbins",
+    "position": "RB",
+    "tradeValue": 467,
+    "fantasyPoints": 191.8
+  },
+  {
+    "name": "Zach Charbonnet",
+    "position": "RB",
+    "tradeValue": 409,
+    "fantasyPoints": 186.9
+  },
+  {
+    "name": "Jayden Reed",
+    "position": "WR",
+    "tradeValue": 649,
+    "fantasyPoints": 197.0
+  },
+  {
+    "name": "Jared Goff",
+    "position": "QB",
+    "tradeValue": 534,
+    "fantasyPoints": 336.5
+  },
+  {
+    "name": "Baker Mayfield",
+    "position": "QB",
+    "tradeValue": 335,
+    "fantasyPoints": 381.8
+  },
+  {
+    "name": "Bo Nix",
+    "position": "QB",
+    "tradeValue": 263,
+    "fantasyPoints": 329.1
+  },
+  {
+    "name": "Sam Darnold",
+    "position": "QB",
+    "tradeValue": 4,
+    "fantasyPoints": 319.8
+  },
+  {
+    "name": "Jonnu Smith",
+    "position": "TE",
+    "tradeValue": 87,
+    "fantasyPoints": 222.3
+  }
+]
