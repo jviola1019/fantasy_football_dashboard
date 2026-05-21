@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
-import type { PlayerMarketRecord } from "@/lib/governance";
 import type { PlayerValue } from "@/lib/trade/values";
 import { DEFAULT_FORMAT, type LeagueFormat } from "@/lib/trade/format";
 import type { GradedTrade } from "@/lib/trade/transactions";
@@ -14,7 +13,7 @@ import { RecentLeagueTrades } from "./trade/RecentLeagueTrades";
 
 const TABS = ["Trade Builder", "Recent League Trades"] as const;
 
-export function TradeCenter({ players: _players }: { players: PlayerMarketRecord[] }) {
+export function TradeCenter() {
   const [activeTab, setActiveTab] = useState<string>("Trade Builder");
   const [pool, setPool] = useState<PlayerValue[]>([]);
   const [format, setFormat] = useState<LeagueFormat>(DEFAULT_FORMAT);

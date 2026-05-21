@@ -13,7 +13,7 @@ A full trade-grading system built on real, cited market data — no API keys, no
 | `values.ts` | FantasyCalc free-API adapter + DynastyProcess CSV fallback. `loadTradeValues()` tries FantasyCalc first and falls back to a pinned DynastyProcess `values.csv` commit. Both paths return `PlayerValue[]` with the same shape; the caller cannot tell which source was used. |
 | `format.ts` | `LeagueFormat` type (numTeams, numQbs, ppr, superflex) + Sleeper and ESPN parsers. Auto-detected at league-add time. |
 | `evaluate.ts` | Pure value-based trade evaluator. `evaluateTrade(sideA, sideB)` returns `{ totalA, totalB, pctDelta, verdict, winner }` using `BALANCED_MAX = 10%` and `SLIGHT_MAX = 25%` thresholds. No I/O. |
-| `transactions.ts` | Sleeper and ESPN transaction normalization and grading. `gradeTrade()` wraps `evaluateTrade` against real platform trade records. |
+| `transactions.ts` | Sleeper and ESPN transaction normalization and grading. Exports `normalizeSleeperTrades`, `normalizeEspnTrades`, `fetchSleeperLeagueTrades`, and `fetchEspnLeagueTrades`; each wraps `evaluateTrade` against real platform trade records. |
 | `verify.ts` | League-add verification for both platforms. Sleeper uses the public API; ESPN fetches `mSettings` with the user's espn_s2/SWID cookies. The detected `LeagueFormat` is persisted in the `leagues.settings` column. |
 | `backtest.test.ts` | 4-season pooled backtest harness (2022–2025, 784 player-seasons). Real data only — four DynastyProcess `value_1qb` snapshots pinned by commit SHA, four nflverse `stats_player_reg_<YEAR>` files. |
 

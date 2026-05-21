@@ -84,7 +84,7 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
           <PanelRow cols={3}>
             <PreDraftAudit players={players} />
             <WaiverWire players={players} />
-            <TradeCenter players={players} />
+            <TradeCenter />
           </PanelRow>
         </PanelGrid>
       </SidebarInset>

@@ -41,6 +41,13 @@ test.describe("per-account isolation", () => {
       await expect(pageA.getByText(/no leagues connected yet/i)).toBeVisible();
 
       // User B: register fresh — also an empty list, no data leakage from A
+      // NOTE: the "User A has a populated league → User B cannot see it" case
+      // is covered deterministically (no network) in
+      // src/lib/leagues.test.ts — "isolates leagues per user" suite — which
+      // asserts listLeagues, getLeagueForUser, and deleteLeagueForUser are all
+      // scoped to the owning userId. The e2e spec retains the
+      // account-scoped /api/notifications and /api/leagues/[id]/refresh
+      // 401/403/404 assertions below.
       await registerUniqueUser(pageB, "B");
       await expect(pageB.getByText(/no leagues connected yet/i)).toBeVisible();
 

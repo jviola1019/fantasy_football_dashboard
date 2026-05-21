@@ -70,7 +70,16 @@ export function parseFantasyCalc(raw: unknown): Map<string, PlayerValue> {
 const DYNASTYPROCESS_CSV_URL =
   "https://raw.githubusercontent.com/dynastyprocess/data/master/files/values.csv";
 
-/** Parse the DynastyProcess values.csv text into a "<pos>-<name>"-keyed map. */
+/**
+ * Parse the DynastyProcess values.csv text into a "<pos>-<name>"-keyed map.
+ *
+ * NOTE: Every entry is returned with `sleeperId: null` and `espnId: null`
+ * because DynastyProcess rows carry no platform IDs. When FantasyCalc is down
+ * and this fallback is active, the Trade Builder (search-based) still works
+ * because it matches by name. However, `loadLeagueTrades` joins executed
+ * transactions by `sleeperId`/`espnId`, so it will grade nothing — an honest
+ * degradation rather than fabricated grades.
+ */
 export function parseDynastyProcessCsv(csv: string, format: LeagueFormat): Map<string, PlayerValue> {
   const lines = csv.trim().split(/\r?\n/);
   const header = lines[0]!.split(",");
