@@ -103,13 +103,16 @@ ul { margin: 0; padding: 0; list-style: none; }
    hand-rolled CSS lived here and has been removed. */
 
 /* ─── Governance Banner ───────────────────────────────────────────────────── */
+/* Horizontal margin matches the PanelGrid's 16px gutter so the banner lines up
+   flush with the panels below it (was an ad-hoc 14px). */
 .governance-banner {
-  margin: 10px 14px;
+  margin: 12px 16px;
   padding: 10px 14px;
   border: 1px solid rgba(215, 168, 87, .25);
   background: rgba(53, 42, 22, .28);
   color: #ead9b3;
   font-size: 11px;
+  border-radius: 6px;
 }
 
 /* Dashboard grid, system-panel shell, and panel headers now live in the
@@ -562,6 +565,30 @@ td small { color: var(--muted); }
 .scene-fallback-mark { color: var(--blue); font-size: 18px; letter-spacing: .3em; opacity: .7; }
 .scene-fallback-text { color: var(--muted); font-size: 11px; }
 
+/* Lightweight stand-in shown before a 3-D scene's WebGL <Canvas> lazy-mounts
+   (or after it scrolls far off-screen). Calm loading state — not a failure. */
+.scene-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, rgba(123,183,206,.05), transparent 70%), #060a0e;
+  border-radius: 6px;
+}
+.scene-placeholder-mark {
+  color: var(--blue);
+  font-size: 16px;
+  letter-spacing: .35em;
+  opacity: .35;
+  animation: scene-placeholder-pulse 1.8s ease-in-out infinite;
+}
+@keyframes scene-placeholder-pulse {
+  0%, 100% { opacity: .2; }
+  50%      { opacity: .5; }
+}
+
 /* Topbar search + user menu are now shadcn components
    (src/components/topbar/SearchInput.tsx, UserMenu.tsx). Former CSS removed. */
 
@@ -571,7 +598,8 @@ td small { color: var(--muted); }
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 12px;
-  margin: 10px 14px 0;
+  /* Aligned to the PanelGrid's 16px gutter (was an ad-hoc 14px). */
+  margin: 12px 16px 0;
   padding: 8px 14px;
   background: linear-gradient(90deg, rgba(123, 183, 206, 0.14), rgba(155, 127, 232, 0.1));
   border: 1px solid rgba(123, 183, 206, 0.35);

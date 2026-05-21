@@ -120,7 +120,7 @@ function ToneGauge({ tone }: { tone: number }) {
   return (
     <div className="narrative-metric-card">
       <div className="nm-label">EMOTIONAL TONE</div>
-      <svg viewBox="0 0 100 60" width="100%" aria-hidden="true">
+      <svg viewBox="0 4 100 64" width="100%" aria-hidden="true">
         <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
           fill="none" stroke="rgba(214,226,226,0.1)" strokeWidth="8" />
         <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r * pct * 2 - r} ${cy - r * Math.sin(pct * Math.PI)}`}
