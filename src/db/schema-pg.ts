@@ -63,6 +63,8 @@ export const leagues = pgTable("leagues", {
   season: integer("season").notNull(),
   label: text("label").notNull(),
   settings: text("settings"),
+  /** Sleeper-only: the user's Sleeper username so we can resolve their roster_id. */
+  sleeperUsername: text("sleeperUsername"),
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow()
 });
 
@@ -145,6 +147,7 @@ export const INIT_SQL = `
     "createdAt" TIMESTAMP NOT NULL DEFAULT now()
   );
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS settings JSONB;
+  ALTER TABLE leagues ADD COLUMN IF NOT EXISTS "sleeperUsername" TEXT;
   CREATE TABLE IF NOT EXISTS "leagueCredentials" (
     "leagueId" TEXT PRIMARY KEY REFERENCES leagues(id) ON DELETE CASCADE,
     iv BYTEA NOT NULL,

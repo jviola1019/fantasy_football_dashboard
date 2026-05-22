@@ -58,6 +58,8 @@ export const leagues = sqliteTable("leagues", {
   season: integer("season").notNull(),
   label: text("label").notNull(),
   settings: text("settings"),
+  /** Sleeper-only: the user's Sleeper username so we can resolve their roster_id. */
+  sleeperUsername: text("sleeperUsername"),
   createdAt: integer("createdAt", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(unixepoch() * 1000)`)

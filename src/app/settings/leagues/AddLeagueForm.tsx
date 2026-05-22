@@ -81,7 +81,12 @@ export function AddLeagueForm() {
             <input id="swid" name="swid" type="password" required={platform === "espn"} placeholder="{ABCD-1234-...}" style={input} />
           </div>
         </div>
-      ) : null}
+      ) : (
+        <div>
+          <label htmlFor="sleeperUsername" style={label}>Sleeper username (optional — identifies your team)</label>
+          <input id="sleeperUsername" name="sleeperUsername" type="text" placeholder="your Sleeper username" style={input} />
+        </div>
+      )}
       {error ? <p style={{ color: "var(--red)", margin: 0, fontSize: 13 }}>{error}</p> : null}
       <button
         type="submit"

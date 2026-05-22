@@ -65,6 +65,11 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
     } catch {
       // column already present
     }
+    try {
+      sqlite.exec("ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT");
+    } catch {
+      // column already present
+    }
     return;
   }
   sqlite.exec(`
@@ -109,6 +114,7 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
       season INTEGER NOT NULL,
       label TEXT NOT NULL,
       settings TEXT,
+      sleeperUsername TEXT,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE TABLE IF NOT EXISTS leagueCredentials (
@@ -214,6 +220,7 @@ function applyTestSchema(sqlite: MinimalSqliteHandle) {
       season INTEGER NOT NULL,
       label TEXT NOT NULL,
       settings TEXT,
+      sleeperUsername TEXT,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE TABLE leagueCredentials (
