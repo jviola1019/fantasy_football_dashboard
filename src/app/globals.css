@@ -507,6 +507,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   gap: 8px;
   min-width: 0;
 }
+.player-grid-card-text { min-width: 0; }
 .player-grid-card-name {
   font-size: 10px;
   font-weight: 600;
