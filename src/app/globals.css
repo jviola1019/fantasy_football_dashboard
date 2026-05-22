@@ -14,41 +14,41 @@
    consumers, zero conflict.
    ──────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-background: #070a0d;
-  --color-foreground: #e8e1cf;
-  --color-card: #11171d;
-  --color-card-foreground: #e8e1cf;
-  --color-popover: #11171d;
-  --color-popover-foreground: #e8e1cf;
-  --color-primary: #7bb7ce;
-  --color-primary-foreground: #06080b;
-  --color-secondary: #161d24;
-  --color-secondary-foreground: #e8e1cf;
-  --color-muted: #161d24;
-  --color-muted-foreground: #8d9aa0;
-  --color-accent: #1c2730;
-  --color-accent-foreground: #e8e1cf;
-  --color-destructive: #d9866f;
-  --color-destructive-foreground: #06080b;
-  --color-border: rgba(214, 226, 226, 0.1);
-  --color-input: rgba(214, 226, 226, 0.14);
-  --color-ring: #7bb7ce;
+  --color-background: #0c0e12;
+  --color-foreground: #e9ebef;
+  --color-card: #16191f;
+  --color-card-foreground: #e9ebef;
+  --color-popover: #16191f;
+  --color-popover-foreground: #e9ebef;
+  --color-primary: #4a8cf7;
+  --color-primary-foreground: #0c0e12;
+  --color-secondary: #1d212a;
+  --color-secondary-foreground: #e9ebef;
+  --color-muted: #1d212a;
+  --color-muted-foreground: #878f9c;
+  --color-accent: #232833;
+  --color-accent-foreground: #e9ebef;
+  --color-destructive: #e7574c;
+  --color-destructive-foreground: #0c0e12;
+  --color-border: rgba(255, 255, 255, 0.09);
+  --color-input: rgba(255, 255, 255, 0.14);
+  --color-ring: #4a8cf7;
 
-  --color-sidebar: #05080b;
-  --color-sidebar-foreground: #8d9aa0;
-  --color-sidebar-primary: #d7a857;
-  --color-sidebar-primary-foreground: #06080b;
-  --color-sidebar-accent: #11171d;
-  --color-sidebar-accent-foreground: #e8e1cf;
-  --color-sidebar-border: rgba(214, 226, 226, 0.1);
-  --color-sidebar-ring: #7bb7ce;
+  --color-sidebar: #0a0c0f;
+  --color-sidebar-foreground: #878f9c;
+  --color-sidebar-primary: #eaa53d;
+  --color-sidebar-primary-foreground: #0c0e12;
+  --color-sidebar-accent: #16191f;
+  --color-sidebar-accent-foreground: #e9ebef;
+  --color-sidebar-border: rgba(255, 255, 255, 0.09);
+  --color-sidebar-ring: #4a8cf7;
 
-  /* RAE neon accents, also exposed as Tailwind utilities */
-  --color-rae-amber: #d7a857;
-  --color-rae-green: #77d7b0;
-  --color-rae-red: #d9866f;
-  --color-rae-blue: #7bb7ce;
-  --color-rae-purple: #9b7fe8;
+  /* RAE accents, also exposed as Tailwind utilities */
+  --color-rae-amber: #eaa53d;
+  --color-rae-green: #35c08a;
+  --color-rae-red: #e7574c;
+  --color-rae-blue: #4a8cf7;
+  --color-rae-purple: #8b7be0;
 
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -58,24 +58,28 @@
 
 /* ─── Design Tokens (legacy — source of truth for hand-rolled CSS) ─────────── */
 :root {
-  --bg: #070a0d;
-  --panel: rgba(17, 23, 29, 0.95);
-  --panel-2: rgba(22, 29, 36, 0.82);
-  --line: rgba(214, 226, 226, 0.1);
-  --cream: #e8e1cf;
-  --muted: #8d9aa0;
-  --amber: #d7a857;
-  --green: #77d7b0;
-  --teal: #4dd9c0;
-  --red: #d9866f;
-  --blue: #7bb7ce;
-  --purple: #9b7fe8;
-  --shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
-  --panel-shadow: 0 4px 32px rgba(0, 0, 0, 0.4);
+  --bg: #0c0e12;
+  --panel: #16191f;
+  --panel-2: #1d212a;
+  --line: rgba(255, 255, 255, 0.09);
+  --cream: #e9ebef;
+  --muted: #878f9c;
+  --amber: #eaa53d;
+  --green: #35c08a;
+  --teal: #2fb6c4;
+  --red: #e7574c;
+  --blue: #4a8cf7;
+  --purple: #8b7be0;
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  --panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
   --sidebar-w: 56px;
-  --glow-green: 0 0 16px rgba(119, 215, 176, 0.4);
-  --glow-blue: 0 0 16px rgba(123, 183, 206, 0.4);
-  --glow-amber: 0 0 16px rgba(215, 168, 87, 0.4);
+  --glow-green: none;
+  --glow-blue: none;
+  --glow-amber: none;
+  --pos-qb: #ef5c7a;
+  --pos-rb: #35c08a;
+  --pos-wr: #4a8cf7;
+  --pos-te: #eaa53d;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -83,7 +87,7 @@
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: radial-gradient(circle at 20% -10%, rgba(123, 183, 206, .16), transparent 30%), var(--bg);
+  background: var(--bg);
   color: var(--cream);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 13px;
@@ -192,10 +196,9 @@ ul { margin: 0; padding: 0; list-style: none; }
 .league-pulse {
   position: relative;
   border: 1px solid var(--line);
-  background: radial-gradient(circle at 50% 50%, rgba(123,183,206,.06), transparent 60%),
-              linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px),
+  background: linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px),
               linear-gradient(rgba(255,255,255,.018) 1px, transparent 1px);
-  background-size: auto, 36px 36px, 36px 36px;
+  background-size: 36px 36px, 36px 36px;
   min-height: 340px;
 }
 .league-pulse-label {
@@ -220,7 +223,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 28px;
   font-weight: 800;
   color: var(--cream);
-  text-shadow: 0 0 20px rgba(123, 183, 206, .45);
+  text-shadow: none;
 }
 .league-pulse-center-label {
   font-size: 9px;
@@ -379,8 +382,7 @@ td small { color: var(--muted); }
 .galaxy-field {
   position: relative;
   border: 1px solid var(--line);
-  background: radial-gradient(ellipse at center, rgba(123,183,206,.08), transparent 65%),
-              #030508;
+  background: #0a0c0f;
   /* No overflow:hidden — clipped the WebGL canvas in the previous build. */
   min-height: 320px;
 }
@@ -504,8 +506,8 @@ td small { color: var(--muted); }
 }
 
 @keyframes node-glow {
-  0%, 100% { filter: drop-shadow(0 0 4px rgba(119, 215, 176, 0.35)); }
-  50%       { filter: drop-shadow(0 0 14px rgba(119, 215, 176, 0.75)); }
+  0%, 100% { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); }
+  50%       { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); }
 }
 
 @keyframes star-twinkle {
@@ -558,8 +560,8 @@ td small { color: var(--muted); }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: radial-gradient(ellipse at center, rgba(123,183,206,.06), transparent 70%), #060a0e;
-  border: 1px dashed rgba(123, 183, 206, .2);
+  background: #0a0c0f;
+  border: 1px dashed rgba(255, 255, 255, .12);
   border-radius: 6px;
 }
 .scene-fallback-mark { color: var(--blue); font-size: 18px; letter-spacing: .3em; opacity: .7; }
@@ -577,8 +579,8 @@ td small { color: var(--muted); }
   /* Aligned to the PanelGrid's 16px gutter (was an ad-hoc 14px). */
   margin: 12px 16px 0;
   padding: 8px 14px;
-  background: linear-gradient(90deg, rgba(123, 183, 206, 0.14), rgba(155, 127, 232, 0.1));
-  border: 1px solid rgba(123, 183, 206, 0.35);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--cream);
   font-size: 12px;
@@ -627,7 +629,7 @@ td small { color: var(--muted); }
   outline: none;
   transition: border-color .15s, box-shadow .15s;
 }
-.login-input:focus { border-color: rgba(123, 183, 206, .6); box-shadow: 0 0 0 2px rgba(123, 183, 206, .15); }
+.login-input:focus { border-color: rgba(74, 140, 247, .6); box-shadow: 0 0 0 2px rgba(74, 140, 247, .12); }
 .login-input-invalid { border-color: rgba(217, 134, 111, .7); }
 .field-hint { margin: 0; font-size: 11px; }
 .field-hint-error { color: var(--red); }
