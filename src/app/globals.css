@@ -210,7 +210,6 @@ ul { margin: 0; padding: 0; list-style: none; }
   letter-spacing: .12em;
   color: var(--muted);
 }
-.pulse-node { animation: node-glow 2.8s ease-in-out infinite; }
 .league-pulse-center {
   position: absolute;
   inset: 0;
@@ -246,30 +245,6 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 13px;
 }
 
-.galaxy-empty {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  color: rgba(232, 225, 207, .3);
-  font-size: 12px;
-  pointer-events: none;
-}
-.galaxy-cycler {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 10px;
-  font-size: 11px;
-  color: var(--muted);
-  border-top: 1px solid var(--line);
-}
-.galaxy-cycler button {
-  color: var(--blue);
-  font-size: 11px;
-  padding: 2px 6px;
-}
-.galaxy-cycler button:hover { color: var(--cream); }
 
 .ci-list { display: flex; flex-direction: column; gap: 6px; }
 .ci-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; border-bottom: 1px solid rgba(214,226,226,0.05); font-size: 11px; color: var(--cream); }
@@ -278,10 +253,16 @@ ul { margin: 0; padding: 0; list-style: none; }
 
 .vol-surface-legend {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
   font-size: 10px;
+  color: var(--muted);
   margin-top: 6px;
 }
+.vol-legend-cyan  { color: #2fb6c4; }
+.vol-legend-purple { color: #8b7be0; }
+.vol-legend-amber  { color: #eaa53d; }
+.vol-legend-ml    { margin-left: 6px; }
 
 /* ─── Narrative Momentum ─────────────────────────────────────────────────── */
 .narrative-momentum {
@@ -708,13 +689,6 @@ td small { color: var(--muted); }
 
 /* ─── Player Universe ────────────────────────────────────────────────────── */
 .universe-layout { display: grid; grid-template-columns: 1fr 180px; gap: 8px; }
-.galaxy-field {
-  position: relative;
-  border: 1px solid var(--line);
-  background: #0a0c0f;
-  /* No overflow:hidden — clipped the WebGL canvas in the previous build. */
-  min-height: 320px;
-}
 .galaxy-select, .galaxy-search {
   background: var(--panel-2);
   border: 1px solid var(--line);
@@ -726,7 +700,6 @@ td small { color: var(--muted); }
 }
 .galaxy-search { width: 140px; }
 .galaxy-search::placeholder { color: var(--muted); }
-.star { animation: star-twinkle 3s ease-in-out infinite; }
 .player-profile-card {
   padding: 10px;
   border: 1px solid var(--line);
@@ -834,20 +807,6 @@ td small { color: var(--muted); }
   50% { opacity: 0.45; }
 }
 
-@keyframes node-glow {
-  0%, 100% { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); }
-  50%       { filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); }
-}
-
-@keyframes star-twinkle {
-  0%, 100% { opacity: 0.3; }
-  50%       { opacity: 0.9; }
-}
-
-@keyframes flow-particle {
-  from { stroke-dashoffset: 200; opacity: 0; }
-  to   { stroke-dashoffset: 0;   opacity: 0.7; }
-}
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 /* The dashboard grid reflows via Tailwind breakpoints in PanelGrid; only the

@@ -233,17 +233,30 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
 function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
   const sim = runNexusSimulation(players, { seed: 20260513, iterations: 1000, rosterSlots: 6, riskTolerance: 0.5 });
   return (
-    <div className="chart-wrap">
-      <div className="section-label">VOLATILITY SURFACE — Simulated Envelope</div>
+    <div className="chart-wrap vol-surface-wrap">
+      <div className="section-label">VOLATILITY SURFACE — Outcome Probability Landscape</div>
       <Canvas3D
-        ariaLabel="3-D volatility surface encoding playoff probability and catastrophic risk"
+        ariaLabel="3-D volatility surface: height and color encode outcome probability across a risk landscape"
         height={220}
+        cameraPosition={[0, 3.5, 5.5]}
+        cameraFov={45}
       >
         <VolatilitySurfaceScene sim={sim} />
       </Canvas3D>
+      <div className="vol-axis-labels">
+        <span>← Low Risk</span>
+        <span>Risk Axis</span>
+        <span>High Risk →</span>
+      </div>
       <div className="vol-surface-legend">
-        <span className="muted-text">High Volatility</span>
-        <span className="pos-text">Low Volatility</span>
+        <span className="vol-legend-cyan">■</span> Low probability (valley)
+        <span className="vol-legend-purple vol-legend-ml">■</span> Mid-range
+        <span className="vol-legend-amber vol-legend-ml">■</span> High probability (peak)
+      </div>
+      <div className="vol-surface-caption">
+        <strong>Reading this surface:</strong> Height = outcome probability. Color: cyan → purple → amber.
+        X-axis = playoff probability; Y-axis = catastrophic risk exposure.
+        Amber peaks mark scenarios where your roster has the highest probability of a positive outcome.
       </div>
     </div>
   );
