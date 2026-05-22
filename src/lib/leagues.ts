@@ -15,6 +15,8 @@ export interface CreateLeagueInput {
   credentials?: { espnS2: string; swid: string };
   /** Detected league format from verification; persisted as JSON. */
   settings?: LeagueFormat;
+  /** Sleeper-only: the user's Sleeper username used to identify their roster. */
+  sleeperUsername?: string;
 }
 
 export interface DecryptedCredentials {
@@ -30,6 +32,8 @@ export interface LeagueRecord {
   season: number;
   label: string;
   settings: LeagueFormat | null;
+  /** Sleeper-only: stored so we can resolve the user's roster_id at query time. */
+  sleeperUsername: string | null;
   createdAt: Date;
 }
 
@@ -47,7 +51,8 @@ export async function createLeague(db: Db, input: CreateLeagueInput): Promise<Le
       externalLeagueId: input.externalLeagueId,
       season: input.season,
       label: input.label,
-      settings: input.settings ? JSON.stringify(input.settings) : null
+      settings: input.settings ? JSON.stringify(input.settings) : null,
+      sleeperUsername: input.sleeperUsername ?? null
     })
     .returning();
   const row = inserted[0]!;
@@ -115,6 +120,7 @@ function toRecord(row: typeof schema.leagues.$inferSelect): LeagueRecord {
     season: row.season,
     label: row.label,
     settings: row.settings ? (JSON.parse(row.settings) as LeagueFormat) : null,
+    sleeperUsername: row.sleeperUsername ?? null,
     createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt)
   };
 }

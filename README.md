@@ -7,11 +7,11 @@ RAE is a fantasy football behavioral-market intelligence operating system. It is
 RAE uses Next.js, TypeScript, Tailwind CSS v4 + shadcn/ui (Radix) for the shell, Zod validation, and deterministic simulation utilities. See **Design system** below for how the Tailwind layer coexists with the legacy CSS-variable theme.
 
 Service boundaries:
-1. **Frontend app** — five top-level systems only: Command Center, Market Intelligence, Player Universe, Narrative Engine, and Nexus Simulator.
+1. **Frontend app** — nine top-level systems: Command Center, Market Intelligence, Player Universe, Narrative Engine, Nexus Simulator, Draft Intelligence, Pre-Draft, Waiver Wire, and Trade Center.
 2. **Data adapter layer** — adapter isolation begins with the Sleeper public players API boundary in `src/lib/sleeper.ts`.
 3. **API abstraction/governance layer** — `src/lib/governance.ts` defines source metadata, freshness, missingness, confidence, validation state, and bounded cache key behavior.
 4. **Simulation engine** — `src/lib/simulation.ts` provides seeded Monte Carlo primitives, parameter logging, replayability, and assumptions.
-5. **Rendering pipeline** — `src/components/RaeApp.tsx` renders topology, liquidity, orbital, narrative, and multiverse systems from validated records only.
+5. **Rendering pipeline** — `src/components/RaeApp.tsx` renders all nine systems from validated records only.
 6. **Audit layer** — docs and UI banners expose stale, fixture, missing, unavailable, and validation states.
 
 ## Data sources
@@ -121,11 +121,11 @@ See `docs/trade-calibration.md` for the full backtest and validation methodology
 
 ## Draft systems
 
-Draft Intelligence is the sixth top-level system (`src/components/panels/DraftIntelligence.tsx`). It ships with:
+Draft Intelligence is one of the nine top-level systems (`src/components/panels/DraftIntelligence.tsx`). It ships with:
 - Live Board — click rows to draft to your roster.
 - Recommendation Queue — categories (`Value`, `Need`, `Stash`, `Run`) with a deterministic scoring function in `src/lib/draft/recommend.ts`.
 - Tier Collapse Forecast — per-position tier breaks and intensity, from `src/lib/draft/tiers.ts`.
-- Multiverse — 3-D branching path scene driven by branch probability and projected roster delta.
+- 2-D Draft Board — ranked player list with position colors and draft-pick tracking.
 
 Recommendation and tier logic are pure functions with unit tests in `src/lib/draft/*.test.ts`. Live draft ingestion can be wired by calling `getDraftPicks(draftId)` (Sleeper) or `getDraft(client, { leagueId, season })` (ESPN) and feeding the result into the panel.
 
@@ -148,10 +148,10 @@ Freshness states are `fresh`, `stale`, `missing`, `unavailable`, and `fixture`.
 
 The shell, navigation, panel grid, and shared panel chrome are built on **Tailwind CSS v4 + shadcn/ui** (Radix primitives, `new-york` style). The data internals — KPI strips, dense tables, charts, and the WebGL canvases — stay on the original `globals.css` classes, which already match the blueprint's data-dashboard density.
 
-- **Token bridge** — the legacy `:root` CSS variables (`--bg`, `--panel`, `--cream`, `--muted`, the neon ramp) remain the single source of truth. The shadcn tokens are defined alongside them in a Tailwind `@theme` block as a separate `--color-*` namespace, so the two systems share colors without collision (notably legacy `--muted` is a text color, shadcn `--color-muted` is a surface).
+- **Token bridge** — the legacy `:root` CSS variables (`--bg`, `--panel`, `--cream`, `--muted`, the position-color ramp) remain the single source of truth. The shadcn tokens are defined alongside them in a Tailwind `@theme` block as a separate `--color-*` namespace, so the two systems share colors without collision (notably legacy `--muted` is a text color, shadcn `--color-muted` is a surface).
 - **Coexistence** — `globals.css` prepends `@import "tailwindcss"`, then keeps the legacy rules below it. Tailwind utilities and legacy classes render side by side; Tailwind's Preflight sits in `@layer base` so the unlayered legacy CSS still cascades on top.
 - **shadcn components** — `Sidebar`, `Card`, `Tabs`-style `PanelTabs`, `Button`, `DropdownMenu`, `Tooltip`, `Input`, `Badge`, `Separator` live in `src/components/ui/`. The dashboard shell composes them via `AppSidebar`, `TopBar`, `PanelGrid`, and `PanelCard`.
-- **What stayed on legacy CSS** — `.kpi-row`, `.table-wrap`, `.section-label`, chart primitives, and every WebGL/keyframe rule. The dead shell/grid/tab rules (`.system-panel`, `.dashboard-grid`, `.tab-row`, etc.) were pruned.
+- **What stayed on legacy CSS** — `.kpi-row`, `.table-wrap`, `.section-label`, chart primitives, and 2-D visualization keyframe rules. The dead shell/grid/tab rules (`.system-panel`, `.dashboard-grid`, `.tab-row`, etc.) were pruned.
 
 ## Mobile responsiveness
 
@@ -188,22 +188,23 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 180 unit/integration tests; CI runs typecheck + lint + vitest + Playwright +
+`vitest` holds 208 unit/integration tests; CI runs typecheck + lint + vitest + Playwright +
 Lighthouse on every push (`.github/workflows/ci.yml`).
 
 ## Design philosophy
 
-RAE pairs a graphite-and-cream institutional base with restrained neon accents that are only emitted by data-bright pixels — never used decoratively. Reference set: Bloomberg Terminal density discipline, Tremor-style information hierarchy, Awwwards-winning WebGL signal visualizations. The result is dense and operational with selectively dimensional 3-D where the metaphor (orbital topology, liquidity ribbons, volatility surface, multiverse paths) genuinely encodes signal.
+RAE uses a professional "pro sports-analytics" design language: a disciplined dark palette with a graphite-and-cream institutional base, position-specific accent colors, and restrained status indicators. The approach is player-forward — dense tables, leaderboards, bar charts, and player grids over decorative abstraction. Reference set: Bloomberg Terminal density discipline, Tremor-style information hierarchy, pro sports broadcast data presentation.
 
 Implementation rules:
-- DOM owns KPI cards, tables, lists, gauges, and controls (a11y, copy, selection).
-- WebGL (`react-three-fiber`) owns topology and surface visualizations only. One `<Canvas>` per scene; `frameloop="always"` (Three.js draws the scene on its own cadence) — each scene checks `useReducedMotion()` and skips per-frame animation for reduced-motion users so the canvas still renders a static image.
-- Every animation responds to `prefers-reduced-motion` via Framer Motion's `useReducedMotion()` — including the canvas auto-rotation in `OrbitalTopology`, `LiquidityFlow`, `NarrativeField`, `PlayerGalaxy`, `VolatilitySurface`, and `DraftMultiverse`.
-- Neon palette is restricted to cyan/lime/magenta tokens used inside WebGL scenes; the DOM layer stays on the original cream/amber/green/red/blue tokens.
+- DOM owns KPI cards, tables, lists, gauges, player leaderboards, and controls (a11y, copy, selection).
+- The five abstract decorative 3-D WebGL scenes from earlier versions have been removed and replaced with 2-D player-forward views: Command Center uses a player leaderboard, Player Universe uses a player grid, Narrative Engine uses a narrative-pressure bar list, Market Intelligence uses bar charts, and Draft Intelligence uses a 2-D draft board.
+- One 3-D scene remains: the **Volatility/Outcome Surface** (`VolatilitySurface.tsx`) in the Nexus Simulator and Market Intelligence Trends tab. This is kept because a 3-D surface genuinely fits a two-parameter risk landscape.
+- Every animation responds to `prefers-reduced-motion` via Framer Motion's `useReducedMotion()` — including the Volatility Surface canvas auto-rotation.
+- No decorative neon palette. Position colors (QB/RB/WR/TE/K/DEF) provide the only status-driven color signal.
 
 ## Motion philosophy
 
-Motion is restrained and data-encoded. Topology nodes, liquidity flows, narrative waves, and scenario branches animate from variables such as volatility, opportunity, narrative pressure, confidence, and fragility. Reduced-motion users receive suppressed animation.
+Motion is restrained and data-encoded. The Volatility Surface animates from volatility and outcome inputs. Reduced-motion users receive suppressed animation.
 
 ## No-synthetic-data philosophy
 

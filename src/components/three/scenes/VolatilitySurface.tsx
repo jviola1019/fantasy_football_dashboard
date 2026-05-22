@@ -53,8 +53,15 @@ export function VolatilitySurface({ sim }: Props) {
   useFrame((state) => {
     if (reduced) return;
     const t = state.clock.elapsedTime;
-    if (meshRef.current) meshRef.current.rotation.z = Math.sin(t * 0.1) * 0.04;
-    if (wireRef.current) wireRef.current.rotation.z = Math.sin(t * 0.1) * 0.04;
+    // Keep x constant; sway y gently so the surface reads as a graph, not a spin
+    if (meshRef.current) {
+      meshRef.current.rotation.x = -Math.PI / 4;
+      meshRef.current.rotation.y = 0.15 + Math.sin(t * 0.08) * 0.04;
+    }
+    if (wireRef.current) {
+      wireRef.current.rotation.x = -Math.PI / 4;
+      wireRef.current.rotation.y = 0.15 + Math.sin(t * 0.08) * 0.04;
+    }
     if (materialRef.current) {
       (materialRef.current as unknown as { uTime: number }).uTime = t;
     }
@@ -67,7 +74,8 @@ export function VolatilitySurface({ sim }: Props) {
       {/* Soft floor grid for depth reference */}
       <gridHelper args={[6, 12, "#1a2330", "#0c1119"]} position={[0, -1.45, 0]} />
 
-      <mesh ref={meshRef} rotation={[-Math.PI / 3, 0, 0]} position={[0, -0.25, 0]}>
+      {/* Surface — tilted for a clear top-down perspective */}
+      <mesh ref={meshRef} rotation={[-Math.PI / 4, 0.15, 0]} position={[0, -0.4, 0]}>
         <primitive object={geometry} attach="geometry" />
         <surfaceMaterial
           ref={materialRef}
@@ -79,7 +87,7 @@ export function VolatilitySurface({ sim }: Props) {
       </mesh>
 
       {/* Wireframe overlay traces the surface */}
-      <mesh ref={wireRef} rotation={[-Math.PI / 3, 0, 0]} position={[0, -0.245, 0]}>
+      <mesh ref={wireRef} rotation={[-Math.PI / 4, 0.15, 0]} position={[0, -0.395, 0]}>
         <primitive object={geometry} attach="geometry" />
         <meshBasicMaterial color="#0f1825" wireframe transparent opacity={0.32} />
       </mesh>

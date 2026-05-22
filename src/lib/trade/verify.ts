@@ -2,6 +2,7 @@ import { getLeague as getSleeperLeague } from "../sleeper/league";
 import { getLeague as getEspnLeague } from "../espn/league";
 import { EspnClient } from "../espn/client";
 import { parseSleeperFormat, parseEspnFormat, type LeagueFormat } from "./format";
+import { resolveEspnTeam } from "../leagues/fetchLive";
 
 export type VerifyResult =
   | { ok: true; format: LeagueFormat; resolvedLabel: string }
@@ -54,10 +55,11 @@ export async function verifyLeague(input: {
     return { ok: false, error: "ESPN leagues require espn_s2 and SWID cookies." };
   }
   const client = new EspnClient({ credentials: input.credentials });
+  // Fetch mSettings for format detection and mTeam to confirm ownership.
   const result = await getEspnLeague(
     client,
     { leagueId: input.externalLeagueId, season: input.season },
-    ["mSettings"]
+    ["mSettings", "mTeam"]
   );
   if (result.source.failure || !result.data) {
     return {
@@ -65,5 +67,23 @@ export async function verifyLeague(input: {
       error: "ESPN league not reachable. Check the league ID, season, and espn_s2/SWID cookies."
     };
   }
+
+  // Confirm the user's SWID owns a team in this league. If `teams` is absent
+  // (e.g. a public league that only returns settings) we skip the ownership
+  // check to avoid a false negative.
+  const teams = result.data.teams;
+  if (teams && teams.length > 0) {
+    type TeamWithOwner = (typeof teams)[number] & { primaryOwner?: string | null; owners?: string[] | null };
+    const owned = resolveEspnTeam(teams as TeamWithOwner[], input.credentials.swid);
+    if (!owned) {
+      return {
+        ok: false,
+        error:
+          "Your SWID does not match any team owner in this ESPN league. " +
+          "Check the league ID and that the espn_s2/SWID cookies belong to a member of this league."
+      };
+    }
+  }
+
   return interpretEspnLeague(result.data.settings);
 }

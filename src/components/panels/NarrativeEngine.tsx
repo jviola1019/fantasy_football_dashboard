@@ -5,9 +5,6 @@ import { Waves } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
-import { Canvas3D } from "../three/Canvas3D";
-import { NarrativeField } from "../three/scenes/NarrativeField";
-
 import {
   deriveNarrativeHalfLife,
   deriveViralVelocity,
@@ -85,14 +82,42 @@ function NarrativeFlowField({ players }: { players: PlayerMarketRecord[] }) {
   if (players.length === 0) {
     return <div className="empty-state"><b>No narrative data</b></div>;
   }
+  const sorted = [...players].sort(
+    (a, b) => Math.abs(b.narrativePressure) - Math.abs(a.narrativePressure)
+  );
+  const maxAbs = Math.max(...sorted.map((p) => Math.abs(p.narrativePressure)), 1);
+
   return (
-    <div className="narrative-flow-svg" aria-label="3-D narrative flow field">
-      <Canvas3D
-        ariaLabel="3-D narrative ribbons encoding velocity and direction"
-        height={260}
-      >
-        <NarrativeField players={players} />
-      </Canvas3D>
+    <div
+      className="narrative-flow-svg"
+      aria-label="Narrative pressure bar chart — players ranked by narrative impact"
+    >
+      <div className="narrative-flow-header section-label">NARRATIVE PRESSURE — by player</div>
+      <div className="narrative-bar-list narrative-bar-list-padded">
+        {sorted.map((p) => {
+          const val = p.narrativePressure;
+          const barPct = Math.round((Math.abs(val) / maxAbs) * 100);
+          const isPositive = val >= 0;
+          return (
+            <div key={p.id} className="narrative-bar-row">
+              <span className="narrative-bar-row-label" title={p.name}>
+                {p.name}
+              </span>
+              <div className="narrative-bar-track">
+                <div
+                  role="img"
+                  className={`narrative-bar-fill${isPositive ? " narrative-bar-pos" : " narrative-bar-neg"}`}
+                  style={{ ["--bar-w" as string]: `${barPct}%` }}
+                  aria-label={`${p.name} narrative pressure: ${val}`}
+                />
+              </div>
+              <span className={`narrative-bar-val${isPositive ? " pos-text" : " neg-text"}`}>
+                {isPositive ? "+" : ""}{Math.round(val)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

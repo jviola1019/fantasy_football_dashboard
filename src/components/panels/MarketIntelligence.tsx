@@ -6,8 +6,8 @@ import type { PlayerMarketRecord } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { Canvas3D } from "../three/Canvas3D";
-import { LiquidityFlow as LiquidityFlowScene } from "../three/scenes/LiquidityFlow";
 import { VolatilitySurface as VolatilitySurfaceScene } from "../three/scenes/VolatilitySurface";
+import { BarChart } from "@/components/charts/BarChart";
 import { runNexusSimulation } from "@/lib/simulation";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, narrativeVelocity, marketInefficiency, confidenceInterval } from "@/lib/models";
@@ -146,19 +146,25 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
   if (players.length === 0) {
     return <div className="empty-state"><b>No data</b></div>;
   }
+  const sorted = [...players].sort((a, b) => b.opportunity - a.opportunity).slice(0, 12);
+  const items = sorted.map((p) => ({
+    label: p.name.split(" ").pop() ?? p.name,
+    value: Math.round(p.opportunity),
+    color: p.opportunity > 70 ? "var(--green)" : p.opportunity > 40 ? "var(--amber)" : "var(--muted)",
+  }));
+
   return (
     <div className="liquidity-flow-wrap">
-      <div className="section-label">LIQUIDITY FLOW</div>
+      <div className="section-label">LIQUIDITY FLOW — Players by Opportunity</div>
       <div className="flow-legend">
-        <span className="legend-dot" style={{ background: "#4dd9c0" }} /> High Liquidity
-        <span className="legend-dot" style={{ background: "#f0abfc", marginLeft: 12 }} /> High Inefficiency
+        <span className="legend-dot liquidity-dot-high" /> High Opportunity
+        <span className="legend-dot liquidity-dot-mid legend-dot-ml" /> Moderate
+        <span className="legend-dot liquidity-dot-low legend-dot-ml" /> Low
       </div>
-      <Canvas3D
-        ariaLabel="3-D liquidity flow ribbons encoding opportunity and market inefficiency"
-        height={220}
-      >
-        <LiquidityFlowScene players={players} />
-      </Canvas3D>
+      <BarChart items={items} max={100} />
+      <p className="small-note liquidity-note">
+        Bar length = opportunity score (0–100). Green = high-liquidity / high-upside players.
+      </p>
     </div>
   );
 }
@@ -227,17 +233,30 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
 function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
   const sim = runNexusSimulation(players, { seed: 20260513, iterations: 1000, rosterSlots: 6, riskTolerance: 0.5 });
   return (
-    <div className="chart-wrap">
-      <div className="section-label">VOLATILITY SURFACE — Simulated Envelope</div>
+    <div className="chart-wrap vol-surface-wrap">
+      <div className="section-label">VOLATILITY SURFACE — Outcome Probability Landscape</div>
       <Canvas3D
-        ariaLabel="3-D volatility surface encoding playoff probability and catastrophic risk"
+        ariaLabel="3-D volatility surface: height and color encode outcome probability across a risk landscape"
         height={220}
+        cameraPosition={[0, 3.5, 5.5]}
+        cameraFov={45}
       >
         <VolatilitySurfaceScene sim={sim} />
       </Canvas3D>
+      <div className="vol-axis-labels">
+        <span>← Low Risk</span>
+        <span>Risk Axis</span>
+        <span>High Risk →</span>
+      </div>
       <div className="vol-surface-legend">
-        <span className="muted-text">High Volatility</span>
-        <span className="pos-text">Low Volatility</span>
+        <span className="vol-legend-cyan">■</span> Low probability (valley)
+        <span className="vol-legend-purple vol-legend-ml">■</span> Mid-range
+        <span className="vol-legend-amber vol-legend-ml">■</span> High probability (peak)
+      </div>
+      <div className="vol-surface-caption">
+        <strong>Reading this surface:</strong> Height = outcome probability. Color: cyan → purple → amber.
+        X-axis = playoff probability; Y-axis = catastrophic risk exposure.
+        Amber peaks mark scenarios where your roster has the highest probability of a positive outcome.
       </div>
     </div>
   );

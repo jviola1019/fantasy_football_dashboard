@@ -27,11 +27,24 @@ interface SleeperTxn {
 /**
  * Normalize raw Sleeper transactions into graded trades. `adds` maps a player
  * id to the roster id that received them; side A is the first roster id.
+ *
+ * Pass `leagueUsers` to resolve real display names for trade labels; omit for
+ * the anonymous `Roster N` fallback.
  */
 export function normalizeSleeperTrades(
   txns: SleeperTxn[],
-  valueMap: Map<string, PlayerValue>
+  valueMap: Map<string, PlayerValue>,
+  leagueUsers?: ReadonlyArray<{ user_id: string; display_name?: string | null; roster_id?: number | null }>
 ): GradedTrade[] {
+  // Build a roster_id → display_name lookup when users are provided.
+  const rosterLabel = (rosterId: number): string => {
+    if (leagueUsers) {
+      const user = leagueUsers.find((u) => u.roster_id === rosterId);
+      if (user?.display_name) return user.display_name;
+    }
+    return `Roster ${rosterId}`;
+  };
+
   const out: GradedTrade[] = [];
   for (const t of txns) {
     if (t.type !== "trade" || t.status !== "complete") continue;
@@ -45,11 +58,12 @@ export function normalizeSleeperTrades(
       if (!pv) continue;
       (rosterId === rosterA ? sideA : sideB).push(pv);
     }
+    const rosterB = rosterIds[1];
     out.push({
       id: `sleeper-${t.created ?? out.length}`,
       proposedAt: new Date(t.created ?? Date.now()).toISOString(),
-      sideALabel: `Roster ${rosterA}`,
-      sideBLabel: `Roster ${rosterIds[1] ?? "?"}`,
+      sideALabel: rosterLabel(rosterA),
+      sideBLabel: rosterB != null ? rosterLabel(rosterB) : "Roster ?",
       sideA,
       sideB,
       verdict: evaluateTrade(sideA, sideB)
@@ -58,16 +72,21 @@ export function normalizeSleeperTrades(
   return out;
 }
 
-/** Fetch and grade completed trades from the most recent Sleeper weeks. */
+/**
+ * Fetch and grade completed trades for the full Sleeper season (weeks 1 through
+ * the current NFL week, capped at 18). The previous hard-coded 6-week window
+ * silently dropped older trades.
+ */
 export async function fetchSleeperLeagueTrades(
   leagueId: string,
-  valueMap: Map<string, PlayerValue>,
-  weeksBack = 6
+  valueMap: Map<string, PlayerValue>
 ): Promise<GradedTrade[]> {
   const state = await getNflState();
-  const week = state.data != null && typeof state.data.week === "number" ? state.data.week : 1;
+  const currentWeek =
+    state.data != null && typeof state.data.week === "number" ? state.data.week : 1;
+  const maxWeek = Math.min(currentWeek, 18);
   const graded: GradedTrade[] = [];
-  for (let w = week; w > Math.max(0, week - weeksBack); w--) {
+  for (let w = 1; w <= maxWeek; w++) {
     const envelope = await getTransactions(leagueId, w);
     if (envelope.source.failure || !envelope.data) continue;
     graded.push(...normalizeSleeperTrades(envelope.data as unknown as SleeperTxn[], valueMap));
@@ -87,11 +106,23 @@ export function indexByEspnId(valueMap: Map<string, PlayerValue>): Map<string, P
 /**
  * Normalize raw ESPN transactions into graded trades. ESPN trade items carry
  * `fromTeamId`/`toTeamId`; side A is the first team that receives a player.
+ *
+ * Pass `teamNames` (teamId → display name) to resolve real team names for
+ * trade labels; omit for the anonymous `Team N` fallback.
  */
 export function normalizeEspnTrades(
   txns: EspnTransaction[],
-  valueByEspnId: Map<string, PlayerValue>
+  valueByEspnId: Map<string, PlayerValue>,
+  teamNames?: Map<number, string>
 ): GradedTrade[] {
+  const teamLabel = (teamId: number | null | undefined): string => {
+    if (teamId != null && teamNames) {
+      const name = teamNames.get(teamId);
+      if (name) return name;
+    }
+    return `Team ${teamId ?? "?"}`;
+  };
+
   const out: GradedTrade[] = [];
   for (const t of txns) {
     if (!t.type || !t.type.includes("TRADE")) continue;
@@ -114,8 +145,8 @@ export function normalizeEspnTrades(
     out.push({
       id: `espn-${t.id ?? out.length}`,
       proposedAt: new Date(t.proposedDate ?? Date.now()).toISOString(),
-      sideALabel: `Team ${teamA ?? "?"}`,
-      sideBLabel: `Team ${teamB ?? "?"}`,
+      sideALabel: teamLabel(teamA),
+      sideBLabel: teamLabel(teamB),
       sideA,
       sideB,
       verdict: evaluateTrade(sideA, sideB)

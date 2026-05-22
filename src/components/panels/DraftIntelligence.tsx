@@ -7,8 +7,6 @@ import { recommend, type Recommendation } from "@/lib/draft/recommend";
 import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { derivePositionGrades } from "@/lib/derivedMetrics";
-import { Canvas3D } from "../three/Canvas3D";
-import { DraftMultiverse } from "../three/scenes/DraftMultiverse";
 import { reputationEdge } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
@@ -71,18 +69,7 @@ export function DraftIntelligence({ players }: Props) {
         <TierCollapseView signals={collapseSignals} grades={grades} />
       )}
       {activeTab === "Multiverse" && (
-        <div className="multiverse-wrap">
-          <div className="section-label">DRAFT MULTIVERSE</div>
-          <Canvas3D
-            ariaLabel="3-D draft branching paths weighted by branch probability"
-            height={260}
-          >
-            <DraftMultiverse />
-          </Canvas3D>
-          <p className="muted-note" style={{ marginTop: 6 }}>
-            Tube color and thickness encode branch probability and projected roster delta. Connect a live Sleeper or ESPN draft to drive paths from actual remaining picks.
-          </p>
-        </div>
+        <DraftBoardView recommendations={recommendations} />
       )}
     </PanelCard>
   );
@@ -288,4 +275,43 @@ function scoreFromGrade(grade: string): number {
     default:
       return 50;
   }
+}
+
+function DraftBoardView({ recommendations }: { recommendations: Recommendation[] }) {
+  const maxScore = Math.max(...recommendations.map((r) => r.score), 1);
+  return (
+    <div className="multiverse-wrap">
+      <div className="section-label">DRAFT RECOMMENDATION BOARD</div>
+      {recommendations.length === 0 ? (
+        <p className="draft-board-empty">
+          No recommendations yet — draft players on the Live Board to populate this view.
+        </p>
+      ) : (
+        <ol className="draft-board-list" aria-label="Draft recommendation board ranked by score">
+          {recommendations.map((rec, idx) => (
+            <li key={rec.player.id} className="draft-board-row">
+              <span className="draft-board-rank">{idx + 1}</span>
+              <span className="draft-board-name" title={rec.player.name}>
+                {rec.player.name}
+              </span>
+              <span className="pos-badge" data-pos={rec.player.position.toLowerCase()}>
+                {rec.player.position}
+              </span>
+              <span className="draft-board-category">{rec.category}</span>
+              <div className="draft-board-bar-wrap" aria-hidden="true">
+                <div
+                  className="draft-board-bar"
+                  style={{ ["--bar-w" as string]: `${Math.round((rec.score / maxScore) * 100)}%` }}
+                />
+              </div>
+              <span className="draft-board-score">{rec.score}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="small-note draft-board-note">
+        Ranked by composite draft score. VALUE = underpriced opportunity · NEED = positional gap · UPSIDE = high-ceiling pick.
+      </p>
+    </div>
+  );
 }

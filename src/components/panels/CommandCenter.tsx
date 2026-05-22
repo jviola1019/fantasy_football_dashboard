@@ -4,9 +4,8 @@ import { useState } from "react";
 import { Zap } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
-import { Canvas3D } from "../three/Canvas3D";
-import { OrbitalTopology } from "../three/scenes/OrbitalTopology";
 import type { SimulationResult } from "@/lib/simulation";
+import { PlayerRow } from "../PlayerRow";
 import type { CommandMetrics, PositionGrades } from "@/lib/derivedMetrics";
 import { narrativeVelocity } from "@/lib/models";
 import {
@@ -100,19 +99,37 @@ function MetricStrip({ metrics }: { metrics: CommandMetrics }) {
 }
 
 function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarketRecord[]; marketEdge: number; timeRange: string }) {
+  const ranked = [...players].sort((a, b) => b.trueValue - a.trueValue);
+  const maxVal = ranked[0]?.trueValue ?? 100;
   return (
-    <div className="league-pulse" aria-label="League pulse 3-D topology">
-      <div className="league-pulse-label">LEAGUE PULSE</div>
-      <Canvas3D ariaLabel="3-D player topology encoding true value, narrative pressure, and market inefficiency" height={300}>
-        <OrbitalTopology players={players} />
-      </Canvas3D>
-      <div className="league-pulse-center">
-        <div className="league-pulse-center-value">{marketEdge}</div>
-        <div className="league-pulse-center-label">Market Edge</div>
-        <div className="league-pulse-center-sub">{timeRange} view</div>
+    <div className="league-pulse" role="region" aria-label="League pulse player leaderboard">
+      <div className="league-pulse-topbar">
+        <span className="league-pulse-label">LEAGUE PULSE</span>
+        <span className="league-pulse-edge-pill">
+          <span className="league-pulse-edge-val">{marketEdge}</span>
+          <span className="league-pulse-edge-lbl">Market Edge · {timeRange}</span>
+        </span>
       </div>
-      {players.length === 0 && (
-        <div className="league-pulse-empty" role="status">Awaiting league data</div>
+
+      {players.length === 0 ? (
+        <div className="league-pulse-empty" role="status">
+          <span className="lp-empty-icon">—</span>
+          <span>Awaiting league data</span>
+        </div>
+      ) : (
+        <ol className="leaderboard-list" aria-label="Players ranked by true value">
+          {ranked.map((p, idx) => (
+            <li key={p.id} className="leaderboard-row">
+              <span className="lb-rank">{idx + 1}</span>
+              <PlayerRow
+                player={p}
+                metricValue={Math.round(p.trueValue)}
+                barPct={(p.trueValue / maxVal) * 100}
+                size={32}
+              />
+            </li>
+          ))}
+        </ol>
       )}
     </div>
   );

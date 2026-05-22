@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("public dashboard", () => {
-  test("homepage renders the 9-system nav and live WebGL without crashing", async ({ page }) => {
+  test("homepage renders the 9-system nav and 2-D player views without crashing", async ({ page }) => {
     await page.goto("/");
 
     // The page must NOT fall back to Next.js's global error boundary.
@@ -12,42 +12,34 @@ test.describe("public dashboard", () => {
     const tabs = nav.locator("button");
     await expect(tabs).toHaveCount(9);
 
-    // At least one WebGL scene must mount and paint near the top of the page.
-    // We assert ≥ 1 rather than a fixed count: the number of *concurrent*
-    // WebGL contexts a browser grants is GPU-dependent — headless software
-    // rendering (CI) caps it lower than a real GPU. Panels that can't get a
-    // context degrade to a static fallback via <SceneErrorBoundary> instead of
-    // crashing the page, so the meaningful assertions are "WebGL works at all"
-    // + "page did not crash".
-    const canvases = page.locator("canvas");
-    await expect(canvases.first()).toBeVisible({ timeout: 30_000 });
-    expect(await canvases.count()).toBeGreaterThanOrEqual(1);
+    // ── Nexus Simulator: only remaining panel with a 3-D Canvas on its
+    // default tab ("Multiverse"). Assert it mounts a canvas or degrades
+    // gracefully — never a blank/broken region.
+    const nexus = page.locator("#nexus-simulator");
+    await nexus.scrollIntoViewIfNeeded();
+    await expect(
+      nexus.locator("canvas, .scene-fallback").first()
+    ).toBeVisible({ timeout: 30_000 });
 
-    // Every panel's scene region must be exactly one of: a live WebGL canvas
-    // or the graceful <SceneErrorBoundary> fallback — never a blank/broken
-    // region. A browser that refuses a WebGL context degrades to the fallback
-    // rather than crashing the page.
-    const sceneRegionCount = await page.locator("canvas, .scene-fallback").count();
-    expect(sceneRegionCount).toBeGreaterThanOrEqual(4);
+    // ── Command Center: leaderboard with player names (no 3-D scene).
+    const cc = page.locator("#command-center");
+    await cc.scrollIntoViewIfNeeded();
+    await expect(cc.locator('[aria-label="League pulse player leaderboard"], .league-pulse-empty').first())
+      .toBeVisible({ timeout: 15_000 });
 
-    // Each 3-D panel whose default tab embeds a scene must resolve to a real
-    // WebGL canvas (or the honest error fallback if the GPU refuses a context).
-    // Market Intelligence and Draft Intelligence keep their scenes behind a
-    // non-default tab, so they are excluded here.
-    for (const panelId of [
-      "command-center",
-      "player-universe",
-      "narrative-engine",
-      "nexus-simulator"
-    ]) {
-      const panel = page.locator(`#${panelId}`);
-      await panel.scrollIntoViewIfNeeded();
-      // After scroll-in the panel resolves to a canvas or the error fallback;
-      // the placeholder is transient and must not be the resting state.
-      await expect(
-        panel.locator("canvas, .scene-fallback").first()
-      ).toBeVisible({ timeout: 30_000 });
-    }
+    // ── Player Universe: 2-D player-grid cards (no 3-D scene).
+    const pu = page.locator("#player-universe");
+    await pu.scrollIntoViewIfNeeded();
+    await expect(
+      pu.locator('[aria-label="Player grid"], .player-grid-empty').first()
+    ).toBeVisible({ timeout: 15_000 });
+
+    // ── Narrative Engine: narrative bar list (no 3-D scene).
+    const ne = page.locator("#narrative-engine");
+    await ne.scrollIntoViewIfNeeded();
+    await expect(
+      ne.locator('[aria-label*="Narrative"], .empty-state').first()
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("topbar shows the Sign in entry point when logged out", async ({ page }) => {

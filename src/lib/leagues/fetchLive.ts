@@ -1,6 +1,6 @@
 import type { PlayerMarketRecord } from "../governance";
 import { espnPlayerToRecord, sleeperPlayerToRecord } from "../normalize";
-import { getLeagueCredentials, getLeagueForUser, type LeagueRecord } from "../leagues";
+import { getLeagueCredentials, getLeagueForUser, type LeagueRecord, type DecryptedCredentials } from "../leagues";
 import { EspnClient } from "../espn/client";
 import { getLeague as getEspnLeague } from "../espn/league";
 import {
@@ -10,6 +10,7 @@ import {
 } from "../sleeper/league";
 import { getLatestPlayersSnapshot } from "../sleeper/snapshot";
 import type { SleeperPlayersMap, SleeperRoster } from "../sleeper/schemas";
+import type { EspnTeam } from "../espn/schemas";
 import { unavailableSource, type SourceMeta } from "../governance";
 import { getDb, type Db } from "../../db";
 
@@ -23,8 +24,74 @@ export interface LiveLeagueSnapshot {
   failure: string | null;
 }
 
+// ---------------------------------------------------------------------------
+// Pure team-identification helpers (exported so they can be unit-tested)
+// ---------------------------------------------------------------------------
+
 /**
- * Server-only. Decrypts league credentials, calls the right adapter, and
+ * Resolve the Sleeper roster_id for the given username. Looks up the user in
+ * the league-users list by matching `display_name` or `username` (case-
+ * insensitive), then finds the roster that has that `owner_id`.
+ *
+ * Returns `null` when the username is blank or no match is found — callers
+ * should fall back to roster 0 and log a warning.
+ */
+export function resolveSleeperRosterId(
+  users: ReadonlyArray<{ user_id: string; username?: string | null; display_name?: string | null }>,
+  rosters: ReadonlyArray<{ roster_id: number; owner_id: string | null }>,
+  username: string | null | undefined
+): number | null {
+  if (!username) return null;
+  const lower = username.toLowerCase();
+  const match = users.find(
+    (u) =>
+      (u.username?.toLowerCase() ?? "") === lower ||
+      (u.display_name?.toLowerCase() ?? "") === lower
+  );
+  if (!match) return null;
+  const roster = rosters.find((r) => r.owner_id === match.user_id);
+  return roster?.roster_id ?? null;
+}
+
+/**
+ * Resolve the ESPN team for the given SWID. ESPN's `mTeam` view includes a
+ * top-level `members` array; each member has an `id` (the braced SWID) and an
+ * `isLeagueManager` flag. The team object itself contains a `primaryOwner`
+ * string (SWID) and/or `owners` array of SWIDs.
+ *
+ * We normalise the SWID to the braced form (`{...}`) before comparing so that
+ * bare and braced values both match.
+ *
+ * Returns the matched team, or `null` when no match is found (caller falls
+ * back to the first team).
+ */
+export function resolveEspnTeam(
+  teams: ReadonlyArray<EspnTeam & { primaryOwner?: string | null; owners?: string[] | null }>,
+  swid: string | null | undefined
+): (EspnTeam & { primaryOwner?: string | null; owners?: string[] | null }) | null {
+  if (!swid) return null;
+  const normalised = normaliseSWID(swid);
+  for (const team of teams) {
+    // Check primaryOwner field
+    if (team.primaryOwner && normaliseSWID(team.primaryOwner) === normalised) return team;
+    // Check owners array (some ESPN responses use this instead)
+    if (team.owners?.some((o) => normaliseSWID(o) === normalised)) return team;
+  }
+  return null;
+}
+
+function normaliseSWID(swid: string): string {
+  const t = swid.trim();
+  if (t.startsWith("{") && t.endsWith("}")) return t.toUpperCase();
+  return `{${t.toUpperCase()}}`;
+}
+
+// ---------------------------------------------------------------------------
+// Public entry point
+// ---------------------------------------------------------------------------
+
+/**
+ * Server-only. Decrypts league credentials once, calls the right adapter, and
  * returns the user's roster + every roster in the league, normalized into
  * `PlayerMarketRecord`s. Used by the league-refresh route AND the lifecycle
  * cron so the rules engine sees real data.
@@ -41,6 +108,7 @@ export async function fetchLeagueLive(
     return fetchSleeperLive(league);
   }
 
+  // Decrypt credentials exactly once and pass the value down.
   const creds = await getLeagueCredentials(db, league.id);
   if (!creds) {
     return {
@@ -86,7 +154,14 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
 
   const playersMap: SleeperPlayersMap = snapshot.players;
   const sleeperRosters: SleeperRoster[] = rosters.data;
-  const myTeamId = identifyMyTeam(sleeperRosters, users.data ?? [], league);
+  const leagueUsers = users.data ?? [];
+
+  // Resolve the user's roster_id via stored Sleeper username; fall back to
+  // the first roster when the username is absent or unresolvable.
+  const myTeamId =
+    resolveSleeperRosterId(leagueUsers, sleeperRosters, league.sleeperUsername) ??
+    sleeperRosters[0]?.roster_id ??
+    null;
 
   const allRosters = sleeperRosters.map((r) =>
     materializeSleeperRoster(r, playersMap, league)
@@ -133,24 +208,9 @@ function materializeSleeperRoster(
   return records;
 }
 
-function identifyMyTeam(
-  rosters: SleeperRoster[],
-  users: ReadonlyArray<{ user_id: string }>,
-  league: LeagueRecord
-): number | null {
-  // No reliable mapping today between RAE userId and Sleeper user_id — the
-  // /settings/leagues form does not capture the Sleeper username. As a
-  // pragmatic default, treat the first roster as "mine" so the lifecycle rules
-  // have something to score. The follow-up is to store sleeper_user_id when a
-  // user adds a league.
-  void users;
-  void league;
-  return rosters[0]?.roster_id ?? null;
-}
-
 async function fetchEspnLive(
   league: LeagueRecord,
-  creds: { espnS2: string; swid: string }
+  creds: DecryptedCredentials
 ): Promise<LiveLeagueSnapshot> {
   const client = new EspnClient({ credentials: creds });
   const result = await getEspnLeague(
@@ -181,7 +241,13 @@ async function fetchEspnLive(
     failure: null
   };
 
-  const allRosters: PlayerMarketRecord[][] = result.data.teams.map((team) => {
+  // ESPN `mTeam` data returns teams with `primaryOwner` / `owners` fields
+  // containing the SWID of the owner(s). Match the user's SWID (from the
+  // decrypted credentials — already available in `creds`) to find their team.
+  type EspnTeamWithOwner = EspnTeam & { primaryOwner?: string | null; owners?: string[] | null };
+  const espnTeams = result.data.teams as EspnTeamWithOwner[];
+
+  const allRosters: PlayerMarketRecord[][] = espnTeams.map((team) => {
     const entries = team.roster?.entries ?? [];
     const records: PlayerMarketRecord[] = [];
     for (const entry of entries) {
@@ -193,9 +259,11 @@ async function fetchEspnLive(
     return records;
   });
 
-  // As above: no reliable mapping between RAE userId and ESPN ownerId yet.
-  // Default to the first team.
-  const myRoster = allRosters[0] ?? [];
+  // Resolve the user's team via SWID. Fall back to the first team if the SWID
+  // doesn't match any team (e.g. co-commissioner viewing another user's data).
+  const myTeam = resolveEspnTeam(espnTeams, creds.swid);
+  const myTeamIndex = myTeam ? espnTeams.indexOf(myTeam) : 0;
+  const myRoster = allRosters[myTeamIndex] ?? [];
 
   return {
     league,

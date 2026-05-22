@@ -101,4 +101,55 @@ describe("normalizeEspnTrades", () => {
     ];
     expect(normalizeEspnTrades(declined, byEspnId)).toEqual([]);
   });
+
+  it("uses real team names when teamNames map is provided", () => {
+    const teamNames = new Map<number, string>([[3, "Gridiron Kings"], [5, "End Zone Bandits"]]);
+    const graded = normalizeEspnTrades(txns, byEspnId, teamNames);
+    expect(graded[0]!.sideALabel).toBe("Gridiron Kings");
+    expect(graded[0]!.sideBLabel).toBe("End Zone Bandits");
+  });
+
+  it("falls back to Team N when teamNames map is absent", () => {
+    const graded = normalizeEspnTrades(txns, byEspnId);
+    expect(graded[0]!.sideALabel).toBe("Team 3");
+    expect(graded[0]!.sideBLabel).toBe("Team 5");
+  });
+});
+
+describe("normalizeSleeperTrades with team names", () => {
+  function pv(id: string, value: number): PlayerValue {
+    return { sleeperId: id, espnId: null, name: `Player ${id}`, position: "WR", team: null,
+      value, overallRank: 0, positionRank: 0, trend30Day: 0 };
+  }
+  const valueMap = new Map<string, PlayerValue>([
+    ["100", pv("100", 8000)],
+    ["200", pv("200", 3000)]
+  ]);
+  const txns = [
+    { type: "trade", status: "complete", created: 1_700_000_000_000,
+      roster_ids: [1, 2], adds: { "100": 1, "200": 2 } }
+  ];
+
+  it("uses display_name from leagueUsers when provided", () => {
+    const leagueUsers = [
+      { user_id: "u1", display_name: "Alice", roster_id: 1 },
+      { user_id: "u2", display_name: "Bob", roster_id: 2 }
+    ];
+    const graded = normalizeSleeperTrades(txns, valueMap, leagueUsers);
+    expect(graded[0]!.sideALabel).toBe("Alice");
+    expect(graded[0]!.sideBLabel).toBe("Bob");
+  });
+
+  it("falls back to Roster N when leagueUsers is omitted", () => {
+    const graded = normalizeSleeperTrades(txns, valueMap);
+    expect(graded[0]!.sideALabel).toBe("Roster 1");
+    expect(graded[0]!.sideBLabel).toBe("Roster 2");
+  });
+
+  it("falls back to Roster N when user has no matching roster_id", () => {
+    const leagueUsers = [{ user_id: "u99", display_name: "Ghost", roster_id: 99 }];
+    const graded = normalizeSleeperTrades(txns, valueMap, leagueUsers);
+    expect(graded[0]!.sideALabel).toBe("Roster 1");
+    expect(graded[0]!.sideBLabel).toBe("Roster 2");
+  });
 });

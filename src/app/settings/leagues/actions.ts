@@ -14,7 +14,8 @@ const addLeagueSchema = z.object({
   season: z.coerce.number().int().min(2010).max(2099),
   label: z.string().min(1).max(80),
   espnS2: z.string().optional(),
-  swid: z.string().optional()
+  swid: z.string().optional(),
+  sleeperUsername: z.string().max(50).optional()
 });
 
 export type AddLeagueResult = { ok: true; leagueId: string } | { ok: false; error: string };
@@ -30,11 +31,12 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     season: formData.get("season"),
     label: formData.get("label"),
     espnS2: formData.get("espnS2") ?? undefined,
-    swid: formData.get("swid") ?? undefined
+    swid: formData.get("swid") ?? undefined,
+    sleeperUsername: formData.get("sleeperUsername") ?? undefined
   });
   if (!parsed.success) return { ok: false, error: "Invalid form input" };
 
-  const { platform, externalLeagueId, season, label, espnS2, swid } = parsed.data;
+  const { platform, externalLeagueId, season, label, espnS2, swid, sleeperUsername } = parsed.data;
   if (platform === "espn" && (!espnS2 || !swid)) {
     return { ok: false, error: "ESPN leagues require both espn_s2 and SWID cookies" };
   }
@@ -61,7 +63,8 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
       season,
       label,
       credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined,
-      settings: detectedSettings
+      settings: detectedSettings,
+      sleeperUsername: platform === "sleeper" ? (sleeperUsername || undefined) : undefined
     });
     revalidatePath("/settings/leagues");
     return { ok: true, leagueId: league.id };

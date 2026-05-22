@@ -1,6 +1,36 @@
 # RAE Final Audit
 
-Audit date: 2026-05-20 (design-system sprint).
+Audit date: 2026-05-22 (pro sports-analytics redesign sprint).
+
+## Pro sports-analytics redesign sprint (2026-05-22)
+
+The dashboard was re-skinned to a professional "pro sports-analytics" design language. Neon glow was removed. The five abstract decorative 3-D WebGL scenes (OrbitalTopology, LiquidityFlow, NarrativeField, PlayerGalaxy, DraftMultiverse) were replaced with 2-D player-forward views:
+
+| System | Replaces | New view |
+| --- | --- | --- |
+| Command Center | OrbitalTopology 3-D scene | Player leaderboard ranked by true value |
+| Player Universe | PlayerGalaxy 3-D scene | Player grid with headshots and value bars |
+| Narrative Engine | NarrativeField 3-D scene | Narrative-pressure bar list |
+| Market Intelligence (Liquidity tab) | LiquidityFlow 3-D scene | Bar chart |
+| Draft Intelligence (Multiverse tab) | DraftMultiverse 3-D scene | 2-D draft board |
+
+**One 3-D scene is retained:** the Volatility/Outcome Surface (`VolatilitySurface.tsx`), used in the Nexus Simulator and Market Intelligence Trends tab, because a 3-D surface genuinely encodes a two-parameter risk landscape.
+
+Other changes:
+- Design tokens re-keyed to disciplined dark palette; `--neon-*` tokens and neon glow removed.
+- `sleeperUsername` column added; ESPN team identification now matches SWID to the user's team.
+- ESPN refresh now fetches `mTransactions2`; Sleeper trades scan the full season.
+- ESPN add-time verification confirms team ownership; trade labels use real team names.
+- `/api/health` diagnostic endpoint added with clearer DB-not-initialized error.
+- Real accessibility bug fixed: `narrative-bar-fill` divs, `league-pulse` div, and `player-grid` div had `aria-label` without a valid ARIA role. Fixed by adding `role="img"` or `role="region"` as appropriate.
+
+### Validation results (pro sports-analytics redesign, 2026-05-22)
+
+- `npx tsc --noEmit` — clean (0 errors).
+- `npx eslint .` — clean (0 errors, 0 warnings).
+- `npx vitest run` — **208 tests pass**, 4 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
+- `npx next build` — clean. 11 routes: same 10 as before plus `/api/health`.
+- `npx playwright test` — **40/40 pass** across `chromium` and `mobile-chrome` projects (after fixing the a11y bug above; the axe scan was the only failure and it exposed a real product bug).
 
 ## Trade value simulator sprint
 
@@ -38,7 +68,7 @@ See `docs/trade-calibration.md` as the authoritative record of methodology, data
 
 - `npx tsc --noEmit` — clean (0 errors).
 - `npx eslint .` — 0 errors; 1 pre-existing warning (`_players` unused prop in `TradeCenter.tsx`).
-- `npx vitest run` — **180 tests pass**, 4 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
+- `npx vitest run` — **208 tests pass**, 4 skipped (live tests gated by `RAE_LIVE_TESTS=1`).
 - `npx next build` — clean. Same 10 routes.
 - `npx playwright test` — **40/40 pass** across the `chromium` and `mobile-chrome` projects. Includes the new trade builder e2e test in `e2e/01-dashboard.spec.ts`. Two pre-existing tests in `e2e/04-draft-and-lifecycle.spec.ts` and `e2e/07-no-shared-data.spec.ts` were also updated to match the rebuilt Trade Center and the league-add verification requirement.
 
@@ -54,7 +84,7 @@ grid spacing, the left rail, and 3-D backlighting. This sprint adopts
 | A | Tailwind v4 + shadcn/ui foundation: `postcss.config.mjs`, `components.json`, `src/lib/cn.ts`, and an `@theme` token block in `globals.css` that bridges the legacy `:root` variables into a separate shadcn `--color-*` namespace. Pure infrastructure — no visual change. | Shipped. |
 | B | Shell rebuilt: shadcn `Sidebar` (`AppSidebar`, all 9 systems, collapsible icon rail, mobile drawer), `TopBar` (numbered system strip + `SearchInput` + `UserMenu`), re-homed `UserMenu`/`SearchInput` on shadcn primitives. Dead `.rae-sidebar*`/`.topbar*` CSS pruned. | Shipped. |
 | C | Spacing system: `PanelGrid` (responsive 1→2→3 column Tailwind grid, one gap/padding scale) + `PanelCard`/`PanelTabs` shared chrome. All 9 panels migrated off `.system-panel`/`.tab-row`. Dead grid/panel CSS pruned; `.kpi-row`/`.table-wrap`/charts kept on legacy CSS. | Shipped. |
-| D | 3-D backlighting: `StudioLighting` gains a dedicated cyan back-light aimed at the camera for silhouette rim separation; `Atmosphere` adds a self-contained `<Environment>` (three `Lightformer` panels, no external HDR fetch) for real reflections on metallic materials; `PostFX` Bloom retuned (`luminanceThreshold` 0.22 → 0.3) so the new rim blooms without washing the panel. | Shipped. |
+| D | 3-D backlighting improvements shipped at this sprint. The abstract 3-D scenes these improvements targeted were subsequently removed in the pro sports-analytics redesign sprint (see above). `StudioLighting`, `Atmosphere`, and `PostFX` infrastructure is retained and used by the remaining Volatility Surface scene. | Shipped; 3-D scenes later replaced. |
 | E | `playwright.config.ts` adds a `mobile-chrome` (Pixel 5) project; `e2e/01-dashboard.spec.ts` adds a viewport sweep asserting zero horizontal document overflow at 1440 / 1024 / 768 / 390 px; README documents the design system + token bridge. | Shipped. |
 
 ### Validation results (design-system sprint, 2026-05-20)
@@ -72,7 +102,7 @@ Second-pass corrections after a live preview surfaced visual + auth bugs:
 | PR | Scope | Status |
 | --- | --- | --- |
 | 6 | Sleeper-primary headshots with verified `player_id` lookups (Puka Nacua now 9493, never the historical wrong 4362887 = Justin Fields). `PlayerHeadshot` cascades through `[primary, ...fallbacks]` and finally an initials avatar — never substitutes a different player's face. | Shipped. 15 new tests. |
-| 7 | Blueprint-grade WebGL: shared `<PostFX>` (Bloom + Vignette), `<Atmosphere>` (drei `<Stars>` + fog), `<StudioLighting>` (3-point + accent), custom `flowMaterial` + `surfaceMaterial` shaders, `<HeadshotBillboard>` in-scene faces. Every scene gets ACES tone-mapping and dpr [1, 2]. `.galaxy-field` overflow-clip removed; every scene wrapper has a `min-height`. | Shipped. |
+| 7 | WebGL scene polish shipped at this sprint. The abstract 3-D scenes targeted by this PR were subsequently replaced with 2-D player-forward views in the pro sports-analytics redesign sprint (see above). `PostFX`, `Atmosphere`, and `StudioLighting` infrastructure is retained for the Volatility Surface. | Shipped; 3-D scenes later replaced. |
 | 8 | `mapAuthError(error)` maps every Auth.js error class to friendly copy — never echoes raw `error.message`. New `<UserMenu>` (avatar + email + sign-out), `<DemoBanner>` (dismissable, sessionStorage-backed via `useSyncExternalStore`), `<SearchInput>`. LoginForm has inline email/password validation. | Shipped. 11 new tests. |
 | 9 | `e2e/07-no-shared-data.spec.ts` proves user B can never see user A's league, notifications, or refresh API. `docs/account-isolation.md` documents every per-user query and the regression gates. | Shipped. |
 
@@ -116,18 +146,18 @@ The Playwright suite uncovered three real bugs that have been fixed:
 
 ## Original quant upgrade (PRs 1–5)
 
-This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper adapters, multi-user auth with encrypted league credentials, a WebGL visualization layer across all six panels, and Draft Intelligence as a top-level system.
+This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper adapters, multi-user auth with encrypted league credentials, visualization panels, and Draft Intelligence as a top-level system. Note: the initial WebGL 3-D scenes installed in PR 3 were subsequently replaced with 2-D player-forward views in the pro sports-analytics redesign (see below).
 
 ## Quant upgrade rollout (PRs 1–5)
 
-This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper adapters, multi-user auth with encrypted league credentials, a WebGL visualization layer across all six panels, and Draft Intelligence as a top-level system.
+This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper adapters, multi-user auth with encrypted league credentials, visualization panels, and Draft Intelligence as a top-level system.
 
 | PR | Scope | Status |
 | --- | --- | --- |
 | 1 | Shared HTTP envelope, expanded Sleeper (league/rosters/matchups/drafts/trending/state), ESPN client + league + schemas + positions, normalize.ts, live tests gated by env. | Shipped. 5 new schemas, 6 new league endpoints, full Zod validation, offline+live tests. |
 | 2 | Auth.js v5 + Drizzle (SQLite local / Postgres prod), scrypt-hashed passwords, AES-256-GCM cookie storage, `/login`, `/settings/leagues`, `/api/leagues/[id]/refresh`. | Shipped. Auth isolation + crypto round-trip tests pass. |
-| 3 | WebGL visual system via react-three-fiber, scenes: OrbitalTopology, LiquidityFlow, VolatilitySurface, PlayerGalaxy, NarrativeField. Each panel mounts at least one `<canvas>`. | Shipped. `frameloop="demand"` keeps idle GPU at 0; `useReducedMotion()` honored throughout. |
-| 4 | Draft Intelligence as sixth top-level system. Live Board, Recommendation Queue, Tier Collapse Forecast, 3-D Draft Multiverse. Pure recommend/tiers logic with unit tests. | Shipped. `systems` array length = 6; visualContract test updated. |
+| 3 | Initial visualization system via react-three-fiber (scenes since replaced by the pro sports-analytics redesign — see below). | Shipped then redesigned. |
+| 4 | Draft Intelligence as a top-level system (one of nine). Live Board, Recommendation Queue, Tier Collapse Forecast. Pure recommend/tiers logic with unit tests. | Shipped. `systems` array length now = 9. |
 | 5 | README rewrite (design philosophy + auth + integrations + limitations), `.env.example`, drizzle.config.ts, this audit update. | Shipped this pass. |
 
 ## Validation results (rerun this pass)
@@ -146,7 +176,7 @@ This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper a
 - [x] Player Universe complete for governed MVP slice.
 - [x] Narrative Engine complete for governed MVP slice.
 - [x] Nexus Simulator complete for governed MVP slice.
-- [x] Draft Intelligence complete as contextual drawer, not a top-level tab.
+- [x] Draft Intelligence complete as a top-level tab (one of nine systems).
 - [x] Real data adapters implemented — Sleeper public player adapter boundary implemented.
 - [x] No synthetic production data — production default is unavailable/missing rather than fabricated records.
 - [x] Missing-data handling implemented.
@@ -175,7 +205,7 @@ This audit covers the multi-PR rollout that added live ESPN + expanded Sleeper a
 - Committed manifest: `artifacts/screenshots/README.md`.
 
 ## Mobile screenshots
-Mobile viewport audit used 390x844 and verified the five-system navigation, preserved topology sections, and horizontally scrollable dense market table.
+Mobile viewport audit used 390x844 and verified the nine-system navigation, preserved 2-D player-forward sections, and horizontally scrollable dense market table.
 
 ## Performance audit
 - Target: maintain responsive interaction with fewer than 50 topology nodes in CSS/SVG mode.

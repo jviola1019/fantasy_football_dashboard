@@ -9,8 +9,6 @@ import { marketInefficiency, narrativeVelocity } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { avg, narrativeLabel, fmt } from "@/lib/utils";
-import { Canvas3D } from "../three/Canvas3D";
-import { PlayerGalaxy } from "../three/scenes/PlayerGalaxy";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
@@ -41,21 +39,14 @@ export function PlayerUniverse({ players }: Props) {
       eyebrow="Explore the player ecosystem."
       icon={<Orbit />}
       controls={
-        <>
-          <select className="galaxy-select" defaultValue="GALAXY VIEW" aria-label="Galaxy view mode">
-            <option>GALAXY VIEW</option>
-            <option>ORBITAL VIEW</option>
-            <option>TIER VIEW</option>
-          </select>
-          <input
-            className="galaxy-search"
-            type="search"
-            placeholder="Search players..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="Search players"
-          />
-        </>
+        <input
+          className="galaxy-search"
+          type="search"
+          placeholder="Search players..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          aria-label="Search players"
+        />
       }
     >
       <PanelTabs
@@ -68,6 +59,7 @@ export function PlayerUniverse({ players }: Props) {
       <div className="universe-layout">
         <GalaxyView
           players={filtered}
+          allPlayers={players}
           selectedIdx={selectedIdx}
           onSelect={setSelectedIdx}
         />
@@ -101,32 +93,59 @@ export function PlayerUniverse({ players }: Props) {
 }
 
 function GalaxyView({
-  players, selectedIdx, onSelect,
+  players,
+  allPlayers,
+  selectedIdx,
+  onSelect,
 }: {
   players: PlayerMarketRecord[];
+  allPlayers: PlayerMarketRecord[];
   selectedIdx: number;
   onSelect: (i: number) => void;
 }) {
-  const selectedId = players[selectedIdx]?.id ?? null;
+  const maxVal = Math.max(...allPlayers.map((p) => p.trueValue), 1);
+
+  if (players.length === 0) {
+    return <div className="player-grid-empty" role="status">No players found</div>;
+  }
+
   return (
-    <div className="galaxy-field" aria-label="3-D galaxy player ecosystem">
-      <Canvas3D
-        ariaLabel="3-D player galaxy encoding opportunity, true vs perceived value, and confidence"
-        height={320}
-      >
-        <PlayerGalaxy players={players} selectedId={selectedId} />
-      </Canvas3D>
-      {players.length === 0 ? (
-        <div className="galaxy-empty" role="status">No players</div>
-      ) : (
-        <div className="galaxy-cycler">
-          <button type="button" onClick={() => onSelect(Math.max(0, selectedIdx - 1))}>← Prev</button>
-          <span>
-            {(players[selectedIdx]?.name) ?? "—"} · {selectedIdx + 1}/{players.length}
-          </span>
-          <button type="button" onClick={() => onSelect(Math.min(players.length - 1, selectedIdx + 1))}>Next →</button>
-        </div>
-      )}
+    <div role="region" aria-label="Player grid">
+      <div className="player-grid">
+        {players.map((p) => {
+          const originalIdx = allPlayers.findIndex((ap) => ap.id === p.id);
+          const isSelected = selectedIdx === originalIdx;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              className={`player-grid-card${isSelected ? " selected" : ""}`}
+              onClick={() => originalIdx !== -1 && onSelect(originalIdx)}
+              aria-pressed={isSelected ? "true" : "false"}
+              aria-label={`${p.name}, ${p.position}, ${p.team ?? "unknown team"}`}
+            >
+              <div className="player-grid-card-header">
+                <PlayerHeadshot
+                  player={p}
+                  fallbacks={fixtureHeadshotFallbacks[p.id] ?? []}
+                  size={36}
+                />
+                <div className="player-grid-card-text">
+                  <div className="player-grid-card-name">{p.name}</div>
+                  <div className="player-grid-card-meta">{p.position} · {p.team ?? "—"}</div>
+                </div>
+              </div>
+              <div className="player-grid-card-value">{Math.round(p.trueValue)}</div>
+              <div className="player-row-bar-wrap" aria-hidden="true">
+                <div
+                  className="player-row-bar"
+                  style={{ ["--bar-w" as string]: `${Math.round((p.trueValue / maxVal) * 100)}%` }}
+                />
+              </div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
