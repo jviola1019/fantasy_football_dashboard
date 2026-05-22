@@ -674,6 +674,7 @@ ul { margin: 0; padding: 0; list-style: none; }
   font-size: 11px;
   text-align: center;
 }
+.draft-board-note { margin-top: 8px; }
 
 /* ─── Tables ─────────────────────────────────────────────────────────────── */
 .table-wrap {
