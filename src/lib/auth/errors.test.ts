@@ -51,6 +51,26 @@ describe("mapAuthError", () => {
     );
   });
 
+  it("maps a missing database table (Postgres) to the operator init message", () => {
+    expect(
+      mapAuthError(new Error('relation "users" does not exist'))
+    ).toBe(
+      "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db)."
+    );
+  });
+
+  it("maps a missing database table (SQLite) to the operator init message", () => {
+    expect(mapAuthError(new Error("no such table: users"))).toBe(
+      "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db)."
+    );
+  });
+
+  it("maps the generic SQLite no-such-table variant to the operator init message", () => {
+    expect(mapAuthError(new Error("no such table"))).toBe(
+      "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db)."
+    );
+  });
+
   it("falls back to a generic message rather than leaking the original error text", () => {
     const leaky = new Error("Drizzle: SQLITE_CONSTRAINT_FOREIGNKEY: FOREIGN KEY constraint failed");
     const out = mapAuthError(leaky);
@@ -88,5 +108,14 @@ describe("errorTag", () => {
     expect(errorTag({})).toBe("Unknown");
     expect(errorTag(null)).toBe("Unknown");
     expect(errorTag(new Error("totally unrelated"))).toBe("Unknown");
+  });
+
+  it("returns DatabaseNotInitialized for Postgres missing-relation error", () => {
+    expect(errorTag(new Error('relation "users" does not exist'))).toBe("DatabaseNotInitialized");
+  });
+
+  it("returns DatabaseNotInitialized for SQLite no-such-table error", () => {
+    expect(errorTag(new Error("no such table: users"))).toBe("DatabaseNotInitialized");
+    expect(errorTag(new Error("no such table"))).toBe("DatabaseNotInitialized");
   });
 });

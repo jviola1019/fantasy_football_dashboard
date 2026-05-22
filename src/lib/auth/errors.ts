@@ -30,6 +30,8 @@ export function mapAuthError(error: unknown): string {
       return "Connection error. Check your internet.";
     case "ConfigurationError":
       return "We're having trouble signing you in. Try again.";
+    case "DatabaseNotInitialized":
+      return "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db).";
     default:
       return "Something went wrong. Try again.";
   }
@@ -48,6 +50,7 @@ export type AuthErrorTag =
   | "InvalidEmail"
   | "Network"
   | "ConfigurationError"
+  | "DatabaseNotInitialized"
   | "Unknown";
 
 /**
@@ -96,6 +99,16 @@ export function errorTag(error: unknown): AuthErrorTag {
 
   if (blob.includes("server configuration") || blob.includes("missing secret")) {
     return "ConfigurationError";
+  }
+
+  // Postgres: 'relation "users" does not exist'
+  // SQLite: 'no such table: users' / 'no such table'
+  if (
+    blob.includes('relation "users" does not exist') ||
+    blob.includes("no such table: users") ||
+    blob.includes("no such table")
+  ) {
+    return "DatabaseNotInitialized";
   }
 
   return "Unknown";
