@@ -105,6 +105,7 @@ function NarrativeFlowField({ players }: { players: PlayerMarketRecord[] }) {
               </span>
               <div className="narrative-bar-track">
                 <div
+                  role="img"
                   className={`narrative-bar-fill${isPositive ? " narrative-bar-pos" : " narrative-bar-neg"}`}
                   style={{ ["--bar-w" as string]: `${barPct}%` }}
                   aria-label={`${p.name} narrative pressure: ${val}`}

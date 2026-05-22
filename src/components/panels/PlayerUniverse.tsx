@@ -110,7 +110,7 @@ function GalaxyView({
   }
 
   return (
-    <div aria-label="Player grid">
+    <div role="region" aria-label="Player grid">
       <div className="player-grid">
         {players.map((p) => {
           const originalIdx = allPlayers.findIndex((ap) => ap.id === p.id);

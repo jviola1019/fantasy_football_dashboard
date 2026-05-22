@@ -102,7 +102,7 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
   const ranked = [...players].sort((a, b) => b.trueValue - a.trueValue);
   const maxVal = ranked[0]?.trueValue ?? 100;
   return (
-    <div className="league-pulse" aria-label="League pulse player leaderboard">
+    <div className="league-pulse" role="region" aria-label="League pulse player leaderboard">
       <div className="league-pulse-topbar">
         <span className="league-pulse-label">LEAGUE PULSE</span>
         <span className="league-pulse-edge-pill">
