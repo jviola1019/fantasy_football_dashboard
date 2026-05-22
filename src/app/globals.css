@@ -577,6 +577,10 @@ ul { margin: 0; padding: 0; list-style: none; }
   text-align: right;
   white-space: nowrap;
 }
+.narrative-bar-pos { background: var(--green); }
+.narrative-bar-neg { background: var(--red); }
+.narrative-flow-header { padding: 8px 10px 4px; }
+.narrative-bar-list-padded { padding: 0 10px 8px; }
 
 /* Volatility Surface axis labels */
 .vol-surface-wrap { position: relative; }
