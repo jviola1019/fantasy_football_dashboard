@@ -6,8 +6,8 @@ import type { PlayerMarketRecord } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { Canvas3D } from "../three/Canvas3D";
-import { LiquidityFlow as LiquidityFlowScene } from "../three/scenes/LiquidityFlow";
 import { VolatilitySurface as VolatilitySurfaceScene } from "../three/scenes/VolatilitySurface";
+import { BarChart } from "@/components/charts/BarChart";
 import { runNexusSimulation } from "@/lib/simulation";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, narrativeVelocity, marketInefficiency, confidenceInterval } from "@/lib/models";
@@ -146,19 +146,25 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
   if (players.length === 0) {
     return <div className="empty-state"><b>No data</b></div>;
   }
+  const sorted = [...players].sort((a, b) => b.opportunity - a.opportunity).slice(0, 12);
+  const items = sorted.map((p) => ({
+    label: p.name.split(" ").pop() ?? p.name,
+    value: Math.round(p.opportunity),
+    color: p.opportunity > 70 ? "var(--green)" : p.opportunity > 40 ? "var(--amber)" : "var(--muted)",
+  }));
+
   return (
     <div className="liquidity-flow-wrap">
-      <div className="section-label">LIQUIDITY FLOW</div>
+      <div className="section-label">LIQUIDITY FLOW — Players by Opportunity</div>
       <div className="flow-legend">
-        <span className="legend-dot" style={{ background: "#4dd9c0" }} /> High Liquidity
-        <span className="legend-dot" style={{ background: "#f0abfc", marginLeft: 12 }} /> High Inefficiency
+        <span className="legend-dot liquidity-dot-high" /> High Opportunity
+        <span className="legend-dot liquidity-dot-mid legend-dot-ml" /> Moderate
+        <span className="legend-dot liquidity-dot-low legend-dot-ml" /> Low
       </div>
-      <Canvas3D
-        ariaLabel="3-D liquidity flow ribbons encoding opportunity and market inefficiency"
-        height={220}
-      >
-        <LiquidityFlowScene players={players} />
-      </Canvas3D>
+      <BarChart items={items} max={100} />
+      <p className="small-note liquidity-note">
+        Bar length = opportunity score (0–100). Green = high-liquidity / high-upside players.
+      </p>
     </div>
   );
 }

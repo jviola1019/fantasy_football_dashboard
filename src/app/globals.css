@@ -691,6 +691,11 @@ td small { color: var(--muted); }
 /* ─── Market Panel ───────────────────────────────────────────────────────── */
 .market-charts-row { margin-top: 8px; }
 .liquidity-flow-wrap { padding: 8px 0; }
+.liquidity-dot-high { background: var(--green); }
+.liquidity-dot-mid  { background: var(--amber); }
+.liquidity-dot-low  { background: var(--muted); }
+.legend-dot-ml { margin-left: 12px; }
+.liquidity-note { margin-top: 6px; }
 .flow-legend { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
