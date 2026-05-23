@@ -119,10 +119,24 @@ function toRecord(row: typeof schema.leagues.$inferSelect): LeagueRecord {
     externalLeagueId: row.externalLeagueId,
     season: row.season,
     label: row.label,
-    settings: row.settings ? (JSON.parse(row.settings) as LeagueFormat) : null,
+    settings: parseSettings(row.settings),
     sleeperUsername: row.sleeperUsername ?? null,
     createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt)
   };
+}
+
+// `settings` is stored as TEXT on SQLite (a JSON-encoded string) and as JSONB
+// on Postgres (postgres-js auto-decodes JSONB into a JS object). Calling
+// JSON.parse on an already-decoded object would coerce it to "[object Object]"
+// and throw, which is the production crash this branch fixes.
+function parseSettings(raw: unknown): LeagueFormat | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "string") {
+    if (raw.length === 0) return null;
+    return JSON.parse(raw) as LeagueFormat;
+  }
+  if (typeof raw === "object") return raw as LeagueFormat;
+  return null;
 }
 
 function toBuffer(value: unknown): Buffer {
