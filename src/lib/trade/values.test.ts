@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseFantasyCalc, buildFantasyCalcUrl, parseDynastyProcessCsv } from "./values";
+import { DEFAULT_FORMAT } from "./format";
 
 const SAMPLE = [
   {
@@ -14,7 +15,7 @@ const SAMPLE = [
 
 describe("buildFantasyCalcUrl", () => {
   it("encodes format params", () => {
-    const url = buildFantasyCalcUrl({ ppr: 0.5, numQbs: 2, numTeams: 10 });
+    const url = buildFantasyCalcUrl({ ...DEFAULT_FORMAT, ppr: 0.5, numQbs: 2, numTeams: 10 });
     expect(url).toBe(
       "https://api.fantasycalc.com/values/current?isDynasty=false&numQbs=2&numTeams=10&ppr=0.5"
     );
@@ -43,12 +44,12 @@ describe("parseDynastyProcessCsv", () => {
   ].join("\n");
 
   it("selects value_1qb for a 1QB format", () => {
-    const map = parseDynastyProcessCsv(CSV, { ppr: 1, numQbs: 1, numTeams: 12 });
+    const map = parseDynastyProcessCsv(CSV, { ...DEFAULT_FORMAT, ppr: 1, numQbs: 1, numTeams: 12 });
     expect(map.get("rb-jahmyr gibbs")?.value).toBe(9800);
   });
 
   it("selects value_2qb for a superflex format", () => {
-    const map = parseDynastyProcessCsv(CSV, { ppr: 1, numQbs: 2, numTeams: 12 });
+    const map = parseDynastyProcessCsv(CSV, { ...DEFAULT_FORMAT, ppr: 1, numQbs: 2, numTeams: 12 });
     expect(map.get("qb-caleb williams")?.value).toBe(4800);
   });
 });
