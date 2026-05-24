@@ -4,6 +4,29 @@
 
 ---
 
+## Sprint update (2026-05-24)
+
+Subsequent to the original audit, the following features from the priority list shipped via the `plan-for-all-four-composed-waterfall.md` sprint:
+
+- **A — PreDraftAudit reads real league.settings.** `LeagueFormat` extended with `rosterSize`, `starters`, `tradeDeadlineWeek`, `playoffWeekStart`, `playoffTeams`, `scoringFormat`. Both Sleeper and ESPN parsers populate the new fields. `LiveLeagueSnapshot.format` and `RAEEnvelope.leagueFormat` thread the value through; PreDraftAudit panel reads it. Commits: `39dc095`, `9cea668`.
+- **B (partial) — `<DataUnavailable>` shell + NarrativeEngine banner.** `src/lib/panelState.ts` + `src/components/ui/DataUnavailable.tsx`. NarrativeEngine renders the banner when narrative_pressure is missing. Commit: `c29ea67`. **Still TODO**: same wiring for MarketIntelligence, NexusSimulator, PlayerUniverse, WaiverWire.
+- **C — multi-league switcher.** `src/lib/activeLeague.ts` httpOnly cookie + ownership-validated reads. `<LeagueSwitcher>` in the topbar (hidden for 0 leagues, label-only for 1, select for 2+). `setActiveLeagueAction` server action. Commit: `9628b58`.
+- **D — NoLeagueCTA.** Signed-in users with zero connected leagues see the dedicated CTA instead of the fixture envelope. Commit: `b340b85`.
+- **G — narrative_pressure proxy.** Sleeper 24h trending adds/drops normalised to `[-100, 100]` per player. Disclosure surfaced in SourceMeta.assumptions. Commit: `b340b85`.
+- **Account isolation.** Two new tests in `leagues.test.ts` — cross-user credential retrieval defense + cascading-delete of encrypted creds. Commit: `b340b85`.
+- **ESPN parity integration test.** `fetchLive.espn.test.ts` covers happy-path roster materialisation + SWID team identification + format extraction, plus cross-user defense + missing-credentials path. Commit: `12978b6`.
+- **Statistical battery extension.** One-way ANOVA + Tukey connecting-letters (Bonferroni-corrected pairwise Welch) added to `src/lib/stats/distribution.ts`. Three risk-tolerance buckets of `runNexusSimulation` validated via ANOVA + connecting letters in `simulation.calibration.test.ts`. Commit: `7b6d0d9`.
+
+**E — KTC adapter (DEFERRED).** Day-1 probe confirmed `playersArray` is embedded inline on `keeptradecut.com/dynasty-rankings` (same pattern as FantasyPros), so the integration is feasible. Scope deferred because: (a) FantasyCalc API + DynastyProcess CSV fallback already meet the trade-grading need today, and (b) the cron schedule + ktc_snapshots DDL + values.ts integration is a coherent standalone PR. Re-open as the next sprint's headline.
+
+**F — weekly projections (DEFERRED).** Day-1 probe showed FantasyPros weekly projections pages have NO inline JSON; data is rendered as plain HTML `<table>` (cheerio-scrapable but more brittle). Pre-draft has no 2026 NFL schedule anchor for weekly projections, so deferring is honest. NexusSimulator currently presents season-aggregate sim outputs; a future commit can add a "Season-aggregate simulation — weekly projections not yet integrated" banner inside the panel.
+
+**B follow-ons** — per-panel `<DataUnavailable>` wiring for MarketIntelligence + NexusSimulator + PlayerUniverse + WaiverWire follow the same pattern (`derivePanelState(envelope, [field-deps])` then conditional render). Each is a < 50-line PR.
+
+Current sprint commits: `39dc095`, `9cea668`, `7b6d0d9`, `b340b85`, `9628b58`, `c29ea67`, `12978b6`. Test count: 215 → 259 (added 44, no regressions). CI green on every commit after the verify.test.ts fix in `9cea668`.
+
+---
+
 ## 1. Executive summary
 
 **What works today.** Authentication, account isolation, Sleeper league add/list/delete, the full Sleeper players catalog (12,188 NFL identities) cached in Neon and refreshed daily, and a `/api/leagues/[id]/refresh` endpoint that returns every team's roster materialized with real player names plus the signed-in user's team identified by their Sleeper username.
