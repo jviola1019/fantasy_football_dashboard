@@ -1,9 +1,11 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { AddLeagueForm } from "./AddLeagueForm";
 import { LeagueList } from "./LeagueList";
+import { BackToDashboard } from "@/components/ui/BackToDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,23 @@ export default async function LeaguesSettingsPage() {
   return (
     <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "32px 24px" }}>
       <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 24 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <BackToDashboard />
+          <Link
+            href="/settings/account"
+            style={{
+              color: "var(--muted)",
+              textDecoration: "none",
+              fontSize: 12,
+              letterSpacing: 0.2,
+              border: "1px solid rgba(255,255,255,0.08)",
+              padding: "6px 12px",
+              borderRadius: 8
+            }}
+          >
+            Account settings →
+          </Link>
+        </div>
         <header>
           <h1 style={{ color: "var(--cream)", margin: 0, fontSize: 24 }}>Your leagues</h1>
           <p style={{ color: "var(--muted)", marginTop: 8 }}>

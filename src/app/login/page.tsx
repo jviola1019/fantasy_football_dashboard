@@ -1,10 +1,22 @@
 import { LoginForm } from "./LoginForm";
+import { BackToDashboard } from "@/components/ui/BackToDashboard";
 
 export const metadata = { title: "Sign in — RAE" };
 
 export default function LoginPage() {
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--bg)" }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        background: "var(--bg)",
+        position: "relative"
+      }}
+    >
+      <div style={{ position: "absolute", top: 16, left: 16 }}>
+        <BackToDashboard />
+      </div>
       <div
         style={{
           background: "var(--panel)",

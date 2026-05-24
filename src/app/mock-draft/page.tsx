@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { fpDataToRecords } from "@/lib/fantasypros/enrich";
 import { rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { DraftIntelligence } from "@/components/panels/DraftIntelligence";
+import { BackToDashboard } from "@/components/ui/BackToDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -53,9 +53,7 @@ function Header({ meta }: { meta?: string }) {
           {meta ?? "FantasyPros PPR consensus rankings. Toggle picks to update tiers and recommendations."}
         </p>
       </div>
-      <Link href="/" style={backLink}>
-        ← Dashboard
-      </Link>
+      <BackToDashboard />
     </header>
   );
 }
@@ -102,12 +100,3 @@ const panelStyle: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.06)"
 };
 
-const backLink: React.CSSProperties = {
-  color: "var(--amber)",
-  textDecoration: "none",
-  fontSize: 13,
-  padding: "8px 12px",
-  border: "1px solid rgba(255,255,255,0.1)",
-  borderRadius: 8,
-  whiteSpace: "nowrap"
-};

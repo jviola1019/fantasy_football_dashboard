@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import { useTransition } from "react";
-import { LogOut, User, Trophy } from "lucide-react";
+import { LogOut, User, Trophy, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -83,6 +83,12 @@ export function UserMenu() {
           <a href="/mock-draft">
             <Trophy />
             Mock draft
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href="/settings/account">
+            <Settings />
+            Account settings
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem
