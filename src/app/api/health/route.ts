@@ -36,6 +36,19 @@ function redact(raw: string): string {
     .slice(0, 300);
 }
 
+// Drizzle wraps the driver's real failure as the `cause` of a generic
+// "Failed query" error. Walk the cause chain (bounded to avoid loops)
+// to surface the postgres-js error that actually explains what went wrong.
+function unwrap(err: unknown): unknown {
+  let cur = err;
+  for (let i = 0; i < 5 && cur && typeof cur === "object" && "cause" in cur; i++) {
+    const next = (cur as { cause: unknown }).cause;
+    if (!next || next === cur) break;
+    cur = next;
+  }
+  return cur;
+}
+
 async function checkDatabase(): Promise<CheckResult> {
   try {
     const db = getDb();
@@ -43,7 +56,8 @@ async function checkDatabase(): Promise<CheckResult> {
     await db.select({ id: schema.users.id }).from(schema.users).limit(1);
     return { status: "ok" };
   } catch (err: unknown) {
-    const raw = err instanceof Error ? err.message : String(err);
+    const root = unwrap(err);
+    const raw = root instanceof Error ? root.message : String(root);
     const msg = raw.toLowerCase();
     // Postgres: 'relation "users" does not exist'
     // SQLite: 'no such table: users'
@@ -58,10 +72,11 @@ async function checkDatabase(): Promise<CheckResult> {
     // `code` field if present so the dashboard can distinguish 28P01
     // (bad password) from ENOTFOUND (bad host) at a glance.
     const code =
-      err && typeof err === "object" && "code" in err && typeof (err as { code: unknown }).code === "string"
-        ? (err as { code: string }).code
+      root && typeof root === "object" && "code" in root && typeof (root as { code: unknown }).code === "string"
+        ? (root as { code: string }).code
         : undefined;
-    const detail = code ? `[${code}] ${raw}` : raw;
+    const name = root instanceof Error ? root.name : "Error";
+    const detail = `[${name}${code ? ` ${code}` : ""}] ${raw}`;
     return { status: "unreachable", error: redact(detail) };
   }
 }
