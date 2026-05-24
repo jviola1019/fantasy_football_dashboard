@@ -1,6 +1,6 @@
 import { RaeApp } from "@/components/RaeApp";
 import { fixtureEnvelope } from "@/lib/fixtures";
-import { RAEEnvelopeSchema } from "@/lib/governance";
+import { RAEEnvelopeSchema, type RAEEnvelope } from "@/lib/governance";
 import { loadRAEEnvelope } from "@/lib/sleeper";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
@@ -14,22 +14,21 @@ import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 // page once and Vercel's data cache rejects items over 2 MB.
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+// Resolve the envelope that should drive the dashboard for this request.
+// Pure data-loading helper — does not construct JSX so React can't
+// silently swallow rendering errors from inside our try/catch (which
+// react-hooks/error-boundaries flags).
+async function resolveHomeEnvelope(): Promise<RAEEnvelope> {
   // Render priority:
-  //   1. Signed-in user with at least one league → real live envelope from their
-  //      Sleeper roster overlaid with FantasyPros consensus rankings.
-  //   2. Signed-in user with no league yet → demo envelope but show a CTA banner
-  //      via the envelope's source.failure field so the panels know.
-  //   3. Anonymous viewer → demo fixture envelope (the public marketing surface).
-  //
-  // The RAE_ENABLE_LIVE_HOMEPAGE escape hatch is preserved for ops scenarios.
+  //   1. RAE_ENABLE_LIVE_HOMEPAGE=true → loadRAEEnvelope (ops override).
+  //   2. Signed-in user with at least one league → real live envelope from
+  //      their Sleeper roster overlaid with FantasyPros consensus rankings.
+  //   3. Otherwise → demo fixture envelope (anonymous landing surface).
 
-  const liveOverride = process.env.RAE_ENABLE_LIVE_HOMEPAGE === "true";
-  if (liveOverride) {
-    const envelope = await loadRAEEnvelope({
+  if (process.env.RAE_ENABLE_LIVE_HOMEPAGE === "true") {
+    return loadRAEEnvelope({
       allowFixtures: process.env.RAE_ALLOW_FIXTURES === "true"
     });
-    return <RaeApp envelope={envelope} />;
   }
 
   try {
@@ -46,13 +45,16 @@ export default async function Home() {
           const rankings = await getLatestRankingsSnapshot("PPR");
           const rankingsSource = rankings
             ? rankingsSourceFromSnapshot("PPR", rankings.fetchedAt)
-            : rankingsSourceFromSnapshot("PPR", null, "rankings cache empty — cron may not have fired yet");
-          const envelope = buildLiveEnvelope({
+            : rankingsSourceFromSnapshot(
+                "PPR",
+                null,
+                "rankings cache empty — cron may not have fired yet"
+              );
+          return buildLiveEnvelope({
             snapshot: live,
             rankings: rankings?.data ?? null,
             rankingsSource
           });
-          return <RaeApp envelope={envelope} />;
         }
       }
     }
@@ -63,6 +65,10 @@ export default async function Home() {
 
   // Default: render the fixture envelope. Per-user live data is served from
   // /api/leagues/[id]/refresh and surfaced through the signed-in path above.
-  const fixtureEnv = RAEEnvelopeSchema.parse(fixtureEnvelope());
-  return <RaeApp envelope={fixtureEnv} />;
+  return RAEEnvelopeSchema.parse(fixtureEnvelope());
+}
+
+export default async function Home() {
+  const envelope = await resolveHomeEnvelope();
+  return <RaeApp envelope={envelope} />;
 }

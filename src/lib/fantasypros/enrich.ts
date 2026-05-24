@@ -94,16 +94,6 @@ export function ownershipToLeverage(owned: number | null | undefined, medianOwne
   return Math.max(-100, Math.min(100, Math.round((delta / 40) * 100)));
 }
 
-/**
- * Parse the player_position_id from FantasyPros into the PlayerMarketRecord
- * position enum. FP uses "DST", we use "DEF".
- */
-function fpPositionToPmr(fp: FpPlayer["player_position_id"]): PlayerMarketRecord["position"] | null {
-  if (fp === "QB" || fp === "RB" || fp === "WR" || fp === "TE" || fp === "K") return fp;
-  if (fp === "DST") return "DEF";
-  return null;
-}
-
 export interface EnrichOptions {
   /** Source metadata to attach to enriched records. */
   rankingsSource: SourceMeta;
@@ -234,7 +224,7 @@ export function fpPlayerToRecord(
   medianOwnership: number,
   rankingsSource: SourceMeta
 ): PlayerMarketRecord | null {
-  const position = fpPositionToPmrPublic(fp.player_position_id);
+  const position = fpPositionToPmr(fp.player_position_id);
   if (!position) return null;
 
   const perceivedValue = ecrToPerceivedValue(fp.rank_ecr, maxRank);
@@ -306,7 +296,7 @@ export function fpDataToRecords(
 
 // Re-exposed locally so fpPlayerToRecord can use the same conversion the
 // roster enricher uses for DST -> DEF mapping.
-function fpPositionToPmrPublic(fp: FpPlayer["player_position_id"]): PlayerMarketRecord["position"] | null {
+function fpPositionToPmr(fp: FpPlayer["player_position_id"]): PlayerMarketRecord["position"] | null {
   if (fp === "QB" || fp === "RB" || fp === "WR" || fp === "TE" || fp === "K") return fp;
   if (fp === "DST") return "DEF";
   return null;
