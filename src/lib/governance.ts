@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LeagueFormatSchema } from "./trade/format";
 
 export const FreshnessStateSchema = z.enum(["fresh", "stale", "missing", "unavailable", "fixture"]);
 export type FreshnessState = z.infer<typeof FreshnessStateSchema>;
@@ -41,7 +42,13 @@ export const RAEEnvelopeSchema = z.object({
   mode: z.enum(["live", "fixture", "unavailable"]),
   generatedAt: z.string().datetime(),
   records: z.array(PlayerMarketRecordSchema),
-  sourceState: SourceMetaSchema
+  sourceState: SourceMetaSchema,
+  // The signed-in user's league-format settings (Sleeper roster_positions
+  // + Sleeper settings, or ESPN mSettings) when a real league drives the
+  // envelope. null for fixture/unavailable envelopes and for live envelopes
+  // where the user hasn't connected a league yet. Optional in the schema so
+  // existing fixture payloads still parse without modification.
+  leagueFormat: LeagueFormatSchema.nullable().optional()
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 

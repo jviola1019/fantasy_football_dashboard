@@ -12,6 +12,7 @@ import { getLatestPlayersSnapshot } from "../sleeper/snapshot";
 import type { SleeperPlayersMap, SleeperRoster } from "../sleeper/schemas";
 import type { EspnTeam } from "../espn/schemas";
 import { unavailableSource, type SourceMeta } from "../governance";
+import { parseEspnFormat, parseSleeperFormat, type LeagueFormat } from "../trade/format";
 import { getDb, type Db } from "../../db";
 
 export interface LiveLeagueSnapshot {
@@ -22,6 +23,14 @@ export interface LiveLeagueSnapshot {
   myRoster: PlayerMarketRecord[];
   source: SourceMeta;
   failure: string | null;
+  /**
+   * The league's parsed format settings (scoring, starter slots, trade
+   * deadline, playoff weeks). Null when the upstream payload was missing or
+   * malformed enough that parseSleeperFormat / parseEspnFormat fell back to
+   * defaults — null lets the UI render "Connect a league to audit settings"
+   * rather than 12-team-PPR defaults that wouldn't match the user's league.
+   */
+  format: LeagueFormat | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +125,8 @@ export async function fetchLeagueLive(
       allRosters: [],
       myRoster: [],
       source: unavailableSource(`ESPN league ${league.externalLeagueId}`, "missing credentials"),
-      failure: "missing credentials"
+      failure: "missing credentials",
+      format: null
     };
   }
   return fetchEspnLive(league, creds);
@@ -130,13 +140,19 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     getLatestPlayersSnapshot()
   ]);
 
+  // Parse format from whatever league info we got — even when rosters/snapshot
+  // are missing, the format is useful so PreDraftAudit can audit settings on
+  // a freshly-added pre-draft league that doesn't have rosters yet.
+  const format = info.data ? parseSleeperFormat(info.data) : null;
+
   if (!info.data || !rosters.data || rosters.data.length === 0) {
     return {
       league,
       allRosters: [],
       myRoster: [],
       source: info.source.freshness === "unavailable" ? info.source : rosters.source,
-      failure: info.source.failure ?? rosters.source.failure ?? "no rosters returned"
+      failure: info.source.failure ?? rosters.source.failure ?? "no rosters returned",
+      format
     };
   }
   if (!snapshot) {
@@ -148,7 +164,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
         `Sleeper league ${league.externalLeagueId}`,
         "no players snapshot — run /api/cron/players-refresh first"
       ),
-      failure: "no players snapshot"
+      failure: "no players snapshot",
+      format
     };
   }
 
@@ -176,7 +193,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     allRosters,
     myRoster,
     source: rosters.source,
-    failure: null
+    failure: null,
+    format
   };
 }
 
@@ -219,13 +237,18 @@ async function fetchEspnLive(
     ["mTeam", "mRoster", "mSettings"]
   );
 
+  // Parse format from mSettings even when teams are missing; PreDraftAudit
+  // can still surface scoring + starter slots on a fresh pre-draft league.
+  const format = result.data?.settings ? parseEspnFormat(result.data.settings) : null;
+
   if (!result.data || !result.data.teams || result.data.teams.length === 0) {
     return {
       league,
       allRosters: [],
       myRoster: [],
       source: result.source,
-      failure: result.source.failure ?? "no teams returned"
+      failure: result.source.failure ?? "no teams returned",
+      format
     };
   }
 
@@ -270,6 +293,7 @@ async function fetchEspnLive(
     allRosters,
     myRoster,
     source: result.source,
-    failure: null
+    failure: null,
+    format
   };
 }

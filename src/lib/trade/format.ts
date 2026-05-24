@@ -1,35 +1,36 @@
+import { z } from "zod";
+
 export type ScoringFormat = "STD" | "HALF" | "PPR";
 
-export interface LeagueStarters {
-  QB: number;
-  RB: number;
-  WR: number;
-  TE: number;
-  FLEX: number;
-  DEF: number;
-  K: number;
-  SUPERFLEX: number;
-}
+// Zod mirror of LeagueStarters / LeagueFormat lives alongside the interfaces
+// so the two cannot drift. RAEEnvelopeSchema in governance.ts imports
+// LeagueFormatSchema from here.
+export const LeagueStartersSchema = z.object({
+  QB: z.number().int().nonnegative(),
+  RB: z.number().int().nonnegative(),
+  WR: z.number().int().nonnegative(),
+  TE: z.number().int().nonnegative(),
+  FLEX: z.number().int().nonnegative(),
+  DEF: z.number().int().nonnegative(),
+  K: z.number().int().nonnegative(),
+  SUPERFLEX: z.number().int().nonnegative()
+});
 
-export interface LeagueFormat {
-  /** Reception scoring: 0 standard, 0.5 half-PPR, 1 full PPR. */
-  ppr: 0 | 0.5 | 1;
-  /** 1 for single-QB leagues, 2 for superflex/2QB. */
-  numQbs: 1 | 2;
-  numTeams: number;
-  /** Derived from ppr — convenient for display ("PPR" / "HALF" / "STD"). */
-  scoringFormat: ScoringFormat;
-  /** Total roster slots (starters + bench + IR). Counted from roster_positions length. */
-  rosterSize: number;
-  /** Per-position starter counts. FLEX is RB/WR/TE; SUPERFLEX is QB-eligible flex (Sleeper SUPER_FLEX / ESPN lineup slot 23). */
-  starters: LeagueStarters;
-  /** Regular-season week trades close. Sleeper: settings.trade_deadline. ESPN: derived from tradeSettings.deadlineDate. null when not derivable. */
-  tradeDeadlineWeek: number | null;
-  /** First week of the playoffs. Sleeper: settings.playoff_week_start. ESPN: derived from scheduleSettings.matchupPeriodCount and playoffMatchupPeriodLength. null when not derivable. */
-  playoffWeekStart: number | null;
-  /** Number of teams that make the playoffs. */
-  playoffTeams: number | null;
-}
+export type LeagueStarters = z.infer<typeof LeagueStartersSchema>;
+
+export const LeagueFormatSchema = z.object({
+  ppr: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
+  numQbs: z.union([z.literal(1), z.literal(2)]),
+  numTeams: z.number().int().positive(),
+  scoringFormat: z.enum(["STD", "HALF", "PPR"]),
+  rosterSize: z.number().int().positive(),
+  starters: LeagueStartersSchema,
+  tradeDeadlineWeek: z.number().int().positive().nullable(),
+  playoffWeekStart: z.number().int().positive().nullable(),
+  playoffTeams: z.number().int().positive().nullable()
+});
+
+export type LeagueFormat = z.infer<typeof LeagueFormatSchema>;
 
 const DEFAULT_STARTERS: LeagueStarters = {
   QB: 1,

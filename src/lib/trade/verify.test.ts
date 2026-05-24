@@ -9,11 +9,23 @@ describe("interpretSleeperLeague", () => {
       scoring_settings: { rec: 1 },
       roster_positions: ["QB", "RB", "WR", "TE", "BN"]
     });
-    expect(result).toEqual({
-      ok: true,
-      format: { ppr: 1, numQbs: 1, numTeams: 12 },
-      resolvedLabel: "Dynasty Warriors"
-    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.resolvedLabel).toBe("Dynasty Warriors");
+      // Core slim shape preserved
+      expect(result.format.ppr).toBe(1);
+      expect(result.format.numQbs).toBe(1);
+      expect(result.format.numTeams).toBe(12);
+      // Audit fields added by the extended LeagueFormat
+      expect(result.format.scoringFormat).toBe("PPR");
+      expect(result.format.rosterSize).toBe(5);
+      expect(result.format.starters).toEqual({
+        QB: 1, RB: 1, WR: 1, TE: 1, FLEX: 0, DEF: 0, K: 0, SUPERFLEX: 0
+      });
+      expect(result.format.tradeDeadlineWeek).toBeNull();
+      expect(result.format.playoffWeekStart).toBeNull();
+      expect(result.format.playoffTeams).toBeNull();
+    }
   });
 
   it("returns an error when the league payload is empty", () => {
@@ -32,11 +44,20 @@ describe("interpretEspnLeague", () => {
       scoringSettings: { scoringItems: [{ statId: 53, points: 1 }] },
       rosterSettings: { lineupSlotCounts: { "0": 1, "23": 0 } }
     });
-    expect(result).toEqual({
-      ok: true,
-      format: { ppr: 1, numQbs: 1, numTeams: 12 },
-      resolvedLabel: "Gridiron Kings"
-    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.resolvedLabel).toBe("Gridiron Kings");
+      expect(result.format.ppr).toBe(1);
+      expect(result.format.numQbs).toBe(1);
+      expect(result.format.numTeams).toBe(12);
+      expect(result.format.scoringFormat).toBe("PPR");
+      expect(result.format.rosterSize).toBe(1);
+      expect(result.format.starters.QB).toBe(1);
+      expect(result.format.starters.SUPERFLEX).toBe(0);
+      expect(result.format.tradeDeadlineWeek).toBeNull();
+      expect(result.format.playoffWeekStart).toBeNull();
+      expect(result.format.playoffTeams).toBeNull();
+    }
   });
 
   it("returns an error when the settings payload is null", () => {

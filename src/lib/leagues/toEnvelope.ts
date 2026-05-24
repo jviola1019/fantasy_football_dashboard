@@ -34,7 +34,8 @@ export function buildLiveEnvelope({
       mode: "live",
       generatedAt: new Date().toISOString(),
       records: snapshot.myRoster,
-      sourceState: degradedSourceState(snapshot.source, rankingsSource)
+      sourceState: degradedSourceState(snapshot.source, rankingsSource),
+      leagueFormat: snapshot.format
     };
   }
 
@@ -71,7 +72,8 @@ export function buildLiveEnvelope({
         "Narrative pressure and in-season opportunity not derived; declared in missingFields."
       ],
       failure: null
-    }
+    },
+    leagueFormat: snapshot.format
   };
 }
 
