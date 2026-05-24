@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
+import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { getLeagueCredentials, getLeagueForUser } from "@/lib/leagues";
 import { EspnClient } from "@/lib/espn/client";
 import { getLeague as getEspnLeague } from "@/lib/espn/league";
-import { getLeague as getSleeperLeague, getRosters as getSleeperRosters } from "@/lib/sleeper";
 import { normalizeEspnTrades, indexByEspnId } from "@/lib/trade/transactions";
 import type { EspnTransaction } from "@/lib/espn/schemas";
 
 export const runtime = "nodejs";
 
+// User-facing league refresh. Returns the league record, every team's
+// materialized roster (with real player names from the snapshot), and the
+// signed-in user's specific roster as identified by the stored Sleeper
+// username / ESPN SWID. ESPN responses additionally include best-effort
+// trade grading from the transactions payload.
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -20,50 +25,54 @@ export async function POST(
 
   const { id } = await params;
   const db = getDb();
-  const league = await getLeagueForUser(db, userId, id);
-  if (!league) return NextResponse.json({ error: "not found" }, { status: 404 });
 
-  if (league.platform === "sleeper") {
-    const [info, rosters] = await Promise.all([
-      getSleeperLeague(league.externalLeagueId),
-      getSleeperRosters(league.externalLeagueId)
-    ]);
-    return NextResponse.json({
-      league: { id: league.id, label: league.label, platform: league.platform, season: league.season },
-      info: { data: info.data, source: info.source },
-      rosters: { data: rosters.data, source: rosters.source }
-    });
+  // Use the same data-loader the lifecycle cron uses so the API surface and
+  // the rules engine see the same data shape (allRosters + myRoster, every
+  // player normalized to PlayerMarketRecord, identified team via username/SWID).
+  const snapshot = await fetchLeagueLive(userId, id, db);
+  if (!snapshot) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
   }
 
-  const creds = await getLeagueCredentials(db, league.id);
-  if (!creds) return NextResponse.json({ error: "missing credentials" }, { status: 412 });
-
-  // Fetch team, roster, settings, and transaction data in one request.
-  const client = new EspnClient({ credentials: creds });
-  const result = await getEspnLeague(client, { leagueId: league.externalLeagueId, season: league.season }, [
-    "mTeam",
-    "mRoster",
-    "mSettings",
-    "mTransactions2"
-  ]);
-
-  // Grade any completed trades from the transaction payload. We do this on a
-  // best-effort basis: if the value map is unavailable we just return an empty
-  // list rather than failing the whole refresh.
+  // ESPN-only: enrich with best-effort trade grading. The Sleeper path doesn't
+  // surface raw transactions through fetchLeagueLive (yet), so we skip this.
   let gradedTrades: ReturnType<typeof normalizeEspnTrades> = [];
-  try {
-    const txns = (result.data?.transactions ?? []) as unknown as EspnTransaction[];
-    // Use an empty value map — callers that need graded values should call the
-    // trade-values endpoint separately. This at minimum makes the raw trade
-    // presence visible in the response.
-    gradedTrades = normalizeEspnTrades(txns, indexByEspnId(new Map()));
-  } catch {
-    // Non-fatal: trades are supplementary data
+  if (snapshot.league.platform === "espn") {
+    try {
+      const league = await getLeagueForUser(db, userId, id);
+      const creds = league ? await getLeagueCredentials(db, league.id) : null;
+      if (league && creds) {
+        const client = new EspnClient({ credentials: creds });
+        const result = await getEspnLeague(
+          client,
+          { leagueId: league.externalLeagueId, season: league.season },
+          ["mTransactions2"]
+        );
+        const txns = (result.data?.transactions ?? []) as unknown as EspnTransaction[];
+        gradedTrades = normalizeEspnTrades(txns, indexByEspnId(new Map()));
+      }
+    } catch {
+      // Non-fatal: trades are supplementary; an empty list is acceptable.
+    }
   }
 
   return NextResponse.json({
-    league: { id: league.id, label: league.label, platform: league.platform, season: league.season },
-    espn: { data: result.data, source: result.source },
+    league: {
+      id: snapshot.league.id,
+      label: snapshot.league.label,
+      platform: snapshot.league.platform,
+      season: snapshot.league.season,
+      sleeperUsername: snapshot.league.sleeperUsername
+    },
+    teamCount: snapshot.allRosters.length,
+    myTeamSize: snapshot.myRoster.length,
+    // Each roster is an array of PlayerMarketRecord (id, name, position, team,
+    // plus identity-only metric fields that the panel layer will mark as
+    // unavailable since Sleeper provides no market metrics).
+    allRosters: snapshot.allRosters,
+    myRoster: snapshot.myRoster,
+    source: snapshot.source,
+    failure: snapshot.failure,
     gradedTrades
   });
 }
