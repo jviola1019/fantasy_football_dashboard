@@ -101,4 +101,55 @@ describe("league storage and isolation", () => {
     expect(deletedByA).toBe(true);
     expect(await getLeagueForUser(db, "user-a", league.id)).toBeNull();
   });
+
+  it("ESPN credentials inserted for user A are not retrievable by user B's session", async () => {
+    // The plan's account-isolation invariant: getLeagueCredentials by itself
+    // is a leaf-level fn that does NOT take a userId, so the production
+    // isolation guarantee depends entirely on callers gating it behind
+    // getLeagueForUser. This test simulates the production guarded path —
+    // user B never gets a leagueId back from getLeagueForUser, so creds are
+    // unreachable even if a hypothetical attacker guessed the league UUID.
+    const aLeague = await createLeague(db, {
+      userId: "user-a",
+      platform: "espn",
+      externalLeagueId: "espn-123",
+      season: 2026,
+      label: "Alpha ESPN",
+      credentials: { espnS2: "S2-secret-A", swid: "{AAAA-AAAA-AAAA}" }
+    });
+
+    // user-b's session asks for the league via the production-scoped helper.
+    // getLeagueForUser must return null (cross-user scope check) — without
+    // that null, the caller would never call getLeagueCredentials.
+    const seenByB = await getLeagueForUser(db, "user-b", aLeague.id);
+    expect(seenByB).toBeNull();
+
+    // user-b does not appear in user-a's league list either.
+    const bLeagues = await listLeagues(db, "user-b");
+    expect(bLeagues.map((l) => l.id)).not.toContain(aLeague.id);
+
+    // user-a's own session still sees the league and can decrypt the creds.
+    const seenByA = await getLeagueForUser(db, "user-a", aLeague.id);
+    expect(seenByA).not.toBeNull();
+    const credsForA = await getLeagueCredentials(db, aLeague.id);
+    expect(credsForA?.espnS2).toBe("S2-secret-A");
+  });
+
+  it("cascading delete removes ESPN credentials with the league", async () => {
+    // Deleting a user's league must also remove the encrypted credentials —
+    // otherwise stale ciphertext lives forever in the leagueCredentials table.
+    const aLeague = await createLeague(db, {
+      userId: "user-a",
+      platform: "espn",
+      externalLeagueId: "espn-456",
+      season: 2026,
+      label: "Alpha ESPN 2",
+      credentials: { espnS2: "S2-cascade", swid: "{BBBB}" }
+    });
+    expect(await getLeagueCredentials(db, aLeague.id)).not.toBeNull();
+
+    const deleted = await deleteLeagueForUser(db, "user-a", aLeague.id);
+    expect(deleted).toBe(true);
+    expect(await getLeagueCredentials(db, aLeague.id)).toBeNull();
+  });
 });

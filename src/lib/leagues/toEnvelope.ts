@@ -20,12 +20,18 @@ export interface BuildEnvelopeOptions {
   rankings: FpEcrData | null;
   /** When null, the envelope falls back to identity-only mode. */
   rankingsSource: SourceMeta;
+  /** Optional Sleeper trending-adds map keyed by sleeper player_id. */
+  trendingAdds?: Map<string, number>;
+  /** Optional Sleeper trending-drops map. */
+  trendingDrops?: Map<string, number>;
 }
 
 export function buildLiveEnvelope({
   snapshot,
   rankings,
-  rankingsSource
+  rankingsSource,
+  trendingAdds,
+  trendingDrops
 }: BuildEnvelopeOptions): RAEEnvelope {
   if (!rankings) {
     // No rankings cached yet — still emit live mode with the identity-only
@@ -41,14 +47,22 @@ export function buildLiveEnvelope({
 
   const index = buildFpIndex(rankings.players);
   const enriched = enrichRoster(snapshot.myRoster, rankings, index, {
-    rankingsSource
+    rankingsSource,
+    trendingAdds,
+    trendingDrops
   });
 
   // Composite source metadata. Freshness = the worse of the two upstream
   // sources; missingFields = union (so panels still mark narrative /
   // opportunity as unavailable even though ECR populated the others).
+  // When the trending proxy is wired, narrative_pressure is no longer
+  // missing — but opportunity always is (no in-season data pre-draft).
+  const proxyActive = !!(trendingAdds && trendingDrops);
+  const rankingsMissing = proxyActive
+    ? rankingsSource.missingFields.filter((f) => f !== "narrative_pressure")
+    : rankingsSource.missingFields;
   const missingUnion = Array.from(
-    new Set([...snapshot.source.missingFields, ...rankingsSource.missingFields])
+    new Set([...snapshot.source.missingFields, ...rankingsMissing])
   );
   const compositeFreshness =
     snapshot.source.freshness === "fresh" && rankingsSource.freshness === "fresh"
@@ -67,10 +81,16 @@ export function buildLiveEnvelope({
       confidence: Math.min(snapshot.source.confidence, rankingsSource.confidence),
       validation: "valid",
       missingFields: missingUnion,
-      assumptions: [
-        "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-        "Narrative pressure and in-season opportunity not derived; declared in missingFields."
-      ],
+      assumptions: proxyActive
+        ? [
+            "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
+            "narrative_pressure proxied from Sleeper 24h trending adds/drops; not true news sentiment.",
+            "In-season opportunity not derived; declared in missingFields."
+          ]
+        : [
+            "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
+            "Narrative pressure and in-season opportunity not derived; declared in missingFields."
+          ],
       failure: null
     },
     leagueFormat: snapshot.format

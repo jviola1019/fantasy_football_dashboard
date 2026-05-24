@@ -2,6 +2,7 @@ import type { PlayerMarketRecord, SourceMeta } from "../governance";
 import type { FpEcrData, FpPlayer } from "./types";
 import type { FpIndex } from "./match";
 import { buildFpIndex, matchSleeperToFp } from "./match";
+import { narrativePressureFromTrending } from "../sleeper/trendingProxy";
 
 // Map a FantasyPros ranking entry into the behavioral-market fields of
 // PlayerMarketRecord. The transform is intentionally simple — invert the
@@ -99,6 +100,15 @@ export interface EnrichOptions {
   rankingsSource: SourceMeta;
   /** Median ownership % for the scoring format. Pass 0 if you want raw delta. */
   medianOwnership?: number;
+  /**
+   * Sleeper trending-adds map keyed by sleeper player_id. When provided,
+   * narrativePressure is populated from this signal (a roster-move proxy
+   * for sentiment) instead of being left at zero. Caller is responsible
+   * for the proxy disclosure in SourceMeta.assumptions.
+   */
+  trendingAdds?: Map<string, number>;
+  /** Sleeper trending-drops map; see trendingAdds. */
+  trendingDrops?: Map<string, number>;
 }
 
 /**
@@ -116,12 +126,28 @@ export function enrichWithFp(
   match: FpPlayer | null,
   options: EnrichOptions,
   maxRank: number,
-  scoring: "STD" | "PPR" | "HALF"
+  scoring: "STD" | "PPR" | "HALF",
+  maxes?: { trendingAddsMax?: number; trendingDropsMax?: number }
 ): PlayerMarketRecord {
-  const sources = [...record.sources, withFpMissingFields(options.rankingsSource)];
+  const sources = [
+    ...record.sources,
+    withFpMissingFields(options.rankingsSource, options)
+  ];
+  // Optional trending proxy applies whether or not we have an FP match —
+  // identity-only records also benefit from the roster-move signal.
+  const narrativePressure =
+    options.trendingAdds && options.trendingDrops
+      ? narrativePressureFromTrending(
+          record,
+          options.trendingAdds,
+          options.trendingDrops,
+          maxes?.trendingAddsMax,
+          maxes?.trendingDropsMax
+        )
+      : record.narrativePressure;
   if (!match) {
-    // No FP match — keep identity values but declare what we tried.
-    return { ...record, sources };
+    // No FP match — keep identity values + apply trending proxy.
+    return { ...record, narrativePressure, sources };
   }
   const perceivedValue = ecrToPerceivedValue(match.rank_ecr, maxRank);
   const replacementPosRank = positionReplacementRank(record.position, scoring);
@@ -142,6 +168,7 @@ export function enrichWithFp(
     // see yet; leave fragility 0 for now so the source's missingFields
     // remains honest.
     fragility: record.fragility,
+    narrativePressure,
     volatility,
     // confidence: inverse of expert variance. std=0 -> confidence=1,
     // std=30 -> confidence=0.
@@ -150,15 +177,25 @@ export function enrichWithFp(
   };
 }
 
-function withFpMissingFields(source: SourceMeta): SourceMeta {
+function withFpMissingFields(source: SourceMeta, options?: EnrichOptions): SourceMeta {
+  // narrative_pressure leaves the missingFields set when the trending proxy
+  // is wired up. opportunity stays missing always (in-season-only signal).
+  const fieldsStillMissing = options?.trendingAdds && options?.trendingDrops
+    ? ["opportunity"]
+    : PPR_BEHAVIORAL_FIELDS;
+  const baseAssumptions = source.assumptions.length
+    ? source.assumptions
+    : ["FantasyPros consensus rankings + ownership; in-season opportunity not derived."];
+  const assumptions = options?.trendingAdds && options?.trendingDrops
+    ? [
+        ...baseAssumptions,
+        "narrative_pressure proxied from Sleeper 24h trending adds/drops; not true news sentiment."
+      ]
+    : baseAssumptions;
   return {
     ...source,
-    missingFields: Array.from(new Set([...source.missingFields, ...PPR_BEHAVIORAL_FIELDS])),
-    assumptions: source.assumptions.length
-      ? source.assumptions
-      : [
-          "FantasyPros consensus rankings + ownership; narrative and in-season opportunity not derived."
-        ]
+    missingFields: Array.from(new Set([...source.missingFields, ...fieldsStillMissing])),
+    assumptions
   };
 }
 
@@ -183,6 +220,14 @@ export function enrichRoster(
     ownedValues.length > 0
       ? ownedValues.sort((a, b) => a - b)[Math.floor(ownedValues.length / 2)]
       : 0;
+  // Pre-compute trending max counts once so per-player narrativePressureFromTrending
+  // doesn't rescan the maps on every record.
+  const trendingAddsMax = options.trendingAdds
+    ? Math.max(1, ...Array.from(options.trendingAdds.values()))
+    : undefined;
+  const trendingDropsMax = options.trendingDrops
+    ? Math.max(1, ...Array.from(options.trendingDrops.values()))
+    : undefined;
   return records.map((rec) => {
     const match = matchSleeperToFp(
       {
@@ -193,7 +238,14 @@ export function enrichRoster(
       },
       index
     );
-    return enrichWithFp(rec, match?.fp ?? null, { ...options, medianOwnership }, maxRank, data.scoring);
+    return enrichWithFp(
+      rec,
+      match?.fp ?? null,
+      { ...options, medianOwnership },
+      maxRank,
+      data.scoring,
+      { trendingAddsMax, trendingDropsMax }
+    );
   });
 }
 
