@@ -58,6 +58,13 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
         <div className="governance-banner" role="status">
           <b>Source state:</b> {envelope.sourceState.source} · freshness {envelope.sourceState.freshness} · confidence {(envelope.sourceState.confidence * 100).toFixed(0)}% · validation {envelope.sourceState.validation}.
           {envelope.sourceState.failure ? <span> Failure: {envelope.sourceState.failure}</span> : null}
+          {envelope.sourceState.missingFields.length > 0 ? (
+            <span>
+              {" · "}<b>Metrics without a data source yet:</b>{" "}
+              {envelope.sourceState.missingFields.join(", ")}.
+              Tiles or panels that depend on these render &quot;—&quot; instead of a number.
+            </span>
+          ) : null}
         </div>
 
         <PanelGrid>

@@ -59,7 +59,7 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
         </>
       }
     >
-      <MetricStrip metrics={metrics} />
+      <MetricStrip metrics={metrics} missingFields={envelope.sourceState.missingFields} />
 
       <div className="pulse-wrapper">
         <LeaguePulse players={players} marketEdge={marketEdge} timeRange={timeRange} />
@@ -77,13 +77,57 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
   );
 }
 
-function MetricStrip({ metrics }: { metrics: CommandMetrics }) {
+function MetricStrip({
+  metrics,
+  missingFields
+}: {
+  metrics: CommandMetrics;
+  missingFields: string[];
+}) {
+  // Per-tile data dependencies. When any dependency is in missingFields,
+  // the tile renders "—" with a "data unavailable" subtitle instead of a
+  // number derived from a zeroed field. Keeps the dashboard honest when
+  // a partial dataset (e.g. Sleeper + FantasyPros without sentiment) is
+  // driving the panels.
+  const missing = new Set(missingFields);
+  const narrativeUnavailable = missing.has("narrative_pressure");
+  const chaosUnavailable = missing.has("narrative_pressure") || missing.has("opportunity");
+
   const cards = [
-    { label: "Reputation Edge", value: fmt(metrics.reputationEdge, 1), sub: "Avg True – Market Value", color: metrics.reputationEdge >= 0 ? "pos" : "neg" },
-    { label: "Market Inefficiency", value: fmtPct(metrics.marketInefficiency), sub: "Avg Value Over Replacement", color: "neu" },
-    { label: "Narrative Velocity", value: fmt(metrics.narrativeVelocity, 1), sub: metrics.narrativeVelocity > 10 ? "High" : metrics.narrativeVelocity > 0 ? "Moderate" : "Low", color: metrics.narrativeVelocity >= 0 ? "pos" : "neg" },
-    { label: "League Advantage", value: `${metrics.leagueAdvantage}%`, sub: "vs League Median", color: metrics.leagueAdvantage >= 50 ? "pos" : "neg" },
-    { label: "Chaos Exposure", value: `${fmt(metrics.chaosExposure, 0)}/100`, sub: metrics.chaosExposure > 50 ? "High" : "Moderate", color: metrics.chaosExposure > 60 ? "neg" : "neu" },
+    {
+      label: "Reputation Edge",
+      value: fmt(metrics.reputationEdge, 1),
+      sub: "Avg True – Market Value",
+      color: metrics.reputationEdge >= 0 ? "pos" : "neg"
+    },
+    {
+      label: "Market Inefficiency",
+      value: fmtPct(metrics.marketInefficiency),
+      sub: "Avg Value Over Replacement",
+      color: "neu"
+    },
+    narrativeUnavailable
+      ? { label: "Narrative Velocity", value: "—", sub: "Data source not integrated", color: "neu" }
+      : {
+          label: "Narrative Velocity",
+          value: fmt(metrics.narrativeVelocity, 1),
+          sub: metrics.narrativeVelocity > 10 ? "High" : metrics.narrativeVelocity > 0 ? "Moderate" : "Low",
+          color: metrics.narrativeVelocity >= 0 ? "pos" : "neg"
+        },
+    {
+      label: "League Advantage",
+      value: `${metrics.leagueAdvantage}%`,
+      sub: "vs League Median",
+      color: metrics.leagueAdvantage >= 50 ? "pos" : "neg"
+    },
+    chaosUnavailable
+      ? { label: "Chaos Exposure", value: "—", sub: "Data source not integrated", color: "neu" }
+      : {
+          label: "Chaos Exposure",
+          value: `${fmt(metrics.chaosExposure, 0)}/100`,
+          sub: metrics.chaosExposure > 50 ? "High" : "Moderate",
+          color: metrics.chaosExposure > 60 ? "neg" : "neu"
+        }
   ];
   return (
     <div className="kpi-row">
