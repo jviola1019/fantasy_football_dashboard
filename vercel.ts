@@ -20,6 +20,10 @@ const config: VercelConfig = {
       memory: 1024,
       maxDuration: 60
     },
+    "src/app/api/cron/rankings-refresh/route.ts": {
+      memory: 512,
+      maxDuration: 60
+    },
     "src/app/api/cron/lifecycle-check/route.ts": {
       memory: 512,
       maxDuration: 60
@@ -30,6 +34,10 @@ const config: VercelConfig = {
     // request. The route is gated by the `Authorization: Bearer $CRON_SECRET`
     // header Vercel sends automatically when CRON_SECRET env var is set.
     { path: "/api/cron/players-refresh", schedule: "0 8 * * *" },
+    // Daily FantasyPros consensus rankings snapshot (STD/PPR/HALF). Drives
+    // the behavioral-market fields on PlayerMarketRecord so the dashboard
+    // panels have a real data source pre-season.
+    { path: "/api/cron/rankings-refresh", schedule: "30 8 * * *" },
     // Once daily at 09:00 UTC (an hour after the players snapshot): walk every
     // stored league and emit drift notifications (stacked bye weeks, FAAB
     // drained, injured starters). Vercel's Hobby plan caps each cron job at one

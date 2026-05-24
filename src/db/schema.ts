@@ -102,6 +102,19 @@ export const playersSnapshots = sqliteTable("players_snapshots", {
   payload: text("payload").notNull() // JSON-encoded map; SQLite has no native JSON
 });
 
+// FantasyPros consensus rankings snapshot. Mirror of players_snapshots —
+// same shape, different source domain. source is the scoring code:
+// "STD" | "PPR" | "HALF".
+export const rankingsSnapshots = sqliteTable("rankings_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: integer("fetchedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: text("payload").notNull()
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;

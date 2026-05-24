@@ -141,6 +141,13 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       dismissedAt INTEGER
     );
+    CREATE TABLE IF NOT EXISTS rankings_snapshots (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
   `);
 }
 

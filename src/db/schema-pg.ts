@@ -99,6 +99,18 @@ export const playersSnapshots = pgTable("players_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+// Daily snapshot of a FantasyPros consensus-rankings page (one row per
+// scoring variant per fetch). Source string is the scoring code:
+// "STD" | "PPR" | "HALF". The cron upserts roughly one row/day per scoring
+// and prunes anything older than 7 days, identically to players_snapshots.
+export const rankingsSnapshots = pgTable("rankings_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 // Multi-statement DDL kept as a plain string. The bootstrap route splits it on
 // `;` and applies each statement individually — postgres.js sends one command
 // per query, so a single multi-statement call would be rejected.
@@ -176,4 +188,13 @@ export const INIT_SQL = `
   );
   CREATE INDEX IF NOT EXISTS players_snapshots_source_fetched
     ON players_snapshots (source, "fetchedAt" DESC);
+  CREATE TABLE IF NOT EXISTS rankings_snapshots (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "sizeBytes" INTEGER NOT NULL,
+    payload JSONB NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS rankings_snapshots_source_fetched
+    ON rankings_snapshots (source, "fetchedAt" DESC);
 `;
