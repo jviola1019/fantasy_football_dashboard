@@ -210,3 +210,104 @@ export function enrichRoster(
 // Re-export the index builder so callers can construct one and reuse it
 // across multiple enrich calls (avoids rebuilding the maps per roster).
 export { buildFpIndex };
+
+// ---------------------------------------------------------------------------
+// Standalone FP -> PlayerMarketRecord conversion (no Sleeper roster involved)
+// ---------------------------------------------------------------------------
+
+// Used by the mock-draft page: build a full PMR list from FantasyPros alone,
+// no league required. Identity fields come from FP, behavioral fields come
+// from the same ECR transforms used in enrichWithFp.
+
+const FP_DEFAULT_HEADSHOT =
+  "https://sleepercdn.com/images/v2/icons/player_default.webp";
+
+/**
+ * Convert a single FantasyPros ranking entry to a PlayerMarketRecord.
+ * Skips non-rosterable positions (DST is mapped to DEF; FLEX/OP have no
+ * direct PMR position and return null).
+ */
+export function fpPlayerToRecord(
+  fp: FpPlayer,
+  scoring: "STD" | "PPR" | "HALF",
+  maxRank: number,
+  medianOwnership: number,
+  rankingsSource: SourceMeta
+): PlayerMarketRecord | null {
+  const position = fpPositionToPmrPublic(fp.player_position_id);
+  if (!position) return null;
+
+  const perceivedValue = ecrToPerceivedValue(fp.rank_ecr, maxRank);
+  const replacementPosRank = positionReplacementRank(position, scoring);
+  const posRankNum = Number((fp.pos_rank ?? "").replace(/^[A-Z]+/, ""));
+  const trueValue = Number.isFinite(posRankNum)
+    ? ecrToTrueValue(fp.rank_ecr, posRankNum, replacementPosRank)
+    : perceivedValue;
+  const volatility = stdToVolatility(fp.rank_std);
+  const ownershipLeverage = ownershipToLeverage(fp.player_owned_avg, medianOwnership);
+  const confidence = Math.max(0, Math.min(1, 1 - Math.min(fp.rank_std, 30) / 30));
+
+  return {
+    id: `fp:${fp.player_id}`,
+    name: fp.player_name,
+    position,
+    team: fp.player_team_id ? fp.player_team_id.toUpperCase() : null,
+    perceivedValue,
+    trueValue,
+    ownershipLeverage,
+    fragility: 0,
+    narrativePressure: 0,
+    volatility,
+    opportunity: 0,
+    confidence,
+    sources: [
+      {
+        ...rankingsSource,
+        missingFields: Array.from(
+          new Set([
+            ...rankingsSource.missingFields,
+            "narrative_pressure",
+            "opportunity",
+            "fragility"
+          ])
+        )
+      }
+    ],
+    rosterSlot: "FLEX",
+    status: "active",
+    imageUrl: FP_DEFAULT_HEADSHOT,
+    imageSource: "FantasyPros consensus rankings"
+  };
+}
+
+/**
+ * Convert a full FantasyPros ECR payload to a PlayerMarketRecord list.
+ * Drops non-PMR positions (FLEX/OP) silently.
+ */
+export function fpDataToRecords(
+  data: FpEcrData,
+  rankingsSource: SourceMeta
+): PlayerMarketRecord[] {
+  const maxRank = data.players.length;
+  const ownedValues = data.players
+    .map((p) => p.player_owned_avg)
+    .filter((v): v is number => v != null);
+  const medianOwnership =
+    ownedValues.length > 0
+      ? ownedValues.sort((a, b) => a - b)[Math.floor(ownedValues.length / 2)]
+      : 0;
+  const records: PlayerMarketRecord[] = [];
+  for (const fp of data.players) {
+    const r = fpPlayerToRecord(fp, data.scoring, maxRank, medianOwnership, rankingsSource);
+    if (r) records.push(r);
+  }
+  return records;
+}
+
+// Re-exposed locally so fpPlayerToRecord can use the same conversion the
+// roster enricher uses for DST -> DEF mapping.
+function fpPositionToPmrPublic(fp: FpPlayer["player_position_id"]): PlayerMarketRecord["position"] | null {
+  if (fp === "QB" || fp === "RB" || fp === "WR" || fp === "TE" || fp === "K") return fp;
+  if (fp === "DST") return "DEF";
+  return null;
+}

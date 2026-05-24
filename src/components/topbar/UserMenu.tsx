@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import { useTransition } from "react";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -30,10 +30,17 @@ export function UserMenu() {
   }
 
   if (!session?.user) {
+    // Anonymous viewers get a Mock-Draft shortcut alongside Sign In —
+    // it's a useful entry point that doesn't require an account.
     return (
-      <Button asChild size="sm" variant="outline">
-        <a href="/login">Sign in</a>
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button asChild size="sm" variant="ghost">
+          <a href="/mock-draft">Mock draft</a>
+        </Button>
+        <Button asChild size="sm" variant="outline">
+          <a href="/login">Sign in</a>
+        </Button>
+      </div>
     );
   }
 
@@ -70,6 +77,12 @@ export function UserMenu() {
           <a href="/settings/leagues">
             <User />
             My leagues
+          </a>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href="/mock-draft">
+            <Trophy />
+            Mock draft
           </a>
         </DropdownMenuItem>
         <DropdownMenuItem
