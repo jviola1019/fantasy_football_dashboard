@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runNexusSimulation } from "./simulation";
 import { fixturePlayers } from "./fixtures";
-import { bootstrapCI, cohensD, welchTTest } from "./stats/distribution";
+import { bootstrapCI, cohensD, connectingLetters, oneWayAnova, welchTTest } from "./stats/distribution";
 
 /**
  * Calibration tests for the Monte Carlo simulation engine.
@@ -97,6 +97,49 @@ describe("simulation — calibration properties", () => {
     expect(ci.width).toBeLessThan(5);
     expect(ci.lower).toBeLessThanOrEqual(ci.estimate);
     expect(ci.upper).toBeGreaterThanOrEqual(ci.estimate);
+  }, 60_000);
+
+  it("three risk-tolerance buckets are statistically distinct (one-way ANOVA + Tukey connecting letters)", () => {
+    // ANOVA test: do conservative / moderate / aggressive tolerances produce
+    // different championship-probability distributions? Then walk the
+    // connecting-letters report to confirm every pair is distinguishable.
+    const N = 60;
+    const buckets: [string, number][] = [
+      ["conservative", 0.15],
+      ["moderate", 0.55],
+      ["aggressive", 0.95]
+    ];
+    const groups = buckets.map(([, risk]) =>
+      Array.from({ length: N }, (_, i) =>
+        runNexusSimulation(fixturePlayers, {
+          seed: 3000 + i,
+          iterations: 600,
+          rosterSlots: 6,
+          riskTolerance: risk
+        }).championshipProbability
+      )
+    );
+    const anova = oneWayAnova(groups);
+    expect(anova.k).toBe(3);
+    expect(anova.n).toBe(3 * N);
+    expect(anova.F).toBeGreaterThan(10); // strongly significant
+    expect(anova.pValue).toBeLessThan(0.001);
+    // Means should be strictly ordered (conservative < moderate < aggressive).
+    expect(anova.groupMeans[0]).toBeLessThan(anova.groupMeans[1]!);
+    expect(anova.groupMeans[1]).toBeLessThan(anova.groupMeans[2]!);
+
+    // Connecting letters: every group should get a distinct letter set since
+    // each adjacent pair is distinguishable at the Bonferroni-corrected alpha.
+    const letters = connectingLetters(groups);
+    const set0 = new Set(letters[0]!);
+    const set1 = new Set(letters[1]!);
+    const set2 = new Set(letters[2]!);
+    const shares01 = [...set0].some((c) => set1.has(c));
+    const shares12 = [...set1].some((c) => set2.has(c));
+    const shares02 = [...set0].some((c) => set2.has(c));
+    expect(shares01).toBe(false);
+    expect(shares12).toBe(false);
+    expect(shares02).toBe(false);
   }, 60_000);
 
   it("keyDrivers is non-empty and contributions are finite and sorted descending", () => {

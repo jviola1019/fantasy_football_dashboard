@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { bootstrapCI, cohensD, mean, quantile, stdev, welchTTest } from "./distribution";
+import {
+  bootstrapCI,
+  cohensD,
+  connectingLetters,
+  mean,
+  oneWayAnova,
+  quantile,
+  stdev,
+  welchTTest
+} from "./distribution";
 
 describe("stats helpers", () => {
   describe("mean / stdev / quantile", () => {
@@ -93,6 +102,98 @@ describe("stats helpers", () => {
       const a = [1, 2, 3, 4, 5];
       const b = [1, 2, 3, 4, 5];
       expect(cohensD(a, b)).toBeCloseTo(0, 10);
+    });
+  });
+
+  describe("oneWayAnova", () => {
+    it("detects a clear difference between three well-separated groups", () => {
+      // Three groups, means 10 / 20 / 30, small within-group variance.
+      const g1 = [10, 11, 9, 10, 12, 8, 10, 11];
+      const g2 = [20, 21, 19, 20, 22, 18, 20, 21];
+      const g3 = [30, 31, 29, 30, 32, 28, 30, 31];
+      const res = oneWayAnova([g1, g2, g3]);
+      expect(res.k).toBe(3);
+      expect(res.n).toBe(24);
+      expect(res.dfBetween).toBe(2);
+      expect(res.dfWithin).toBe(21);
+      expect(res.F).toBeGreaterThan(50); // strongly significant
+      expect(res.pValue).toBeLessThan(0.001);
+      expect(res.groupMeans.map((m) => Math.round(m))).toEqual([10, 20, 30]);
+    });
+
+    it("returns p near 1 when all groups share the same distribution", () => {
+      const g = (seed: number) => [seed, seed + 1, seed - 1, seed + 0.5, seed - 0.5];
+      const res = oneWayAnova([g(10), g(10), g(10)]);
+      // F should be 0 (all group means identical), p = 1.
+      expect(res.F).toBeCloseTo(0, 6);
+      expect(res.pValue).toBeCloseTo(1, 4);
+    });
+
+    it("returns NaN for fewer than two groups", () => {
+      expect(oneWayAnova([[1, 2, 3]]).F).toBeNaN();
+      expect(oneWayAnova([]).F).toBeNaN();
+    });
+
+    it("handles a degenerate case where within-group variance is zero", () => {
+      // All values inside each group identical; group means differ.
+      const res = oneWayAnova([
+        [1, 1, 1],
+        [2, 2, 2],
+        [3, 3, 3]
+      ]);
+      expect(res.F).toBe(Number.POSITIVE_INFINITY);
+      expect(res.pValue).toBe(0);
+    });
+  });
+
+  describe("connectingLetters", () => {
+    it("assigns the same letter to two indistinguishable groups", () => {
+      // g1 and g2 sampled from the same distribution; g3 is shifted far away.
+      const g1 = [10, 11, 9, 10, 12, 8, 10, 11, 9, 11, 10, 9];
+      const g2 = [10, 11, 9, 10, 12, 8, 10, 11, 9, 11, 10, 9];
+      const g3 = [100, 101, 99, 100, 102, 98, 100, 101, 99, 101, 100, 99];
+      const letters = connectingLetters([g1, g2, g3]);
+      // g1 and g2 share a letter; g3 does not share any letter with them.
+      const set1 = new Set(letters[0]!);
+      const set2 = new Set(letters[1]!);
+      const set3 = new Set(letters[2]!);
+      const shares12 = [...set1].some((c) => set2.has(c));
+      const shares13 = [...set1].some((c) => set3.has(c));
+      const shares23 = [...set2].some((c) => set3.has(c));
+      expect(shares12).toBe(true);
+      expect(shares13).toBe(false);
+      expect(shares23).toBe(false);
+    });
+
+    it("gives every group its own letter when all are distinct", () => {
+      const g1 = Array.from({ length: 30 }, (_, i) => 10 + i * 0.01);
+      const g2 = Array.from({ length: 30 }, (_, i) => 30 + i * 0.01);
+      const g3 = Array.from({ length: 30 }, (_, i) => 60 + i * 0.01);
+      const letters = connectingLetters([g1, g2, g3]);
+      // No two of these share any letter.
+      const seen = new Map<string, number>();
+      for (const l of letters) {
+        for (const c of l) seen.set(c, (seen.get(c) ?? 0) + 1);
+      }
+      for (const count of seen.values()) {
+        expect(count).toBe(1);
+      }
+    });
+
+    it("gives all groups the same letter when nothing is significant", () => {
+      // Three small noisy groups, indistinguishable.
+      const g = (seed: number) => Array.from({ length: 8 }, (_, i) => seed + i * 0.01);
+      const letters = connectingLetters([g(10), g(10), g(10)]);
+      const shared = letters.every((l) => l.includes(letters[0]![0]!));
+      expect(shared).toBe(true);
+    });
+
+    it("returns single letter for a single group", () => {
+      expect(connectingLetters([[1, 2, 3]])).toEqual(["a"]);
+    });
+
+    it("returns empty for zero groups", () => {
+      expect(connectingLetters([])).toEqual([]);
     });
   });
 });
