@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
-import { createLeague, deleteLeagueForUser } from "@/lib/leagues";
+import { createLeague, deleteLeagueForUser, getLeagueForUser } from "@/lib/leagues";
+import { setActiveLeagueCookie } from "@/lib/activeLeague";
 import { verifyLeague } from "@/lib/trade/verify";
 import type { LeagueFormat } from "@/lib/trade/format";
 
@@ -80,5 +81,21 @@ export async function removeLeague(leagueId: string): Promise<AddLeagueResult> {
   const deleted = await deleteLeagueForUser(getDb(), userId, leagueId);
   if (!deleted) return { ok: false, error: "not found" };
   revalidatePath("/settings/leagues");
+  return { ok: true, leagueId };
+}
+
+/**
+ * Set the user's active league (Feature C — multi-league switcher). Validates
+ * ownership via getLeagueForUser before writing the cookie — defense in depth
+ * even though getActiveLeagueId re-validates on every read.
+ */
+export async function setActiveLeagueAction(leagueId: string): Promise<AddLeagueResult> {
+  const session = await auth();
+  const userId = session?.user?.id;
+  if (!userId) return { ok: false, error: "unauthenticated" };
+  const league = await getLeagueForUser(getDb(), userId, leagueId);
+  if (!league) return { ok: false, error: "not found" };
+  await setActiveLeagueCookie(leagueId);
+  revalidatePath("/");
   return { ok: true, leagueId };
 }

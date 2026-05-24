@@ -28,7 +28,21 @@ export { systems, type SystemName } from "./systems";
 
 const SIM_PARAMS = { seed: 20260513, iterations: 2500, rosterSlots: 6, riskTolerance: 0.58 } as const;
 
-export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
+export interface LeagueOption {
+  id: string;
+  label: string;
+  platform: "sleeper" | "espn";
+}
+
+export interface RaeAppProps {
+  envelope: RAEEnvelope;
+  /** Connected leagues for the signed-in user. Empty array for anonymous. */
+  leagueOptions?: LeagueOption[];
+  /** Currently-active league id (cookie-resolved). Null when no league active. */
+  activeLeagueId?: string | null;
+}
+
+export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: RaeAppProps) {
   const [activeSystem, setActiveSystem] = useState<string>("Command Center");
   const players = envelope.records;
 
@@ -51,7 +65,13 @@ export function RaeApp({ envelope }: { envelope: RAEEnvelope }) {
     <SidebarProvider>
       <AppSidebar active={activeSystem} onSelect={goToSystem} />
       <SidebarInset>
-        <TopBar envelope={envelope} active={activeSystem} onSelect={goToSystem} />
+        <TopBar
+          envelope={envelope}
+          active={activeSystem}
+          onSelect={goToSystem}
+          leagueOptions={leagueOptions}
+          activeLeagueId={activeLeagueId}
+        />
 
         <DemoBanner visible={envelope.mode === "fixture"} />
 

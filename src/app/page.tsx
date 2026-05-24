@@ -1,4 +1,4 @@
-import { RaeApp } from "@/components/RaeApp";
+import { RaeApp, type LeagueOption } from "@/components/RaeApp";
 import { NoLeagueCTA } from "@/components/NoLeagueCTA";
 import { fixtureEnvelope } from "@/lib/fixtures";
 import { RAEEnvelopeSchema, type RAEEnvelope } from "@/lib/governance";
@@ -11,6 +11,7 @@ import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toE
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
 import { buildTrendingMap } from "@/lib/sleeper/trendingProxy";
+import { getActiveLeagueId } from "@/lib/activeLeague";
 
 // Force dynamic rendering so we never download the 19 MB Sleeper players catalog
 // during build. With ISR (Vercel default for static pages), `next build` runs the
@@ -21,7 +22,12 @@ export const dynamic = "force-dynamic";
 // connected leagues. The Home() switchboard renders <NoLeagueCTA /> rather
 // than passing this to <RaeApp />.
 type HomeResolution =
-  | { kind: "envelope"; envelope: RAEEnvelope }
+  | {
+      kind: "envelope";
+      envelope: RAEEnvelope;
+      leagueOptions: LeagueOption[];
+      activeLeagueId: string | null;
+    }
   | { kind: "no-league" };
 
 // Resolve what should drive the homepage for this request.
@@ -42,7 +48,9 @@ async function resolveHome(): Promise<HomeResolution> {
       kind: "envelope",
       envelope: await loadRAEEnvelope({
         allowFixtures: process.env.RAE_ALLOW_FIXTURES === "true"
-      })
+      }),
+      leagueOptions: [],
+      activeLeagueId: null
     };
   }
 
@@ -55,9 +63,17 @@ async function resolveHome(): Promise<HomeResolution> {
       if (leagues.length === 0) {
         return { kind: "no-league" };
       }
-      // Default to the first league; LeagueSwitcher (Feature C, follow-up)
-      // will read an active-league cookie that lets users pick.
-      const live = await fetchLeagueLive(userId, leagues[0]!.id, db);
+      // Resolve the active league from the cookie (Feature C). Falls back to
+      // leagues[0] when the cookie is absent, malformed, or points at a
+      // league that no longer belongs to this user.
+      const cookieActive = await getActiveLeagueId(userId);
+      const activeLeagueId = cookieActive ?? leagues[0]!.id;
+      const leagueOptions: LeagueOption[] = leagues.map((l) => ({
+        id: l.id,
+        label: l.label,
+        platform: l.platform
+      }));
+      const live = await fetchLeagueLive(userId, activeLeagueId, db);
       if (live && live.myRoster.length > 0) {
         // Fetch rankings + trending in parallel — both feed the envelope.
         // Trending fails open (empty maps) so a network blip on Sleeper doesn't
@@ -85,7 +101,9 @@ async function resolveHome(): Promise<HomeResolution> {
             rankingsSource,
             trendingAdds,
             trendingDrops
-          })
+          }),
+          leagueOptions,
+          activeLeagueId
         };
       }
     }
@@ -95,11 +113,22 @@ async function resolveHome(): Promise<HomeResolution> {
   }
 
   // Anonymous / catch-all fallback.
-  return { kind: "envelope", envelope: RAEEnvelopeSchema.parse(fixtureEnvelope()) };
+  return {
+    kind: "envelope",
+    envelope: RAEEnvelopeSchema.parse(fixtureEnvelope()),
+    leagueOptions: [],
+    activeLeagueId: null
+  };
 }
 
 export default async function Home() {
   const resolution = await resolveHome();
   if (resolution.kind === "no-league") return <NoLeagueCTA />;
-  return <RaeApp envelope={resolution.envelope} />;
+  return (
+    <RaeApp
+      envelope={resolution.envelope}
+      leagueOptions={resolution.leagueOptions}
+      activeLeagueId={resolution.activeLeagueId}
+    />
+  );
 }
