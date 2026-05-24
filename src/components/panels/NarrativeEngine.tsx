@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Waves } from "lucide-react";
-import type { PlayerMarketRecord } from "@/lib/governance";
+import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
+import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
+import { DataUnavailable } from "../ui/DataUnavailable";
 import {
   deriveNarrativeHalfLife,
   deriveViralVelocity,
@@ -15,18 +17,27 @@ import { avg } from "@/lib/utils";
 
 type Props = {
   players: PlayerMarketRecord[];
+  envelope?: RAEEnvelope;
 };
 
 const TABS = ["Narrative Flow", "Impact Over Time", "Collisions", "Sentiment Map"] as const;
 const TIME_LABELS = ["Oct 16", "Oct 23", "Oct 30", "Nov 6", "Now"];
 
-export function NarrativeEngine({ players }: Props) {
+export function NarrativeEngine({ players, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Narrative Flow");
   const [timeRange, setTimeRange] = useState("7D");
   const halfLife = deriveNarrativeHalfLife(players);
   const viralVel = deriveViralVelocity(players);
   const tone = avg(players.map((p) => p.narrativePressure)) / 100;
   const collisions = deriveStoryCollisions(players);
+
+  // When the envelope reports narrative_pressure is missing (no trending
+  // proxy active AND no sentiment adapter integrated), the entire panel is
+  // meaningless — every chart and tile derives from narrativePressure. Show
+  // a single banner instead of zeroed visuals.
+  const panelState = envelope
+    ? derivePanelState(envelope, ["narrative_pressure"])
+    : { status: "ready" as const, bannerText: null, unavailable: new Set() };
 
   return (
     <PanelCard
@@ -48,12 +59,36 @@ export function NarrativeEngine({ players }: Props) {
         </select>
       }
     >
-      <PanelTabs
-        tabs={TABS}
-        active={activeTab}
-        onSelect={setActiveTab}
-        ariaLabel="Narrative Engine tabs"
-      />
+      {panelState.status === "unavailable" ? (
+        <DataUnavailable
+          title="Narrative source not integrated"
+          description="Story Collisions, Tone, Velocity, and the Sentiment Map require a real news / social-sentiment feed. Without one, every chart in this panel reads zero. Connect a Sleeper league to use the 24-hour trending-adds proxy as a stand-in signal."
+        />
+      ) : (
+        <>
+          {panelState.status === "degraded" && panelState.bannerText ? (
+            <div
+              role="status"
+              style={{
+                background: "rgba(245,231,196,0.04)",
+                border: "1px solid rgba(245,231,196,0.12)",
+                color: "var(--cream)",
+                padding: "8px 12px",
+                borderRadius: 8,
+                fontSize: 12,
+                marginBottom: 12,
+                letterSpacing: 0.2
+              }}
+            >
+              {panelState.bannerText}
+            </div>
+          ) : null}
+          <PanelTabs
+            tabs={TABS}
+            active={activeTab}
+            onSelect={setActiveTab}
+            ariaLabel="Narrative Engine tabs"
+          />
 
       {activeTab === "Narrative Flow" && (
         <div className="narrative-layout">
@@ -73,6 +108,8 @@ export function NarrativeEngine({ players }: Props) {
       )}
       {activeTab === "Sentiment Map" && (
         <SentimentMap players={players} />
+      )}
+        </>
       )}
     </PanelCard>
   );

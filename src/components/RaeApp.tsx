@@ -100,7 +100,7 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
 
           <PanelRow cols={3}>
             <PlayerUniverse players={players} />
-            <NarrativeEngine players={players} />
+            <NarrativeEngine players={players} envelope={envelope} />
             <NexusSimulator players={players} sim={sim} scenarios={scenarios} />
           </PanelRow>
 
