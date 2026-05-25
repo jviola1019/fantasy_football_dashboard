@@ -95,13 +95,22 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
               sim={sim}
               metrics={commandMetrics}
             />
-            <MarketIntelligence players={players} marketMetrics={marketMetrics} />
+            <MarketIntelligence
+              players={players}
+              marketMetrics={marketMetrics}
+              envelope={envelope}
+            />
           </PanelRow>
 
           <PanelRow cols={3}>
-            <PlayerUniverse players={players} />
+            <PlayerUniverse players={players} envelope={envelope} />
             <NarrativeEngine players={players} envelope={envelope} />
-            <NexusSimulator players={players} sim={sim} scenarios={scenarios} />
+            <NexusSimulator
+              players={players}
+              sim={sim}
+              scenarios={scenarios}
+              envelope={envelope}
+            />
           </PanelRow>
 
           <PanelRow cols={1}>
@@ -110,7 +119,7 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
 
           <PanelRow cols={3}>
             <PreDraftAudit players={players} envelope={envelope} />
-            <WaiverWire players={players} />
+            <WaiverWire players={players} envelope={envelope} />
             <TradeCenter />
           </PanelRow>
         </PanelGrid>

@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { LineChart as LineChartIcon } from "lucide-react";
-import type { PlayerMarketRecord } from "@/lib/governance";
+import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
+import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
+import { DataUnavailable } from "../ui/DataUnavailable";
 import { Canvas3D } from "../three/Canvas3D";
 import { VolatilitySurface as VolatilitySurfaceScene } from "../three/scenes/VolatilitySurface";
 import { BarChart } from "@/components/charts/BarChart";
@@ -18,13 +20,26 @@ import { avg, fmt, fmtPct } from "@/lib/utils";
 type Props = {
   players: PlayerMarketRecord[];
   marketMetrics: MarketMetrics;
+  envelope?: RAEEnvelope;
 };
 
 const TABS = ["Market Pulse", "Liquidity Flow", "Sentiment", "Arbitrage", "Trends", "Price Discovery"] as const;
 const TIME_LABELS = ["Oct 16", "Oct 23", "Oct 30", "Nov 6", "Now"];
 
-export function MarketIntelligence({ players, marketMetrics }: Props) {
+export function MarketIntelligence({ players, marketMetrics, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Market Pulse");
+
+  // Per-tab data-state gating (Feature B follow-on). The Sentiment tab is
+  // built entirely on narrativePressure; the Liquidity Flow tab is built
+  // entirely on opportunity. When those fields are missing, the tab body
+  // becomes a <DataUnavailable> banner with an honest explanation; tab
+  // navigation itself always works.
+  const sentimentState = envelope
+    ? derivePanelState(envelope, ["narrative_pressure"])
+    : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
+  const liquidityState = envelope
+    ? derivePanelState(envelope, ["opportunity"])
+    : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
 
   return (
     <PanelCard
@@ -53,10 +68,24 @@ export function MarketIntelligence({ players, marketMetrics }: Props) {
           </>
         )}
         {activeTab === "Liquidity Flow" && (
-          <LiquidityFlow players={players} />
+          liquidityState.status === "unavailable" ? (
+            <DataUnavailable
+              title="Liquidity Flow requires opportunity data"
+              description="The Liquidity Flow ranking depends on per-player opportunity (target share, snap share) which has no free integrated data source yet. This becomes available once an in-season snap-count adapter lands."
+            />
+          ) : (
+            <LiquidityFlow players={players} />
+          )
         )}
         {activeTab === "Sentiment" && (
-          <SentimentVelocity players={players} />
+          sentimentState.status === "unavailable" ? (
+            <DataUnavailable
+              title="Sentiment source not integrated"
+              description="Sentiment Velocity needs a real news/sentiment feed. The Sleeper-trending proxy populates narrative pressure when you connect a Sleeper league; otherwise this view has nothing real to draw from."
+            />
+          ) : (
+            <SentimentVelocity players={players} />
+          )
         )}
         {activeTab === "Trends" && (
           <VolatilitySurface players={players} />

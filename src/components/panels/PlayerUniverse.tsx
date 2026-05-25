@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Orbit } from "lucide-react";
-import type { PlayerMarketRecord } from "@/lib/governance";
+import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
+import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { marketInefficiency, narrativeVelocity } from "@/lib/models";
@@ -14,11 +15,24 @@ import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
 type Props = {
   players: PlayerMarketRecord[];
+  envelope?: RAEEnvelope;
 };
 
 const TABS = ["Universe", "Tiers", "Comparison", "Watchlist", "Projections"] as const;
 
-export function PlayerUniverse({ players }: Props) {
+// Each radar axis maps to the PlayerMarketRecord field it reads. When that
+// field is in envelope.sourceState.missingFields the axis renders dashed
+// with a "*" footnote (see RadarChart). Confidence + Stability derive from
+// rank_std via FantasyPros and are always populated, so they have no dep.
+const RADAR_AXIS_DEPS: Array<{ label: string; dep: PanelMetricKey | null }> = [
+  { label: "Value", dep: "true_value" },
+  { label: "Oppty", dep: "opportunity" },
+  { label: "Narrative", dep: "narrative_pressure" },
+  { label: "Confidence", dep: null },
+  { label: "Stability", dep: null }
+];
+
+export function PlayerUniverse({ players, envelope }: Props) {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [activeTab, setActiveTab] = useState<string>("Universe");
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,6 +44,13 @@ export function PlayerUniverse({ players }: Props) {
   const selected = players[selectedIdx] ?? players[0];
   const risingStars = deriveRisingStars(players);
   const avgIneff = avg(players.map(marketInefficiency));
+
+  // O(1) lookup for per-axis dashed rendering. Empty Set when no envelope
+  // provided (legacy callers) → all axes treated as available.
+  const missing = envelope
+    ? asMetricSet(envelope.sourceState.missingFields)
+    : new Set<PanelMetricKey>();
+  const anyAxisMissing = RADAR_AXIS_DEPS.some((a) => a.dep != null && missing.has(a.dep));
 
   return (
     <PanelCard
@@ -75,15 +96,33 @@ export function PlayerUniverse({ players }: Props) {
               <div className="section-label">TOP CATEGORIES</div>
               <RadarChart
                 axes={[
-                  { label: "Value", value: selected.trueValue },
-                  { label: "Oppty", value: selected.opportunity },
-                  { label: "Narrative", value: Math.abs(selected.narrativePressure) },
+                  {
+                    label: "Value",
+                    value: selected.trueValue,
+                    unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
+                  },
+                  {
+                    label: "Oppty",
+                    value: selected.opportunity,
+                    unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
+                  },
+                  {
+                    label: "Narrative",
+                    value: Math.abs(selected.narrativePressure),
+                    unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
+                  },
                   { label: "Confidence", value: selected.confidence * 100 },
                   { label: "Stability", value: 100 - selected.volatility },
                 ]}
                 max={100}
                 size={140}
               />
+              {anyAxisMissing ? (
+                <p className="small-note" style={{ marginTop: 6 }}>
+                  Axes marked <code>*</code> have no integrated data source yet — radar polygon
+                  drops to 0 on those edges rather than show a fabricated reading.
+                </p>
+              ) : null}
             </div>
           )}
         </div>

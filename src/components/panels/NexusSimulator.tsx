@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Atom } from "lucide-react";
-import type { PlayerMarketRecord } from "@/lib/governance";
+import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
+import { derivePanelState } from "@/lib/panelState";
 import { runNexusSimulation, type SimulationResult } from "@/lib/simulation";
 import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derivedMetrics";
 import { bootstrapCI } from "@/lib/stats/distribution";
@@ -18,13 +19,43 @@ type Props = {
   players: PlayerMarketRecord[];
   sim: SimulationResult;
   scenarios: ScenarioComparison;
+  envelope?: RAEEnvelope;
 };
 
 const TABS = ["Multiverse", "Scenarios", "Projections", "Sensitivity", "Risk Analysis"] as const;
 
-export function NexusSimulator({ players, sim, scenarios }: Props) {
+// CI multipliers per panel-data-state. The simulation itself always runs;
+// what changes is how loud we are about the uncertainty bands. degraded
+// widens the CI 1.5x and labels "Wide CI: data partial"; unavailable
+// widens 2.5x and labels "Speculative". Numbers chosen so the label
+// boundary stays interpretable rather than triggering on every tiny gap.
+const CI_MULTIPLIER: Record<"ready" | "degraded" | "unavailable", number> = {
+  ready: 1,
+  degraded: 1.5,
+  unavailable: 2.5
+};
+
+const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
+  ready: "",
+  degraded: "Wide CI: data partial",
+  unavailable: "Speculative — narrative + opportunity unavailable"
+};
+
+export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
   const [running, setRunning] = useState(false);
+
+  // The simulator depends on narrative_pressure (chaosExposure) and
+  // opportunity to interpret risk + driver weights. When both are missing,
+  // the CI bands shown to the user need to widen so the displayed
+  // probabilities aren't read as precise. The actual numbers from
+  // runNexusSimulation stay the same — we only modify the displayed CI
+  // width + add a banner.
+  const panelState = envelope
+    ? derivePanelState(envelope, ["narrative_pressure", "opportunity"])
+    : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
+  const ciMultiplier = CI_MULTIPLIER[panelState.status];
+  const ciLabel = CI_LABEL[panelState.status];
 
   const handleRun = () => {
     setRunning(true);
@@ -65,6 +96,25 @@ export function NexusSimulator({ players, sim, scenarios }: Props) {
         ariaLabel="Nexus Simulator tabs"
       />
 
+      {ciLabel ? (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            background: "rgba(245,231,196,0.04)",
+            border: "1px solid rgba(245,231,196,0.12)",
+            color: "var(--cream)",
+            padding: "8px 12px",
+            borderRadius: 8,
+            fontSize: 12,
+            margin: "8px 0",
+            letterSpacing: 0.2
+          }}
+        >
+          {ciLabel} — CI bands widened {ciMultiplier.toFixed(1)}× from the seeded simulation.
+        </div>
+      ) : null}
+
       <div className="nexus-layout">
         {(activeTab === "Multiverse" || activeTab === "Projections") && (
           <>
@@ -72,7 +122,7 @@ export function NexusSimulator({ players, sim, scenarios }: Props) {
               <OutcomeMultiverse players={players} sim={sim} running={running} />
             </div>
             <div className="nexus-side">
-              <ConfidenceBands players={players} sim={sim} />
+              <ConfidenceBands players={players} sim={sim} ciMultiplier={ciMultiplier} />
               <KeyDrivers sim={sim} hasData={hasData} />
               <RiskOfRegret sim={sim} hasData={hasData} />
             </div>
@@ -162,7 +212,39 @@ function OutcomeMultiverse({
   );
 }
 
-function ConfidenceBands({ players, sim }: { players: PlayerMarketRecord[]; sim: SimulationResult }) {
+/**
+ * Widen a CI's bounds symmetrically around its point estimate by the given
+ * multiplier. Bounded to [0, 100] so we never display impossible probabilities.
+ * Used by ConfidenceBands when the envelope's data state is degraded/unavailable —
+ * the underlying simulation is unchanged; we just communicate honest uncertainty.
+ */
+function widen(
+  ci: { estimate: number; lower: number; upper: number; width: number; level: number },
+  multiplier: number
+) {
+  if (multiplier === 1) return ci;
+  const halfWidthLow = ci.estimate - ci.lower;
+  const halfWidthHigh = ci.upper - ci.estimate;
+  const lower = Math.max(0, ci.estimate - halfWidthLow * multiplier);
+  const upper = Math.min(100, ci.estimate + halfWidthHigh * multiplier);
+  return { ...ci, lower, upper, width: upper - lower };
+}
+
+function ConfidenceBands({
+  players,
+  sim,
+  ciMultiplier = 1
+}: {
+  players: PlayerMarketRecord[];
+  sim: SimulationResult;
+  /**
+   * Widen the displayed CI bands by this factor when the envelope reports
+   * that key inputs (narrative pressure, opportunity) are missing. Bands
+   * are mirrored around the point estimate so the user reads wider bounds
+   * even though the underlying simulation is unchanged.
+   */
+  ciMultiplier?: number;
+}) {
   const REPLICATES = 20;
   const ITER = 800;
   const bands = useMemo(() => {
@@ -179,11 +261,13 @@ function ConfidenceBands({ players, sim }: { players: PlayerMarketRecord[]; sim:
       champ.push(r.championshipProbability);
       playoff.push(r.playoffProbability);
     }
+    const champCI = bootstrapCI(champ, 0.95, 500, 1019);
+    const playoffCI = bootstrapCI(playoff, 0.95, 500, 1019);
     return {
-      championship: bootstrapCI(champ, 0.95, 500, 1019),
-      playoff: bootstrapCI(playoff, 0.95, 500, 1019)
+      championship: widen(champCI, ciMultiplier),
+      playoff: widen(playoffCI, ciMultiplier)
     };
-  }, [players, sim.params.seed, sim.params.rosterSlots, sim.params.riskTolerance]);
+  }, [players, sim.params.seed, sim.params.rosterSlots, sim.params.riskTolerance, ciMultiplier]);
 
   if (!bands) {
     return (

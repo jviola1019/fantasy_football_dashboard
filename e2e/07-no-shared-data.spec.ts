@@ -69,15 +69,30 @@ test.describe("per-account isolation", () => {
     }
   });
 
-  test("DemoBanner is visible to signed-in users until a league drives the homepage", async ({
+  test("NoLeagueCTA is shown to signed-in users until a league drives the homepage", async ({
     browser
   }) => {
+    // Updated for Feature D (commit b340b85): signed-in users with zero
+    // connected leagues now see a dedicated <NoLeagueCTA /> instead of the
+    // silent fixture-data dashboard with a DemoBanner. The new behavior is
+    // more helpful — explicit "Connect a league" call-to-action with a
+    // secondary "Try mock draft" path. The intent of this test stays the
+    // same: a signed-in zero-league user must NEVER see fixture data as if
+    // it were their league's data.
     const ctx = await browser.newContext();
     const page = await ctx.newPage();
     try {
-      await registerUniqueUser(page, "demo");
+      await registerUniqueUser(page, "noleague");
       await page.goto("/");
-      await expect(page.getByText(/^DEMO DATA$/)).toBeVisible({ timeout: 15_000 });
+      // Primary CTA copy + heading from src/components/NoLeagueCTA.tsx
+      await expect(page.getByRole("heading", { name: /bring your league/i })).toBeVisible({
+        timeout: 15_000
+      });
+      await expect(page.getByRole("link", { name: /connect a league/i })).toBeVisible();
+      // And the dashboard chrome must NOT render — no DEMO DATA banner, no
+      // governance "Source state:" line, since RaeApp wasn't mounted.
+      await expect(page.getByText(/^DEMO DATA$/)).toHaveCount(0);
+      await expect(page.getByText(/Source state:/i)).toHaveCount(0);
     } finally {
       await ctx.close();
     }

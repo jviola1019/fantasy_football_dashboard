@@ -1,4 +1,14 @@
-type RadarAxis = { label: string; value: number };
+type RadarAxis = {
+  label: string;
+  value: number;
+  /**
+   * When true, this axis is rendered with a dashed grid line and the label
+   * is grayed — communicating that the underlying metric has no real data
+   * source yet. The polygon still hits the axis at value 0 so the user
+   * sees the absence rather than a misleading mid-band reading.
+   */
+  unavailable?: boolean;
+};
 
 type RadarChartProps = {
   axes: RadarAxis[];
@@ -30,7 +40,10 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
 
   const dataPolygon = axes
     .map((axis, i) => {
-      const p = point(axisAngle(i), r * Math.min(1, Math.max(0, axis.value / max)));
+      // Unavailable axes contribute 0 to the polygon so the rendered shape
+      // honestly reflects what we actually know about the player.
+      const value = axis.unavailable ? 0 : axis.value;
+      const p = point(axisAngle(i), r * Math.min(1, Math.max(0, value / max)));
       return `${p.x},${p.y}`;
     })
     .join(" ");
@@ -46,7 +59,7 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
           strokeWidth="1"
         />
       ))}
-      {axes.map((_, i) => {
+      {axes.map((axis, i) => {
         const p = point(axisAngle(i), r);
         return (
           <line
@@ -55,8 +68,9 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
             y1={cy}
             x2={p.x}
             y2={p.y}
-            stroke="rgba(214,226,226,0.12)"
+            stroke={axis.unavailable ? "rgba(141,154,160,0.18)" : "rgba(214,226,226,0.12)"}
             strokeWidth="1"
+            strokeDasharray={axis.unavailable ? "3 3" : undefined}
           />
         );
       })}
@@ -71,9 +85,10 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="9"
-            fill="rgba(141,154,160,0.85)"
+            fill={axis.unavailable ? "rgba(141,154,160,0.45)" : "rgba(141,154,160,0.85)"}
           >
             {axis.label}
+            {axis.unavailable ? " *" : ""}
           </text>
         );
       })}
