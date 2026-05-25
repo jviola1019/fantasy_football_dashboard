@@ -148,6 +148,13 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
       sizeBytes INTEGER NOT NULL,
       payload TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS ktc_snapshots (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
   `);
 }
 

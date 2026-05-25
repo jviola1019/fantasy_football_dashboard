@@ -111,6 +111,17 @@ export const rankingsSnapshots = pgTable("rankings_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+// KeepTradeCut trade-value snapshot. Mirror of rankings_snapshots — one
+// row per variant per fetch. source is the KTC variant code: "dynasty" |
+// "redraft". Same 7-day retention pruned by the cron.
+export const ktcSnapshots = pgTable("ktc_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 // Multi-statement DDL kept as a plain string. The bootstrap route splits it on
 // `;` and applies each statement individually — postgres.js sends one command
 // per query, so a single multi-statement call would be rejected.
@@ -197,4 +208,13 @@ export const INIT_SQL = `
   );
   CREATE INDEX IF NOT EXISTS rankings_snapshots_source_fetched
     ON rankings_snapshots (source, "fetchedAt" DESC);
+  CREATE TABLE IF NOT EXISTS ktc_snapshots (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "sizeBytes" INTEGER NOT NULL,
+    payload JSONB NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS ktc_snapshots_source_fetched
+    ON ktc_snapshots (source, "fetchedAt" DESC);
 `;

@@ -115,6 +115,19 @@ export const rankingsSnapshots = sqliteTable("rankings_snapshots", {
   payload: text("payload").notNull()
 });
 
+// KeepTradeCut trade-value snapshot. Mirror of rankings_snapshots — same
+// shape, different source domain. source is the KTC variant code:
+// "dynasty" | "redraft".
+export const ktcSnapshots = sqliteTable("ktc_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: integer("fetchedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: text("payload").notNull()
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;

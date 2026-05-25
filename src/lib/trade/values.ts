@@ -2,6 +2,12 @@ import { z } from "zod";
 import type { SourceMeta } from "../governance";
 import { unavailableSource } from "../governance";
 import type { LeagueFormat } from "./format";
+import { getLatestKtcSnapshot } from "../ktc/snapshot";
+import type { KtcVariant } from "../ktc/types";
+
+// KTC has both dynasty and redraft variants. For redraft leagues we want
+// the redraft snapshot; for dynasty we want dynasty. Mapping is trivial.
+const KTC_VARIANT: KtcVariant = "redraft";
 
 export interface PlayerValue {
   sleeperId: string | null;
@@ -117,6 +123,43 @@ export async function fetchDynastyProcessValues(format: LeagueFormat): Promise<M
   return parseDynastyProcessCsv(await res.text(), format);
 }
 
+// KTC -> PlayerValue map. Keyed by "<pos>-<name>" (lowercased, name-normalized
+// only for separator/case) to match DynastyProcess's join shape. KTC has no
+// sleeperId/espnId, so trade-grading by id falls through to DynastyProcess
+// behavior — Trade Builder (search-based) still works.
+export async function fetchKtcValues(
+  format: LeagueFormat,
+  variant: KtcVariant = KTC_VARIANT
+): Promise<Map<string, PlayerValue>> {
+  const snapshot = await getLatestKtcSnapshot(variant);
+  if (!snapshot) throw new Error(`KTC ${variant} snapshot not cached`);
+  const map = new Map<string, PlayerValue>();
+  for (const p of snapshot.data.players) {
+    // Pick the right value scale for the league's QB count. Superflex
+    // leagues should consult oneQBValues even though the format is 2QB —
+    // KTC's "superflexValues" overstates RB/WR values by the QB premium,
+    // which would skew non-QB pricing in a Superflex builder. We err on
+    // the side of position-neutral; a future commit can branch by format.
+    const value = format.numQbs === 2 && p.superflexValues
+      ? p.superflexValues.startSitValue
+      : p.oneQBValues.startSitValue;
+    if (!Number.isFinite(value)) continue;
+    const key = `${p.position.toLowerCase()}-${p.playerName.toLowerCase()}`;
+    map.set(key, {
+      sleeperId: null,
+      espnId: null,
+      name: p.playerName,
+      position: p.position,
+      team: p.team ?? null,
+      value,
+      overallRank: p.oneQBValues.startSitOverallRank ?? 0,
+      positionRank: p.oneQBValues.startSitPositionalRank ?? 0,
+      trend30Day: p.oneQBValues.overall7DayTrend ?? 0
+    });
+  }
+  return map;
+}
+
 /** Fetch live trade values, governance-wrapped. */
 export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValueData> {
   const url = buildFantasyCalcUrl(format);
@@ -139,37 +182,63 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
       }
     };
   } catch (primaryErr) {
+    // Secondary: KeepTradeCut cached snapshot. Daily cron at 09:00 UTC.
     try {
-      const values = await fetchDynastyProcessValues(format);
+      const values = await fetchKtcValues(format);
       return {
         values,
         source: {
-          source: "DynastyProcess values (fallback)",
+          source: "KeepTradeCut redraft values (secondary)",
           fetchedAt: new Date().toISOString(),
           ttlSeconds: FANTASYCALC_TTL_SECONDS,
           freshness: "stale",
-          confidence: 0.6,
+          confidence: 0.75,
           validation: "valid",
           missingFields: ["sleeperId"],
           assumptions: [
-            "FantasyCalc unavailable; using DynastyProcess ECR-derived values keyed by name.",
+            "FantasyCalc unavailable; using KeepTradeCut consensus values keyed by name.",
             `Primary failure: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`
           ],
           failure: null
         }
       };
-    } catch (fallbackErr) {
-      return {
-        values: new Map(),
-        source: unavailableSource(
-          "Trade values",
-          `Both value sources failed — FantasyCalc: ${
-            primaryErr instanceof Error ? primaryErr.message : String(primaryErr)
-          }; DynastyProcess: ${
-            fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
-          }`
-        )
-      };
+    } catch (ktcErr) {
+      // Tertiary: DynastyProcess CSV.
+      try {
+        const values = await fetchDynastyProcessValues(format);
+        return {
+          values,
+          source: {
+            source: "DynastyProcess values (tertiary fallback)",
+            fetchedAt: new Date().toISOString(),
+            ttlSeconds: FANTASYCALC_TTL_SECONDS,
+            freshness: "stale",
+            confidence: 0.6,
+            validation: "valid",
+            missingFields: ["sleeperId"],
+            assumptions: [
+              "FantasyCalc + KTC both unavailable; using DynastyProcess ECR-derived values keyed by name.",
+              `Primary failure: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`,
+              `Secondary failure: ${ktcErr instanceof Error ? ktcErr.message : String(ktcErr)}`
+            ],
+            failure: null
+          }
+        };
+      } catch (fallbackErr) {
+        return {
+          values: new Map(),
+          source: unavailableSource(
+            "Trade values",
+            `All three value sources failed — FantasyCalc: ${
+              primaryErr instanceof Error ? primaryErr.message : String(primaryErr)
+            }; KTC: ${
+              ktcErr instanceof Error ? ktcErr.message : String(ktcErr)
+            }; DynastyProcess: ${
+              fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)
+            }`
+          )
+        };
+      }
     }
   }
 }

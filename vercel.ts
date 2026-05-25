@@ -24,6 +24,10 @@ const config: VercelConfig = {
       memory: 512,
       maxDuration: 60
     },
+    "src/app/api/cron/ktc-refresh/route.ts": {
+      memory: 512,
+      maxDuration: 60
+    },
     "src/app/api/cron/lifecycle-check/route.ts": {
       memory: 512,
       maxDuration: 60
@@ -38,11 +42,16 @@ const config: VercelConfig = {
     // the behavioral-market fields on PlayerMarketRecord so the dashboard
     // panels have a real data source pre-season.
     { path: "/api/cron/rankings-refresh", schedule: "30 8 * * *" },
-    // Once daily at 09:00 UTC (an hour after the players snapshot): walk every
+    // Daily KeepTradeCut trade-value snapshot (dynasty + redraft). Feeds the
+    // Trade Center value chain as a secondary source between FantasyCalc and
+    // DynastyProcess. Staggered 30 min after rankings-refresh to avoid
+    // overlapping serverless invocations.
+    { path: "/api/cron/ktc-refresh", schedule: "0 9 * * *" },
+    // Once daily at 09:30 UTC (after the data snapshots): walk every
     // stored league and emit drift notifications (stacked bye weeks, FAAB
     // drained, injured starters). Vercel's Hobby plan caps each cron job at one
     // run per day; on Pro this can return to a tighter interval.
-    { path: "/api/cron/lifecycle-check", schedule: "0 9 * * *" }
+    { path: "/api/cron/lifecycle-check", schedule: "30 9 * * *" }
   ],
   headers: [
     {
