@@ -123,12 +123,35 @@ ul { margin: 0; padding: 0; list-style: none; }
    Tailwind components PanelGrid / PanelCard — their legacy CSS was removed. */
 
 /* ─── Live / Fixture Badges ────────────────────────────────────────────────── */
+/* Aesthetic polish — Sprint 2 Task 11.
+   LIVE gets a soft green glow that pulses (2s loop) AND keeps the legacy
+   text blink. FIXTURE stays static (amber outline only) so a quick glance
+   visually distinguishes "live" from "demo" by motion, not just color.
+   Pulse intensity is restrained to stay within prefers-reduced-motion
+   compliance and Lighthouse perf budget. */
 .live-badge {
+  position: relative;
   font-size: 10px;
   color: var(--green);
   text-transform: uppercase;
   letter-spacing: .08em;
+  padding: 2px 6px;
+  border: 1px solid rgba(119, 215, 176, 0.45);
+  border-radius: 3px;
+  background: rgba(119, 215, 176, 0.06);
   animation: live-blink 1.4s ease-in-out infinite;
+}
+/* Pulse ring as an overlay — only opacity animates so the GPU stays on
+   the composite path; no paint or layout invalidation per frame. */
+.live-badge::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 4px;
+  pointer-events: none;
+  box-shadow: 0 0 6px 1px rgba(119, 215, 176, 0.55);
+  opacity: 0;
+  animation: live-pulse-opacity 2s ease-in-out infinite;
 }
 .fixture-badge {
   font-size: 10px;
@@ -137,6 +160,12 @@ ul { margin: 0; padding: 0; list-style: none; }
   letter-spacing: .08em;
   border: 1px solid rgba(215, 168, 87, 0.4);
   padding: 2px 6px;
+  border-radius: 3px;
+}
+
+@keyframes live-pulse-opacity {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 
 /* ─── Time Range Tabs ─────────────────────────────────────────────────────── */
@@ -154,13 +183,18 @@ ul { margin: 0; padding: 0; list-style: none; }
 .time-tab.active { color: var(--amber); border-color: rgba(215, 168, 87, 0.35); }
 
 /* ─── KPI Cards ───────────────────────────────────────────────────────────── */
+/* Sprint 2 Task 12 — fluid responsive grid replaces the fixed N-column
+   layout. auto-fit + minmax(140px, 1fr) reflows cleanly from desktop down
+   to mobile without leaving dangling cards at intermediate widths.
+   The legacy media-query overrides below pin specific breakpoints to
+   integer column counts for the dense data-internal panels. */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 6px;
   margin-bottom: 10px;
 }
-.kpi-row-sm { grid-template-columns: repeat(6, 1fr); }
+.kpi-row-sm { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .kpi-card {
   padding: 8px 10px;
   border: 1px solid var(--line);
@@ -827,6 +861,51 @@ td small { color: var(--muted); }
   .bottom-row { grid-template-columns: repeat(2, 1fr); }
   .demo-banner { grid-template-columns: 1fr auto; }
   .demo-banner-tag { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* ─── Sprint 2 Task 11 — DataUnavailable reveal + Aurora gradient ────────── */
+/* Both animate transform + opacity only (composite-path) so they don't
+   trigger paint/layout. Reduced-motion guard at the bottom of this file
+   collapses them to instant. */
+
+.data-unavailable {
+  animation: data-unavailable-reveal 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes data-unavailable-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* NoLeagueCTA aurora background: slow color shift over a fixed gradient
+   stack. background-position animation moves a large-format gradient
+   across the layer — perceived as a soft aurora, only composite work. */
+.no-league-aurora {
+  background:
+    radial-gradient(60% 60% at 20% 30%, rgba(245,231,196,0.08), transparent 60%),
+    radial-gradient(60% 60% at 80% 70%, rgba(225,167,68,0.06), transparent 60%),
+    linear-gradient(135deg, rgba(120,180,200,0.04), rgba(180,120,200,0.04), rgba(120,200,160,0.04));
+  background-size: 200% 200%;
+  animation: aurora-shift 18s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Panel tab body fade-through. Consumer panels add `data-state="enter"` on
+   the active tab body wrapper; the rule animates opacity from 0 -> 1 over
+   180ms. Outgoing tabs unmount immediately (React); the new tab fades in
+   so the swap reads as intentional rather than a flash. */
+[data-tab-fade] {
+  animation: tab-body-fade 180ms ease-out both;
+}
+
+@keyframes tab-body-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {

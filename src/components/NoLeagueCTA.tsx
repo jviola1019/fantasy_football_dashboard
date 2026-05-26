@@ -21,15 +21,13 @@ export function NoLeagueCTA() {
       }}
       aria-labelledby="no-league-heading"
     >
+      {/* Aurora background — animated via .no-league-aurora in globals.css.
+         Composite-path opacity/background-position only; reduced-motion
+         collapses it to a static gradient. */}
       <div
         aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          background:
-            "radial-gradient(ellipse at top, rgba(245,231,196,0.06), transparent 55%), radial-gradient(ellipse at bottom right, rgba(225,167,68,0.05), transparent 60%)",
-          pointerEvents: "none"
-        }}
+        className="no-league-aurora"
+        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
       />
       <div
         style={{

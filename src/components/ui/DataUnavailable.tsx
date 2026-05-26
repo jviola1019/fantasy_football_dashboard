@@ -22,7 +22,7 @@ interface Props {
 
 export function DataUnavailable({ title = "Data source not integrated", description, children }: Props) {
   return (
-    <div role="status" style={wrapperStyle}>
+    <div role="status" className="data-unavailable" style={wrapperStyle}>
       <div aria-hidden="true" style={hatchStyle} />
       <div style={contentStyle}>
         <div style={captionStyle}>{"// data source not integrated"}</div>
