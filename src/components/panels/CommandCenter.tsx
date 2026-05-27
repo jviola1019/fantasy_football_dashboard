@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Zap } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
+import { DataUnavailable } from "../ui/DataUnavailable";
 import type { SimulationResult } from "@/lib/simulation";
 import { PlayerRow } from "../PlayerRow";
 import type { CommandMetrics, PositionGrades } from "@/lib/derivedMetrics";
@@ -13,6 +14,7 @@ import {
   derivePositionGrades,
   deriveStartSitEdge,
 } from "@/lib/derivedMetrics";
+import { derivePanelState } from "@/lib/panelState";
 import { fmt, fmtPct } from "@/lib/utils";
 
 type Props = {
@@ -70,7 +72,7 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
         <IntelFeed envelope={envelope} />
         <LineupWinProb sim={sim} />
         <TeamConstructionScore grades={grades} />
-        <RosterFragilityXRay players={players} />
+        <RosterFragilityXRay players={players} envelope={envelope} />
         <StartSitEdge rows={startSit} hasData={hasData} />
       </div>
     </PanelCard>
@@ -300,7 +302,30 @@ function TeamConstructionScore({ grades }: { grades: PositionGrades }) {
   );
 }
 
-function RosterFragilityXRay({ players }: { players: PlayerMarketRecord[] }) {
+function RosterFragilityXRay({
+  players,
+  envelope
+}: {
+  players: PlayerMarketRecord[];
+  envelope: RAEEnvelope;
+}) {
+  // Honest degradation: without an injury / snap-share adapter, every player's
+  // fragility is 0 (the Sleeper/FantasyPros pipeline declares the field as
+  // missing). Render the DataUnavailable banner rather than a dot-grid where
+  // every dot is the same colour. Same pattern as Sprint-2 NarrativeEngine.
+  const fragilityState = derivePanelState(envelope, ["fragility"]);
+  if (fragilityState.status === "unavailable") {
+    return (
+      <div className="mini-panel">
+        <div className="mini-panel-title">Roster Fragility X-Ray</div>
+        <DataUnavailable
+          title="Injury / snap-share source not integrated"
+          description="Per-player fragility requires a snap-count or injury-trend feed. nflverse / PFR / ESPN don't expose this on a free public endpoint; the fragility column stays neutral pending a paid adapter."
+        />
+      </div>
+    );
+  }
+
   const topFragile = [...players].sort((a, b) => b.fragility - a.fragility).slice(0, 3);
   const dotPos = [
     { cx: 60, cy: 28 },

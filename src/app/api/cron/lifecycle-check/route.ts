@@ -7,10 +7,14 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * Runs every 30 minutes. For every stored league:
+ * Runs once daily at 09:30 UTC (see vercel.ts crons). For every stored league:
  *   1. Decrypt credentials and fetch live rosters via `fetchLeagueLive`.
  *   2. Run the rules engine against the user's roster + injury list.
  *   3. Insert any drafted notifications.
+ *
+ * Scheduled after the data-feed crons (players-refresh 08:00, rankings 08:30,
+ * KTC 09:00) so notifications are computed against the freshest snapshots.
+ * Vercel's Hobby plan caps each cron at one run per day; Pro can tighten this.
  *
  * Authenticated by the Bearer token Vercel sends when CRON_SECRET is set.
  */
@@ -56,7 +60,7 @@ export async function GET(request: Request): Promise<Response> {
       userId: league.userId,
       leagueId: league.id,
       roster: snapshot.myRoster,
-      faabRemainingRatio: null, // wired once FAAB fields are extracted from settings
+      faabRemainingRatio: snapshot.myFaabRemainingRatio,
       injuredStarters
     });
 

@@ -31,6 +31,38 @@ export interface LiveLeagueSnapshot {
    * rather than 12-team-PPR defaults that wouldn't match the user's league.
    */
   format: LeagueFormat | null;
+  /**
+   * The user's own roster's FAAB budget remaining as a ratio of total budget
+   * (0..1). Null when the league doesn't use FAAB, when the values cannot be
+   * extracted from the upstream payload, or when the platform doesn't expose
+   * the field (ESPN). Consumed by the lifecycle cron's FAAB-depleted rule.
+   */
+  myFaabRemainingRatio: number | null;
+}
+
+/**
+ * Pure helper — extract the user's FAAB-remaining ratio (0..1) from Sleeper's
+ * league + roster settings. Returns null when the league isn't FAAB-style
+ * (waiver_type 0 = rolling, 1 = reverse standings), when the total budget is
+ * missing or non-positive, when the per-roster `waiver_budget_used` is absent,
+ * or when the computed ratio falls outside [0, 1] (which would indicate
+ * upstream corruption rather than a real condition).
+ *
+ * Exported so it can be unit-tested without spinning up a Sleeper fetch.
+ */
+export function extractSleeperFaabRatio(
+  leagueSettings: Record<string, unknown> | null | undefined,
+  rosterSettings: Record<string, unknown> | null | undefined
+): number | null {
+  if (!leagueSettings || !rosterSettings) return null;
+  const totalRaw = leagueSettings.waiver_budget;
+  const usedRaw = rosterSettings.waiver_budget_used;
+  const total = typeof totalRaw === "number" ? totalRaw : null;
+  const used = typeof usedRaw === "number" ? usedRaw : 0; // Sleeper omits this when 0
+  if (total === null || total <= 0) return null;
+  const remaining = total - used;
+  if (remaining < 0 || remaining > total) return null;
+  return remaining / total;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,7 +158,8 @@ export async function fetchLeagueLive(
       myRoster: [],
       source: unavailableSource(`ESPN league ${league.externalLeagueId}`, "missing credentials"),
       failure: "missing credentials",
-      format: null
+      format: null,
+      myFaabRemainingRatio: null
     };
   }
   return fetchEspnLive(league, creds);
@@ -152,7 +185,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       myRoster: [],
       source: info.source.freshness === "unavailable" ? info.source : rosters.source,
       failure: info.source.failure ?? rosters.source.failure ?? "no rosters returned",
-      format
+      format,
+      myFaabRemainingRatio: null
     };
   }
   if (!snapshot) {
@@ -165,7 +199,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
         "no players snapshot — run /api/cron/players-refresh first"
       ),
       failure: "no players snapshot",
-      format
+      format,
+      myFaabRemainingRatio: null
     };
   }
 
@@ -188,13 +223,21 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     ? materializeSleeperRoster(myRosterRow, playersMap, league)
     : [];
 
+  const myFaabRemainingRatio = myRosterRow
+    ? extractSleeperFaabRatio(
+        info.data.settings ?? null,
+        myRosterRow.settings ?? null
+      )
+    : null;
+
   return {
     league,
     allRosters,
     myRoster,
     source: rosters.source,
     failure: null,
-    format
+    format,
+    myFaabRemainingRatio
   };
 }
 
@@ -248,7 +291,8 @@ async function fetchEspnLive(
       myRoster: [],
       source: result.source,
       failure: result.source.failure ?? "no teams returned",
-      format
+      format,
+      myFaabRemainingRatio: null
     };
   }
 
@@ -294,6 +338,10 @@ async function fetchEspnLive(
     myRoster,
     source: result.source,
     failure: null,
-    format
+    format,
+    // ESPN: FAAB extraction not yet wired. Their settings live under
+    // settings.acquisitionSettings.acquisitionBudget + teamData.waiverRank;
+    // separate ticket once an ESPN-FAAB league is available to fixture-pin.
+    myFaabRemainingRatio: null
   };
 }

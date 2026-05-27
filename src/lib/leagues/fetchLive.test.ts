@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSleeperRosterId, resolveEspnTeam } from "./fetchLive";
+import { resolveSleeperRosterId, resolveEspnTeam, extractSleeperFaabRatio } from "./fetchLive";
 
 // ---------------------------------------------------------------------------
 // resolveSleeperRosterId
@@ -115,5 +115,71 @@ describe("resolveEspnTeam", () => {
   it("handles teams with no owner fields gracefully", () => {
     const sparse: EspnTeamStub[] = [{ id: 9 }];
     expect(resolveEspnTeam(sparse, "{AAA-0001}")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractSleeperFaabRatio
+// ---------------------------------------------------------------------------
+
+describe("extractSleeperFaabRatio", () => {
+  it("returns the correct ratio for a normal FAAB league", () => {
+    // $100 budget, $40 spent → 0.60 remaining.
+    expect(
+      extractSleeperFaabRatio({ waiver_budget: 100 }, { waiver_budget_used: 40 })
+    ).toBeCloseTo(0.6, 5);
+  });
+
+  it("returns 1.0 when waiver_budget_used is absent (Sleeper omits 0)", () => {
+    // Sleeper drops `waiver_budget_used` for rosters that have spent nothing,
+    // so treat absent as 0.
+    expect(extractSleeperFaabRatio({ waiver_budget: 100 }, {})).toBe(1);
+  });
+
+  it("returns ~0 when the entire budget is spent", () => {
+    expect(
+      extractSleeperFaabRatio({ waiver_budget: 100 }, { waiver_budget_used: 100 })
+    ).toBe(0);
+  });
+
+  it("returns null when waiver_budget is missing (non-FAAB league)", () => {
+    expect(extractSleeperFaabRatio({}, { waiver_budget_used: 10 })).toBeNull();
+  });
+
+  it("returns null when waiver_budget is zero or negative", () => {
+    expect(
+      extractSleeperFaabRatio({ waiver_budget: 0 }, { waiver_budget_used: 0 })
+    ).toBeNull();
+    expect(
+      extractSleeperFaabRatio({ waiver_budget: -10 }, { waiver_budget_used: 0 })
+    ).toBeNull();
+  });
+
+  it("returns null when leagueSettings or rosterSettings is null/undefined", () => {
+    expect(extractSleeperFaabRatio(null, { waiver_budget_used: 10 })).toBeNull();
+    expect(extractSleeperFaabRatio({ waiver_budget: 100 }, null)).toBeNull();
+    expect(extractSleeperFaabRatio(undefined, undefined)).toBeNull();
+  });
+
+  it("returns null when waiver_budget_used exceeds total (corrupted upstream)", () => {
+    expect(
+      extractSleeperFaabRatio({ waiver_budget: 100 }, { waiver_budget_used: 150 })
+    ).toBeNull();
+  });
+
+  it("ignores non-numeric waiver_budget", () => {
+    expect(
+      extractSleeperFaabRatio({ waiver_budget: "100" }, { waiver_budget_used: 0 })
+    ).toBeNull();
+  });
+
+  it("activates the lifecycle-rule threshold (< 0.1) for a depleted budget", () => {
+    // $100 budget, $95 spent → 0.05 remaining — below the rule threshold.
+    const ratio = extractSleeperFaabRatio(
+      { waiver_budget: 100 },
+      { waiver_budget_used: 95 }
+    );
+    expect(ratio).not.toBeNull();
+    expect(ratio!).toBeLessThan(0.1);
   });
 });
