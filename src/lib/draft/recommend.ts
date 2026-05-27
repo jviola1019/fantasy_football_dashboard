@@ -73,7 +73,7 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
         reasons.push(`reputation edge +${edge.toFixed(1)}`);
       }
 
-      if (player.narrativePressure > 30) reasons.push(`narrative tailwind +${player.narrativePressure}`);
+      if (player.trendingMomentum > 30) reasons.push(`trending tailwind +${player.trendingMomentum}`);
       if (player.fragility > 60) reasons.push(`fragility ${player.fragility} — discount applied`);
 
       return {

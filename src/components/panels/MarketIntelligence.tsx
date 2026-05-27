@@ -30,12 +30,12 @@ export function MarketIntelligence({ players, marketMetrics, envelope }: Props) 
   const [activeTab, setActiveTab] = useState<string>("Market Pulse");
 
   // Per-tab data-state gating (Feature B follow-on). The Sentiment tab is
-  // built entirely on narrativePressure; the Liquidity Flow tab is built
+  // built entirely on trendingMomentum; the Liquidity Flow tab is built
   // entirely on opportunity. When those fields are missing, the tab body
   // becomes a <DataUnavailable> banner with an honest explanation; tab
   // navigation itself always works.
   const sentimentState = envelope
-    ? derivePanelState(envelope, ["narrative_pressure"])
+    ? derivePanelState(envelope, ["trending_momentum"])
     : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
   const liquidityState = envelope
     ? derivePanelState(envelope, ["opportunity"])
@@ -233,7 +233,7 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
   const base = (scale: number) =>
     TIME_LABELS.map((_, i) => {
       const t = i / (TIME_LABELS.length - 1);
-      const baseVal = avg(players.map((p) => Math.max(0, p.narrativePressure * scale))) || 30;
+      const baseVal = avg(players.map((p) => Math.max(0, p.trendingMomentum * scale))) || 30;
       return Math.round(baseVal * (0.8 + 0.4 * Math.sin(t * Math.PI + scale)));
     });
 

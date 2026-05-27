@@ -26,7 +26,7 @@ export const PlayerMarketRecordSchema = z.object({
   trueValue: z.number().min(0).max(100),
   ownershipLeverage: z.number().min(-100).max(100),
   fragility: z.number().min(0).max(100),
-  narrativePressure: z.number().min(-100).max(100),
+  trendingMomentum: z.number().min(-100).max(100),
   volatility: z.number().min(0).max(100),
   opportunity: z.number().min(0).max(100),
   confidence: z.number().min(0).max(1),

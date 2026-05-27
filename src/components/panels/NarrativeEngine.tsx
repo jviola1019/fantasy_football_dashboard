@@ -28,15 +28,15 @@ export function NarrativeEngine({ players, envelope }: Props) {
   const [timeRange, setTimeRange] = useState("7D");
   const halfLife = deriveNarrativeHalfLife(players);
   const viralVel = deriveViralVelocity(players);
-  const tone = avg(players.map((p) => p.narrativePressure)) / 100;
+  const tone = avg(players.map((p) => p.trendingMomentum)) / 100;
   const collisions = deriveStoryCollisions(players);
 
-  // When the envelope reports narrative_pressure is missing (no trending
+  // When the envelope reports trending_momentum is missing (no trending
   // proxy active AND no sentiment adapter integrated), the entire panel is
-  // meaningless — every chart and tile derives from narrativePressure. Show
+  // meaningless — every chart and tile derives from trendingMomentum. Show
   // a single banner instead of zeroed visuals.
   const panelState = envelope
-    ? derivePanelState(envelope, ["narrative_pressure"])
+    ? derivePanelState(envelope, ["trending_momentum"])
     : { status: "ready" as const, bannerText: null, unavailable: new Set() };
 
   return (
@@ -120,9 +120,9 @@ function NarrativeFlowField({ players }: { players: PlayerMarketRecord[] }) {
     return <div className="empty-state"><b>No narrative data</b></div>;
   }
   const sorted = [...players].sort(
-    (a, b) => Math.abs(b.narrativePressure) - Math.abs(a.narrativePressure)
+    (a, b) => Math.abs(b.trendingMomentum) - Math.abs(a.trendingMomentum)
   );
-  const maxAbs = Math.max(...sorted.map((p) => Math.abs(p.narrativePressure)), 1);
+  const maxAbs = Math.max(...sorted.map((p) => Math.abs(p.trendingMomentum)), 1);
 
   return (
     <div
@@ -132,7 +132,7 @@ function NarrativeFlowField({ players }: { players: PlayerMarketRecord[] }) {
       <div className="narrative-flow-header section-label">NARRATIVE PRESSURE — by player</div>
       <div className="narrative-bar-list narrative-bar-list-padded">
         {sorted.map((p) => {
-          const val = p.narrativePressure;
+          const val = p.trendingMomentum;
           const barPct = Math.round((Math.abs(val) / maxAbs) * 100);
           const isPositive = val >= 0;
           return (
@@ -213,7 +213,7 @@ function NarrativeImpactChart({ players }: { players: PlayerMarketRecord[] }) {
   const makePoints = (scale: number) =>
     TIME_LABELS.map((_, i) => {
       const t = i / (TIME_LABELS.length - 1);
-      const base = avg(players.map((p) => Math.abs(p.narrativePressure) * scale)) || 25;
+      const base = avg(players.map((p) => Math.abs(p.trendingMomentum) * scale)) || 25;
       return Math.round(base * (0.7 + 0.6 * Math.sin(t * Math.PI + scale)));
     });
 
@@ -297,7 +297,7 @@ function SentimentMap({ players }: { players: PlayerMarketRecord[] }) {
               <td className={p.opportunity > 70 ? "pos-text" : "muted-text"}>{p.opportunity > 70 ? "+surge" : "—"}</td>
               <td className={p.ownershipLeverage < -20 ? "neg-text" : "muted-text"}>{p.ownershipLeverage < -20 ? "+rumors" : "—"}</td>
               <td className={p.perceivedValue > p.trueValue + 10 ? "neg-text" : "muted-text"}>{p.perceivedValue > p.trueValue + 10 ? "+risk" : "—"}</td>
-              <td className={Math.abs(p.narrativePressure) > 50 ? "neg-text" : "muted-text"}>{Math.abs(p.narrativePressure) > 50 ? "+active" : "—"}</td>
+              <td className={Math.abs(p.trendingMomentum) > 50 ? "neg-text" : "muted-text"}>{Math.abs(p.trendingMomentum) > 50 ? "+active" : "—"}</td>
               <td className="muted-text">—</td>
             </tr>
           ))}

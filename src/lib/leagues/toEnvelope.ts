@@ -53,13 +53,13 @@ export function buildLiveEnvelope({
   });
 
   // Composite source metadata. Freshness = the worse of the two upstream
-  // sources; missingFields = union (so panels still mark narrative /
+  // sources; missingFields = union (so panels still mark trending /
   // opportunity as unavailable even though ECR populated the others).
-  // When the trending proxy is wired, narrative_pressure is no longer
+  // When the trending proxy is wired, trending_momentum is no longer
   // missing — but opportunity always is (no in-season data pre-draft).
   const proxyActive = !!(trendingAdds && trendingDrops);
   const rankingsMissing = proxyActive
-    ? rankingsSource.missingFields.filter((f) => f !== "narrative_pressure")
+    ? rankingsSource.missingFields.filter((f) => f !== "trending_momentum")
     : rankingsSource.missingFields;
   const missingUnion = Array.from(
     new Set([...snapshot.source.missingFields, ...rankingsMissing])
@@ -84,12 +84,12 @@ export function buildLiveEnvelope({
       assumptions: proxyActive
         ? [
             "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-            "narrative_pressure proxied from Sleeper 24h trending adds/drops; not true news sentiment.",
+            "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification.",
             "In-season opportunity not derived; declared in missingFields."
           ]
         : [
             "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-            "Narrative pressure and in-season opportunity not derived; declared in missingFields."
+            "Trending momentum and in-season opportunity not derived; declared in missingFields."
           ],
       failure: null
     },
@@ -135,7 +135,7 @@ export function rankingsSourceFromSnapshot(
     freshness: fetchedAt && Date.now() - fetchedAt.getTime() <= 30 * 60 * 60 * 1000 ? "fresh" : "stale",
     confidence: 0.85,
     validation: "valid",
-    missingFields: ["narrative_pressure", "opportunity"],
+    missingFields: ["trending_momentum", "opportunity"],
     assumptions: [
       "FantasyPros ECR / ADP via public consensus-cheatsheet HTML scrape. Daily cron at 08:30 UTC."
     ],

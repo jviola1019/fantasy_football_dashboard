@@ -20,11 +20,11 @@ export function fmtPct(n: number): string {
   return Number.isFinite(n) ? `${n.toFixed(1)}%` : "—";
 }
 
-export function narrativeLabel(pressure: number): string {
-  if (pressure > 50) return "Very Positive";
-  if (pressure > 20) return "Positive";
-  if (pressure > -20) return "Neutral";
-  if (pressure > -50) return "Negative";
+export function trendingLabel(momentum: number): string {
+  if (momentum > 50) return "Very Positive";
+  if (momentum > 20) return "Positive";
+  if (momentum > -20) return "Neutral";
+  if (momentum > -50) return "Negative";
   return "Very Negative";
 }
 

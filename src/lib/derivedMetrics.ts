@@ -171,7 +171,7 @@ export function derivePositionGrades(players: PlayerMarketRecord[]): PositionGra
 }
 
 export function deriveNarrativeHalfLife(players: PlayerMarketRecord[]): number {
-  return avg(players.map((p) => Math.max(2, Math.round(80 - Math.abs(p.narrativePressure)))));
+  return avg(players.map((p) => Math.max(2, Math.round(80 - Math.abs(p.trendingMomentum)))));
 }
 
 export function deriveViralVelocity(players: PlayerMarketRecord[]): string {
@@ -207,12 +207,12 @@ export function deriveRisingStars(players: PlayerMarketRecord[]) {
 
 export function deriveStoryCollisions(players: PlayerMarketRecord[]) {
   return [...players]
-    .sort((a, b) => Math.abs(b.narrativePressure) - Math.abs(a.narrativePressure))
+    .sort((a, b) => Math.abs(b.trendingMomentum) - Math.abs(a.trendingMomentum))
     .slice(0, 2)
     .map((p) => ({
       player: p,
-      story: `${p.name} ${p.narrativePressure > 0 ? "Surge" : "Fade"} Meets ${p.volatility > 50 ? "High Volatility" : "Stability"} Window`,
-      impact: Math.abs(p.narrativePressure) > 45 ? "High" : "Medium",
+      story: `${p.name} ${p.trendingMomentum > 0 ? "Surge" : "Fade"} Meets ${p.volatility > 50 ? "High Volatility" : "Stability"} Window`,
+      impact: Math.abs(p.trendingMomentum) > 45 ? "High" : "Medium",
     }));
 }
 

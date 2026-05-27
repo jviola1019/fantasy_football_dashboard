@@ -62,10 +62,10 @@ describe("derivedMetrics — statistical properties", () => {
       }
     });
 
-    it("narrativeVelocity: monotonic in narrativePressure", () => {
+    it("narrativeVelocity: monotonic in trendingMomentum", () => {
       const p = fixturePlayers[0]!;
-      const lo = narrativeVelocity({ ...p, narrativePressure: -50 });
-      const hi = narrativeVelocity({ ...p, narrativePressure: 50 });
+      const lo = narrativeVelocity({ ...p, trendingMomentum: -50 });
+      const hi = narrativeVelocity({ ...p, trendingMomentum: 50 });
       expect(hi).toBeGreaterThan(lo);
     });
 

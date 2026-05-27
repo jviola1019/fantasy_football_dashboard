@@ -9,11 +9,11 @@ export function marketInefficiency(player: PlayerMarketRecord): number {
 }
 
 export function narrativeVelocity(player: PlayerMarketRecord): number {
-  return round(player.narrativePressure * 0.54 + player.volatility * 0.28 - player.fragility * 0.11);
+  return round(player.trendingMomentum * 0.54 + player.volatility * 0.28 - player.fragility * 0.11);
 }
 
 export function chaosExposure(player: PlayerMarketRecord): number {
-  return round(player.volatility * 0.45 + player.fragility * 0.4 + Math.abs(player.narrativePressure) * 0.15);
+  return round(player.volatility * 0.45 + player.fragility * 0.4 + Math.abs(player.trendingMomentum) * 0.15);
 }
 
 export function liquidityScore(player: PlayerMarketRecord): number {

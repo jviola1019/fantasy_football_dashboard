@@ -92,8 +92,8 @@ function MetricStrip({
   // a partial dataset (e.g. Sleeper + FantasyPros without sentiment) is
   // driving the panels.
   const missing = new Set(missingFields);
-  const narrativeUnavailable = missing.has("narrative_pressure");
-  const chaosUnavailable = missing.has("narrative_pressure") || missing.has("opportunity");
+  const trendingUnavailable = missing.has("trending_momentum");
+  const chaosUnavailable = missing.has("trending_momentum") || missing.has("opportunity");
 
   const cards = [
     {
@@ -108,7 +108,7 @@ function MetricStrip({
       sub: "Avg Value Over Replacement",
       color: "neu"
     },
-    narrativeUnavailable
+    trendingUnavailable
       ? { label: "Narrative Velocity", value: "—", sub: "Data source not integrated", color: "neu" }
       : {
           label: "Narrative Velocity",

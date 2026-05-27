@@ -1,13 +1,16 @@
-// Sleeper trending adds/drops -> narrativePressure proxy.
+// Sleeper trending adds/drops -> trendingMomentum proxy.
 //
-// Real news/social sentiment data has no free public source. Sleeper exposes
-// trending adds/drops over the last N hours, which is a *roster-move* signal,
-// not a sentiment one. We use it as an honest proxy: a player who's being
-// added a lot more than dropped in the last 24h is the kind of player a
-// fantasy manager is reading about, so it correlates with narrative
-// pressure in the absence of a real sentiment feed.
+// Sprint 3 (B1) renamed the field from narrativePressure to trendingMomentum
+// to clarify what the value actually represents — roster-move-driven momentum,
+// not news/sentiment. Sprint 3 (B5) then introduces a separate narrativePressure
+// field populated by real ESPN news article-velocity, so the two signals
+// coexist with distinct semantics.
 //
-// The disclosure is surfaced in two places:
+// Sleeper exposes trending adds/drops over the last N hours, which is a
+// *roster-move* signal: a player who's being added a lot more than dropped in
+// the last 24h is the kind of player a fantasy manager is reading about. We
+// keep this as the trendingMomentum signal; the disclosure is surfaced in two
+// places:
 //   1. SourceMeta.assumptions in toEnvelope.ts (machine-readable)
 //   2. NarrativeEngine.tsx (user-visible disclosure note)
 //
@@ -17,7 +20,7 @@
 import type { PlayerMarketRecord } from "../governance";
 
 /**
- * Map a player's trending count to a [-100, 100] narrativePressure score.
+ * Map a player's trending count to a [-100, 100] trendingMomentum score.
  *
  * Positive when adds > drops (player is "rising"). Negative when drops > adds
  * (player is "falling"). Magnitude scales by the max count across the
@@ -27,7 +30,7 @@ import type { PlayerMarketRecord } from "../governance";
  * Returns 0 for any player not present in either trending list, so absent
  * players carry no signal rather than artificial zeros.
  */
-export function narrativePressureFromTrending(
+export function trendingMomentumFromProxy(
   player: Pick<PlayerMarketRecord, "id">,
   trendingAdds: Map<string, number>,
   trendingDrops: Map<string, number>,
@@ -43,7 +46,7 @@ export function narrativePressureFromTrending(
   // Use a single global denominator (max of either side) so the signed
   // delta stays on the same scale. Normalising each side independently
   // would zero out a player who is simultaneously top-adder and top-dropper
-  // even though such a player has high narrative pressure (just ambiguous
+  // even though such a player has high trending momentum (just ambiguous
   // sign). max(adds, drops) keeps the sign meaningful.
   const addsMax = maxAdds ?? Math.max(1, ...Array.from(trendingAdds.values()));
   const dropsMax = maxDrops ?? Math.max(1, ...Array.from(trendingDrops.values()));

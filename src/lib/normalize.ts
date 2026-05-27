@@ -30,7 +30,7 @@ export function sleeperPlayerToRecord(
     trueValue: 0,
     ownershipLeverage: 0,
     fragility: 0,
-    narrativePressure: 0,
+    trendingMomentum: 0,
     volatility: 0,
     opportunity: 0,
     confidence: 0,
@@ -71,7 +71,7 @@ export function espnPlayerToRecord(
     trueValue: 0,
     ownershipLeverage: 0,
     fragility: 0,
-    narrativePressure: 0,
+    trendingMomentum: 0,
     volatility: 0,
     opportunity: 0,
     confidence: 0,
@@ -115,7 +115,7 @@ function mapEspnStatus(injury: string | null | undefined, active: boolean | null
 }
 
 function withMissingMarketFields(source: SourceMeta): SourceMeta {
-  const additions = ["market_value", "true_value", "ownership", "narrative_pressure", "fragility", "opportunity"];
+  const additions = ["market_value", "true_value", "ownership", "trending_momentum", "fragility", "opportunity"];
   const dedup = new Set(source.missingFields);
   for (const field of additions) dedup.add(field);
   return {

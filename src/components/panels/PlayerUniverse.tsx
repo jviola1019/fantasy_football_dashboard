@@ -9,7 +9,7 @@ import { PanelTabs } from "../ui/PanelTabs";
 import { marketInefficiency, narrativeVelocity } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
-import { avg, narrativeLabel, fmt } from "@/lib/utils";
+import { avg, trendingLabel, fmt } from "@/lib/utils";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
@@ -27,7 +27,7 @@ const TABS = ["Universe", "Tiers", "Comparison", "Watchlist", "Projections"] as 
 const RADAR_AXIS_DEPS: Array<{ label: string; dep: PanelMetricKey | null }> = [
   { label: "Value", dep: "true_value" },
   { label: "Oppty", dep: "opportunity" },
-  { label: "Narrative", dep: "narrative_pressure" },
+  { label: "Trending", dep: "trending_momentum" },
   { label: "Confidence", dep: null },
   { label: "Stability", dep: null }
 ];
@@ -108,7 +108,7 @@ export function PlayerUniverse({ players, envelope }: Props) {
                   },
                   {
                     label: "Narrative",
-                    value: Math.abs(selected.narrativePressure),
+                    value: Math.abs(selected.trendingMomentum),
                     unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
                   },
                   { label: "Confidence", value: selected.confidence * 100 },
@@ -190,7 +190,7 @@ function GalaxyView({
 }
 
 function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
-  const narrative = narrativeLabel(player.narrativePressure);
+  const trending = trendingLabel(player.trendingMomentum);
   return (
     <div className="player-profile-card">
       <div className="profile-header">
@@ -219,8 +219,8 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
           </div>
         ))}
         <div className="profile-row">
-          <span>Narrative</span>
-          <b className={player.narrativePressure >= 0 ? "pos-text" : "neg-text"}>{narrative}</b>
+          <span>Trending</span>
+          <b className={player.trendingMomentum >= 0 ? "pos-text" : "neg-text"}>{trending}</b>
         </div>
       </div>
       <div className="profile-slot">{player.rosterSlot}</div>

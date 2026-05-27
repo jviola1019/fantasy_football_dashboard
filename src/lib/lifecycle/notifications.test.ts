@@ -18,7 +18,7 @@ function p(id: string, position: PlayerMarketRecord["position"], team: string, o
     trueValue: 70,
     ownershipLeverage: 0,
     fragility: 0,
-    narrativePressure: 0,
+    trendingMomentum: 0,
     volatility: 0,
     opportunity: 0,
     confidence: 0.5,

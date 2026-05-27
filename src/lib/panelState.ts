@@ -6,7 +6,7 @@ import type { RAEEnvelope } from "./governance";
 // this pattern inline; the other panels read from this helper for consistency.
 
 export type PanelMetricKey =
-  | "narrative_pressure"
+  | "trending_momentum"
   | "opportunity"
   | "fragility"
   | "market_value"
@@ -33,7 +33,7 @@ export interface PanelDataState {
 // across every panel. Banner composition is deterministic (sorted by key) so
 // snapshot tests don't flap.
 const METRIC_DESCRIPTIONS: Record<PanelMetricKey, string> = {
-  narrative_pressure: "Narrative / sentiment source not integrated",
+  trending_momentum: "Trending-momentum signal unavailable (Sleeper add/drop pool empty)",
   opportunity: "In-season opportunity data not derived",
   fragility: "Injury / snap-share source not integrated",
   market_value: "Market value data not derived",
@@ -86,7 +86,7 @@ export function asMetricSet(missingFields: string[]): Set<PanelMetricKey> {
 
 function isPanelMetricKey(s: string): s is PanelMetricKey {
   return (
-    s === "narrative_pressure" ||
+    s === "trending_momentum" ||
     s === "opportunity" ||
     s === "fragility" ||
     s === "market_value" ||

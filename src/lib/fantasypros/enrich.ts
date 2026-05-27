@@ -2,17 +2,17 @@ import type { PlayerMarketRecord, SourceMeta } from "../governance";
 import type { FpEcrData, FpPlayer } from "./types";
 import type { FpIndex } from "./match";
 import { buildFpIndex, matchSleeperToFp } from "./match";
-import { narrativePressureFromTrending } from "../sleeper/trendingProxy";
+import { trendingMomentumFromProxy } from "../sleeper/trendingProxy";
 
 // Map a FantasyPros ranking entry into the behavioral-market fields of
 // PlayerMarketRecord. The transform is intentionally simple — invert the
 // rank and normalize to 0-100 for perceivedValue, derive trueValue from
 // positional VBD, and pass through ownership / variance / bye-week
-// directly. Anything we can't compute from rankings (narrativePressure,
+// directly. Anything we can't compute from rankings (trendingMomentum,
 // opportunity) stays 0 and the SourceMeta declares it missing.
 
 const PPR_BEHAVIORAL_FIELDS = [
-  "narrative_pressure", // requires news sentiment adapter
+  "trending_momentum", // requires Sleeper trending or ESPN-news adapter
   "opportunity" // requires in-season target/snap data
 ];
 
@@ -102,8 +102,8 @@ export interface EnrichOptions {
   medianOwnership?: number;
   /**
    * Sleeper trending-adds map keyed by sleeper player_id. When provided,
-   * narrativePressure is populated from this signal (a roster-move proxy
-   * for sentiment) instead of being left at zero. Caller is responsible
+   * trendingMomentum is populated from this signal (a roster-move proxy
+   * for momentum) instead of being left at zero. Caller is responsible
    * for the proxy disclosure in SourceMeta.assumptions.
    */
   trendingAdds?: Map<string, number>;
@@ -135,19 +135,19 @@ export function enrichWithFp(
   ];
   // Optional trending proxy applies whether or not we have an FP match —
   // identity-only records also benefit from the roster-move signal.
-  const narrativePressure =
+  const trendingMomentum =
     options.trendingAdds && options.trendingDrops
-      ? narrativePressureFromTrending(
+      ? trendingMomentumFromProxy(
           record,
           options.trendingAdds,
           options.trendingDrops,
           maxes?.trendingAddsMax,
           maxes?.trendingDropsMax
         )
-      : record.narrativePressure;
+      : record.trendingMomentum;
   if (!match) {
     // No FP match — keep identity values + apply trending proxy.
-    return { ...record, narrativePressure, sources };
+    return { ...record, trendingMomentum, sources };
   }
   const perceivedValue = ecrToPerceivedValue(match.rank_ecr, maxRank);
   const replacementPosRank = positionReplacementRank(record.position, scoring);
@@ -168,7 +168,7 @@ export function enrichWithFp(
     // see yet; leave fragility 0 for now so the source's missingFields
     // remains honest.
     fragility: record.fragility,
-    narrativePressure,
+    trendingMomentum,
     volatility,
     // confidence: inverse of expert variance. std=0 -> confidence=1,
     // std=30 -> confidence=0.
@@ -178,7 +178,7 @@ export function enrichWithFp(
 }
 
 function withFpMissingFields(source: SourceMeta, options?: EnrichOptions): SourceMeta {
-  // narrative_pressure leaves the missingFields set when the trending proxy
+  // trending_momentum leaves the missingFields set when the trending proxy
   // is wired up. opportunity stays missing always (in-season-only signal).
   const fieldsStillMissing = options?.trendingAdds && options?.trendingDrops
     ? ["opportunity"]
@@ -189,7 +189,7 @@ function withFpMissingFields(source: SourceMeta, options?: EnrichOptions): Sourc
   const assumptions = options?.trendingAdds && options?.trendingDrops
     ? [
         ...baseAssumptions,
-        "narrative_pressure proxied from Sleeper 24h trending adds/drops; not true news sentiment."
+        "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification."
       ]
     : baseAssumptions;
   return {
@@ -220,7 +220,7 @@ export function enrichRoster(
     ownedValues.length > 0
       ? ownedValues.sort((a, b) => a - b)[Math.floor(ownedValues.length / 2)]
       : 0;
-  // Pre-compute trending max counts once so per-player narrativePressureFromTrending
+  // Pre-compute trending max counts once so per-player trendingMomentumFromProxy
   // doesn't rescan the maps on every record.
   const trendingAddsMax = options.trendingAdds
     ? Math.max(1, ...Array.from(options.trendingAdds.values()))
@@ -298,7 +298,7 @@ export function fpPlayerToRecord(
     trueValue,
     ownershipLeverage,
     fragility: 0,
-    narrativePressure: 0,
+    trendingMomentum: 0,
     volatility,
     opportunity: 0,
     confidence,
@@ -308,7 +308,7 @@ export function fpPlayerToRecord(
         missingFields: Array.from(
           new Set([
             ...rankingsSource.missingFields,
-            "narrative_pressure",
+            "trending_momentum",
             "opportunity",
             "fragility"
           ])

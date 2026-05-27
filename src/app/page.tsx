@@ -38,7 +38,7 @@ async function resolveHome(): Promise<HomeResolution> {
   // Render priority:
   //   1. RAE_ENABLE_LIVE_HOMEPAGE=true → ops override (skips per-user path).
   //   2. Signed-in user with ≥1 league → real live envelope from their
-  //      roster, FP consensus rankings, and Sleeper-trending narrativePressure
+  //      roster, FP consensus rankings, and Sleeper-trending trendingMomentum
   //      proxy.
   //   3. Signed-in user with 0 leagues → explicit "no-league" CTA state.
   //   4. Anonymous → demo fixture envelope (the public landing surface).
@@ -77,7 +77,7 @@ async function resolveHome(): Promise<HomeResolution> {
       if (live && live.myRoster.length > 0) {
         // Fetch rankings + trending in parallel — both feed the envelope.
         // Trending fails open (empty maps) so a network blip on Sleeper doesn't
-        // tank the homepage; the proxy just contributes no narrativePressure
+        // tank the homepage; the proxy just contributes no trendingMomentum
         // when adds/drops are empty.
         const [rankings, trendingAddsResult, trendingDropsResult] = await Promise.all([
           getLatestRankingsSnapshot("PPR"),

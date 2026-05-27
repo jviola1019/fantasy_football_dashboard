@@ -38,21 +38,21 @@ const CI_MULTIPLIER: Record<"ready" | "degraded" | "unavailable", number> = {
 const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
   ready: "",
   degraded: "Wide CI: data partial",
-  unavailable: "Speculative — narrative + opportunity unavailable"
+  unavailable: "Speculative — trending-momentum + opportunity unavailable"
 };
 
 export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
   const [running, setRunning] = useState(false);
 
-  // The simulator depends on narrative_pressure (chaosExposure) and
+  // The simulator depends on trending_momentum (chaosExposure) and
   // opportunity to interpret risk + driver weights. When both are missing,
   // the CI bands shown to the user need to widen so the displayed
   // probabilities aren't read as precise. The actual numbers from
   // runNexusSimulation stay the same — we only modify the displayed CI
   // width + add a banner.
   const panelState = envelope
-    ? derivePanelState(envelope, ["narrative_pressure", "opportunity"])
+    ? derivePanelState(envelope, ["trending_momentum", "opportunity"])
     : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
   const ciMultiplier = CI_MULTIPLIER[panelState.status];
   const ciLabel = CI_LABEL[panelState.status];

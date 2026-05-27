@@ -45,7 +45,7 @@ export async function loadRAEEnvelope(options: LoadRAEEnvelopeOptions = {}): Pro
               freshness: "fresh",
               confidence: 0.9,
               validation: "valid",
-              missingFields: ["market_value", "true_value", "ownership", "narrative_pressure"],
+              missingFields: ["market_value", "true_value", "ownership", "trending_momentum"],
               assumptions: [
                 "Snapshot stored by daily cron from Sleeper public players API.",
                 "RAE refuses to fabricate market intelligence from identity records alone."
@@ -71,7 +71,7 @@ export async function loadRAEEnvelope(options: LoadRAEEnvelopeOptions = {}): Pro
       "Sleeper player identity data is available, but behavioral-market metrics require additional adapters or uploaded datasets.",
       "RAE refuses to fabricate market intelligence from identity records alone."
     ],
-    missingFields: ["market_value", "true_value", "ownership", "narrative_pressure"]
+    missingFields: ["market_value", "true_value", "ownership", "trending_momentum"]
   });
 
   if (!data) {
@@ -92,7 +92,7 @@ export async function loadRAEEnvelope(options: LoadRAEEnvelopeOptions = {}): Pro
     sourceState: {
       ...source,
       freshness: "missing",
-      missingFields: ["market_value", "true_value", "ownership", "narrative_pressure"],
+      missingFields: ["market_value", "true_value", "ownership", "trending_momentum"],
       failure: "Sleeper provides identity only; behavioral-market metrics not derived from identity."
     }
   };

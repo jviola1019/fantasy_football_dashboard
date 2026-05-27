@@ -26,7 +26,7 @@ function envelopeWithMissing(missingFields: string[]): RAEEnvelope {
 
 describe("derivePanelState", () => {
   it("returns ready with empty dependsOn list", () => {
-    const env = envelopeWithMissing(["narrative_pressure"]);
+    const env = envelopeWithMissing(["trending_momentum"]);
     const state = derivePanelState(env, []);
     expect(state.status).toBe("ready");
     expect(state.bannerText).toBeNull();
@@ -35,42 +35,42 @@ describe("derivePanelState", () => {
 
   it("returns ready when none of the dependencies are missing", () => {
     const env = envelopeWithMissing(["fragility"]); // a different metric
-    const state = derivePanelState(env, ["narrative_pressure"]);
+    const state = derivePanelState(env, ["trending_momentum"]);
     expect(state.status).toBe("ready");
     expect(state.bannerText).toBeNull();
-    expect(state.unavailable.has("narrative_pressure")).toBe(false);
+    expect(state.unavailable.has("trending_momentum")).toBe(false);
   });
 
   it("returns degraded when some but not all dependencies are missing", () => {
-    const env = envelopeWithMissing(["narrative_pressure"]);
-    const state = derivePanelState(env, ["narrative_pressure", "opportunity"]);
+    const env = envelopeWithMissing(["trending_momentum"]);
+    const state = derivePanelState(env, ["trending_momentum", "opportunity"]);
     expect(state.status).toBe("degraded");
     expect(state.bannerText).toMatch(/^Partial data:/);
-    expect(state.bannerText).toMatch(/Narrative \/ sentiment/);
-    expect(state.unavailable.has("narrative_pressure")).toBe(true);
+    expect(state.bannerText).toMatch(/Trending-momentum/);
+    expect(state.unavailable.has("trending_momentum")).toBe(true);
     expect(state.unavailable.has("opportunity")).toBe(false);
   });
 
   it("returns unavailable when every dependency is missing", () => {
-    const env = envelopeWithMissing(["narrative_pressure", "opportunity"]);
-    const state = derivePanelState(env, ["narrative_pressure", "opportunity"]);
+    const env = envelopeWithMissing(["trending_momentum", "opportunity"]);
+    const state = derivePanelState(env, ["trending_momentum", "opportunity"]);
     expect(state.status).toBe("unavailable");
     expect(state.bannerText).not.toMatch(/^Partial data:/);
-    expect(state.bannerText).toMatch(/Narrative/);
+    expect(state.bannerText).toMatch(/Trending-momentum/);
     expect(state.bannerText).toMatch(/opportunity/i);
     expect(state.unavailable.size).toBe(2);
   });
 
   it("banner composition is sorted deterministically by metric key", () => {
     // Two distinct orderings of the same missing set should produce the same banner.
-    const env1 = envelopeWithMissing(["opportunity", "fragility", "narrative_pressure"]);
-    const env2 = envelopeWithMissing(["narrative_pressure", "fragility", "opportunity"]);
-    const deps: PanelMetricKey[] = ["narrative_pressure", "opportunity", "fragility"];
+    const env1 = envelopeWithMissing(["opportunity", "fragility", "trending_momentum"]);
+    const env2 = envelopeWithMissing(["trending_momentum", "fragility", "opportunity"]);
+    const deps: PanelMetricKey[] = ["trending_momentum", "opportunity", "fragility"];
     expect(derivePanelState(env1, deps).bannerText).toBe(derivePanelState(env2, deps).bannerText);
   });
 
   it("ignores missingFields not in the panel's dependsOn list", () => {
-    const env = envelopeWithMissing(["narrative_pressure", "ownership"]);
+    const env = envelopeWithMissing(["trending_momentum", "ownership"]);
     const state = derivePanelState(env, ["opportunity"]);
     expect(state.status).toBe("ready");
     expect(state.unavailable.has("opportunity")).toBe(false);
@@ -79,8 +79,8 @@ describe("derivePanelState", () => {
 
 describe("asMetricSet", () => {
   it("filters arbitrary strings to known PanelMetricKey values only", () => {
-    const set = asMetricSet(["narrative_pressure", "totally_made_up", "fragility"]);
-    expect(set.has("narrative_pressure")).toBe(true);
+    const set = asMetricSet(["trending_momentum", "totally_made_up", "fragility"]);
+    expect(set.has("trending_momentum")).toBe(true);
     expect(set.has("fragility")).toBe(true);
     expect(set.size).toBe(2);
   });

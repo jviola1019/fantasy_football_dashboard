@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTrendingMap, narrativePressureFromTrending } from "./trendingProxy";
+import { buildTrendingMap, trendingMomentumFromProxy } from "./trendingProxy";
 
 describe("buildTrendingMap", () => {
   it("returns an empty map for null / undefined / empty input", () => {
@@ -23,33 +23,33 @@ describe("buildTrendingMap", () => {
   });
 });
 
-describe("narrativePressureFromTrending", () => {
+describe("trendingMomentumFromProxy", () => {
   it("returns positive pressure when adds > drops", () => {
     const adds = new Map([["4046", 9000]]);
     const drops = new Map([["4046", 1000]]);
-    const pressure = narrativePressureFromTrending({ id: "sleeper:4046" }, adds, drops);
+    const pressure = trendingMomentumFromProxy({ id: "sleeper:4046" }, adds, drops);
     expect(pressure).toBeGreaterThan(0);
   });
 
   it("returns negative pressure when drops > adds", () => {
     const adds = new Map([["4046", 100]]);
     const drops = new Map([["4046", 9000]]);
-    const pressure = narrativePressureFromTrending({ id: "sleeper:4046" }, adds, drops);
+    const pressure = trendingMomentumFromProxy({ id: "sleeper:4046" }, adds, drops);
     expect(pressure).toBeLessThan(0);
   });
 
   it("returns 0 for a player not in either trending map", () => {
     const adds = new Map([["different-id", 9000]]);
     const drops = new Map();
-    expect(narrativePressureFromTrending({ id: "sleeper:4046" }, adds, drops)).toBe(0);
+    expect(trendingMomentumFromProxy({ id: "sleeper:4046" }, adds, drops)).toBe(0);
   });
 
   it("strips the 'sleeper:' prefix on the record id before lookup", () => {
     const adds = new Map([["4046", 9000]]);
     const drops = new Map();
     // Same player, different id format — both should resolve.
-    const withPrefix = narrativePressureFromTrending({ id: "sleeper:4046" }, adds, drops);
-    const withoutPrefix = narrativePressureFromTrending({ id: "4046" }, adds, drops);
+    const withPrefix = trendingMomentumFromProxy({ id: "sleeper:4046" }, adds, drops);
+    const withoutPrefix = trendingMomentumFromProxy({ id: "4046" }, adds, drops);
     expect(withPrefix).toBe(withoutPrefix);
     expect(withPrefix).toBeGreaterThan(0);
   });
@@ -60,8 +60,8 @@ describe("narrativePressureFromTrending", () => {
       ["other", 5000]
     ]);
     const drops = new Map();
-    const topPressure = narrativePressureFromTrending({ id: "sleeper:4046" }, adds, drops);
-    const midPressure = narrativePressureFromTrending({ id: "sleeper:other" }, adds, drops);
+    const topPressure = trendingMomentumFromProxy({ id: "sleeper:4046" }, adds, drops);
+    const midPressure = trendingMomentumFromProxy({ id: "sleeper:other" }, adds, drops);
     expect(topPressure).toBe(100);
     expect(midPressure).toBe(50);
   });
@@ -70,6 +70,6 @@ describe("narrativePressureFromTrending", () => {
     const adds = new Map([["a", 1000]]);
     const drops = new Map([["a", 1000]]);
     // adds == drops -> pressure = 0
-    expect(narrativePressureFromTrending({ id: "sleeper:a" }, adds, drops)).toBe(0);
+    expect(trendingMomentumFromProxy({ id: "sleeper:a" }, adds, drops)).toBe(0);
   });
 });

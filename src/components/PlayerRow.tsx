@@ -6,7 +6,7 @@ import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
 interface PlayerRowProps {
   player: PlayerMarketRecord;
-  /** Numeric or string value displayed on the right (e.g. trueValue, narrativePressure). */
+  /** Numeric or string value displayed on the right (e.g. trueValue, trendingMomentum). */
   metricValue: number | string;
   /**
    * Width of the proportional bar as a percentage [0, 100].
