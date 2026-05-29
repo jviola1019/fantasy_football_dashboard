@@ -128,6 +128,20 @@ export const ktcSnapshots = sqliteTable("ktc_snapshots", {
   payload: text("payload").notNull()
 });
 
+// Sleeper per-week projections snapshot. source is keyed by "{season}-{week}"
+// (e.g. "2025-1") so a single table holds the full season's worth of weekly
+// snapshots without conflict. Payload is the flattened per-player map (see
+// src/lib/sleeper/projections.ts ProjectionsSnapshotPayloadSchema).
+export const projectionsSnapshots = sqliteTable("projections_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: integer("fetchedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: text("payload").notNull()
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;

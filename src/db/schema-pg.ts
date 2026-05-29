@@ -122,6 +122,18 @@ export const ktcSnapshots = pgTable("ktc_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+// Sleeper per-week projections snapshot. source is keyed by "{season}-{week}"
+// (e.g. "2025-1") so a single table holds every cached week. Payload is the
+// flattened per-player map (sleeperPlayerId -> { pts_ppr, pts_half_ppr,
+// pts_std, position, team, opponent }).
+export const projectionsSnapshots = pgTable("projections_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 // Multi-statement DDL kept as a plain string. The bootstrap route splits it on
 // `;` and applies each statement individually — postgres.js sends one command
 // per query, so a single multi-statement call would be rejected.
@@ -217,4 +229,13 @@ export const INIT_SQL = `
   );
   CREATE INDEX IF NOT EXISTS ktc_snapshots_source_fetched
     ON ktc_snapshots (source, "fetchedAt" DESC);
+  CREATE TABLE IF NOT EXISTS projections_snapshots (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "sizeBytes" INTEGER NOT NULL,
+    payload JSONB NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS projections_snapshots_source_fetched
+    ON projections_snapshots (source, "fetchedAt" DESC);
 `;

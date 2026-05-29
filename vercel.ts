@@ -28,6 +28,10 @@ const config: VercelConfig = {
       memory: 512,
       maxDuration: 60
     },
+    "src/app/api/cron/projections-refresh/route.ts": {
+      memory: 512,
+      maxDuration: 60
+    },
     "src/app/api/cron/lifecycle-check/route.ts": {
       memory: 512,
       maxDuration: 60
@@ -47,6 +51,10 @@ const config: VercelConfig = {
     // DynastyProcess. Staggered 30 min after rankings-refresh to avoid
     // overlapping serverless invocations.
     { path: "/api/cron/ktc-refresh", schedule: "0 9 * * *" },
+    // Daily Sleeper per-week projections snapshot (Rotowire-sourced via
+    // Sleeper's undocumented projections endpoint). Runs at 09:15 UTC, after
+    // KTC and before the lifecycle-check at 09:30.
+    { path: "/api/cron/projections-refresh", schedule: "15 9 * * *" },
     // Once daily at 09:30 UTC (after the data snapshots): walk every
     // stored league and emit drift notifications (stacked bye weeks, FAAB
     // drained, injured starters). Vercel's Hobby plan caps each cron job at one
