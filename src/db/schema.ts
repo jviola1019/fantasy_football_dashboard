@@ -142,6 +142,19 @@ export const projectionsSnapshots = sqliteTable("projections_snapshots", {
   payload: text("payload").notNull()
 });
 
+// Daily ESPN NFL news snapshot. source is a fixed key "espn-nfl" so the
+// most-recent row is always the active snapshot. Payload is a JSON array of
+// EspnNewsArticle objects (id, headline, lastModified, categories[]).
+export const newsSnapshots = sqliteTable("news_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: integer("fetchedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: text("payload").notNull()
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;

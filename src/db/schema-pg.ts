@@ -134,6 +134,17 @@ export const projectionsSnapshots = pgTable("projections_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+// Daily ESPN NFL news snapshot. source is a fixed key "espn-nfl" so the
+// most-recent row is always the active snapshot. Payload is a JSON array of
+// EspnNewsArticle objects (id, headline, lastModified, categories[]).
+export const newsSnapshots = pgTable("news_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 // Multi-statement DDL kept as a plain string. The bootstrap route splits it on
 // `;` and applies each statement individually — postgres.js sends one command
 // per query, so a single multi-statement call would be rejected.
@@ -238,4 +249,13 @@ export const INIT_SQL = `
   );
   CREATE INDEX IF NOT EXISTS projections_snapshots_source_fetched
     ON projections_snapshots (source, "fetchedAt" DESC);
+  CREATE TABLE IF NOT EXISTS news_snapshots (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "sizeBytes" INTEGER NOT NULL,
+    payload JSONB NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS news_snapshots_source_fetched
+    ON news_snapshots (source, "fetchedAt" DESC);
 `;

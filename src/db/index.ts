@@ -162,6 +162,13 @@ function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; pre
       sizeBytes INTEGER NOT NULL,
       payload TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS news_snapshots (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
   `);
 }
 
@@ -283,6 +290,13 @@ function applyTestSchema(sqlite: MinimalSqliteHandle) {
       payload TEXT NOT NULL
     );
     CREATE TABLE projections_snapshots (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
+    CREATE TABLE news_snapshots (
       id TEXT PRIMARY KEY,
       source TEXT NOT NULL,
       fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),

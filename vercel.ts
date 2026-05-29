@@ -32,6 +32,10 @@ const config: VercelConfig = {
       memory: 512,
       maxDuration: 60
     },
+    "src/app/api/cron/news-refresh/route.ts": {
+      memory: 512,
+      maxDuration: 60
+    },
     "src/app/api/cron/lifecycle-check/route.ts": {
       memory: 512,
       maxDuration: 60
@@ -55,6 +59,11 @@ const config: VercelConfig = {
     // Sleeper's undocumented projections endpoint). Runs at 09:15 UTC, after
     // KTC and before the lifecycle-check at 09:30.
     { path: "/api/cron/projections-refresh", schedule: "15 9 * * *" },
+    // Daily ESPN NFL news snapshot (up to 100 articles, no auth). Runs at
+    // 09:45 UTC — after projections-refresh and before lifecycle-check so
+    // trendingMomentum scores computed from news are ready for the day's
+    // notification pass.
+    { path: "/api/cron/news-refresh", schedule: "45 9 * * *" },
     // Once daily at 09:30 UTC (after the data snapshots): walk every
     // stored league and emit drift notifications (stacked bye weeks, FAAB
     // drained, injured starters). Vercel's Hobby plan caps each cron job at one
