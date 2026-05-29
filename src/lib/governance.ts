@@ -48,7 +48,21 @@ export const RAEEnvelopeSchema = z.object({
   // envelope. null for fixture/unavailable envelopes and for live envelopes
   // where the user hasn't connected a league yet. Optional in the schema so
   // existing fixture payloads still parse without modification.
-  leagueFormat: LeagueFormatSchema.nullable().optional()
+  leagueFormat: LeagueFormatSchema.nullable().optional(),
+  // Per-player weekly projections (sleeperId → pts_ppr) from the Sleeper
+  // undocumented projections endpoint (via cron). Only populated during the
+  // regular season when the projections-refresh cron has fired. Optional so
+  // fixture + off-season envelopes parse without modification.
+  weeklyProjections: z.record(z.string(), z.number()).nullable().optional(),
+  // Metadata about the weekly projection snapshot used above.
+  weeklyProjectionsMeta: z
+    .object({
+      season: z.string(),
+      week: z.number().int(),
+      fetchedAt: z.string().datetime()
+    })
+    .nullable()
+    .optional()
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 

@@ -12,6 +12,8 @@ import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
 import { buildTrendingMap } from "@/lib/sleeper/trendingProxy";
 import { getActiveLeagueId } from "@/lib/activeLeague";
+import { getNflState } from "@/lib/sleeper/league";
+import { getLatestProjectionsSnapshot } from "@/lib/sleeper/projectionsSnapshot";
 
 // Force dynamic rendering so we never download the 19 MB Sleeper players catalog
 // during build. With ISR (Vercel default for static pages), `next build` runs the
@@ -75,15 +77,15 @@ async function resolveHome(): Promise<HomeResolution> {
       }));
       const live = await fetchLeagueLive(userId, activeLeagueId, db);
       if (live && live.myRoster.length > 0) {
-        // Fetch rankings + trending in parallel — both feed the envelope.
-        // Trending fails open (empty maps) so a network blip on Sleeper doesn't
-        // tank the homepage; the proxy just contributes no trendingMomentum
-        // when adds/drops are empty.
-        const [rankings, trendingAddsResult, trendingDropsResult] = await Promise.all([
-          getLatestRankingsSnapshot("PPR"),
-          getTrendingPlayers("add", 24, 100).catch(() => null),
-          getTrendingPlayers("drop", 24, 100).catch(() => null)
-        ]);
+        // Fetch rankings, trending, and NFL state in parallel.
+        // Each fails open so a partial outage doesn't tank the homepage.
+        const [rankings, trendingAddsResult, trendingDropsResult, nflState] =
+          await Promise.all([
+            getLatestRankingsSnapshot("PPR"),
+            getTrendingPlayers("add", 24, 100).catch(() => null),
+            getTrendingPlayers("drop", 24, 100).catch(() => null),
+            getNflState().catch(() => null)
+          ]);
         const trendingAdds = buildTrendingMap(trendingAddsResult?.data ?? null);
         const trendingDrops = buildTrendingMap(trendingDropsResult?.data ?? null);
         const rankingsSource = rankings
@@ -93,6 +95,38 @@ async function resolveHome(): Promise<HomeResolution> {
               null,
               "rankings cache empty — cron may not have fired yet"
             );
+
+        // Resolve weekly projections for the current regular-season week.
+        // Off-season or when the cron hasn't fired: both stay null and the
+        // NexusSimulator falls back to season-aggregate trueValue.
+        let weeklyProjections: Record<string, number> | null = null;
+        let weeklyProjectionsMeta: {
+          season: string;
+          week: number;
+          fetchedAt: string;
+        } | null = null;
+        const nflData = nflState?.data;
+        if (nflData?.season_type === "regular" && nflData.week >= 1) {
+          const projSnapshot = await getLatestProjectionsSnapshot(
+            nflData.season,
+            nflData.week
+          ).catch(() => null);
+          if (projSnapshot) {
+            const pts: Record<string, number> = {};
+            for (const [id, p] of Object.entries(projSnapshot.data.projections)) {
+              if (p.pts_ppr != null) pts[id] = p.pts_ppr;
+            }
+            if (Object.keys(pts).length > 0) {
+              weeklyProjections = pts;
+              weeklyProjectionsMeta = {
+                season: nflData.season,
+                week: nflData.week,
+                fetchedAt: projSnapshot.fetchedAt.toISOString()
+              };
+            }
+          }
+        }
+
         return {
           kind: "envelope",
           envelope: buildLiveEnvelope({
@@ -100,7 +134,9 @@ async function resolveHome(): Promise<HomeResolution> {
             rankings: rankings?.data ?? null,
             rankingsSource,
             trendingAdds,
-            trendingDrops
+            trendingDrops,
+            weeklyProjections,
+            weeklyProjectionsMeta
           }),
           leagueOptions,
           activeLeagueId

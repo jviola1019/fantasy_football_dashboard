@@ -24,6 +24,10 @@ export interface BuildEnvelopeOptions {
   trendingAdds?: Map<string, number>;
   /** Optional Sleeper trending-drops map. */
   trendingDrops?: Map<string, number>;
+  /** Weekly projected pts_ppr keyed by sleeper player_id. Off-season / pre-cron: absent. */
+  weeklyProjections?: Record<string, number> | null;
+  /** Metadata about the weekly projection snapshot (season, week, fetchedAt). */
+  weeklyProjectionsMeta?: { season: string; week: number; fetchedAt: string } | null;
 }
 
 export function buildLiveEnvelope({
@@ -31,7 +35,9 @@ export function buildLiveEnvelope({
   rankings,
   rankingsSource,
   trendingAdds,
-  trendingDrops
+  trendingDrops,
+  weeklyProjections,
+  weeklyProjectionsMeta
 }: BuildEnvelopeOptions): RAEEnvelope {
   if (!rankings) {
     // No rankings cached yet — still emit live mode with the identity-only
@@ -41,7 +47,9 @@ export function buildLiveEnvelope({
       generatedAt: new Date().toISOString(),
       records: snapshot.myRoster,
       sourceState: degradedSourceState(snapshot.source, rankingsSource),
-      leagueFormat: snapshot.format
+      leagueFormat: snapshot.format,
+      weeklyProjections: weeklyProjections ?? null,
+      weeklyProjectionsMeta: weeklyProjectionsMeta ?? null
     };
   }
 
@@ -93,7 +101,9 @@ export function buildLiveEnvelope({
           ],
       failure: null
     },
-    leagueFormat: snapshot.format
+    leagueFormat: snapshot.format,
+    weeklyProjections: weeklyProjections ?? null,
+    weeklyProjectionsMeta: weeklyProjectionsMeta ?? null
   };
 }
 

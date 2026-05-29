@@ -45,6 +45,13 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
   const [running, setRunning] = useState(false);
 
+  // Build the weekly projections Map from the envelope (plain Record → Map).
+  const weeklyProjections = useMemo(() => {
+    const proj = envelope?.weeklyProjections;
+    if (!proj || Object.keys(proj).length === 0) return null;
+    return new Map(Object.entries(proj));
+  }, [envelope?.weeklyProjections]);
+
   // The simulator depends on trending_momentum (chaosExposure) and
   // opportunity to interpret risk + driver weights. When both are missing,
   // the CI bands shown to the user need to widen so the displayed
@@ -55,7 +62,14 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
     ? derivePanelState(envelope, ["trending_momentum", "opportunity"])
     : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
   const ciMultiplier = CI_MULTIPLIER[panelState.status];
-  const ciLabel = CI_LABEL[panelState.status];
+
+  // When weekly projections are wired, override the CI label to show the
+  // week/date stamp. The label is empty when projections are absent and the
+  // panel state is "ready" (no missing fields to disclose).
+  const projMeta = envelope?.weeklyProjectionsMeta;
+  const ciLabel = weeklyProjections && projMeta
+    ? `Live week-${projMeta.week} projections (${new Date(projMeta.fetchedAt).toLocaleDateString()})`
+    : CI_LABEL[panelState.status];
 
   const handleRun = () => {
     setRunning(true);
@@ -122,7 +136,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
               <OutcomeMultiverse players={players} sim={sim} running={running} />
             </div>
             <div className="nexus-side">
-              <ConfidenceBands players={players} sim={sim} ciMultiplier={ciMultiplier} />
+              <ConfidenceBands players={players} sim={sim} ciMultiplier={ciMultiplier} weeklyProjections={weeklyProjections} />
               <KeyDrivers sim={sim} hasData={hasData} />
               <RiskOfRegret sim={sim} hasData={hasData} />
             </div>
@@ -233,17 +247,13 @@ function widen(
 function ConfidenceBands({
   players,
   sim,
-  ciMultiplier = 1
+  ciMultiplier = 1,
+  weeklyProjections
 }: {
   players: PlayerMarketRecord[];
   sim: SimulationResult;
-  /**
-   * Widen the displayed CI bands by this factor when the envelope reports
-   * that key inputs (narrative pressure, opportunity) are missing. Bands
-   * are mirrored around the point estimate so the user reads wider bounds
-   * even though the underlying simulation is unchanged.
-   */
   ciMultiplier?: number;
+  weeklyProjections?: Map<string, number> | null;
 }) {
   const REPLICATES = 20;
   const ITER = 800;
@@ -256,7 +266,8 @@ function ConfidenceBands({
         seed: sim.params.seed + i,
         iterations: ITER,
         rosterSlots: sim.params.rosterSlots,
-        riskTolerance: sim.params.riskTolerance
+        riskTolerance: sim.params.riskTolerance,
+        weeklyProjections
       });
       champ.push(r.championshipProbability);
       playoff.push(r.playoffProbability);
@@ -267,7 +278,7 @@ function ConfidenceBands({
       championship: widen(champCI, ciMultiplier),
       playoff: widen(playoffCI, ciMultiplier)
     };
-  }, [players, sim.params.seed, sim.params.rosterSlots, sim.params.riskTolerance, ciMultiplier]);
+  }, [players, sim.params.seed, sim.params.rosterSlots, sim.params.riskTolerance, ciMultiplier, weeklyProjections]);
 
   if (!bands) {
     return (

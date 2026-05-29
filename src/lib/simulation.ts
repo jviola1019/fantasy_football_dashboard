@@ -6,6 +6,11 @@ export type SimulationParams = {
   iterations: number;
   rosterSlots: number;
   riskTolerance: number;
+  // When present, each player's trueValue is overridden with their weekly
+  // projected pts_ppr before the Monte Carlo loop. Off-season / when the
+  // cron has not fired: this field is absent and season-aggregate trueValue
+  // is used unchanged.
+  weeklyProjections?: Map<string, number> | null;
 };
 
 export type SimulationResult = {
@@ -42,8 +47,14 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
   for (let i = 0; i < iterations; i += 1) {
     const sampled = players
       .map((player) => {
+        // Use the weekly projected pts_ppr when available; fall back to the
+        // season-aggregate trueValue. pts_ppr is on a 0-50 scale for most
+        // players; trueValue is normalised 0-100 — rescale by ×2 so the
+        // shock + edge math stays proportionate.
+        const projectedPts = params.weeklyProjections?.get(player.id);
+        const baseValue = projectedPts != null ? projectedPts * 2 : player.trueValue;
         const shock = (rng() - 0.5) * player.volatility;
-        const score = player.trueValue + reputationEdge(player) * 0.8 + shock - chaosExposure(player) * (1 - params.riskTolerance) * 0.16;
+        const score = baseValue + reputationEdge(player) * 0.8 + shock - chaosExposure(player) * (1 - params.riskTolerance) * 0.16;
         return { player, score };
       })
       .sort((a, b) => b.score - a.score)
