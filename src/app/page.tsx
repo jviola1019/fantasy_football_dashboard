@@ -14,6 +14,9 @@ import { buildTrendingMap } from "@/lib/sleeper/trendingProxy";
 import { getActiveLeagueId } from "@/lib/activeLeague";
 import { getNflState } from "@/lib/sleeper/league";
 import { getLatestProjectionsSnapshot } from "@/lib/sleeper/projectionsSnapshot";
+import { getLatestNewsSnapshot } from "@/lib/espn/newsSnapshot";
+import { buildNewsWeightMap, normaliseMomentumScores } from "@/lib/espn/newsMatch";
+import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
 
 // Force dynamic rendering so we never download the 19 MB Sleeper players catalog
 // during build. With ISR (Vercel default for static pages), `next build` runs the
@@ -77,14 +80,17 @@ async function resolveHome(): Promise<HomeResolution> {
       }));
       const live = await fetchLeagueLive(userId, activeLeagueId, db);
       if (live && live.myRoster.length > 0) {
-        // Fetch rankings, trending, and NFL state in parallel.
-        // Each fails open so a partial outage doesn't tank the homepage.
-        const [rankings, trendingAddsResult, trendingDropsResult, nflState] =
+        // Fetch rankings, trending, NFL state, news snapshot, and players
+        // snapshot in parallel. Each fails open to null so a partial outage
+        // doesn't tank the homepage.
+        const [rankings, trendingAddsResult, trendingDropsResult, nflState, newsSnapshot, playersSnapshot] =
           await Promise.all([
             getLatestRankingsSnapshot("PPR"),
             getTrendingPlayers("add", 24, 100).catch(() => null),
             getTrendingPlayers("drop", 24, 100).catch(() => null),
-            getNflState().catch(() => null)
+            getNflState().catch(() => null),
+            getLatestNewsSnapshot("espn-nfl").catch(() => null),
+            getLatestPlayersSnapshot().catch(() => null)
           ]);
         const trendingAdds = buildTrendingMap(trendingAddsResult?.data ?? null);
         const trendingDrops = buildTrendingMap(trendingDropsResult?.data ?? null);
@@ -95,6 +101,19 @@ async function resolveHome(): Promise<HomeResolution> {
               null,
               "rankings cache empty — cron may not have fired yet"
             );
+
+        // Build ESPN news momentum scores (B5). Prefer news over the Sleeper
+        // trending proxy when both are available; enrich.ts handles priority.
+        // Both fail open: missing snapshot → null → proxy stays as fallback.
+        let newsMomentumScores: Record<string, number> | null = null;
+        if (newsSnapshot && playersSnapshot) {
+          const weightMap = buildNewsWeightMap(
+            newsSnapshot.articles,
+            playersSnapshot.players as Record<string, Record<string, unknown>>
+          );
+          const scores = normaliseMomentumScores(weightMap);
+          if (Object.keys(scores).length > 0) newsMomentumScores = scores;
+        }
 
         // Resolve weekly projections for the current regular-season week.
         // Off-season or when the cron hasn't fired: both stay null and the
@@ -136,7 +155,8 @@ async function resolveHome(): Promise<HomeResolution> {
             trendingAdds,
             trendingDrops,
             weeklyProjections,
-            weeklyProjectionsMeta
+            weeklyProjectionsMeta,
+            newsMomentumScores
           }),
           leagueOptions,
           activeLeagueId

@@ -109,6 +109,13 @@ export interface EnrichOptions {
   trendingAdds?: Map<string, number>;
   /** Sleeper trending-drops map; see trendingAdds. */
   trendingDrops?: Map<string, number>;
+  /**
+   * Recency-weighted ESPN headline-velocity scores (sleeperId → normalised
+   * 0-100 score). When provided, these override the Sleeper-trending proxy
+   * as the trendingMomentum signal. The proxy stays as a fallback when this
+   * is absent or the news cron has not yet fired.
+   */
+  newsMomentumScores?: Record<string, number> | null;
 }
 
 /**
@@ -133,18 +140,23 @@ export function enrichWithFp(
     ...record.sources,
     withFpMissingFields(options.rankingsSource, options)
   ];
-  // Optional trending proxy applies whether or not we have an FP match —
-  // identity-only records also benefit from the roster-move signal.
+  // trendingMomentum priority:
+  //   1. ESPN headline-velocity score (newsMomentumScores) — real signal.
+  //   2. Sleeper trending proxy (trendingAdds/Drops) — roster-move proxy.
+  //   3. Zero (default) — declared missing in SourceMeta.
+  const newsScore = options.newsMomentumScores?.[record.id];
   const trendingMomentum =
-    options.trendingAdds && options.trendingDrops
-      ? trendingMomentumFromProxy(
-          record,
-          options.trendingAdds,
-          options.trendingDrops,
-          maxes?.trendingAddsMax,
-          maxes?.trendingDropsMax
-        )
-      : record.trendingMomentum;
+    newsScore != null
+      ? newsScore
+      : options.trendingAdds && options.trendingDrops
+        ? trendingMomentumFromProxy(
+            record,
+            options.trendingAdds,
+            options.trendingDrops,
+            maxes?.trendingAddsMax,
+            maxes?.trendingDropsMax
+          )
+        : record.trendingMomentum;
   if (!match) {
     // No FP match — keep identity values + apply trending proxy.
     return { ...record, trendingMomentum, sources };
@@ -178,20 +190,25 @@ export function enrichWithFp(
 }
 
 function withFpMissingFields(source: SourceMeta, options?: EnrichOptions): SourceMeta {
-  // trending_momentum leaves the missingFields set when the trending proxy
-  // is wired up. opportunity stays missing always (in-season-only signal).
-  const fieldsStillMissing = options?.trendingAdds && options?.trendingDrops
-    ? ["opportunity"]
-    : PPR_BEHAVIORAL_FIELDS;
+  // trending_momentum is no longer missing when news scores or the Sleeper
+  // proxy is wired. opportunity stays missing always (in-season-only signal).
+  const hasNews = !!(options?.newsMomentumScores && Object.keys(options.newsMomentumScores).length > 0);
+  const hasProxy = !!(options?.trendingAdds && options?.trendingDrops);
+  const fieldsStillMissing = hasNews || hasProxy ? ["opportunity"] : PPR_BEHAVIORAL_FIELDS;
   const baseAssumptions = source.assumptions.length
     ? source.assumptions
     : ["FantasyPros consensus rankings + ownership; in-season opportunity not derived."];
-  const assumptions = options?.trendingAdds && options?.trendingDrops
+  const assumptions = hasNews
     ? [
         ...baseAssumptions,
-        "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification."
+        "trending_momentum from ESPN headline velocity (count of articles mentioning player in last 72h, recency-weighted). Not NLP sentiment classification."
       ]
-    : baseAssumptions;
+    : hasProxy
+      ? [
+          ...baseAssumptions,
+          "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification."
+        ]
+      : baseAssumptions;
   return {
     ...source,
     missingFields: Array.from(new Set([...source.missingFields, ...fieldsStillMissing])),

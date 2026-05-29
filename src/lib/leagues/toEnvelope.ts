@@ -28,6 +28,12 @@ export interface BuildEnvelopeOptions {
   weeklyProjections?: Record<string, number> | null;
   /** Metadata about the weekly projection snapshot (season, week, fetchedAt). */
   weeklyProjectionsMeta?: { season: string; week: number; fetchedAt: string } | null;
+  /**
+   * Recency-weighted ESPN headline-velocity scores (sleeperId → 0-100).
+   * When provided, overrides the Sleeper-trending proxy as the trendingMomentum
+   * source. Sleeper proxy stays as fallback when this is absent.
+   */
+  newsMomentumScores?: Record<string, number> | null;
 }
 
 export function buildLiveEnvelope({
@@ -37,7 +43,8 @@ export function buildLiveEnvelope({
   trendingAdds,
   trendingDrops,
   weeklyProjections,
-  weeklyProjectionsMeta
+  weeklyProjectionsMeta,
+  newsMomentumScores
 }: BuildEnvelopeOptions): RAEEnvelope {
   if (!rankings) {
     // No rankings cached yet — still emit live mode with the identity-only
@@ -57,7 +64,8 @@ export function buildLiveEnvelope({
   const enriched = enrichRoster(snapshot.myRoster, rankings, index, {
     rankingsSource,
     trendingAdds,
-    trendingDrops
+    trendingDrops,
+    newsMomentumScores
   });
 
   // Composite source metadata. Freshness = the worse of the two upstream
@@ -65,8 +73,10 @@ export function buildLiveEnvelope({
   // opportunity as unavailable even though ECR populated the others).
   // When the trending proxy is wired, trending_momentum is no longer
   // missing — but opportunity always is (no in-season data pre-draft).
+  const newsActive = !!(newsMomentumScores && Object.keys(newsMomentumScores).length > 0);
   const proxyActive = !!(trendingAdds && trendingDrops);
-  const rankingsMissing = proxyActive
+  const trendingActive = newsActive || proxyActive;
+  const rankingsMissing = trendingActive
     ? rankingsSource.missingFields.filter((f) => f !== "trending_momentum")
     : rankingsSource.missingFields;
   const missingUnion = Array.from(
@@ -89,16 +99,22 @@ export function buildLiveEnvelope({
       confidence: Math.min(snapshot.source.confidence, rankingsSource.confidence),
       validation: "valid",
       missingFields: missingUnion,
-      assumptions: proxyActive
+      assumptions: newsActive
         ? [
             "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-            "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification.",
+            "trending_momentum from ESPN headline velocity (recency-weighted, 72h window). Not NLP sentiment classification.",
             "In-season opportunity not derived; declared in missingFields."
           ]
-        : [
-            "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-            "Trending momentum and in-season opportunity not derived; declared in missingFields."
-          ],
+        : proxyActive
+          ? [
+              "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
+              "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification.",
+              "In-season opportunity not derived; declared in missingFields."
+            ]
+          : [
+              "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
+              "Trending momentum and in-season opportunity not derived; declared in missingFields."
+            ],
       failure: null
     },
     leagueFormat: snapshot.format,
