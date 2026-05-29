@@ -100,10 +100,10 @@ export function ChangePasswordForm() {
         </div>
       </div>
       {status.kind === "error" && status.message ? (
-        <p style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: 13 }}>{status.message}</p>
+        <p role="alert" aria-live="polite" style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: 13 }}>{status.message}</p>
       ) : null}
       {status.kind === "ok" && status.message ? (
-        <p style={{ color: "var(--green, #6fd07f)", margin: 0, fontSize: 13 }}>{status.message}</p>
+        <p role="status" aria-live="polite" style={{ color: "var(--green, #6fd07f)", margin: 0, fontSize: 13 }}>{status.message}</p>
       ) : null}
       <button
         type="submit"

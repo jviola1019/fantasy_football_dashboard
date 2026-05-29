@@ -9,13 +9,15 @@ import { expect, test } from "@playwright/test";
 const BLOCKING_IMPACTS = new Set(["serious", "critical"]);
 
 test.describe("axe a11y scan", () => {
-  for (const path of ["/", "/login"]) {
+  for (const path of ["/", "/login", "/settings/account", "/settings/leagues", "/mock-draft"]) {
     test(`route ${path} has no serious/critical violations`, async ({ page }) => {
       await page.goto(path);
       // Wait for at least one canvas to mount so r3f-injected DOM is present in the scan.
       if (path === "/") {
         await page.locator("canvas").first().waitFor({ timeout: 15_000 });
       }
+      // Settings routes redirect to /login when unauthenticated — that's a valid
+      // response; the scan runs against whichever page is actually loaded.
       const results = await new AxeBuilder({ page })
         .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
         .analyze();

@@ -68,13 +68,13 @@ export function AddLeagueForm() {
         <input id="externalLeagueId" name="externalLeagueId" required placeholder="e.g. 123456789012345678" style={input} />
       </div>
       {platform === "espn" ? (
-        <div style={{ display: "grid", gap: 12, padding: 12, background: "rgba(0,0,0,0.25)", borderRadius: 8 }}>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: 12 }}>
+        <div aria-live="polite" style={{ display: "grid", gap: 12, padding: 12, background: "rgba(0,0,0,0.25)", borderRadius: 8 }}>
+          <p id="espn-creds-instructions" style={{ margin: 0, color: "var(--muted)", fontSize: 12 }}>
             In a browser logged into ESPN, open DevTools → Application → Cookies → fantasy.espn.com. Copy <code>espn_s2</code> and <code>SWID</code>.
           </p>
           <div>
             <label htmlFor="espnS2" style={label}>espn_s2</label>
-            <input id="espnS2" name="espnS2" type="password" required={platform === "espn"} style={input} />
+            <input id="espnS2" name="espnS2" type="password" required={platform === "espn"} aria-describedby="espn-creds-instructions" style={input} />
           </div>
           <div>
             <label htmlFor="swid" style={label}>SWID</label>
@@ -87,7 +87,7 @@ export function AddLeagueForm() {
           <input id="sleeperUsername" name="sleeperUsername" type="text" placeholder="your Sleeper username" style={input} />
         </div>
       )}
-      {error ? <p style={{ color: "var(--red)", margin: 0, fontSize: 13 }}>{error}</p> : null}
+      {error ? <p role="alert" aria-live="polite" style={{ color: "var(--red)", margin: 0, fontSize: 13 }}>{error}</p> : null}
       <button
         type="submit"
         disabled={pending}

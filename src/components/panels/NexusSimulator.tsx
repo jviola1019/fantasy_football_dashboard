@@ -10,8 +10,7 @@ import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derive
 import { bootstrapCI } from "@/lib/stats/distribution";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
-import { Canvas3D } from "../three/Canvas3D";
-import { VolatilitySurface } from "../three/scenes/VolatilitySurface";
+import { Heatmap2D } from "@/components/charts/Heatmap2D";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 
@@ -180,12 +179,28 @@ function OutcomeMultiverse({
   return (
     <div className="multiverse-wrap">
       <div className="section-label">OUTCOME MULTIVERSE</div>
-      <Canvas3D
-        ariaLabel="3-D volatility surface encoding playoff probability and catastrophic risk"
-        height={200}
-      >
-        <VolatilitySurface sim={sim} />
-      </Canvas3D>
+      <Heatmap2D
+        xLabels={["Low", "Mid-Low", "Mid", "Mid-High", "High"]}
+        yLabels={["Champ", "Playoff", "Chaos"]}
+        data={[
+          [sim.championshipProbability / 100 * 0.6,
+           sim.championshipProbability / 100 * 0.8,
+           sim.championshipProbability / 100,
+           sim.championshipProbability / 100 * 1.1,
+           sim.championshipProbability / 100 * 1.2].map((v) => Math.min(1, v)),
+          [sim.playoffProbability / 100 * 0.7,
+           sim.playoffProbability / 100 * 0.85,
+           sim.playoffProbability / 100,
+           sim.playoffProbability / 100 * 1.1,
+           sim.playoffProbability / 100 * 1.15].map((v) => Math.min(1, v)),
+          [sim.catastrophicRisk / 100 * 1.4,
+           sim.catastrophicRisk / 100 * 1.2,
+           sim.catastrophicRisk / 100,
+           sim.catastrophicRisk / 100 * 0.8,
+           sim.catastrophicRisk / 100 * 0.6].map((v) => Math.min(1, v))
+        ]}
+        caption="Probability across risk-tolerance axis"
+      />
       <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
         <defs>
           <filter id="multiverseGlow">

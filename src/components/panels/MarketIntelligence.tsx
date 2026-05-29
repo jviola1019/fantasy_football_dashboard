@@ -7,8 +7,7 @@ import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
-import { Canvas3D } from "../three/Canvas3D";
-import { VolatilitySurface as VolatilitySurfaceScene } from "../three/scenes/VolatilitySurface";
+import { Heatmap2D } from "@/components/charts/Heatmap2D";
 import { BarChart } from "@/components/charts/BarChart";
 import { runNexusSimulation } from "@/lib/simulation";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
@@ -260,33 +259,26 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
 }
 
 function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
-  const sim = runNexusSimulation(players, { seed: 20260513, iterations: 1000, rosterSlots: 6, riskTolerance: 0.5 });
+  const riskLevels = [0.1, 0.3, 0.5, 0.7, 0.9];
+  const riskLabels = ["Low", "Mid-Low", "Mid", "Mid-High", "High"];
+  // Run simulation at each risk tolerance to build the probability grid.
+  const sims = riskLevels.map((rt) =>
+    runNexusSimulation(players, { seed: 20260513, iterations: 600, rosterSlots: 6, riskTolerance: rt })
+  );
+  const data = [
+    sims.map((s) => s.championshipProbability / 100),
+    sims.map((s) => s.playoffProbability / 100),
+    sims.map((s) => s.catastrophicRisk / 100)
+  ];
   return (
     <div className="chart-wrap vol-surface-wrap">
-      <div className="section-label">VOLATILITY SURFACE — Outcome Probability Landscape</div>
-      <Canvas3D
-        ariaLabel="3-D volatility surface: height and color encode outcome probability across a risk landscape"
-        height={220}
-        cameraPosition={[0, 3.5, 5.5]}
-        cameraFov={45}
-      >
-        <VolatilitySurfaceScene sim={sim} />
-      </Canvas3D>
-      <div className="vol-axis-labels">
-        <span>← Low Risk</span>
-        <span>Risk Axis</span>
-        <span>High Risk →</span>
-      </div>
-      <div className="vol-surface-legend">
-        <span className="vol-legend-cyan">■</span> Low probability (valley)
-        <span className="vol-legend-purple vol-legend-ml">■</span> Mid-range
-        <span className="vol-legend-amber vol-legend-ml">■</span> High probability (peak)
-      </div>
-      <div className="vol-surface-caption">
-        <strong>Reading this surface:</strong> Height = outcome probability. Color: cyan → purple → amber.
-        X-axis = playoff probability; Y-axis = catastrophic risk exposure.
-        Amber peaks mark scenarios where your roster has the highest probability of a positive outcome.
-      </div>
+      <div className="section-label">OUTCOME PROBABILITY LANDSCAPE</div>
+      <Heatmap2D
+        xLabels={riskLabels}
+        yLabels={["Champ", "Playoff", "Chaos"]}
+        data={data}
+        caption="Rows: outcome type. Columns: risk tolerance. Color: blue=low → amber=mid → red=high."
+      />
     </div>
   );
 }
