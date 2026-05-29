@@ -1,6 +1,15 @@
 # Statistical Calibration Plan
 
-Status: **structural** — the simulation engine is deterministic, replayable, and statistically well-behaved on its inputs. It is **not** production-calibrated yet. This document is the contract for what production calibration will require and how the dashboard will report uncertainty in the meantime.
+**Sprint 3 update (2026-05-29):** The calibration helpers are now fully implemented:
+`brierScore()` (Murphy decomposition), `reliabilityDiagram()`, and `kFoldCV()` ship in
+`src/lib/stats/distribution.ts` and are covered by 14 property tests in
+`distribution.test.ts` + `brierBacktest.test.ts`. The `ReliabilityDiagram` SVG component
+renders in NexusSim's "Risk Analysis" tab (placeholder until backtest data is attached).
+The backtest script `scripts/brier-backtest.ts` tries 2025 nflverse data first (2025
+season is complete), falls back to local `C:/tmp/nfl_stats_2025.csv`, then to 2024 data.
+Run `npx tsx scripts/brier-backtest.ts` to generate `docs/brier-results.md`.
+
+Status: **structural** — the simulation engine is deterministic, replayable, and statistically well-behaved on its inputs. The calibration *helpers* are implemented; production *calibration against real outcomes* is still pending. This document is the contract for what production calibration will require and how the dashboard will report uncertainty in the meantime.
 
 ## What every metric encodes
 
@@ -8,8 +17,8 @@ Status: **structural** — the simulation engine is deterministic, replayable, a
 | --- | --- | --- | --- |
 | `reputationEdge` | `trueValue − perceivedValue + 0.18·ownershipLeverage − 0.08·fragility` | ±200 (theoretical), typically ±25 | monotone ↑ in `trueValue`, ↓ in `fragility` |
 | `marketInefficiency` | `|trueValue − perceivedValue|·confidence + 0.12·max(0, ownershipLeverage)` | ≥ 0 | rises with disagreement |
-| `narrativeVelocity` | `0.54·narrativePressure + 0.28·volatility − 0.11·fragility` | ≈ ±90 | monotone ↑ in `narrativePressure` |
-| `chaosExposure` | `0.45·volatility + 0.4·fragility + 0.15·|narrativePressure|` | ≥ 0 | monotone ↑ in `volatility` |
+| `narrativeVelocity` | `0.54·trendingMomentum + 0.28·volatility − 0.11·fragility` | ≈ ±90 | monotone ↑ in `trendingMomentum` |
+| `chaosExposure` | `0.45·volatility + 0.4·fragility + 0.15·|trendingMomentum|` | ≥ 0 | monotone ↑ in `volatility` |
 | `liquidityScore` | `(0.6·opportunity + 0.4·marketInefficiency)/10` | ≥ 0 | rises with opportunity |
 | `championshipProbability` | fraction of Monte Carlo rosters with mean score > 83 | [0, 100]% | rises with `riskTolerance` and `trueValue` |
 | `playoffProbability` | fraction with mean score > 73 (superset of championship) | [0, 100]% | rises with `riskTolerance` and `trueValue` |
@@ -20,7 +29,7 @@ The full set is unit-tested in `src/lib/derivedMetrics.stats.test.ts` for determ
 
 ## What the simulation consumes today
 
-The engine reads `PlayerMarketRecord` fields (`trueValue`, `perceivedValue`, `volatility`, `fragility`, `ownershipLeverage`, `narrativePressure`, `confidence`) and a `SimulationParams` tuple (`seed`, `iterations`, `rosterSlots`, `riskTolerance`). When connected to fixture data those inputs are documented dev calibration. When connected to real Sleeper/ESPN league data they default to zero (see `src/lib/normalize.ts`) — the dashboard correctly surfaces an `unavailable` envelope rather than fabricating signal.
+The engine reads `PlayerMarketRecord` fields (`trueValue`, `perceivedValue`, `volatility`, `fragility`, `ownershipLeverage`, `trendingMomentum`, `confidence`) and a `SimulationParams` tuple (`seed`, `iterations`, `rosterSlots`, `riskTolerance`). When connected to fixture data those inputs are documented dev calibration. When connected to real Sleeper/ESPN league data they default to zero (see `src/lib/normalize.ts`) — the dashboard correctly surfaces an `unavailable` envelope rather than fabricating signal.
 
 ## What production calibration requires
 
@@ -31,7 +40,7 @@ To claim accuracy against real-world outcomes the engine needs all of:
 3. **Injury and depth chart** — current designation + percentile risk. Maps to `fragility`. Source: ESPN injury feed (already wired in `src/lib/espn/league.ts`), Sleeper `/v1/players/nfl` (which includes `injury_status`).
 4. **Scoring rules** — league-specific PPR/half/std + bonus categories. Read from Sleeper `getLeague().scoring_settings` / ESPN `mSettings`. Modulates the projection → score transform.
 5. **Ownership baseline** — league-wide ownership %. Maps to `ownershipLeverage`. Source: Sleeper trending + ESPN `mPositionalRatings`.
-6. **News/sentiment** — narrative direction with timestamp. Maps to `narrativePressure`. Source: RSS adapter in `src/lib/news/rss.ts` (currently lexical only; sentiment classifier is future work).
+6. **News/sentiment** — narrative direction with timestamp. Maps to `trendingMomentum`. Source: RSS adapter in `src/lib/news/rss.ts` (currently lexical only; sentiment classifier is future work).
 7. **Weather** — wind/precip at outdoor venues. Maps to a per-game adjustment on `volatility`. Source: `src/lib/weather/openmeteo.ts` (already wired).
 
 ## Calibration procedure (when those inputs arrive)

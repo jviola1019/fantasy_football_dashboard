@@ -333,6 +333,178 @@ export function connectingLetters(
   return letters;
 }
 
+// ─── Brier score + Murphy decomposition ──────────────────────────────────────
+
+export interface BrierForecast {
+  /** Predicted probability of the binary outcome occurring, in [0, 1]. */
+  prob: number;
+  /** Actual outcome: 1 = event occurred, 0 = did not occur. */
+  outcome: 0 | 1;
+}
+
+export interface BrierResult {
+  /** Brier score = mean((prob − outcome)²). Lower is better; 0 is perfect. */
+  score: number;
+  /** Number of forecasts. */
+  n: number;
+  /** Murphy decomposition — reliability (calibration error). Lower is better. */
+  reliability: number;
+  /** Murphy decomposition — resolution (sharpness beyond climatology). Higher is better. */
+  resolution: number;
+  /**
+   * Murphy decomposition — uncertainty (irreducible entropy of the base rate).
+   * Brier score = reliability − resolution + uncertainty.
+   */
+  uncertainty: number;
+}
+
+/**
+ * Compute the Brier score and Murphy decomposition for a set of binary
+ * probability forecasts.
+ *
+ * Murphy decomposition:
+ *   Brier = reliability − resolution + uncertainty
+ * where:
+ *   uncertainty  = clim * (1 − clim)   (base-rate variance)
+ *   resolution   = Σ_k n_k/N * (ȳ_k − clim)²
+ *   reliability  = Σ_k n_k/N * (f_k − ȳ_k)²
+ *
+ * Each bin k groups all forecasts with the same unique probability f_k;
+ * for continuous probabilities this is a per-unique-value decomposition.
+ * For binned reliability diagrams use `reliabilityDiagram` instead.
+ */
+export function brierScore(forecasts: ReadonlyArray<BrierForecast>): BrierResult {
+  const n = forecasts.length;
+  if (n === 0) {
+    return { score: Number.NaN, n: 0, reliability: Number.NaN, resolution: Number.NaN, uncertainty: Number.NaN };
+  }
+  let sumSq = 0;
+  let sumOutcomes = 0;
+  for (const f of forecasts) {
+    const diff = f.prob - f.outcome;
+    sumSq += diff * diff;
+    sumOutcomes += f.outcome;
+  }
+  const score = sumSq / n;
+  const clim = sumOutcomes / n; // base rate (climatological probability)
+  const uncertainty = clim * (1 - clim);
+
+  // Group forecasts by unique probability value for Murphy decomposition.
+  const bins = new Map<number, { sumOutcomes: number; count: number }>();
+  for (const f of forecasts) {
+    const key = f.prob;
+    const bin = bins.get(key) ?? { sumOutcomes: 0, count: 0 };
+    bin.sumOutcomes += f.outcome;
+    bin.count += 1;
+    bins.set(key, bin);
+  }
+
+  let reliability = 0;
+  let resolution = 0;
+  for (const [prob, { sumOutcomes: so, count }] of bins) {
+    const obsMean = so / count; // observed frequency in this bin
+    reliability += (count / n) * (prob - obsMean) ** 2;
+    resolution += (count / n) * (obsMean - clim) ** 2;
+  }
+
+  return { score, n, reliability, resolution, uncertainty };
+}
+
+// ─── Reliability diagram ─────────────────────────────────────────────────────
+
+export interface ReliabilityBin {
+  /** Centre of the forecast-probability bin (e.g. 0.05 for the [0, 0.1) bucket). */
+  binCenter: number;
+  /** Mean forecast probability of all forecasts in this bin. */
+  meanForecast: number;
+  /** Observed frequency of the positive outcome in this bin. */
+  observedFreq: number;
+  /** Number of forecasts in this bin. */
+  n: number;
+}
+
+/**
+ * Build a reliability diagram (calibration curve) by binning forecasts into
+ * equal-width probability intervals. A perfectly calibrated forecaster
+ * produces a diagram where every point lies on the identity line y = x.
+ *
+ * @param forecasts  Array of { prob, outcome } pairs.
+ * @param bins       Number of equal-width bins in [0, 1]. Default 10.
+ */
+export function reliabilityDiagram(
+  forecasts: ReadonlyArray<BrierForecast>,
+  bins = 10
+): ReliabilityBin[] {
+  const width = 1 / bins;
+  const result: ReliabilityBin[] = [];
+  for (let b = 0; b < bins; b++) {
+    const lo = b * width;
+    const hi = lo + width;
+    const center = lo + width / 2;
+    const inBin = forecasts.filter(
+      (f) => f.prob >= lo && (b === bins - 1 ? f.prob <= hi : f.prob < hi)
+    );
+    if (inBin.length === 0) continue;
+    const sumProb = inBin.reduce((s, f) => s + f.prob, 0);
+    const sumOut = inBin.reduce((s, f) => s + f.outcome, 0);
+    result.push({
+      binCenter: center,
+      meanForecast: sumProb / inBin.length,
+      observedFreq: sumOut / inBin.length,
+      n: inBin.length
+    });
+  }
+  return result;
+}
+
+// ─── k-fold cross-validation ─────────────────────────────────────────────────
+
+export interface KFoldResult {
+  /** Mean score across all k folds. */
+  meanScore: number;
+  /** Sample standard deviation of per-fold scores. */
+  stdScore: number;
+  /** Per-fold scores in fold order. */
+  foldScores: number[];
+}
+
+/**
+ * k-fold cross-validation. Splits `samples` into k equally-sized folds
+ * (the last fold absorbs any remainder), then calls `evaluate(train, test)`
+ * for each fold and returns the mean ± std of the resulting scores.
+ *
+ * The fold split uses the original sample order; callers that need random
+ * splits should shuffle before passing. This keeps the function pure and
+ * deterministic.
+ *
+ * @param samples  The full dataset.
+ * @param k        Number of folds (must be ≥ 2 and ≤ samples.length).
+ * @param evaluate Function called with (trainSet, testSet) that returns a
+ *                 numeric score for this fold (e.g. Brier score).
+ */
+export function kFoldCV<T>(
+  samples: T[],
+  k: number,
+  evaluate: (train: T[], test: T[]) => number
+): KFoldResult {
+  const n = samples.length;
+  const clampedK = Math.max(2, Math.min(k, n));
+  const foldSize = Math.floor(n / clampedK);
+  const foldScores: number[] = [];
+
+  for (let fold = 0; fold < clampedK; fold++) {
+    const testStart = fold * foldSize;
+    const testEnd = fold === clampedK - 1 ? n : testStart + foldSize;
+    const test = samples.slice(testStart, testEnd);
+    const train = [...samples.slice(0, testStart), ...samples.slice(testEnd)];
+    foldScores.push(evaluate(train, test));
+  }
+
+  const ms = mean(foldScores);
+  const sd = foldScores.length >= 2 ? stdev(foldScores) : 0;
+  return { meanScore: ms, stdScore: sd, foldScores };
+}
+
 /**
  * Upper-tail of the standard normal distribution, via Abramowitz & Stegun 7.1.26
  * approximation of erfc. Accurate to ~1.5e-7. Used so we can compute p-values
