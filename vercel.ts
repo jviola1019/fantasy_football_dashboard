@@ -60,14 +60,13 @@ const config: VercelConfig = {
     // KTC and before the lifecycle-check at 09:30.
     { path: "/api/cron/projections-refresh", schedule: "15 9 * * *" },
     // Daily ESPN NFL news snapshot (up to 100 articles, no auth). Runs at
-    // 09:45 UTC — after projections-refresh and before lifecycle-check so
-    // trendingMomentum scores computed from news are ready for the day's
-    // notification pass.
-    { path: "/api/cron/news-refresh", schedule: "45 9 * * *" },
-    // Once daily at 09:30 UTC (after the data snapshots): walk every
-    // stored league and emit drift notifications (stacked bye weeks, FAAB
-    // drained, injured starters). Vercel's Hobby plan caps each cron job at one
-    // run per day; on Pro this can return to a tighter interval.
+    // 09:20 UTC — after ktc-refresh (09:00) and before lifecycle-check (09:30)
+    // so the news snapshot is available when the lifecycle cron eventually
+    // begins consuming trendingMomentum for notification rules.
+    { path: "/api/cron/news-refresh", schedule: "20 9 * * *" },
+    // Once daily at 09:30 UTC (after all data snapshots). Walks every stored
+    // league and emits drift notifications (stacked bye weeks, FAAB drained,
+    // injured starters). Vercel Hobby plan caps each cron at one run per day.
     { path: "/api/cron/lifecycle-check", schedule: "30 9 * * *" }
   ],
   headers: [

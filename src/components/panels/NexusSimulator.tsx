@@ -11,6 +11,7 @@ import { bootstrapCI } from "@/lib/stats/distribution";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { Heatmap2D } from "@/components/charts/Heatmap2D";
+import { ReliabilityDiagram } from "@/components/charts/ReliabilityDiagram";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 
@@ -150,6 +151,12 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
         {activeTab === "Risk Analysis" && (
           <div className="nexus-full">
             <RiskOfRegret sim={sim} hasData={hasData} />
+            <div className="mini-panel">
+              <div className="mini-panel-title">Calibration — Reliability Diagram</div>
+              <ReliabilityDiagram
+                caption="Run scripts/brier-backtest.ts to populate with real 2025 backtest data."
+              />
+            </div>
             <RiskDetails sim={sim} />
           </div>
         )}
