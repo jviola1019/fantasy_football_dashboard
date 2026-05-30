@@ -65,6 +65,41 @@ interface SeasonRow {
 
 type DataRow = PerWeekRow | SeasonRow;
 
+/**
+ * RFC 4180-compliant CSV row splitter. Handles quoted fields that may contain
+ * commas (e.g. headshot URLs "https://...f_auto,q_auto/..."). This was the
+ * root cause of only 5/2020 rows parsing correctly in the local 2025 CSV.
+ */
+function splitCsvRow(line: string): string[] {
+  const fields: string[] = [];
+  let i = 0;
+  while (i < line.length) {
+    if (line[i] === '"') {
+      // Quoted field — consume until closing unescaped quote.
+      let field = "";
+      i++; // skip opening quote
+      while (i < line.length) {
+        if (line[i] === '"' && line[i + 1] === '"') {
+          field += '"'; i += 2; // escaped quote
+        } else if (line[i] === '"') {
+          i++; break; // closing quote
+        } else {
+          field += line[i++];
+        }
+      }
+      if (line[i] === ",") i++; // skip trailing comma
+      fields.push(field);
+    } else {
+      // Unquoted field — consume until comma or end.
+      const start = i;
+      while (i < line.length && line[i] !== ",") i++;
+      fields.push(line.slice(start, i));
+      if (line[i] === ",") i++; // skip comma
+    }
+  }
+  return fields;
+}
+
 function parseCsvColumns(header: string[]): Record<string, number> {
   const idx: Record<string, number> = {};
   for (let i = 0; i < header.length; i++) {
@@ -77,7 +112,7 @@ function parseCsv(csv: string): { rows: DataRow[]; hasWeek: boolean } {
   const lines = csv.split("\n").filter((l) => l.trim().length > 0);
   if (lines.length < 2) return { rows: [], hasWeek: false };
 
-  const header = lines[0]!.split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  const header = splitCsvRow(lines[0]!).map((h) => h.trim());
   const idx = parseCsvColumns(header);
 
   const hasWeek = "week" in idx;
@@ -90,8 +125,8 @@ function parseCsv(csv: string): { rows: DataRow[]; hasWeek: boolean } {
 
   const rows: DataRow[] = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i]!.split(",");
-    const get = (i: number) => cols[i]?.replace(/^"|"$/g, "").trim() ?? "";
+    const cols = splitCsvRow(lines[i]!);
+    const get = (i: number) => cols[i]?.trim() ?? "";
 
     if (iSeasonType >= 0) {
       const st = get(iSeasonType);

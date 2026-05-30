@@ -90,11 +90,14 @@ export interface InsertProjectionsInput {
 export async function insertProjectionsSnapshot({
   data
 }: InsertProjectionsInput): Promise<ProjectionsSnapshot> {
+  // Runtime Zod validation on the write path so schema drift is caught before
+  // persisting (mirrors the parse already done on the read path in parsePayload).
+  const validated = ProjectionsSnapshotPayloadSchema.parse(data);
   await ensureProjectionsTable();
   const db = getDb();
   const isPostgres = getDriver() === "postgres";
-  const source = snapshotSourceKey(data.season, data.week);
-  const sizeBytes = Buffer.byteLength(JSON.stringify(data));
+  const source = snapshotSourceKey(validated.season, validated.week);
+  const sizeBytes = Buffer.byteLength(JSON.stringify(validated));
   const fetchedAt = new Date();
   const table = projectionsTable() as unknown as typeof schema.projectionsSnapshots;
   const inserted = await db
@@ -102,7 +105,7 @@ export async function insertProjectionsSnapshot({
     .values({
       source,
       sizeBytes,
-      payload: (isPostgres ? data : JSON.stringify(data)) as string,
+      payload: (isPostgres ? validated : JSON.stringify(validated)) as string,
       fetchedAt
     })
     .returning();

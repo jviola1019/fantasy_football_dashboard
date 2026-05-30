@@ -105,13 +105,15 @@ export async function insertNewsSnapshot({
   source: string;
   articles: EspnNewsArticle[];
 }): Promise<InsertNewsSnapshotResult> {
+  // Runtime Zod validation on the write path (mirrors read-path parsePayload).
+  const validated = EspnNewsArticleListSchema.parse(articles);
   await ensureNewsTable();
   const db = getDb();
   const id = crypto.randomUUID();
-  const payloadStr = JSON.stringify(articles);
+  const payloadStr = JSON.stringify(validated);
   const sizeBytes = Buffer.byteLength(payloadStr, "utf8");
   const payload =
-    getDriver() === "postgres" ? (articles as unknown) : payloadStr;
+    getDriver() === "postgres" ? (validated as unknown) : payloadStr;
 
   await db.insert(newsTable()).values({
     id,
