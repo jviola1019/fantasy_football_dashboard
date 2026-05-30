@@ -12,13 +12,12 @@ test.describe("public dashboard", () => {
     const tabs = nav.locator("button");
     await expect(tabs).toHaveCount(9);
 
-    // ── Nexus Simulator: only remaining panel with a 3-D Canvas on its
-    // default tab ("Multiverse"). Assert it mounts a canvas or degrades
-    // gracefully — never a blank/broken region.
+    // ── Nexus Simulator: 3-D canvas replaced by Heatmap2D SVG in Sprint 3.
+    // Assert the panel renders a visible SVG heatmap or the sim output.
     const nexus = page.locator("#nexus-simulator");
     await nexus.scrollIntoViewIfNeeded();
     await expect(
-      nexus.locator("canvas, .scene-fallback").first()
+      nexus.locator("svg, .multiverse-wrap").first()
     ).toBeVisible({ timeout: 30_000 });
 
     // ── Command Center: leaderboard with player names (no 3-D scene).

@@ -12,10 +12,9 @@ test.describe("axe a11y scan", () => {
   for (const path of ["/", "/login", "/settings/account", "/settings/leagues", "/mock-draft"]) {
     test(`route ${path} has no serious/critical violations`, async ({ page }) => {
       await page.goto(path);
-      // Wait for at least one canvas to mount so r3f-injected DOM is present in the scan.
-      if (path === "/") {
-        await page.locator("canvas").first().waitFor({ timeout: 15_000 });
-      }
+      // Wait for the page to settle before scanning. The 3-D canvas was removed
+      // in Sprint 3 (Canvas3D → Heatmap2D swap) so there are no WebGL canvases.
+      await page.waitForLoadState("networkidle");
       // Settings routes redirect to /login when unauthenticated — that's a valid
       // response; the scan runs against whichever page is actually loaded.
       const results = await new AxeBuilder({ page })
