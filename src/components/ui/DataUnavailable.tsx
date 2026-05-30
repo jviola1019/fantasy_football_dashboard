@@ -44,13 +44,15 @@ const wrapperStyle: React.CSSProperties = {
   overflow: "hidden"
 };
 
+// Dot-grid at 4% opacity — visually distinct from "loading" (per Sprint 3 D2).
+// Uses slate-blue (#4a8db7) to match the new panel accent system.
 const hatchStyle: React.CSSProperties = {
   position: "absolute",
   inset: 0,
   pointerEvents: "none",
-  opacity: 0.18,
-  backgroundImage:
-    "repeating-linear-gradient(135deg, transparent 0, transparent 8px, rgba(255,255,255,0.06) 8px, rgba(255,255,255,0.06) 9px)"
+  backgroundImage: "radial-gradient(circle, rgba(74, 141, 183, 0.32) 1px, transparent 1px)",
+  backgroundSize: "14px 14px",
+  opacity: 0.4
 };
 
 const contentStyle: React.CSSProperties = {

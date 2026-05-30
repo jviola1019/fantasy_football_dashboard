@@ -55,9 +55,20 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
           <UserMenu />
           <div
             aria-live="polite"
+            aria-label={`Data mode: ${mode}. Freshness: ${envelope.sourceState.freshness}`}
             className="flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide"
           >
-            <Badge variant="outline" className={cn("font-semibold", badgeClass)}>
+            <Badge
+              variant="outline"
+              className={cn("font-semibold", badgeClass)}
+              aria-label={mode === "live" ? "Live data" : mode === "fixture" ? "Demo fixture data" : "Data unavailable"}
+            >
+              {mode === "live" && (
+                <span
+                  aria-hidden="true"
+                  className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-rae-green animate-[live-dot_2.5s_ease-in-out_infinite]"
+                />
+              )}
               {mode}
             </Badge>
             <span className="hidden text-muted-foreground sm:inline">
@@ -81,13 +92,13 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               onClick={() => onSelect(system)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors",
+                "shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-150",
                 isActive
-                  ? "bg-rae-amber/12 text-foreground ring-1 ring-rae-amber/40"
-                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  ? "bg-rae-blue/12 text-foreground ring-1 ring-rae-blue/35 border-b-2 border-rae-blue/60"
+                  : "text-muted-foreground hover:bg-rae-blue/6 hover:text-foreground"
               )}
             >
-              <span className="tabular-nums text-rae-amber/80">{index + 1}</span>{" "}
+              <span className="tabular-nums text-rae-blue/70">{index + 1}</span>{" "}
               {system}
             </button>
           );

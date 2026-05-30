@@ -14,72 +14,81 @@
    consumers, zero conflict.
    ──────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-background: #0c0e12;
-  --color-foreground: #e9ebef;
-  --color-card: #16191f;
-  --color-card-foreground: #e9ebef;
-  --color-popover: #16191f;
-  --color-popover-foreground: #e9ebef;
-  --color-primary: #4a8cf7;
-  --color-primary-foreground: #0c0e12;
-  --color-secondary: #1d212a;
-  --color-secondary-foreground: #e9ebef;
-  --color-muted: #1d212a;
-  --color-muted-foreground: #878f9c;
-  --color-accent: #232833;
-  --color-accent-foreground: #e9ebef;
+  /* Sprint 3 D5 — slate-blue ESPN/NFL analytics palette.
+     Background shifts from graphite to dark navy; primary accent moves
+     from amber to slate-blue (#4a8db7). Amber is retained as accent-warm
+     for high-attention elements (governance banner, position badges). */
+  --color-background: #0b1120;
+  --color-foreground: #f0ece4;
+  --color-card: #111827;
+  --color-card-foreground: #f0ece4;
+  --color-popover: #111827;
+  --color-popover-foreground: #f0ece4;
+  --color-primary: #4a8db7;
+  --color-primary-foreground: #0b1120;
+  --color-secondary: #18222f;
+  --color-secondary-foreground: #f0ece4;
+  --color-muted: #18222f;
+  --color-muted-foreground: #8898aa;
+  --color-accent: #1c2a3a;
+  --color-accent-foreground: #f0ece4;
   --color-destructive: #e7574c;
-  --color-destructive-foreground: #0c0e12;
-  --color-border: rgba(255, 255, 255, 0.09);
-  --color-input: rgba(255, 255, 255, 0.14);
-  --color-ring: #4a8cf7;
+  --color-destructive-foreground: #0b1120;
+  --color-border: rgba(74, 141, 183, 0.12);
+  --color-input: rgba(255, 255, 255, 0.12);
+  --color-ring: #4a8db7;
 
-  --color-sidebar: #0a0c0f;
-  --color-sidebar-foreground: #878f9c;
-  --color-sidebar-primary: #eaa53d;
-  --color-sidebar-primary-foreground: #0c0e12;
-  --color-sidebar-accent: #16191f;
-  --color-sidebar-accent-foreground: #e9ebef;
-  --color-sidebar-border: rgba(255, 255, 255, 0.09);
-  --color-sidebar-ring: #4a8cf7;
+  --color-sidebar: #090e1a;
+  --color-sidebar-foreground: #8898aa;
+  --color-sidebar-primary: #4a8db7;
+  --color-sidebar-primary-foreground: #0b1120;
+  --color-sidebar-accent: #111827;
+  --color-sidebar-accent-foreground: #f0ece4;
+  --color-sidebar-border: rgba(74, 141, 183, 0.10);
+  --color-sidebar-ring: #4a8db7;
 
-  /* RAE accents, also exposed as Tailwind utilities */
-  --color-rae-amber: #eaa53d;
+  /* RAE accents — exposed as Tailwind utilities */
+  --color-rae-amber: #d7a857;
   --color-rae-green: #35c08a;
   --color-rae-red: #e7574c;
-  --color-rae-blue: #4a8cf7;
+  --color-rae-blue: #4a8db7;
   --color-rae-purple: #8b7be0;
 
   --radius-sm: 4px;
   --radius-md: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 12px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 }
 
 /* ─── Design Tokens (legacy — source of truth for hand-rolled CSS) ─────────── */
+/* Sprint 3 D5 palette update: graphite → navy-slate; amber primary →
+   slate-blue primary. --accent-warm retains the original amber for governance
+   banners and high-attention elements. --blue now resolves to slate-blue
+   (#4a8db7) throughout, consistent with the @theme primary color.          */
 :root {
-  --bg: #0c0e12;
-  --panel: #16191f;
-  --panel-2: #1d212a;
-  --line: rgba(255, 255, 255, 0.09);
-  --cream: #e9ebef;
-  --muted: #878f9c;
-  --amber: #eaa53d;
+  --bg: #0b1120;
+  --panel: #111827;
+  --panel-2: #18222f;
+  --line: rgba(74, 141, 183, 0.12);
+  --cream: #f0ece4;
+  --muted: #8898aa;
+  --amber: #d7a857;
+  --accent-warm: #d7a857;
   --green: #35c08a;
   --teal: #2fb6c4;
   --red: #e7574c;
-  --blue: #4a8cf7;
+  --blue: #4a8db7;
   --purple: #8b7be0;
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
-  --panel-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  --panel-shadow: 0 2px 16px rgba(74, 141, 183, 0.08);
   --sidebar-w: 56px;
   --glow-green: none;
   --glow-blue: none;
   --glow-amber: none;
   --pos-qb: #ef5c7a;
   --pos-rb: #35c08a;
-  --pos-wr: #4a8cf7;
-  --pos-te: #eaa53d;
+  --pos-wr: #4a8db7;
+  --pos-te: #d7a857;
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -96,7 +105,7 @@ body {
 a { color: inherit; text-decoration: none; }
 button { background: none; border: none; cursor: pointer; color: inherit; font: inherit; padding: 0; }
 button, a { outline-offset: 4px; }
-button:focus-visible, a:focus-visible { outline: 2px solid var(--amber); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 h2, h3, p { margin: 0; }
 h2 { font-size: 18px; letter-spacing: .03em; text-transform: uppercase; font-weight: 700; }
 h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #d8dece; margin-bottom: 8px; }
@@ -112,11 +121,13 @@ ul { margin: 0; padding: 0; list-style: none; }
 .governance-banner {
   margin: 12px 16px;
   padding: 10px 14px;
-  border: 1px solid rgba(215, 168, 87, .25);
-  background: rgba(53, 42, 22, .28);
-  color: #ead9b3;
+  border: 1px solid rgba(215, 168, 87, .22);
+  background: rgba(43, 35, 18, .32);
+  color: #e8d9b0;
   font-size: 11px;
-  border-radius: 6px;
+  border-radius: 8px;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 
 /* Dashboard grid, system-panel shell, and panel headers now live in the
@@ -168,6 +179,13 @@ ul { margin: 0; padding: 0; list-style: none; }
   50% { opacity: 1; }
 }
 
+/* Subtle slow pulse for the live-dot span inside the TopBar mode badge.
+   2.5s loop, only opacity — stays on the compositor path (no layout/paint). */
+@keyframes live-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
 /* ─── Time Range Tabs ─────────────────────────────────────────────────────── */
 .time-range-tabs { display: flex; gap: 2px; }
 .time-tab {
@@ -179,8 +197,13 @@ ul { margin: 0; padding: 0; list-style: none; }
   border: 1px solid transparent;
   border-radius: 3px;
 }
-.time-tab:hover { color: var(--cream); }
-.time-tab.active { color: var(--amber); border-color: rgba(215, 168, 87, 0.35); }
+.time-tab:hover { color: var(--cream); background: rgba(74, 141, 183, 0.06); }
+.time-tab.active {
+  color: var(--blue);
+  border-color: rgba(74, 141, 183, 0.35);
+  border-bottom: 2px solid var(--blue);
+}
+.time-tab { transition: color 150ms ease, background 150ms ease; }
 
 /* ─── KPI Cards ───────────────────────────────────────────────────────────── */
 /* Sprint 2 Task 12 — fluid responsive grid replaces the fixed N-column
@@ -330,6 +353,12 @@ ul { margin: 0; padding: 0; list-style: none; }
   border: 1px solid var(--line);
   background: var(--panel-2);
   font-size: 11px;
+  border-radius: 6px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.mini-panel:hover {
+  border-color: rgba(74, 141, 183, 0.22);
+  box-shadow: var(--panel-shadow);
 }
 .mini-panel-title {
   font-size: 9px;
@@ -514,8 +543,8 @@ ul { margin: 0; padding: 0; list-style: none; }
   transition: border-color 0.12s, background 0.12s;
   text-align: left;
 }
-.player-grid-card:hover { border-color: rgba(74,140,247,0.4); background: rgba(74,140,247,0.06); }
-.player-grid-card.selected { border-color: var(--blue); background: rgba(74,140,247,0.1); }
+.player-grid-card:hover { border-color: rgba(74,141,183,0.4); background: rgba(74,141,183,0.06); box-shadow: var(--panel-shadow); }
+.player-grid-card.selected { border-color: var(--blue); background: rgba(74,141,183,0.10); }
 .player-grid-card-header {
   display: flex;
   align-items: center;
@@ -798,13 +827,14 @@ td small { color: var(--muted); }
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: .08em;
-  background: rgba(119, 215, 176, 0.12);
-  border: 1px solid rgba(119, 215, 176, 0.4);
-  color: var(--green);
-  border-radius: 3px;
-  transition: background .15s;
+  background: rgba(74, 141, 183, 0.12);
+  border: 1px solid rgba(74, 141, 183, 0.40);
+  color: var(--blue);
+  border-radius: 4px;
+  transition: background 150ms ease, border-color 150ms ease;
 }
-.run-sim-btn:hover { background: rgba(119, 215, 176, 0.2); }
+.run-sim-btn:hover { background: rgba(74, 141, 183, 0.22); border-color: rgba(74, 141, 183, 0.55); }
+.run-sim-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .run-sim-btn.running { opacity: 0.6; }
 .multiverse-wrap { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); min-height: 280px; }
 .risk-panel { }

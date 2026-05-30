@@ -4,12 +4,20 @@
 // that was non-readable at 390px viewport. Each cell carries an aria-label
 // and <title> tooltip; screen readers can traverse individual cells.
 
+// Sprint 3 D5 palette: slate-blue (low) → warm-amber (mid) → coral (high).
+// Three-band scale matches the new --blue / --accent-warm / --red system.
+// Opacity ramps within each band so low-value cells are never invisible.
 const DEFAULT_COLOR = (v: number): string => {
-  // Map 0→100 through cool-warm scale: low=blue, mid=amber, high=red.
-  // Uses existing CSS color tokens where possible.
-  if (v < 0.25) return `rgba(123, 183, 206, ${0.3 + v * 2.8})`;
-  if (v < 0.5) return `rgba(215, 168, 87, ${0.4 + (v - 0.25) * 2.4})`;
-  return `rgba(217, 134, 111, ${0.55 + (v - 0.5) * 0.9})`;
+  if (v < 0.33) {
+    const t = v / 0.33;
+    return `rgba(74, 141, 183, ${0.22 + t * 0.52})`;       // slate-blue ramp
+  }
+  if (v < 0.66) {
+    const t = (v - 0.33) / 0.33;
+    return `rgba(215, 168, 87, ${0.38 + t * 0.44})`;        // warm-amber ramp
+  }
+  const t = (v - 0.66) / 0.34;
+  return `rgba(217, 134, 111, ${0.52 + t * 0.42})`;         // coral ramp
 };
 
 interface Props {
