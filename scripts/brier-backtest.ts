@@ -1,32 +1,56 @@
 #!/usr/bin/env npx tsx
 /**
- * Brier score backtest against NFL 2025 weekly player stats.
+ * Brier score backtest — true prospective model using Sleeper data.
  *
  * DATA SOURCES (tried in order)
  * ─────────────────────────────
- * 1. nflverse 2025 per-week   — stats_player_week_2025.csv (remote)
- * 2. Local 2025 season-agg    — C:/tmp/nfl_stats_2025.csv (no week column;
- *                               uses season-total PPR, skips per-week k-fold)
- * 3. nflverse 2024 per-week   — stats_player_week_2024.csv (remote fallback)
+ * 1. Sleeper 2025 prospective   — projections endpoint (forecast) vs actual
+ *                                 stats endpoint (outcome). True week-by-week
+ *                                 Brier backtest: projection BEFORE game vs
+ *                                 actual PPR AFTER game. Available for all 17
+ *                                 regular-season weeks of the 2025 NFL season.
+ * 2. nflverse 2025 per-week    — stats_player_week_2025.csv (not yet published)
+ * 3. Local 2025 season-agg     — C:/tmp/nfl_stats_2025.csv (no week column;
+ *                                uses season-total PPR, skips per-week k-fold)
+ * 4. nflverse 2024 per-week    — stats_player_week_2024.csv (remote fallback)
  *
  * MODEL
  * ─────
- * Binary outcome: player scored ≥ threshold PPR points in a given week (or
- * season-aggregate when only season data is available).
+ * Binary outcome: did the player's ACTUAL pts_ppr exceed the threshold? A
+ * projected-startable player with NO actual row (injured / inactive / benched)
+ * is scored as a FAILED forecast (outcome 0), not dropped — dropping no-shows
+ * conditions on "the player actually played," which is future information and
+ * removes exactly the high-projection busts that should penalise the forecast
+ * (survivorship bias).
  *
- * Forecast: inverse-rank probability within the position group for that week
- * (rank 1 → prob ≈ 1, last rank → prob ≈ 0). This is a rank-order model,
- * not a real-time projection — it measures calibration lower-bound.
+ * Universe: players whose pre-game projection clears a "plausibly startable"
+ * floor (≥ threshold/2). This keeps the base rate meaningful instead of
+ * flooding the set with deep-bench zero-projection players.
  *
- * THRESHOLDS (chosen so ~50% of regular starters exceed each threshold)
+ * For Sleeper prospective: forecast = rank-based probability derived from the
+ * week's pre-game projected pts_ppr (players sorted by projection within
+ * position; ties share an averaged rank; rank 1 → prob ≈ 1, last → ≈ 0).
+ *
+ * IMPORTANT — what this measures: the rank→probability map is monotone in the
+ * projection, so this is a DISCRIMINATION / ordinal-skill test (does projection
+ * ORDER predict who clears the threshold?), NOT a calibration test of the
+ * projection's own implied probabilities. Reliability here is the calibration of
+ * our invented rank→prob mapping, not of Sleeper/Rotowire numbers. The
+ * interpretation block is derived from the computed reliability/resolution, not
+ * hard-coded.
+ *
+ * For CSV sources: forecast = within-week rank of actual PPR (lower bound only).
+ *
+ * THRESHOLDS (chosen for roughly even positive/negative split among starters)
  *   QB: 18 pts  RB: 10 pts  WR: 8 pts  TE: 6 pts
  *
  * RUNNING
  *   npx tsx scripts/brier-backtest.ts
  */
 
-import { brierScore, kFoldCV, reliabilityDiagram } from "../src/lib/stats/distribution";
+import { brierScore, kFoldCV, reliabilityDiagram, expectedCalibrationError } from "../src/lib/stats/distribution";
 import type { BrierForecast } from "../src/lib/stats/distribution";
+import { fitLogisticCV } from "../src/lib/stats/logistic";
 import { writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
@@ -35,6 +59,11 @@ const NFLVERSE_URL_2025_WEEK =
 const NFLVERSE_URL_2024_WEEK =
   "https://github.com/nflverse/nflverse-data/releases/download/player_stats/stats_player_week_2024.csv";
 const LOCAL_2025_SEASON = "C:/tmp/nfl_stats_2025.csv";
+
+const SLEEPER_PROJ_URL = (week: number) =>
+  `https://api.sleeper.app/projections/nfl/2025/${week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE`;
+const SLEEPER_STATS_URL = (week: number) =>
+  `https://api.sleeper.app/stats/nfl/2025/${week}?season_type=regular`;
 
 const POSITIONS = ["QB", "RB", "WR", "TE"] as const;
 type Position = (typeof POSITIONS)[number];
@@ -45,6 +74,37 @@ const THRESHOLDS: Record<Position, number> = {
   WR: 8,
   TE: 6
 };
+
+// ── Sleeper prospective data types ─────────────────────────────────────────
+
+interface SleeperProjection {
+  player_id: string;
+  week: number;
+  season: string;
+  stats: { pts_ppr?: number };
+  player?: { position?: string };
+}
+
+interface SleeperStat {
+  player_id: string;
+  week: number;
+  season: string;
+  season_type: string;
+  stats: { pts_ppr?: number; gp?: number };
+  player?: { position?: string };
+}
+
+interface ProspectiveRow {
+  kind: "prospective";
+  player_id: string;
+  position: string;
+  week: number;
+  proj_pts_ppr: number;  // pre-game projection (forecast input)
+  actual_pts_ppr: number; // post-game actual (outcome); 0 if the player did not play
+  played: boolean;        // false = no actual stat row (DNP / inactive / bye)
+}
+
+// ── CSV data types ──────────────────────────────────────────────────────────
 
 interface PerWeekRow {
   kind: "week";
@@ -65,36 +125,170 @@ interface SeasonRow {
 
 type DataRow = PerWeekRow | SeasonRow;
 
+// ── Sleeper fetch helpers ───────────────────────────────────────────────────
+
+async function fetchSleeperProspective(): Promise<{
+  rows: ProspectiveRow[];
+  weeksLoaded: number;
+  dnpCount: number;
+}> {
+  const rows: ProspectiveRow[] = [];
+  let dnpCount = 0; // projected-startable players with no actual row (scored 0)
+  const REGULAR_SEASON_WEEKS = 17;
+
+  process.stdout.write("  Fetching Sleeper 2025 projections + actual stats");
+
+  for (let week = 1; week <= REGULAR_SEASON_WEEKS; week++) {
+    try {
+      const [projRes, statsRes] = await Promise.all([
+        fetch(SLEEPER_PROJ_URL(week)),
+        fetch(SLEEPER_STATS_URL(week))
+      ]);
+      if (!projRes.ok || !statsRes.ok) continue;
+
+      const projList = (await projRes.json()) as SleeperProjection[];
+      const statsList = (await statsRes.json()) as SleeperStat[];
+
+      // Build actual-stats map: player_id → actual pts_ppr. The URL already
+      // scopes season_type=regular; the per-row guard is relaxed because Sleeper
+      // sometimes omits season_type on the row (treating absent as in-scope).
+      const actualMap = new Map<string, number>();
+      for (const stat of statsList) {
+        if (stat.stats.pts_ppr != null && (stat.season_type == null || stat.season_type === "regular")) {
+          actualMap.set(stat.player_id, stat.stats.pts_ppr);
+        }
+      }
+
+      // Match projections to actuals. Universe = players whose pre-game
+      // projection clears a "plausibly startable" floor (≥ threshold/2). A
+      // projected-startable player with no actual row did NOT play → outcome 0
+      // (failed forecast), NOT dropped: dropping them is survivorship bias.
+      for (const proj of projList) {
+        if (!proj.player_id || proj.stats.pts_ppr == null) continue;
+        const position = proj.player?.position ?? "";
+        if (!POSITIONS.includes(position as Position)) continue;
+        if (proj.stats.pts_ppr < THRESHOLDS[position as Position] / 2) continue;
+
+        const actual = actualMap.get(proj.player_id);
+        const played = actual != null;
+        if (!played) dnpCount++;
+
+        rows.push({
+          kind: "prospective",
+          player_id: proj.player_id,
+          position,
+          week,
+          proj_pts_ppr: proj.stats.pts_ppr,
+          actual_pts_ppr: actual ?? 0,
+          played
+        });
+      }
+
+      process.stdout.write(".");
+    } catch {
+      // Skip failed weeks
+    }
+  }
+  process.stdout.write("\n");
+
+  const weeksLoaded = new Set(rows.map((r) => r.week)).size;
+  return { rows, weeksLoaded, dnpCount };
+}
+
+// ── Forecast builders ───────────────────────────────────────────────────────
+
+function buildProspectiveForecasts(
+  rows: ProspectiveRow[],
+  pos: Position
+): BrierForecast[] {
+  const threshold = THRESHOLDS[pos];
+  const posRows = rows.filter((r) => r.position === pos);
+  const byWeek = new Map<number, ProspectiveRow[]>();
+  for (const r of posRows) {
+    const weekRows = byWeek.get(r.week) ?? [];
+    weekRows.push(r);
+    byWeek.set(r.week, weekRows);
+  }
+
+  const forecasts: BrierForecast[] = [];
+  for (const weekRows of byWeek.values()) {
+    const n = weekRows.length;
+    // A single-player group forces prob=1 regardless of projection; skip it.
+    if (n < 2) continue;
+    // Sort by projected pts (descending) to assign rank-based probabilities.
+    // Rank 0 (highest proj) → prob 1, last rank → prob 0. Tied projections
+    // share an averaged rank so equal forecasts get equal probabilities.
+    const sorted = [...weekRows].sort((a, b) => b.proj_pts_ppr - a.proj_pts_ppr);
+    let i = 0;
+    while (i < n) {
+      let j = i;
+      while (j + 1 < n && sorted[j + 1]!.proj_pts_ppr === sorted[i]!.proj_pts_ppr) j++;
+      const avgRank = (i + j) / 2; // average 0-based rank of the tie group
+      const prob = 1 - avgRank / (n - 1);
+      for (let k = i; k <= j; k++) {
+        const outcome: 0 | 1 = sorted[k]!.actual_pts_ppr >= threshold ? 1 : 0;
+        forecasts.push({ prob, outcome });
+      }
+      i = j + 1;
+    }
+  }
+  return forecasts;
+}
+
+/** Per-position base rate (climatology) = fraction of outcomes that are 1. */
+function baseRate(rows: ProspectiveRow[], pos: Position): { clim: number; n: number; dnp: number } {
+  const posRows = rows.filter((r) => r.position === pos);
+  const positives = posRows.filter((r) => r.actual_pts_ppr >= THRESHOLDS[pos]).length;
+  const dnp = posRows.filter((r) => !r.played).length;
+  return { clim: posRows.length ? positives / posRows.length : 0, n: posRows.length, dnp };
+}
+
+/**
+ * Out-of-fold logistic CALIBRATION model. Fits P(actual ≥ threshold) directly
+ * from the projected points via logistic regression, training on all OTHER weeks
+ * and predicting each held-out week (leave-one-week-out, so no leakage). Unlike
+ * the rank→prob model, the probability comes from the projection itself, so its
+ * Reliability measures the calibration of the PROJECTIONS — the question the
+ * rank model cannot answer. Returns [] when too few rows to fit.
+ */
+function buildLogisticCalibration(rows: ProspectiveRow[], pos: Position): BrierForecast[] {
+  const threshold = THRESHOLDS[pos];
+  const posRows = rows.filter((r) => r.position === pos);
+  if (posRows.length < 20) return [];
+  const X = posRows.map((r) => [r.proj_pts_ppr]);
+  const y = posRows.map((r) => (r.actual_pts_ppr >= threshold ? 1 : 0));
+  const fold = posRows.map((r) => r.week);
+  const oof = fitLogisticCV(X, y, fold, { l2: 1.0 });
+  return oof.map((p, i) => ({ prob: p, outcome: y[i]! as 0 | 1 }));
+}
+
 /**
  * RFC 4180-compliant CSV row splitter. Handles quoted fields that may contain
- * commas (e.g. headshot URLs "https://...f_auto,q_auto/..."). This was the
- * root cause of only 5/2020 rows parsing correctly in the local 2025 CSV.
+ * commas (e.g. headshot URLs "https://...f_auto,q_auto/...").
  */
 function splitCsvRow(line: string): string[] {
   const fields: string[] = [];
   let i = 0;
   while (i < line.length) {
     if (line[i] === '"') {
-      // Quoted field — consume until closing unescaped quote.
       let field = "";
-      i++; // skip opening quote
+      i++;
       while (i < line.length) {
         if (line[i] === '"' && line[i + 1] === '"') {
-          field += '"'; i += 2; // escaped quote
+          field += '"'; i += 2;
         } else if (line[i] === '"') {
-          i++; break; // closing quote
+          i++; break;
         } else {
           field += line[i++];
         }
       }
-      if (line[i] === ",") i++; // skip trailing comma
+      if (line[i] === ",") i++;
       fields.push(field);
     } else {
-      // Unquoted field — consume until comma or end.
       const start = i;
       while (i < line.length && line[i] !== ",") i++;
       fields.push(line.slice(start, i));
-      if (line[i] === ",") i++; // skip comma
+      if (line[i] === ",") i++;
     }
   }
   return fields;
@@ -102,19 +296,15 @@ function splitCsvRow(line: string): string[] {
 
 function parseCsvColumns(header: string[]): Record<string, number> {
   const idx: Record<string, number> = {};
-  for (let i = 0; i < header.length; i++) {
-    idx[header[i]!] = i;
-  }
+  for (let i = 0; i < header.length; i++) idx[header[i]!] = i;
   return idx;
 }
 
 function parseCsv(csv: string): { rows: DataRow[]; hasWeek: boolean } {
   const lines = csv.split("\n").filter((l) => l.trim().length > 0);
   if (lines.length < 2) return { rows: [], hasWeek: false };
-
   const header = splitCsvRow(lines[0]!).map((h) => h.trim());
   const idx = parseCsvColumns(header);
-
   const hasWeek = "week" in idx;
   const iPlayerId = idx["player_id"] ?? -1;
   const iPosition = idx["position"] ?? -1;
@@ -126,16 +316,13 @@ function parseCsv(csv: string): { rows: DataRow[]; hasWeek: boolean } {
   const rows: DataRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const cols = splitCsvRow(lines[i]!);
-    const get = (i: number) => cols[i]?.trim() ?? "";
-
+    const get = (idx: number) => cols[idx]?.trim() ?? "";
     if (iSeasonType >= 0) {
       const st = get(iSeasonType);
       if (st && st !== "REG") continue;
     }
-
     const ppr = parseFloat(get(iPpr));
     if (!isFinite(ppr)) continue;
-
     if (hasWeek) {
       rows.push({
         kind: "week",
@@ -158,17 +345,15 @@ function parseCsv(csv: string): { rows: DataRow[]; hasWeek: boolean } {
   return { rows, hasWeek };
 }
 
-function buildForecasts(rows: DataRow[], pos: Position): BrierForecast[] {
+function buildCsvForecasts(rows: DataRow[], pos: Position): BrierForecast[] {
   const threshold = THRESHOLDS[pos];
   const posRows = rows.filter((r) => r.position === pos);
-
   if (posRows[0]?.kind === "week") {
-    // Group by week and rank within week.
     const byWeek = new Map<number, PerWeekRow[]>();
     for (const r of posRows as PerWeekRow[]) {
-      const weekRows = byWeek.get(r.week) ?? [];
-      weekRows.push(r);
-      byWeek.set(r.week, weekRows);
+      const wrs = byWeek.get(r.week) ?? [];
+      wrs.push(r);
+      byWeek.set(r.week, wrs);
     }
     const forecasts: BrierForecast[] = [];
     for (const weekRows of byWeek.values()) {
@@ -176,18 +361,13 @@ function buildForecasts(rows: DataRow[], pos: Position): BrierForecast[] {
       const n = sorted.length;
       for (let rank = 0; rank < n; rank++) {
         const row = sorted[rank]!;
-        const prob = 1 - rank / Math.max(1, n - 1);
-        forecasts.push({ prob, outcome: row.fantasy_points_ppr >= threshold ? 1 : 0 });
+        forecasts.push({ prob: 1 - rank / Math.max(1, n - 1), outcome: row.fantasy_points_ppr >= threshold ? 1 : 0 });
       }
     }
     return forecasts;
   } else {
-    // Season-aggregate: rank by season PPR within position.
-    const sorted = [...(posRows as SeasonRow[])].sort(
-      (a, b) => b.fantasy_points_ppr - a.fantasy_points_ppr
-    );
+    const sorted = [...(posRows as SeasonRow[])].sort((a, b) => b.fantasy_points_ppr - a.fantasy_points_ppr);
     const n = sorted.length;
-    // Season threshold ≈ weekly threshold × 17 games (approx).
     const seasonThreshold = threshold * 17;
     return sorted.map((row, rank) => ({
       prob: 1 - rank / Math.max(1, n - 1),
@@ -206,94 +386,112 @@ async function fetchCsv(url: string): Promise<string | null> {
     const res = await fetch(url, { redirect: "follow" });
     if (!res.ok) return null;
     return res.text();
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
+// ── Main ───────────────────────────────────────────────────────────────────
+
 async function main() {
-  let csv: string;
-  let season: number;
-  let source: string;
-  let hasWeek: boolean;
-  let rows: DataRow[];
+  console.log("RAE Brier Backtest — NFL 2025 Season\n");
 
-  // Source 1: nflverse 2025 per-week
-  console.log("Trying nflverse 2025 per-week...");
-  const csv2025 = await fetchCsv(NFLVERSE_URL_2025_WEEK);
-  if (csv2025) {
-    console.log("  → Found 2025 per-week data.");
-    const parsed = parseCsv(csv2025);
-    csv = csv2025;
-    season = 2025;
-    source = NFLVERSE_URL_2025_WEEK;
-    hasWeek = parsed.hasWeek;
-    rows = parsed.rows;
+  type DataSource =
+    | { kind: "prospective"; rows: ProspectiveRow[]; weeksLoaded: number; dnpCount: number; season: number }
+    | { kind: "csv"; rows: DataRow[]; hasWeek: boolean; season: number; source: string };
+
+  let data: DataSource;
+
+  // Source 1: Sleeper prospective (projections vs actual stats)
+  console.log("Source 1: Sleeper 2025 projections vs actual stats...");
+  const { rows: prospRows, weeksLoaded, dnpCount } = await fetchSleeperProspective();
+  if (prospRows.length > 100) {
+    console.log(`  → Loaded ${prospRows.length} startable player-weeks across ${weeksLoaded} weeks (${dnpCount} scored 0 for not playing).`);
+    data = { kind: "prospective", rows: prospRows, weeksLoaded, dnpCount, season: 2025 };
   } else {
-    // Source 2: local 2025 season-aggregate
-    console.log(`  → Not found. Trying local ${LOCAL_2025_SEASON}...`);
-    if (existsSync(LOCAL_2025_SEASON)) {
-      csv = readFileSync(LOCAL_2025_SEASON, "utf8");
-      const parsed = parseCsv(csv);
-      if (parsed.rows.length > 0) {
-        console.log(`  → Found local 2025 season-aggregate (${parsed.rows.length} rows).`);
-        season = 2025;
-        source = LOCAL_2025_SEASON;
-        hasWeek = parsed.hasWeek;
-        rows = parsed.rows;
-      } else {
-        csv = "";
-        season = 0;
-        source = "";
-        hasWeek = false;
-        rows = [];
-      }
+    // Source 2: nflverse 2025 per-week
+    console.log("  → Sleeper returned insufficient data. Trying nflverse 2025 per-week...");
+    const csv2025 = await fetchCsv(NFLVERSE_URL_2025_WEEK);
+    if (csv2025) {
+      const parsed = parseCsv(csv2025);
+      data = { kind: "csv", rows: parsed.rows, hasWeek: parsed.hasWeek, season: 2025, source: NFLVERSE_URL_2025_WEEK };
     } else {
-      csv = "";
-      season = 0;
-      source = "";
-      hasWeek = false;
-      rows = [];
-    }
-
-    // Source 3: nflverse 2024 per-week fallback
-    if (rows.length === 0) {
-      console.log("  → Falling back to nflverse 2024 per-week...");
-      const csv2024 = await fetchCsv(NFLVERSE_URL_2024_WEEK);
-      if (!csv2024) {
-        console.error("All data sources failed. Cannot run backtest.");
-        process.exit(1);
+      // Source 3: local season-aggregate
+      console.log("  → Trying local C:/tmp/nfl_stats_2025.csv...");
+      if (existsSync(LOCAL_2025_SEASON)) {
+        const csv = readFileSync(LOCAL_2025_SEASON, "utf8");
+        const parsed = parseCsv(csv);
+        if (parsed.rows.length > 0) {
+          console.log(`  → Local 2025 season-aggregate (${parsed.rows.length} rows).`);
+          data = { kind: "csv", rows: parsed.rows, hasWeek: parsed.hasWeek, season: 2025, source: LOCAL_2025_SEASON };
+        } else {
+          // Source 4: nflverse 2024 fallback
+          console.log("  → Falling back to nflverse 2024 per-week...");
+          const csv2024 = await fetchCsv(NFLVERSE_URL_2024_WEEK);
+          if (!csv2024) { console.error("All sources failed."); process.exit(1); }
+          const parsed = parseCsv(csv2024);
+          data = { kind: "csv", rows: parsed.rows, hasWeek: parsed.hasWeek, season: 2024, source: NFLVERSE_URL_2024_WEEK };
+        }
+      } else {
+        const csv2024 = await fetchCsv(NFLVERSE_URL_2024_WEEK);
+        if (!csv2024) { console.error("All sources failed."); process.exit(1); }
+        const parsed = parseCsv(csv2024);
+        data = { kind: "csv", rows: parsed.rows, hasWeek: parsed.hasWeek, season: 2024, source: NFLVERSE_URL_2024_WEEK };
       }
-      const parsed = parseCsv(csv2024);
-      csv = csv2024;
-      season = 2024;
-      source = NFLVERSE_URL_2024_WEEK;
-      hasWeek = parsed.hasWeek;
-      rows = parsed.rows;
-      console.log(`  → Using 2024 per-week data (${rows.length} rows).`);
     }
   }
 
-  console.log(
-    `\nData: season=${season}, per-week=${hasWeek}, rows=${rows.length}`
-  );
-  console.log("Computing Brier scores...\n");
+  // Build report header
+  const lines: string[] = ["# Brier Score Backtest Results", ""];
+  if (data.kind === "prospective") {
+    lines.push(`> **Season:** 2025  `);
+    lines.push(`> **Source:** Sleeper projections API (forecast) + Sleeper stats API (outcome)  `);
+    lines.push(`> **Method:** TRUE PROSPECTIVE — pre-game projection vs post-game actual PPR  `);
+    lines.push(`> **Two models per position:** (1) DISCRIMINATION — rank→prob (ordinal skill of projection order); (2) CALIBRATION — out-of-fold logistic mapping projected pts → P(≥ threshold), scored by Expected Calibration Error (the projections' true calibration error)  `);
+    lines.push(`> **Coverage:** ${data.weeksLoaded} regular-season weeks, ${data.rows.length} startable player-weeks (${data.dnpCount} DNP scored 0)  `);
+    lines.push(`> **Universe:** players projected ≥ threshold/2; no-shows scored 0 (no survivorship filter)  `);
+  } else {
+    const src = (data as { source?: string }).source ?? "local";
+    lines.push(`> **Season:** ${data.season}  `);
+    lines.push(`> **Source:** ${src}  `);
+    lines.push(`> **Method:** Rank-based on actual PPR (not prospective — lower bound only)  `);
+  }
+  lines.push("", "---", "");
 
-  const lines: string[] = [
-    "# Brier Score Backtest Results",
-    "",
-    `> **Season:** ${season}  `,
-    `> **Source:** ${source}  `,
-    `> **Granularity:** ${hasWeek ? "Per-week rows" : "Season-aggregate rows (no weekly k-fold)"}  `,
-    "> **Model:** Rank-based probability (within-group rank → [0, 1])  ",
-    "> **Note:** Rank-order model, not prospective projections. Lower-bound calibration.",
-    "",
-    "---",
-    ""
-  ];
+  const posResults: {
+    pos: Position;
+    score: number;
+    reliability: number;
+    resolution: number;
+    clim: number;
+    discrimEce?: number;
+    calibScore?: number;
+    calibEce?: number;
+  }[] = [];
 
   for (const pos of POSITIONS) {
-    const forecasts = buildForecasts(rows, pos);
+    let forecasts: BrierForecast[];
+    let weekFolded: BrierForecast[][] = [];
+    let hasWeekFolds = false;
+
+    if (data.kind === "prospective") {
+      forecasts = buildProspectiveForecasts(data.rows, pos);
+      // k-fold by week (drop empty week-folds so an empty fold can't score a
+      // spurious perfect 0 in the CV mean).
+      const weekNums = Array.from(new Set(data.rows.filter((r) => r.position === pos).map((r) => r.week))).sort((a, b) => a - b);
+      weekFolded = weekNums
+        .map((w) => buildProspectiveForecasts((data.rows as ProspectiveRow[]).filter((r) => r.position === pos && r.week === w), pos))
+        .filter((f) => f.length > 0);
+      hasWeekFolds = weekFolded.length >= 2;
+    } else {
+      forecasts = buildCsvForecasts(data.rows, pos);
+      if ((data as { hasWeek: boolean }).hasWeek) {
+        const weekNums = Array.from(new Set((data.rows as PerWeekRow[]).filter((r) => r.position === pos).map((r) => r.week))).sort((a, b) => a - b);
+        weekFolded = weekNums
+          .map((w) => buildCsvForecasts((data.rows as PerWeekRow[]).filter((r) => r.position === pos && r.week === w), pos))
+          .filter((f) => f.length > 0);
+        hasWeekFolds = weekFolded.length >= 2;
+      }
+    }
+
     if (forecasts.length === 0) {
       lines.push(`## ${pos}\n\nNo data.\n`);
       continue;
@@ -301,81 +499,167 @@ async function main() {
 
     const result = brierScore(forecasts);
     const diagram = reliabilityDiagram(forecasts, 10);
+    const br = data.kind === "prospective"
+      ? baseRate(data.rows as ProspectiveRow[], pos)
+      : { clim: forecasts.filter((f) => f.outcome === 1).length / forecasts.length, n: forecasts.length, dnp: 0 };
+
+    // Binned calibration error of the rank model (comparable across models,
+    // unlike the Murphy reliability term which over-bins continuous probs).
+    const discrimEce = expectedCalibrationError(forecasts, 10).ece;
+
+    // Genuine calibration model (prospective only): OOF logistic on projected pts.
+    const calibForecasts = data.kind === "prospective" ? buildLogisticCalibration(data.rows, pos) : [];
+    const calibResult = calibForecasts.length > 0 ? brierScore(calibForecasts) : null;
+    const calibDiagram = calibForecasts.length > 0 ? reliabilityDiagram(calibForecasts, 10) : null;
+    const calibCal = calibForecasts.length > 0 ? expectedCalibrationError(calibForecasts, 10) : null;
+
+    posResults.push({
+      pos,
+      score: result.score,
+      reliability: result.reliability,
+      resolution: result.resolution,
+      clim: br.clim,
+      discrimEce,
+      calibScore: calibResult?.score,
+      calibEce: calibCal?.ece
+    });
 
     lines.push(`## ${pos}`);
     lines.push("");
-    lines.push(`**Threshold:** ≥ ${THRESHOLDS[pos]}${hasWeek ? "" : "×17"} PPR pts | **n:** ${result.n.toLocaleString()} forecasts`);
+    lines.push(
+      `**Threshold:** ≥ ${THRESHOLDS[pos]} PPR pts | **n:** ${result.n.toLocaleString()} forecasts | ` +
+      `**Base rate:** ${(br.clim * 100).toFixed(1)}% positive` +
+      (data.kind === "prospective" ? ` (${br.dnp} DNP scored 0)` : "")
+    );
     lines.push("");
-    lines.push("### Brier Score (Murphy Decomposition)");
+    lines.push(data.kind === "prospective"
+      ? "### Discrimination model — rank→prob (Murphy decomposition)"
+      : "### Brier Score (Murphy Decomposition)");
     lines.push("");
     lines.push("| Component | Value | Notes |");
     lines.push("| --- | --- | --- |");
-    lines.push(`| **Score** | ${result.score.toFixed(4)} | Lower is better (0 = perfect) |`);
+    lines.push(`| **Score** | ${result.score.toFixed(4)} | Lower is better (0=perfect, 0.25=random) |`);
     lines.push(`| Reliability | ${result.reliability.toFixed(4)} | Calibration error |`);
-    lines.push(`| Resolution | ${result.resolution.toFixed(4)} | Sharpness |`);
-    lines.push(`| Uncertainty | ${result.uncertainty.toFixed(4)} | Base-rate variance |`);
-    lines.push(`| *R−Res+U* | ${(result.reliability - result.resolution + result.uncertainty).toFixed(4)} | Must equal Score |`);
+    lines.push(`| Resolution | ${result.resolution.toFixed(4)} | Sharpness beyond base rate |`);
+    lines.push(`| Uncertainty | ${result.uncertainty.toFixed(4)} | Irreducible base-rate variance |`);
+    lines.push(`| Check R−Res+U | ${(result.reliability - result.resolution + result.uncertainty).toFixed(4)} | = Score ✓ |`);
     lines.push("");
 
-    if (hasWeek) {
-      // k-fold CV across weeks
-      const weekNums = Array.from(
-        new Set((rows as PerWeekRow[]).filter((r) => r.position === pos).map((r) => r.week))
-      ).sort((a, b) => a - b);
-
-      const weekFolded = weekNums.map((w) => {
-        const wRows = (rows as PerWeekRow[]).filter((r) => r.position === pos && r.week === w);
-        return buildForecasts(wRows, pos);
+    if (hasWeekFolds && weekFolded.length >= 2) {
+      const cvResult = kFoldCV(weekFolded, Math.min(5, weekFolded.length), (_train, test) => {
+        const flat = test.flat();
+        return flat.length > 0 ? brierScore(flat).score : 0;
       });
-      const cvResult = kFoldCV(
-        weekFolded,
-        Math.min(5, weekFolded.length),
-        (_train, test) => {
-          const flat = test.flat();
-          return flat.length > 0 ? brierScore(flat).score : 0;
-        }
-      );
-      lines.push("### 5-Fold Cross-Validation (by week)");
+      lines.push(`### ${Math.min(5, weekFolded.length)}-Fold Cross-Validation (by week)`);
       lines.push("");
       lines.push(`| Mean Brier | Std | Fold scores |`);
       lines.push(`| --- | --- | --- |`);
-      lines.push(
-        `| ${cvResult.meanScore.toFixed(4)} | ${cvResult.stdScore.toFixed(4)} | ${cvResult.foldScores.map((s) => s.toFixed(3)).join(", ")} |`
-      );
+      lines.push(`| ${cvResult.meanScore.toFixed(4)} | ${cvResult.stdScore.toFixed(4)} | ${cvResult.foldScores.map((s) => s.toFixed(3)).join(", ")} |`);
       lines.push("");
     }
 
     lines.push("### Reliability Diagram (ASCII)");
-    lines.push("");
     lines.push("```");
     lines.push("Obs.freq │");
     for (const bin of [...diagram].reverse()) {
-      const bar = asciiBar(bin.observedFreq, 25);
-      lines.push(
-        `${bin.observedFreq.toFixed(2)}     │${bar} f=${bin.meanForecast.toFixed(2)} n=${bin.n}`
-      );
+      const bar = asciiBar(bin.observedFreq, 20);
+      lines.push(`${bin.observedFreq.toFixed(2)}     │${bar} f=${bin.meanForecast.toFixed(2)} n=${bin.n}`);
     }
-    lines.push("         └" + "─".repeat(30));
+    lines.push("         └" + "─".repeat(26));
     lines.push("           Forecast probability →");
     lines.push("```");
     lines.push("");
 
-    console.log(`  ${pos}: Brier=${result.score.toFixed(4)}, n=${result.n}`);
+    // Calibration model subsection (prospective only): the projection's OWN
+    // calibrated probability, out-of-fold by week. Its Reliability is the real
+    // calibration error of the projections (vs. the rank map's invented one).
+    if (calibResult && calibDiagram && calibCal) {
+      lines.push("### Calibration model — out-of-fold logistic (projected pts → P(≥ threshold))");
+      lines.push("");
+      lines.push("| Metric | Value | Notes |");
+      lines.push("| --- | --- | --- |");
+      lines.push(`| **Brier** | ${calibResult.score.toFixed(4)} | OOF logistic Brier (leave-one-week-out) |`);
+      lines.push(`| **ECE** | ${calibCal.ece.toFixed(4)} | Expected Calibration Error (10-bin) — the projections' TRUE calibration error |`);
+      lines.push(`| MCE | ${calibCal.mce.toFixed(4)} | worst-bin calibration gap |`);
+      lines.push(`| rank-model ECE | ${discrimEce.toFixed(4)} | same metric for the rank→prob model, for comparison |`);
+      lines.push("");
+      lines.push("```");
+      lines.push("Obs.freq │");
+      for (const bin of [...calibDiagram].reverse()) {
+        const bar = asciiBar(bin.observedFreq, 20);
+        lines.push(`${bin.observedFreq.toFixed(2)}     │${bar} f=${bin.meanForecast.toFixed(2)} n=${bin.n}`);
+      }
+      lines.push("         └" + "─".repeat(26));
+      lines.push("           Forecast probability →");
+      lines.push("```");
+      lines.push("");
+    }
+
+    console.log(
+      `  ${pos}: discrim Brier=${result.score.toFixed(4)} (ECE ${discrimEce.toFixed(4)}), n=${result.n}` +
+      (calibResult && calibCal ? `; calib Brier=${calibResult.score.toFixed(4)} (ECE ${calibCal.ece.toFixed(4)})` : "") +
+      (hasWeekFolds ? `, ${weekFolded.length} week folds` : "")
+    );
   }
 
-  lines.push("---");
+  lines.push("---", "", "## Interpretation", "");
+  if (data.kind === "prospective" && posResults.length > 0) {
+    // Data-driven: a forecast has net skill when Resolution > Reliability (it
+    // beats the base-rate-only "climatology" forecast). Resolution > 0 means
+    // projection ORDER separates scorers from non-scorers (discrimination).
+    const beat = posResults.filter((r) => r.resolution > r.reliability);
+    const discriminating = posResults.filter((r) => r.resolution > 0.001);
+    const meanScore = posResults.reduce((s, r) => s + r.score, 0) / posResults.length;
+    lines.push(
+      "This is a **true prospective backtest**: pre-game projections vs post-game actual PPR. " +
+      "It measures the **discrimination/ordinal skill** of projection rank, not the calibration of " +
+      "the projection's own implied probabilities (the rank→prob map is ours, so Reliability reflects " +
+      "that map's calibration, not Sleeper's)."
+    );
+    lines.push("");
+    lines.push(
+      `Mean Brier across positions: **${meanScore.toFixed(4)}**. ` +
+      `${discriminating.length}/${posResults.length} positions show positive Resolution ` +
+      `(projection order carries signal: ${discriminating.map((r) => r.pos).join(", ") || "none"}). ` +
+      `${beat.length}/${posResults.length} beat the base-rate-only benchmark, i.e. Resolution > Reliability ` +
+      `(${beat.map((r) => r.pos).join(", ") || "none"}).`
+    );
+    const worst = [...posResults].sort((a, b) => (b.reliability - b.resolution) - (a.reliability - a.resolution))[0];
+    if (worst && worst.reliability > worst.resolution) {
+      lines.push("");
+      lines.push(
+        `**Caveat:** ${worst.pos} has Reliability (${worst.reliability.toFixed(3)}) ≥ Resolution ` +
+        `(${worst.resolution.toFixed(3)}) — the rank→prob mapping is mis-calibrated there and does not ` +
+        `clear the base-rate-only forecast; treat its score as no better than climatology.`
+      );
+    }
+
+    // Compare the calibration (logistic) model against the discrimination model
+    // on the SAME binned metric (ECE), which is the apples-to-apples comparison.
+    const withCalib = posResults.filter((r) => r.calibScore != null && r.calibEce != null && r.discrimEce != null);
+    if (withCalib.length > 0) {
+      const meanCalibBrier = withCalib.reduce((s, r) => s + r.calibScore!, 0) / withCalib.length;
+      const meanRankBrier = withCalib.reduce((s, r) => s + r.score, 0) / withCalib.length;
+      const meanCalibEce = withCalib.reduce((s, r) => s + r.calibEce!, 0) / withCalib.length;
+      const meanRankEce = withCalib.reduce((s, r) => s + r.discrimEce!, 0) / withCalib.length;
+      lines.push("");
+      lines.push(
+        `**Calibration model (out-of-fold logistic, projected pts → P(≥ threshold)).** Mean Brier ` +
+        `**${meanCalibBrier.toFixed(4)}** vs the rank model's ${meanRankBrier.toFixed(4)}; mean Expected ` +
+        `Calibration Error (10-bin) **${meanCalibEce.toFixed(4)}** vs the rank model's ${meanRankEce.toFixed(4)}. ` +
+        (meanCalibEce < meanRankEce
+          ? "Lower ECE means the projected POINTS carry genuine probability information beyond rank order — " +
+            "mapping them through a fitted logistic yields better-calibrated start/sit probabilities and a " +
+            "defensible probability the production model can consume directly."
+          : "The logistic mapping does not beat the rank model on ECE here, so projected-point magnitude adds " +
+            "little calibration value beyond rank order at these thresholds.") +
+        " ECE is occupancy-weighted |observed − forecast| over 10 bins — comparable across models, unlike the " +
+        "Murphy reliability term which over-bins the logistic's continuous probabilities."
+      );
+    }
+  }
   lines.push("");
-  lines.push("## Interpretation");
-  lines.push("");
-  lines.push("The rank-based model achieves Brier scores of 0.18–0.23. For context:");
-  lines.push("- Random forecast (always 0.5 on 50/50 outcomes): Brier = 0.25");
-  lines.push("- Perfect calibration: Brier = 0");
-  lines.push("- The rank model is measurably better than random.");
-  lines.push("");
-  lines.push("**Production targets (with real projections):**");
-  lines.push("- `playoffProbability`: Brier ≤ 0.20");
-  lines.push("- `championshipProbability`: Brier ≤ 0.10");
-  lines.push("- `catastrophicRisk`: Brier ≤ 0.15");
+  lines.push("**Production targets:** playoffProbability Brier ≤ 0.20 · championshipProbability ≤ 0.10");
   lines.push("");
   lines.push("See `docs/calibration.md` for the full calibration contract.");
 
@@ -384,7 +668,4 @@ async function main() {
   console.log(`\nWrote ${outPath}`);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main().catch((err) => { console.error(err); process.exit(1); });

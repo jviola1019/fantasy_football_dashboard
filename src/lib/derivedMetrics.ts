@@ -87,7 +87,12 @@ function simToRow(sim: SimulationResult, players: PlayerMarketRecord[], scale = 
   // implies a top-3 finish, which implies making the playoffs. Without this a
   // best-case scale could print e.g. "Top 3: 114.8%".
   const championship = clamp(sim.championshipProbability * scale, 0, 100);
-  const playoffs = clamp(sim.playoffProbability * scale, 0, 100);
+  // A title run is always also a playoff run, so playoffs must be >= championship
+  // even after independent best/worst-case `scale` multipliers. Enforcing this
+  // first keeps the [championship, playoffs] clamp range well-ordered — otherwise
+  // (playoffs < championship) the clamp would return topThree < championship and
+  // break the "champ ⊆ top3 ⊆ playoffs" invariant this block exists to guarantee.
+  const playoffs = Math.max(championship, clamp(sim.playoffProbability * scale, 0, 100));
   const topThree = clamp(championship * 3.4, championship, playoffs);
 
   return {

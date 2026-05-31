@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { fetchKtcRankings } from "@/lib/ktc/scrape";
 import { insertKtcSnapshot, pruneOldKtcSnapshots } from "@/lib/ktc/snapshot";
 import type { KtcVariant } from "@/lib/ktc/types";
+import { redact, unwrap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,23 +11,6 @@ const KEEP_LAST_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // Both KTC variants are refreshed on each run. Dynasty + redraft are
 // scraped sequentially so we stay polite (one open connection at a time).
 const VARIANTS: KtcVariant[] = ["dynasty", "redraft"];
-
-function redact(raw: string): string {
-  return raw
-    .replace(/postgres(?:ql)?:\/\/[^\s'"`]+/gi, "postgres://[REDACTED]")
-    .replace(/password=\S+/gi, "password=[REDACTED]")
-    .slice(0, 400);
-}
-
-function unwrap(err: unknown): unknown {
-  let cur = err;
-  for (let i = 0; i < 5 && cur && typeof cur === "object" && "cause" in cur; i++) {
-    const next = (cur as { cause: unknown }).cause;
-    if (!next || next === cur) break;
-    cur = next;
-  }
-  return cur;
-}
 
 interface VariantResult {
   variant: KtcVariant;

@@ -145,9 +145,47 @@ export const newsSnapshots = pgTable("news_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+// ─── Snapshot-table DDL: single source of truth ──────────────────────────────
+// All five snapshot tables share an identical shape. Defining the DDL once here
+// (and composing INIT_SQL + the runtime ensure*Table self-heal from it) removes
+// the hand-kept copies that previously drifted. The snapshot store factory
+// (src/db/snapshotStore.ts) consumes the same two helpers.
+
+export const SNAPSHOT_TABLES = [
+  "players_snapshots",
+  "rankings_snapshots",
+  "ktc_snapshots",
+  "projections_snapshots",
+  "news_snapshots"
+] as const;
+
+export type SnapshotTableName = (typeof SNAPSHOT_TABLES)[number];
+
+/** `CREATE TABLE IF NOT EXISTS` for a snapshot table (no trailing semicolon). */
+export function snapshotTableSql(table: string): string {
+  return `CREATE TABLE IF NOT EXISTS ${table} (
+    id TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "sizeBytes" INTEGER NOT NULL,
+    payload JSONB NOT NULL
+  )`;
+}
+
+/** `CREATE INDEX IF NOT EXISTS` on (source, fetchedAt DESC) (no trailing semicolon). */
+export function snapshotIndexSql(table: string): string {
+  return `CREATE INDEX IF NOT EXISTS ${table}_source_fetched
+    ON ${table} (source, "fetchedAt" DESC)`;
+}
+
+const SNAPSHOT_DDL = SNAPSHOT_TABLES.map(
+  (t) => `  ${snapshotTableSql(t)};\n  ${snapshotIndexSql(t)};`
+).join("\n");
+
 // Multi-statement DDL kept as a plain string. The bootstrap route splits it on
 // `;` and applies each statement individually — postgres.js sends one command
-// per query, so a single multi-statement call would be rejected.
+// per query, so a single multi-statement call would be rejected. The snapshot
+// tables are appended from SNAPSHOT_DDL above (single source of truth).
 export const INIT_SQL = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -213,49 +251,5 @@ export const INIT_SQL = `
   );
   CREATE INDEX IF NOT EXISTS notifications_user_created
     ON notifications ("userId", "createdAt" DESC);
-  CREATE TABLE IF NOT EXISTS players_snapshots (
-    id TEXT PRIMARY KEY,
-    source TEXT NOT NULL,
-    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
-    "sizeBytes" INTEGER NOT NULL,
-    payload JSONB NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS players_snapshots_source_fetched
-    ON players_snapshots (source, "fetchedAt" DESC);
-  CREATE TABLE IF NOT EXISTS rankings_snapshots (
-    id TEXT PRIMARY KEY,
-    source TEXT NOT NULL,
-    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
-    "sizeBytes" INTEGER NOT NULL,
-    payload JSONB NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS rankings_snapshots_source_fetched
-    ON rankings_snapshots (source, "fetchedAt" DESC);
-  CREATE TABLE IF NOT EXISTS ktc_snapshots (
-    id TEXT PRIMARY KEY,
-    source TEXT NOT NULL,
-    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
-    "sizeBytes" INTEGER NOT NULL,
-    payload JSONB NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS ktc_snapshots_source_fetched
-    ON ktc_snapshots (source, "fetchedAt" DESC);
-  CREATE TABLE IF NOT EXISTS projections_snapshots (
-    id TEXT PRIMARY KEY,
-    source TEXT NOT NULL,
-    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
-    "sizeBytes" INTEGER NOT NULL,
-    payload JSONB NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS projections_snapshots_source_fetched
-    ON projections_snapshots (source, "fetchedAt" DESC);
-  CREATE TABLE IF NOT EXISTS news_snapshots (
-    id TEXT PRIMARY KEY,
-    source TEXT NOT NULL,
-    "fetchedAt" TIMESTAMP NOT NULL DEFAULT now(),
-    "sizeBytes" INTEGER NOT NULL,
-    payload JSONB NOT NULL
-  );
-  CREATE INDEX IF NOT EXISTS news_snapshots_source_fetched
-    ON news_snapshots (source, "fetchedAt" DESC);
+${SNAPSHOT_DDL}
 `;

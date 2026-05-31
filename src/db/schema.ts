@@ -160,3 +160,7 @@ export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;
 export type DbPlayersSnapshot = typeof playersSnapshots.$inferSelect;
 export type DbNotification = typeof notifications.$inferSelect;
+export type DbRankingsSnapshot = typeof rankingsSnapshots.$inferSelect;
+export type DbKtcSnapshot = typeof ktcSnapshots.$inferSelect;
+export type DbProjectionsSnapshot = typeof projectionsSnapshots.$inferSelect;
+export type DbNewsSnapshot = typeof newsSnapshots.$inferSelect;

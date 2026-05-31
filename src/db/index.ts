@@ -53,7 +53,9 @@ function createSqliteDb(filename: string): Db {
   return drizzle(sqlite, { schema: sqliteSchema }) as Db;
 }
 
-function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; prepare: (sql: string) => { get: () => unknown } }): void {
+// Exported for the schema drift-guard test (db/schemaDrift.test.ts), which
+// asserts this prod DDL and the in-memory test DDL stay structurally identical.
+export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; prepare: (sql: string) => { get: () => unknown } }): void {
   const present = sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
     .get();
@@ -205,7 +207,7 @@ interface MinimalSqliteHandle {
   exec(sql: string): void;
 }
 
-function applyTestSchema(sqlite: MinimalSqliteHandle) {
+export function applyTestSchema(sqlite: MinimalSqliteHandle) {
   sqlite.exec(`
     CREATE TABLE users (
       id TEXT PRIMARY KEY,

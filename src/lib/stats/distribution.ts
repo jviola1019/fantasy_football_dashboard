@@ -457,6 +457,44 @@ export function reliabilityDiagram(
   return result;
 }
 
+export interface CalibrationError {
+  /** Expected Calibration Error: occupancy-weighted mean |observed − forecast| across bins. */
+  ece: number;
+  /** Maximum Calibration Error: the worst single-bin |observed − forecast|. */
+  mce: number;
+  /** Occupancy-weighted mean squared gap — the binned reliability term. */
+  reliabilityBinned: number;
+  /** The bins used. */
+  bins: ReliabilityBin[];
+}
+
+/**
+ * Binned calibration error. Unlike the Murphy `reliability` term in
+ * `brierScore` (which groups by EXACT forecast value and so explodes into
+ * near-singleton bins for continuous probabilities), this bins forecasts into
+ * `nBins` equal-width buckets and measures |observed − forecast| per bin — the
+ * standard ECE/MCE used to compare calibration across models on equal footing.
+ */
+export function expectedCalibrationError(
+  forecasts: ReadonlyArray<BrierForecast>,
+  nBins = 10
+): CalibrationError {
+  const bins = reliabilityDiagram(forecasts, nBins);
+  const N = forecasts.length;
+  if (N === 0) return { ece: 0, mce: 0, reliabilityBinned: 0, bins };
+  let ece = 0;
+  let mce = 0;
+  let reliabilityBinned = 0;
+  for (const b of bins) {
+    const gap = Math.abs(b.observedFreq - b.meanForecast);
+    const weight = b.n / N;
+    ece += weight * gap;
+    reliabilityBinned += weight * gap * gap;
+    if (gap > mce) mce = gap;
+  }
+  return { ece, mce, reliabilityBinned, bins };
+}
+
 // ─── k-fold cross-validation ─────────────────────────────────────────────────
 
 export interface KFoldResult {

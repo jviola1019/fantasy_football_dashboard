@@ -9,6 +9,7 @@ import {
   pruneOldProjectionsSnapshots
 } from "@/lib/sleeper/projectionsSnapshot";
 import { getNflState } from "@/lib/sleeper/league";
+import { redact, unwrap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -17,23 +18,6 @@ export const maxDuration = 60;
 // cron writes a fresh row each day. The latest-snapshot read is keyed by
 // (season, week) so older rows don't shadow the fresh one.
 const KEEP_LAST_MS = 14 * 24 * 60 * 60 * 1000;
-
-function redact(raw: string): string {
-  return raw
-    .replace(/postgres(?:ql)?:\/\/[^\s'"`]+/gi, "postgres://[REDACTED]")
-    .replace(/password=\S+/gi, "password=[REDACTED]")
-    .slice(0, 400);
-}
-
-function unwrap(err: unknown): unknown {
-  let cur = err;
-  for (let i = 0; i < 5 && cur && typeof cur === "object" && "cause" in cur; i++) {
-    const next = (cur as { cause: unknown }).cause;
-    if (!next || next === cur) break;
-    cur = next;
-  }
-  return cur;
-}
 
 /**
  * Daily Sleeper per-week projections snapshot. Resolves the current NFL week

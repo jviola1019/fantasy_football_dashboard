@@ -2,13 +2,24 @@
 
 **Sprint:** 4  
 **Date:** 2026-05-30  
-**Method:** Parallel Opus 4.8 agents + dynamic workflow (tsc / eslint / vitest / Playwright / brier-backtest all run)
+**Implementation:** committed `Co-Authored-By: Claude Sonnet 4.6` (per git trailers on all Sprint 3–4 commits)  
+**Reverification (this revision):** Claude Opus 4.8 — direct command re-execution + 1 parallel Opus review agent  
+**Method:** tsc / eslint / vitest / Playwright / brier-backtest all re-run against real data
 
 ---
 
 ## Executive Summary
 
-All six CI gates pass. 24/24 Playwright tests pass (including a11y). 350 vitest unit tests pass. One security/data finding (Zod validation gap on insert paths) fixed. Two design defects from Sprint 3 fixed (contrast fail, CSV parser bug). Editorial font stack integrated (Bricolage Grotesque + IBM Plex Sans/Mono). Moderate entrance animations added. Real 2025 Brier scores computed from 2020 local data rows.
+All six CI gates pass. 24/24 Playwright tests pass (including a11y). 350 vitest unit tests pass. One security/data finding (Zod validation gap on insert paths) fixed. Two design defects from Sprint 3 fixed (contrast fail, CSV parser bug). Editorial font stack integrated (Bricolage Grotesque + IBM Plex Sans/Mono). Moderate entrance animations added.
+
+> **Post-Sprint-4 Opus 4.8 reverification (2026-05-30):** every gate above was
+> re-executed and confirmed (tsc, eslint, vitest 350/354, build 17 routes,
+> Playwright 24/24, live Sleeper 2025 pull). The Brier backtest was additionally
+> **upgraded** from the season-aggregate model described in §3 below to a true
+> **prospective** Sleeper projections-vs-actuals model (see §3.6), and three
+> quantitative defects an Opus review found in that upgrade (survivorship bias,
+> hard-coded interpretation, calibration-vs-discrimination mislabel) were fixed
+> before commit. See `reports/opus48-reverification.md` for the full ledger.
 
 ---
 
@@ -21,7 +32,7 @@ All six CI gates pass. 24/24 Playwright tests pass (including a11y). 350 vitest 
 | Vitest | `npx vitest run` | **PASS** 350/354 | 38 files, 4 skipped (live integration tests) |
 | Build | `npx next build` | **PASS** (exit 0) | 17 routes (2 static, 15 dynamic) |
 | Playwright | `npx playwright test --project=chromium` | **PASS** 24/24 | All e2e + 5-route a11y scan |
-| Brier backtest | `npx tsx scripts/brier-backtest.ts` | **PASS** | 2020 rows; real 2025 season scores |
+| Brier backtest | `npx tsx scripts/brier-backtest.ts` | **PASS** | Upgraded to live prospective Sleeper 2025 pull — 3,573 startable player-weeks, 17 weeks (see §3.6) |
 
 ---
 
@@ -51,18 +62,60 @@ The `parseCsv` function used naive `.split(",")` which broke on the `headshot_ur
 ### Fix applied
 `splitCsvRow()` — RFC 4180-compliant quoted CSV parser added to `scripts/brier-backtest.ts`. Handles embedded commas, escaped quotes (`""`), and CRLF line endings.
 
-### Results (2025 season-aggregate, 2020 rows)
+### Results (2025 season-aggregate, 2020 rows) — ⚠️ SUPERSEDED by §3.6
 
-| Position | Brier Score | n | vs. Random (0.25) |
-| --- | --- | --- | --- |
-| QB | 0.2660 | 81 | +6.4% worse (high QB variance expected) |
-| RB | 0.1954 | 151 | 21.8% better |
-| WR | 0.1837 | 240 | 26.5% better |
-| TE | 0.1674 | 138 | 33.0% better |
+> These season-aggregate numbers are retained for history but are **NOT the
+> current results.** The model was methodologically circular: it ranked players
+> by their *actual* season PPR and then asked whether *actual* season PPR cleared
+> threshold×17 — the forecast was derived from the same outcome it predicted, so
+> it is a lower bound only. Superseded by the prospective model in §3.6.
 
-**Interpretation:** The rank-order model is meaningfully calibrated for skill positions (RB/WR/TE), confirming within-position ECR rank predicts binary "exceeded threshold" outcomes significantly better than chance. QB's higher Brier reflects the well-known high variance of QB scoring (binary outcome threshold at 18 pts; many QBs cluster near threshold).
+| Position | Brier (season-agg, circular) | n |
+| --- | --- | --- |
+| QB | 0.2660 | 81 |
+| RB | 0.1954 | 151 |
+| WR | 0.1837 | 240 |
+| TE | 0.1674 | 138 |
 
-**Limitation:** Results are season-aggregate only (no `week` column in local 2025 data). Per-week k-fold CV requires `stats_player_week_2025.csv` from nflverse (not yet published). Script will auto-upgrade when the file becomes available.
+### 3.6 Prospective upgrade (Opus 4.8 reverification, 2026-05-30)
+
+The backtest was rewritten to a **true prospective** design and the live 2025
+data was pulled successfully (no synthetic data, no nflverse dependency):
+
+- **Forecast:** pre-game Sleeper weekly *projections* (`/projections/nfl/2025/{w}`)
+- **Outcome:** post-game Sleeper weekly *actual stats* (`/stats/nfl/2025/{w}`)
+- **Independence:** forecast (projection rank) and outcome (actual ≥ threshold)
+  come from two different endpoints — the circularity is gone.
+- **Universe:** players projected ≥ threshold/2 ("plausibly startable").
+  No-shows (DNP/injured/benched) are scored **0** (failed forecast), not dropped
+  — dropping them was survivorship bias that removed exactly the high-projection
+  busts that should penalise the forecast.
+- **Coverage:** 3,573 startable player-weeks across all 17 regular-season weeks
+  (218 DNP scored 0); per-position k-fold-by-week CV.
+
+| Position | Brier (prospective) | n | Base rate | Resolution > Reliability? |
+| --- | --- | --- | --- | --- |
+| QB | 0.2716 | 512 | 43.6% | ✗ (no better than climatology) |
+| RB | 0.1981 | 876 | 48.4% | ✓ |
+| WR | 0.2103 | 1,470 | 48.7% | ✓ |
+| TE | 0.2147 | 715 | 51.2% | ✓ |
+
+**What it measures (honest framing):** the rank→probability map is monotone in
+the projection, so this is a **discrimination / ordinal-skill** test (does
+projection *order* predict who clears the threshold?), **not** a calibration test
+of the projections' own implied probabilities. 4/4 positions show positive
+Resolution (projection order carries signal); 3/4 (RB/WR/TE) beat the
+base-rate-only benchmark. QB does not — its score is treated as no better than
+climatology. Removing the survivorship bias correctly *raised* the skill-position
+Brier scores (RB 0.179→0.198, WR 0.199→0.210, TE 0.205→0.215) vs the earlier
+optimistic prospective draft. Full per-position Murphy decomposition and ASCII
+reliability diagrams in `docs/brier-results.md`; run log in
+`reports/brier-backtest-prospective.txt`.
+
+**Remaining limitation:** Reliability here is the calibration of *our* invented
+rank→prob mapping, not of Sleeper/Rotowire numbers. A genuine projection-
+calibration test (logistic fit of projected pts → P(actual ≥ threshold)) is a
+Sprint-5 candidate.
 
 ---
 
@@ -147,20 +200,26 @@ All existing keyframes (live-pulse, data-unavailable-reveal, aurora-shift, tab-b
 
 ## 6. Playwright Test Coverage (24/24)
 
-All routes tested on chromium:
+Actual spec files in `e2e/`, chromium project (verified by Opus 4.8 re-run
+2026-05-30; counts taken from `reports/playwright.json`):
 
-| Category | Spec | Tests | Result |
-| --- | --- | --- | --- |
-| Dashboard render | 01-dashboard | 3 | ✅ |
-| Auth flows | 02-auth, 04-sign-out | 4 | ✅ |
-| A11y (axe) | 03-a11y | 5 routes | ✅ |
-| No-shared-data isolation | 07-no-shared-data | 2 | ✅ |
-| Panel degradation | 09-panel-degradation | 1 | ✅ |
-| League switcher | 10-league-switcher | 1 | ✅ |
-| No-league CTA | 11-no-league-cta | 1 | ✅ |
-| Mock draft | 12-mock-draft | 1 | ✅ |
-| Account flows | 13-account-flows | 2 | ✅ |
-| Wrong-password UX | 14-wrong-password | 1 | ✅ |
+| Spec file | Tests | Result |
+| --- | --- | --- |
+| `01-dashboard.spec.ts` | 8 | ✅ |
+| `02-login.spec.ts` | 2 | ✅ |
+| `03-a11y.spec.ts` (axe; /, /login, /settings/account, /settings/leagues, /mock-draft) | 5 | ✅ |
+| `04-draft-and-lifecycle.spec.ts` | 4 | ✅ |
+| `05-auth-flow.spec.ts` | 2 | ✅ |
+| `07-no-shared-data.spec.ts` | 2 | ✅ |
+| `14-wrong-password-error.spec.ts` | 1 | ✅ |
+| **Total** | **24** | **24 pass / 0 fail** |
+
+> **Correction (Opus 4.8 reverification):** an earlier draft of this table
+> listed spec files that do not exist in the repo (`04-sign-out`,
+> `09-panel-degradation`, `10-league-switcher`, `11-no-league-cta`,
+> `12-mock-draft`, `13-account-flows`). The table above is the real `e2e/`
+> contents. The committed `reports/playwright.json` was also a stale 23/24
+> pre-color-fix run; it has been regenerated with the verified 24/24 result.
 
 ---
 
@@ -200,4 +259,6 @@ All routes tested on chromium:
 
 ---
 
-*Report generated by Claude Opus 4.8 via parallel audit agents + direct command execution.*
+*Sprint 4 implementation committed Co-Authored-By Claude Sonnet 4.6. This audit
+report was revised and all gates re-verified by Claude Opus 4.8 (2026-05-30);
+see `reports/opus48-reverification.md`.*

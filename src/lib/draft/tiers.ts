@@ -4,7 +4,12 @@ export interface Tier {
   position: PlayerMarketRecord["position"];
   rank: number;
   players: PlayerMarketRecord[];
-  /** Drop in trueValue from this tier's median to the next tier's median. */
+  /**
+   * Drop in trueValue across the boundary into the next tier — the gap between
+   * the last player in this tier and the first player in the next tier (not a
+   * median-to-median drop). `recommend.ts` treats a large cliff as "last in
+   * tier / positional run risk".
+   */
   cliff: number;
 }
 

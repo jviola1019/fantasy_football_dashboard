@@ -73,7 +73,8 @@ describe("SleeperProjectionSchema", () => {
   });
 
   it("rejects a record missing player_id", () => {
-    const { player_id: _removed, ...bad } = qbProjection;
+    const bad: Record<string, unknown> = { ...qbProjection };
+    delete bad.player_id;
     const result = SleeperProjectionSchema.safeParse(bad);
     expect(result.success).toBe(false);
   });

@@ -3,18 +3,18 @@
   "date": "2026-05-30",
   "tasks": {
     "tsc": { "success": true, "exitCode": 0, "notes": "Zero TypeScript errors" },
-    "eslint": { "success": true, "exitCode": 0, "notes": "Zero lint errors" },
-    "vitest": { "success": true, "exitCode": 0, "notes": "350 passed, 4 skipped (354 total, 38 files)" },
+    "eslint": { "success": true, "exitCode": 0, "notes": "Zero lint errors (1 pre-existing unused-var warning in projections.test.ts)" },
+    "vitest": { "success": true, "exitCode": 0, "notes": "350 passed, 4 skipped (354 total, 38 files); 4 skipped = live Sleeper/ESPN integration (require RAE_LIVE_TESTS=1 + credentials)" },
     "build": { "success": true, "exitCode": 0, "notes": "17 routes compiled, Turbopack" },
     "brier_backtest_v1": {
       "success": false,
       "exitCode": 0,
       "notes": "Bug: naive CSV split broke on quoted commas in headshot URL field. Only 5/2020 rows parsed. Brier=1.0 degenerate."
     },
-    "brier_backtest_v2": {
+    "brier_backtest_v2_season_aggregate": {
       "success": true,
       "exitCode": 0,
-      "notes": "Fixed with RFC 4180-compliant splitCsvRow(). 2020 rows parsed.",
+      "notes": "Fixed with RFC 4180-compliant splitCsvRow(). 2020 rows parsed. CAVEAT: season-aggregate model ranks by ACTUAL season PPR to predict actual PPR -> circular, lower-bound only.",
       "results": {
         "QB": { "brier": 0.2660, "n": 81 },
         "RB": { "brier": 0.1954, "n": 151 },
@@ -22,13 +22,45 @@
         "TE": { "brier": 0.1674, "n": 138 }
       }
     },
+    "brier_backtest_v3_prospective": {
+      "success": true,
+      "exitCode": 0,
+      "notes": "TRUE PROSPECTIVE upgrade (post-Sprint-4): Sleeper 2025 weekly projections (forecast) vs Sleeper 2025 weekly actual stats (outcome). 4441 player-weeks across all 17 regular-season weeks, live-pulled. Forecast (projection rank) is independent of outcome (actual >= threshold). Per-position k-fold-by-week CV.",
+      "results": {
+        "QB": { "brier": 0.2714, "n": 512, "weekFolds": 17 },
+        "RB": { "brier": 0.1787, "n": 1217, "weekFolds": 17 },
+        "WR": { "brier": 0.1991, "n": 1777, "weekFolds": 17 },
+        "TE": { "brier": 0.2050, "n": 935, "weekFolds": 17 }
+      }
+    },
     "playwright_a11y_v1": {
       "success": false,
       "notes": "23/24 pass. 1 failure: color-contrast on / route. Root cause: --blue (#4a8db7) on --panel-2 (#18222f) = 4.42:1, needs 4.5:1. Also --red (#e7574c) = 4.48:1."
     },
     "playwright_a11y_v2": {
-      "success": "PENDING",
-      "notes": "Re-running after color fix: --blue → #5a9fc4 (~5.1:1), --red → #eb5f54 (~4.6:1)"
+      "success": true,
+      "exitCode": 0,
+      "notes": "VERIFIED 2026-05-30 (Opus 4.8 re-run): 24/24 pass, 0 fail, 0 skipped on chromium after color fix (--blue #5a9fc4 ~5.1:1, --red #eb5f54 ~4.6:1). reports/playwright.json regenerated with this run."
     }
+  },
+  "opus48_reverification": {
+    "date": "2026-05-30",
+    "model": "claude-opus-4-8",
+    "method": "Direct command re-execution + 1 parallel Opus code-review agent",
+    "gates_reverified": {
+      "tsc": "PASS (exit 0)",
+      "eslint": "PASS (0 errors, 1 warning)",
+      "vitest": "PASS (350/354, 4 skipped)",
+      "build": "PASS (17 routes)",
+      "playwright_chromium": "PASS (24/24)",
+      "sleeper_2025_live_pull": "PASS (4441 player-weeks, 17 weeks)"
+    },
+    "corrections_applied": [
+      "reports/playwright.json replaced (was stale 23/24 pre-fix run; now verified 24/24)",
+      "playwright_a11y_v2 flipped PENDING -> success",
+      "final-audit-report.md: corrected fabricated spec-file table (§6) to the real 7 specs",
+      "final-audit-report.md: backtest section updated from season-aggregate to true-prospective Sleeper model",
+      "model attribution clarified: implementation commits are Co-Authored-By Sonnet 4.6; this reverification is Opus 4.8"
+    ]
   }
 }

@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getDb, schema, type Db } from "../../db";
 import type { PlayerMarketRecord } from "../governance";
-import { detectByeWeekRisks } from "./byes";
+import { detectByeWeekRisks, BYE_SCHEDULE, BYE_SCHEDULE_DISCLOSURE } from "./byes";
 
 export type Severity = "info" | "warn" | "alert";
 
@@ -105,7 +105,9 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotif
       rule: "stacked-bye-week",
       message:
         `Week ${alert.week}: ${alert.affectedPlayers.length} ${alert.position}s on bye ` +
-        `(${alert.affectedPlayers.map((p) => p.name).join(", ")}). Plan waiver bids now.`
+        `(${alert.affectedPlayers.map((p) => p.name).join(", ")}). Plan waiver bids now.` +
+        // Never present an unverified schedule as confirmed (see byes.ts).
+        (BYE_SCHEDULE.verified ? "" : ` (${BYE_SCHEDULE_DISCLOSURE})`)
     });
   }
 

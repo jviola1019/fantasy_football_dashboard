@@ -1,12 +1,26 @@
 import type { PlayerMarketRecord } from "../governance";
 
 /**
- * Bye-week mapping for the current NFL season. Keys are team abbreviations,
- * values are the week number that team is on bye.
- *
- * Source: NFL schedule release. Update once per year before the season opens.
- * 2025 byes shown as a placeholder — replace with the live schedule when wired
- * via the Sleeper `getNflState`/ESPN scoreboard pipeline.
+ * Provenance for the static bye-week table below. `verified` is false because
+ * the table has NOT been reconciled against an authoritative live schedule —
+ * any consumer that surfaces bye-derived alerts to the user must disclose this
+ * (see `BYE_SCHEDULE_DISCLOSURE`) rather than present them as confirmed. The
+ * intended wiring is the Sleeper `getNflState` / ESPN scoreboard pipeline.
+ */
+export const BYE_SCHEDULE = {
+  season: 2025,
+  verified: false as const,
+  source: "static placeholder table (not reconciled with a live schedule)"
+};
+
+/** One-line disclosure to append to any user-facing bye alert while unverified. */
+export const BYE_SCHEDULE_DISCLOSURE =
+  `Bye schedule is a static ${BYE_SCHEDULE.season} table pending live wiring — verify before acting.`;
+
+/**
+ * Bye-week mapping. Keys are team abbreviations, values are the week number that
+ * team is on bye. See `BYE_SCHEDULE` — this is an UNVERIFIED placeholder, not a
+ * confirmed schedule. Update once per year and reconcile against the live source.
  */
 export const BYE_WEEKS_2025: Record<string, number> = {
   ATL: 5, BUF: 7, CHI: 5, CIN: 10, CLE: 9, DAL: 10, DEN: 12, DET: 8,

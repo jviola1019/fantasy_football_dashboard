@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { fetchEspnNews } from "@/lib/espn/news";
 import { insertNewsSnapshot, pruneOldNewsSnapshots } from "@/lib/espn/newsSnapshot";
+import { redact } from "@/lib/redact";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -10,13 +11,6 @@ export const maxDuration = 60;
 // a day.
 const NEWS_SOURCE = "espn-nfl";
 const KEEP_LAST_MS = 7 * 24 * 60 * 60 * 1000;
-
-function redact(raw: string): string {
-  return raw
-    .replace(/postgres(?:ql)?:\/\/[^\s'"`]+/gi, "postgres://[REDACTED]")
-    .replace(/password=\S+/gi, "password=[REDACTED]")
-    .slice(0, 400);
-}
 
 /**
  * Daily ESPN NFL news snapshot. Fetches up to 100 NFL articles from the

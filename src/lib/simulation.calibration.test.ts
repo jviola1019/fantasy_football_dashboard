@@ -142,6 +142,22 @@ describe("simulation — calibration properties", () => {
     expect(shares02).toBe(false);
   }, 60_000);
 
+  it("weekly-projection path is scale-matched, not collapsed to ~0% (regression: pts×2 scale bug)", () => {
+    const params = { seed: 20260513, iterations: 4000, rosterSlots: 6, riskTolerance: 0.58 };
+    const base = runNexusSimulation(fixturePlayers, params);
+    // Realistic weekly pts_ppr live on a ~0-30 scale (e.g. trueValue×0.3). The
+    // old code did `pts × 2`, leaving rosterScore far below the 73/83 thresholds
+    // so every probability collapsed to ~0% the moment real projections wired in.
+    const weeklyProjections = new Map(fixturePlayers.map((p) => [p.id, p.trueValue * 0.3]));
+    const live = runNexusSimulation(fixturePlayers, { ...params, weeklyProjections });
+    // Must NOT collapse to zero on the live path.
+    expect(live.playoffProbability).toBeGreaterThan(0);
+    // A linear projection of trueValue range-matches back exactly onto the
+    // trueValue scale, so the scaled live run equals the no-projection run.
+    expect(live.playoffProbability).toBe(base.playoffProbability);
+    expect(live.championshipProbability).toBe(base.championshipProbability);
+  });
+
   it("keyDrivers is non-empty and contributions are finite and sorted descending", () => {
     const r = runNexusSimulation(fixturePlayers, {
       seed: 20260513,

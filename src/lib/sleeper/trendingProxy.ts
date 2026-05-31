@@ -2,9 +2,11 @@
 //
 // Sprint 3 (B1) renamed the field from narrativePressure to trendingMomentum
 // to clarify what the value actually represents — roster-move-driven momentum,
-// not news/sentiment. Sprint 3 (B5) then introduces a separate narrativePressure
-// field populated by real ESPN news article-velocity, so the two signals
-// coexist with distinct semantics.
+// not news/sentiment. Sprint 3 (B5) then made real ESPN news article-velocity
+// the PREFERRED SOURCE of that same trendingMomentum field, with this Sleeper
+// add/drop proxy kept only as the fallback. There is no separate
+// narrativePressure field in PlayerMarketRecordSchema — the two sources feed one
+// field (see fantasypros/enrich.ts and espn/newsMatch.ts for the priority ladder).
 //
 // Sleeper exposes trending adds/drops over the last N hours, which is a
 // *roster-move* signal: a player who's being added a lot more than dropped in

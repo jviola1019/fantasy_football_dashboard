@@ -1,30 +1,12 @@
 import { NextResponse } from "next/server";
 import { fetchSleeperPlayersMap } from "@/lib/sleeper/players";
 import { insertPlayersSnapshot, pruneOldSnapshots } from "@/lib/sleeper/snapshot";
+import { redact, unwrap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const KEEP_LAST_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-// Same redaction pattern as /api/health — keep secrets out of diagnostic output
-// that the cron caller (or an operator hitting this manually) sees on failure.
-function redact(raw: string): string {
-  return raw
-    .replace(/postgres(?:ql)?:\/\/[^\s'"`]+/gi, "postgres://[REDACTED]")
-    .replace(/password=\S+/gi, "password=[REDACTED]")
-    .slice(0, 400);
-}
-
-function unwrap(err: unknown): unknown {
-  let cur = err;
-  for (let i = 0; i < 5 && cur && typeof cur === "object" && "cause" in cur; i++) {
-    const next = (cur as { cause: unknown }).cause;
-    if (!next || next === cur) break;
-    cur = next;
-  }
-  return cur;
-}
 
 export async function GET(request: Request): Promise<Response> {
   const auth = request.headers.get("authorization");

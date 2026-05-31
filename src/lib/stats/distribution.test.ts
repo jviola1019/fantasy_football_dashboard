@@ -4,6 +4,7 @@ import {
   brierScore,
   cohensD,
   connectingLetters,
+  expectedCalibrationError,
   kFoldCV,
   mean,
   oneWayAnova,
@@ -12,6 +13,46 @@ import {
   stdev,
   welchTTest
 } from "./distribution";
+
+describe("expectedCalibrationError", () => {
+  it("is ~0 for perfectly calibrated forecasts", () => {
+    // Bin at 0.0 all-zero outcomes, bin at 1.0 all-one outcomes, bin at 0.5 half/half.
+    const forecasts = [
+      ...Array.from({ length: 50 }, () => ({ prob: 0.0, outcome: 0 as const })),
+      ...Array.from({ length: 50 }, () => ({ prob: 1.0, outcome: 1 as const })),
+      ...Array.from({ length: 25 }, () => ({ prob: 0.5, outcome: 1 as const })),
+      ...Array.from({ length: 25 }, () => ({ prob: 0.5, outcome: 0 as const }))
+    ];
+    const c = expectedCalibrationError(forecasts, 10);
+    expect(c.ece).toBeCloseTo(0, 6);
+    expect(c.mce).toBeCloseTo(0, 6);
+    expect(c.reliabilityBinned).toBeCloseTo(0, 6);
+  });
+
+  it("equals the gap for a confidently wrong forecast (all 0.9, outcomes 50%)", () => {
+    const forecasts = [
+      ...Array.from({ length: 50 }, () => ({ prob: 0.9, outcome: 1 as const })),
+      ...Array.from({ length: 50 }, () => ({ prob: 0.9, outcome: 0 as const }))
+    ];
+    const c = expectedCalibrationError(forecasts, 10);
+    // Single occupied bin: mean forecast 0.9, observed 0.5 → |gap| = 0.4.
+    expect(c.ece).toBeCloseTo(0.4, 6);
+    expect(c.mce).toBeCloseTo(0.4, 6);
+    expect(c.reliabilityBinned).toBeCloseTo(0.16, 6); // gap^2
+  });
+
+  it("weights bins by occupancy for ECE (vs unweighted MCE)", () => {
+    // Big well-calibrated bin + tiny badly-calibrated bin → ECE small, MCE large.
+    const forecasts = [
+      ...Array.from({ length: 98 }, (_, i) => ({ prob: 0.5, outcome: (i % 2) as 0 | 1 })),
+      { prob: 0.95, outcome: 0 as const },
+      { prob: 0.95, outcome: 0 as const }
+    ];
+    const c = expectedCalibrationError(forecasts, 10);
+    expect(c.mce).toBeGreaterThan(0.9); // the 0.95 bin: |0 - 0.95| ≈ 0.95
+    expect(c.ece).toBeLessThan(0.05); // but it's only 2/100 of the mass
+  });
+});
 
 describe("stats helpers", () => {
   describe("mean / stdev / quantile", () => {

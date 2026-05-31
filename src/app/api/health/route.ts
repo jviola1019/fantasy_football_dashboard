@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, schema } from "@/db";
+import { redact, unwrap } from "@/lib/redact";
 
 export const runtime = "nodejs";
 
@@ -25,28 +26,6 @@ interface HealthResponse {
 interface CheckResult {
   status: DatabaseStatus;
   error?: string;
-}
-
-// Scrub any postgres URL or password-looking token from an error string
-// before it leaves the server, so this endpoint stays safe to leave public.
-function redact(raw: string): string {
-  return raw
-    .replace(/postgres(?:ql)?:\/\/[^\s'"`]+/gi, "postgres://[REDACTED]")
-    .replace(/password=\S+/gi, "password=[REDACTED]")
-    .slice(0, 300);
-}
-
-// Drizzle wraps the driver's real failure as the `cause` of a generic
-// "Failed query" error. Walk the cause chain (bounded to avoid loops)
-// to surface the postgres-js error that actually explains what went wrong.
-function unwrap(err: unknown): unknown {
-  let cur = err;
-  for (let i = 0; i < 5 && cur && typeof cur === "object" && "cause" in cur; i++) {
-    const next = (cur as { cause: unknown }).cause;
-    if (!next || next === cur) break;
-    cur = next;
-  }
-  return cur;
 }
 
 async function checkDatabase(): Promise<CheckResult> {

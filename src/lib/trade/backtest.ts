@@ -64,8 +64,11 @@ export function zScores(values: number[]): number[] {
 
 /**
  * Compute realized Value Over Replacement per player. The replacement baseline
- * for a position is the points of the player at `ranks[position]` (1-indexed),
- * or the lowest-scoring player at that position if the list is shorter.
+ * for a position is the points of the player at 0-based index `ranks[position]`
+ * in the points-descending list (i.e. the (ranks[position]+1)-th best at that
+ * position), or the lowest-scoring player if the list is shorter. The exact
+ * offset is applied identically on both sides of the backtest, so it shifts the
+ * baseline by one rank but does not bias the correlation.
  */
 export function realizedVor(
   players: SeasonPlayer[],

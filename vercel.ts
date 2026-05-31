@@ -60,9 +60,10 @@ const config: VercelConfig = {
     // KTC and before the lifecycle-check at 09:30.
     { path: "/api/cron/projections-refresh", schedule: "15 9 * * *" },
     // Daily ESPN NFL news snapshot (up to 100 articles, no auth). Runs at
-    // 09:20 UTC — after ktc-refresh (09:00) and before lifecycle-check (09:30)
-    // so the news snapshot is available when the lifecycle cron eventually
-    // begins consuming trendingMomentum for notification rules.
+    // 09:20 UTC, after projections-refresh (09:15). The snapshot feeds the
+    // homepage's trendingMomentum enrichment (espn/newsMatch.ts); the lifecycle
+    // cron does NOT consume it today — running before lifecycle-check (09:30) is
+    // simply reserved headroom for a future news-driven lifecycle rule.
     { path: "/api/cron/news-refresh", schedule: "20 9 * * *" },
     // Once daily at 09:30 UTC (after all data snapshots). Walks every stored
     // league and emits drift notifications (stacked bye weeks, FAAB drained,
