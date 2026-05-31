@@ -41,9 +41,17 @@ export function PlayerUniverse({ players, envelope }: Props) {
     ? players.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
     : players;
 
-  const selected = players[selectedIdx] ?? players[0];
+  const selectedBase = players[selectedIdx] ?? players[0];
+  // Keep the sidebar in sync with the filtered grid: if a search hides the
+  // currently-selected player, show the first visible result instead of a
+  // player no longer on screen.
+  const selected = searchQuery && selectedBase && !filtered.some((p) => p.id === selectedBase.id)
+    ? filtered[0] ?? selectedBase
+    : selectedBase;
   const risingStars = deriveRisingStars(players);
   const avgIneff = avg(players.map(marketInefficiency));
+  // Real third stat (replaces the old hardcoded "176 Leagues Analyzed").
+  const undervalued = players.filter((p) => p.trueValue > p.perceivedValue).length;
 
   // O(1) lookup for per-axis dashed rendering. Empty Set when no envelope
   // provided (legacy callers) → all axes treated as available.
@@ -88,12 +96,13 @@ export function PlayerUniverse({ players, envelope }: Props) {
           {selected && <PlayerProfile player={selected} />}
           <UniverseStats
             count={players.length}
+            undervalued={undervalued}
             avgIneff={avgIneff}
             risingStars={risingStars}
           />
           {selected && (
             <div className="radar-wrap">
-              <div className="section-label">TOP CATEGORIES</div>
+              <div className="section-label">METRIC PROFILE</div>
               <RadarChart
                 axes={[
                   {
@@ -107,7 +116,7 @@ export function PlayerUniverse({ players, envelope }: Props) {
                     unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
                   },
                   {
-                    label: "Narrative",
+                    label: "Trending",
                     value: Math.abs(selected.trendingMomentum),
                     unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
                   },
@@ -230,10 +239,12 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
 
 function UniverseStats({
   count,
+  undervalued,
   avgIneff,
   risingStars,
 }: {
   count: number;
+  undervalued: number;
   avgIneff: number;
   risingStars: PlayerMarketRecord[];
 }) {
@@ -246,8 +257,8 @@ function UniverseStats({
           <small>Total Players</small>
         </div>
         <div className="stat-box">
-          <strong>176</strong>
-          <small>Leagues Analyzed</small>
+          <strong>{undervalued}</strong>
+          <small>Undervalued</small>
         </div>
         <div className="stat-box">
           <strong>{fmt(avgIneff, 1)}%</strong>

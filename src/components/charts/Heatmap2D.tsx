@@ -45,13 +45,15 @@ export function Heatmap2D({ data, xLabels, yLabels, caption, colorScale = DEFAUL
   const svgH = PAD_TOP + rows * CELL_H + PAD_BOTTOM;
 
   return (
-    <div style={{ display: "inline-block" }}>
+    <div style={{ width: "100%", maxWidth: svgW }}>
       <svg
-        width={svgW}
-        height={svgH}
+        viewBox={`0 0 ${svgW} ${svgH}`}
+        width="100%"
+        height="auto"
+        preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Heatmap showing probability distribution across risk and scenario dimensions"
-        style={{ overflow: "visible" }}
+        style={{ overflow: "visible", display: "block" }}
       >
         {/* Y-axis labels */}
         {yLabels.map((label, r) => (

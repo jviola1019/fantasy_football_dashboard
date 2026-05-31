@@ -70,9 +70,9 @@ export function TradeBuilder({
         <b>{verdict.totalA}</b> vs <b>{verdict.totalB}</b> ·{" "}
         {verdict.verdict === "balanced"
           ? "Fair trade"
-          : `${(verdict.pctDelta * 100).toFixed(0)}% edge to ${
-              verdict.winner === "A" ? "You give" : "You get"
-            }`}
+          : verdict.winner === "B"
+            ? `${(verdict.pctDelta * 100).toFixed(0)}% in your favor`
+            : `${(verdict.pctDelta * 100).toFixed(0)}% against you`}
       </div>
     </div>
   );

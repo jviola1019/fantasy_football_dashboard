@@ -110,9 +110,9 @@ Current probabilities are development-calibration outputs when fixture mode is e
 
 ## Trade value simulator
 
-The Trade Center (`src/components/panels/TradeCenter.tsx`) is a top-level system backed by real market data from the **FantasyCalc** free API, with a **DynastyProcess** CSV fallback — no API keys and no paid feeds required. It has two tabs:
+The Trade Center (`src/components/panels/TradeCenter.tsx`) is a top-level system backed by real market data through a three-tier source chain: the **FantasyCalc** free API (primary), a cached **KeepTradeCut** snapshot (secondary), and a **DynastyProcess** CSV (tertiary fallback) — no API keys and no paid feeds required. It has two tabs:
 
-- **Trade Builder** — search players by name, build two sides of a trade, and get a live fairness verdict (balanced / slight-edge / lopsided) based on positionally-adjusted market values.
+- **Trade Builder** — search players by name, build two sides of a trade, and get a live fairness verdict (balanced / slight-edge / lopsided) based on market trade values (which are position-aware at the source).
 - **Recent League Trades** — grades real transactions pulled from a connected **Sleeper or ESPN** league, showing the value each side received and the verdict for each executed trade.
 
 League format (PPR / Superflex / team count) is auto-detected at league-add time via the Sleeper public API or ESPN `mSettings` and persisted per league. The format feeds the value weights used in both the Trade Builder and the grading engine.
@@ -197,18 +197,18 @@ RAE uses a professional "pro sports-analytics" design language: a disciplined da
 
 Implementation rules:
 - DOM owns KPI cards, tables, lists, gauges, player leaderboards, and controls (a11y, copy, selection).
-- The five abstract decorative 3-D WebGL scenes from earlier versions have been removed and replaced with 2-D player-forward views: Command Center uses a player leaderboard, Player Universe uses a player grid, Narrative Engine uses a narrative-pressure bar list, Market Intelligence uses bar charts, and Draft Intelligence uses a 2-D draft board.
-- One 3-D scene remains: the **Volatility/Outcome Surface** (`VolatilitySurface.tsx`) in the Nexus Simulator and Market Intelligence Trends tab. This is kept because a 3-D surface genuinely fits a two-parameter risk landscape.
-- Every animation responds to `prefers-reduced-motion` via Framer Motion's `useReducedMotion()` — including the Volatility Surface canvas auto-rotation.
+- All abstract decorative 3-D WebGL scenes from earlier versions have been removed (no three.js, no `<canvas>`) and replaced with 2-D player-forward views: Command Center uses a player leaderboard, Player Universe uses a player grid, Narrative Engine uses a narrative-pressure bar list, Market Intelligence uses bar charts, and Draft Intelligence uses a 2-D draft board.
+- The two-parameter risk landscape (outcome × risk-tolerance) is rendered as an accessible **2-D SVG heatmap** (`Heatmap2D.tsx`, fluid/`viewBox`-scaled) in the Nexus Simulator and the Market Intelligence Trends tab — its cells come from real per-risk-tolerance simulation runs, not hardcoded multipliers.
+- Every animation responds to `prefers-reduced-motion` via Framer Motion's `useReducedMotion()`.
 - No decorative neon palette. Position colors (QB/RB/WR/TE/K/DEF) provide the only status-driven color signal.
 
 ## Motion philosophy
 
-Motion is restrained and data-encoded. The Volatility Surface animates from volatility and outcome inputs. Reduced-motion users receive suppressed animation.
+Motion is restrained and data-encoded. Reduced-motion users receive suppressed animation.
 
 ## No-synthetic-data philosophy
 
-RAE does not fabricate production intelligence. If live data is unavailable, the UI exposes unavailable, missing, stale, or fixture states honestly. Development fixtures are labeled and gated by `RAE_ALLOW_FIXTURES=true`.
+RAE does not fabricate production intelligence. Every chart value is derived from real inputs (or labeled demo-fixture inputs); when a real source is unavailable the UI degrades to an explicit "unavailable" / "not integrated" state rather than inventing a plausible-looking number, sine-wave time series, or hardcoded constant. Sentiment/narrative cross-signal tables are labeled as **threshold heuristics on market metrics**, not detected news. Development fixtures are clearly marked as DEMO data (`mode:"fixture"` banner) and gated by `RAE_ALLOW_FIXTURES=true`.
 
 ## Troubleshooting
 

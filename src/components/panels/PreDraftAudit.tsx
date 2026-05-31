@@ -114,26 +114,25 @@ export function PreDraftAudit({ players, envelope }: Props) {
       id="pre-draft-audit"
       titleId="pda-title"
       title="Pre-Draft Audit"
-      eyebrow="Verify your league config before the clock starts."
+      eyebrow="Read your league config before the clock starts."
       icon={<ListChecks />}
     >
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0}>
-          <div className="section-label">LEAGUE SETTINGS</div>
+          <div className="section-label">DETECTED LEAGUE SETTINGS</div>
           {!format ? (
             <p className="small-note" role="status">
-              Connect a league at <code>/settings/leagues</code> to audit scoring, roster slots,
+              Connect a league at <code>/settings/leagues</code> to read your scoring, roster slots,
               trade deadline, and playoff weeks. Without a connected league the dashboard renders
-              fixture data and this panel has nothing to audit.
+              fixture data and this panel has nothing to read.
             </p>
           ) : (
             <table>
               <thead>
                 <tr>
                   <th>Setting</th>
-                  <th>Expected</th>
-                  <th>Current</th>
-                  <th>Status</th>
+                  <th>Value</th>
+                  <th>Source</th>
                   <th>Note</th>
                 </tr>
               </thead>
@@ -141,19 +140,10 @@ export function PreDraftAudit({ players, envelope }: Props) {
                 {rows.map((row) => (
                   <tr key={row.setting}>
                     <td>{row.setting}</td>
-                    <td>{row.expected}</td>
                     <td>{row.current}</td>
                     <td>
-                      <span
-                        className={
-                          row.status === "ok"
-                            ? "pos-text"
-                            : row.status === "warn"
-                              ? "neu-text"
-                              : "neg-text"
-                        }
-                      >
-                        {row.status.toUpperCase()}
+                      <span className={row.status === "miss" ? "neg-text" : "pos-text"}>
+                        {row.status === "miss" ? "not provided" : "detected"}
                       </span>
                     </td>
                     <td>
@@ -167,7 +157,7 @@ export function PreDraftAudit({ players, envelope }: Props) {
         </div>
         <div className="universe-sidebar">
           <div className="player-profile-card">
-            <div className="momentum-header">POSITION STRENGTH</div>
+            <div className="momentum-header">POOL STRENGTH BY POSITION</div>
             <ul className="rising-list">
               {positionRows.map((row) => (
                 <li key={row.pos} className="rising-item">

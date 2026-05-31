@@ -6,7 +6,6 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "../topbar/UserMenu";
-import { SearchInput } from "../topbar/SearchInput";
 import { LeagueSwitcher, type LeagueOption } from "../topbar/LeagueSwitcher";
 import { systems } from "../systems";
 
@@ -20,8 +19,8 @@ interface Props {
 
 /**
  * Sticky application header: sidebar toggle, brand, the numbered system tab
- * strip, search, account menu, and the live/fixture status badge. Laid out
- * with Tailwind utilities on a flex row that reflows cleanly down to mobile.
+ * strip, league switcher, account menu, and the live/fixture status badge. Laid
+ * out with Tailwind utilities on a flex row that reflows cleanly down to mobile.
  */
 export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeLeagueId = null }: Props) {
   const mode = envelope.mode;
@@ -48,9 +47,6 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          <div className="hidden lg:block">
-            <SearchInput />
-          </div>
           <LeagueSwitcher leagues={leagueOptions} activeLeagueId={activeLeagueId} />
           <UserMenu />
           <div

@@ -12,7 +12,6 @@ import {
   deriveViralVelocity,
   deriveStoryCollisions,
 } from "@/lib/derivedMetrics";
-import { LineChart } from "@/components/charts/LineChart";
 import { avg } from "@/lib/utils";
 
 type Props = {
@@ -21,11 +20,9 @@ type Props = {
 };
 
 const TABS = ["Narrative Flow", "Impact Over Time", "Collisions", "Sentiment Map"] as const;
-const TIME_LABELS = ["Oct 16", "Oct 23", "Oct 30", "Nov 6", "Now"];
 
 export function NarrativeEngine({ players, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Narrative Flow");
-  const [timeRange, setTimeRange] = useState("7D");
   const halfLife = deriveNarrativeHalfLife(players);
   const viralVel = deriveViralVelocity(players);
   const tone = avg(players.map((p) => p.trendingMomentum)) / 100;
@@ -46,18 +43,6 @@ export function NarrativeEngine({ players, envelope }: Props) {
       title="Narrative Engine"
       eyebrow="Decode stories. Anticipate outcomes."
       icon={<Waves />}
-      controls={
-        <select
-          className="galaxy-select"
-          value={timeRange}
-          onChange={(e) => setTimeRange(e.target.value)}
-          aria-label="Time range"
-        >
-          {["1D", "7D", "30D", "3M"].map((r) => (
-            <option key={r}>{r}</option>
-          ))}
-        </select>
-      }
     >
       {panelState.status === "unavailable" ? (
         <DataUnavailable
@@ -101,7 +86,10 @@ export function NarrativeEngine({ players, envelope }: Props) {
         </div>
       )}
       {activeTab === "Impact Over Time" && (
-        <NarrativeImpactChart players={players} />
+        <DataUnavailable
+          title="No narrative time-series source"
+          description="A real 'impact over time' chart needs dated historical sentiment snapshots. The pipeline only carries a single current trending-momentum value per player, so there is no honest multi-day series to plot. The current snapshot is in the Narrative Flow tab."
+        />
       )}
       {activeTab === "Collisions" && (
         <StoryCollisions collisions={collisions} />
@@ -162,9 +150,9 @@ function NarrativeFlowField({ players }: { players: PlayerMarketRecord[] }) {
 function HalfLifeCard({ halfLife }: { halfLife: number }) {
   return (
     <div className="narrative-metric-card">
-      <div className="nm-label">NARRATIVE HALF-LIFE</div>
-      <div className="nm-value">{Number.isFinite(halfLife) ? `${halfLife} Days` : "—"}</div>
-      <div className="nm-sub">Avg story decay rate</div>
+      <div className="nm-label">NARRATIVE PERSISTENCE</div>
+      <div className="nm-value">{Number.isFinite(halfLife) ? halfLife : "—"}</div>
+      <div className="nm-sub">Momentum-derived index (0–80; higher = slower decay)</div>
     </div>
   );
 }
@@ -185,7 +173,10 @@ function ToneGauge({ tone }: { tone: number }) {
       <svg viewBox="0 4 100 64" width="100%" aria-hidden="true">
         <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
           fill="none" stroke="rgba(214,226,226,0.1)" strokeWidth="8" />
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r * pct * 2 - r} ${cy - r * Math.sin(pct * Math.PI)}`}
+        {/* Fill traces the SAME semicircle as the track, ending exactly at the
+            needle tip (nx,ny) — so the coloured length is a faithful encoding of
+            tone. The previous endpoint formula peeled off the arc. */}
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${nx} ${ny}`}
           fill="none" stroke={tone >= 0 ? "#77d7b0" : "#d9866f"} strokeWidth="8" strokeLinecap="round" />
         <line x1={cx} y1={cy} x2={nx} y2={ny} stroke="var(--cream)" strokeWidth="1.5" strokeLinecap="round" />
         <circle cx={cx} cy={cy} r="3" fill="var(--cream)" />
@@ -209,36 +200,6 @@ function VelocityBadge({ velocity }: { velocity: string }) {
   );
 }
 
-function NarrativeImpactChart({ players }: { players: PlayerMarketRecord[] }) {
-  const makePoints = (scale: number) =>
-    TIME_LABELS.map((_, i) => {
-      const t = i / (TIME_LABELS.length - 1);
-      const base = avg(players.map((p) => Math.abs(p.trendingMomentum) * scale)) || 25;
-      return Math.round(base * (0.7 + 0.6 * Math.sin(t * Math.PI + scale)));
-    });
-
-  const series = [
-    { label: "Positive", color: "#77d7b0", points: makePoints(0.8) },
-    { label: "Negative", color: "#d9866f", points: makePoints(-0.5) },
-    { label: "Neutral", color: "#8d9aa0", points: makePoints(0.1) },
-  ];
-
-  return (
-    <div className="chart-wrap">
-      <div className="section-label">NARRATIVE IMPACT OVER TIME</div>
-      <div className="chart-legend">
-        {series.map((s) => (
-          <span key={s.label} className="legend-item">
-            <span className="legend-dot" style={{ background: s.color }} />
-            {s.label}
-          </span>
-        ))}
-      </div>
-      <LineChart series={series} labels={TIME_LABELS} height={130} />
-    </div>
-  );
-}
-
 function StoryCollisions({
   collisions,
 }: {
@@ -246,18 +207,18 @@ function StoryCollisions({
 }) {
   return (
     <div className="table-wrap" tabIndex={0}>
-      <div className="section-label">STORY COLLISIONS</div>
+      <div className="section-label">MOMENTUM × VOLATILITY FLAGS — heuristic, not detected news</div>
       <table>
         <thead>
           <tr>
-            <th>Story</th>
+            <th>Flag</th>
             <th>Player</th>
             <th>Impact</th>
           </tr>
         </thead>
         <tbody>
           {collisions.length === 0 ? (
-            <tr><td colSpan={3}>No significant collisions detected.</td></tr>
+            <tr><td colSpan={3}>No players cross the momentum × volatility thresholds.</td></tr>
           ) : (
             collisions.map(({ player, story, impact }) => (
               <tr key={player.id}>
@@ -276,33 +237,31 @@ function StoryCollisions({
 function SentimentMap({ players }: { players: PlayerMarketRecord[] }) {
   return (
     <div className="table-wrap" tabIndex={0}>
-      <div className="section-label">TOP NARRATIVES — Sentiment Map</div>
+      <div className="section-label">MARKET-SIGNAL FLAGS — threshold heuristics on market metrics (not detected news)</div>
       <table>
         <thead>
           <tr>
             <th>Player</th>
-            <th>Injury</th>
-            <th>Breakout</th>
-            <th>Trade</th>
-            <th>Regression</th>
-            <th>Controversy</th>
-            <th>Off Field</th>
+            <th>Fragile</th>
+            <th>High Opp.</th>
+            <th>Sell Signal</th>
+            <th>Overpriced</th>
+            <th>Hot</th>
           </tr>
         </thead>
         <tbody>
           {players.map((p) => (
             <tr key={p.id}>
               <td>{p.name}</td>
-              <td className={p.fragility > 50 ? "neg-text" : "pos-text"}>{p.fragility > 50 ? "+risk" : "—"}</td>
-              <td className={p.opportunity > 70 ? "pos-text" : "muted-text"}>{p.opportunity > 70 ? "+surge" : "—"}</td>
-              <td className={p.ownershipLeverage < -20 ? "neg-text" : "muted-text"}>{p.ownershipLeverage < -20 ? "+rumors" : "—"}</td>
-              <td className={p.perceivedValue > p.trueValue + 10 ? "neg-text" : "muted-text"}>{p.perceivedValue > p.trueValue + 10 ? "+risk" : "—"}</td>
-              <td className={Math.abs(p.trendingMomentum) > 50 ? "neg-text" : "muted-text"}>{Math.abs(p.trendingMomentum) > 50 ? "+active" : "—"}</td>
-              <td className="muted-text">—</td>
+              <td className={p.fragility > 50 ? "neg-text" : "muted-text"}>{p.fragility > 50 ? "yes" : "—"}</td>
+              <td className={p.opportunity > 70 ? "pos-text" : "muted-text"}>{p.opportunity > 70 ? "yes" : "—"}</td>
+              <td className={p.ownershipLeverage < -20 ? "neg-text" : "muted-text"}>{p.ownershipLeverage < -20 ? "yes" : "—"}</td>
+              <td className={p.perceivedValue > p.trueValue + 10 ? "neg-text" : "muted-text"}>{p.perceivedValue > p.trueValue + 10 ? "yes" : "—"}</td>
+              <td className={Math.abs(p.trendingMomentum) > 50 ? "pos-text" : "muted-text"}>{Math.abs(p.trendingMomentum) > 50 ? "yes" : "—"}</td>
             </tr>
           ))}
           {players.length === 0 && (
-            <tr><td colSpan={7}>No data.</td></tr>
+            <tr><td colSpan={6}>No data.</td></tr>
           )}
         </tbody>
       </table>

@@ -22,7 +22,7 @@ type Props = {
   envelope?: RAEEnvelope;
 };
 
-const TABS = ["Multiverse", "Scenarios", "Projections", "Sensitivity", "Risk Analysis"] as const;
+const TABS = ["Multiverse", "Scenarios", "Risk Analysis"] as const;
 
 // CI multipliers per panel-data-state. The simulation itself always runs;
 // what changes is how loud we are about the uncertainty bands. degraded
@@ -87,18 +87,15 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       icon={<Atom />}
       controls={
         <>
-          <select className="galaxy-select" defaultValue="Baseline" aria-label="Simulation scenario">
-            <option>Baseline</option>
-            <option>Best Case</option>
-            <option>Worst Case</option>
-          </select>
           <span className="sim-count">SIMULATIONS {sim.params.iterations.toLocaleString()}</span>
           <button
+            type="button"
             className={`run-sim-btn${running ? " running" : ""}`}
             onClick={handleRun}
             disabled={running}
+            aria-label="Replay the outcome animation"
           >
-            {running ? "RUNNING…" : "RUN SIMULATION"}
+            {running ? "REPLAYING…" : "REPLAY"}
           </button>
         </>
       }
@@ -130,7 +127,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       ) : null}
 
       <div className="nexus-layout">
-        {(activeTab === "Multiverse" || activeTab === "Projections") && (
+        {activeTab === "Multiverse" && (
           <>
             <div className="nexus-main">
               <OutcomeMultiverse players={players} sim={sim} running={running} />
@@ -142,7 +139,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
             </div>
           </>
         )}
-        {(activeTab === "Scenarios" || activeTab === "Sensitivity") && (
+        {activeTab === "Scenarios" && (
           <div className="nexus-full">
             <ScenarioComparisonTable scenarios={scenarios} hasData={hasData} />
             <KeyDrivers sim={sim} hasData={hasData} />
@@ -178,35 +175,40 @@ function OutcomeMultiverse({
   const outcomes = [
     { label: "Championship", pct: dist.championship, y: 50, color: "#d7a857" },
     { label: "Top 3 Finish", pct: dist.topThree, y: 100, color: "#77d7b0" },
-    { label: "Playoffs", pct: dist.playoffs, y: 150, color: "#7bb7ce" },
+    { label: "Wild Card", pct: dist.playoffs, y: 150, color: "#7bb7ce" },
     { label: "Middle Pack", pct: dist.middlePack, y: 200, color: "#8d9aa0" },
     { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: "#d9866f" },
   ];
+
+  // Real risk-tolerance axis: run the SAME simulation at five tolerance levels
+  // and read the actual championship / playoff / catastrophe probabilities — not
+  // the displayed sim's single value times hardcoded column multipliers (which
+  // was fabricated and made the heatmap meaningless). Mirrors VolatilitySurface.
+  const heatData = useMemo(() => {
+    const riskLevels = [0.1, 0.3, 0.5, 0.7, 0.9];
+    const sims = riskLevels.map((rt) =>
+      runNexusSimulation(players, {
+        seed: sim.seed,
+        iterations: sim.params.iterations,
+        rosterSlots: sim.params.rosterSlots,
+        riskTolerance: rt,
+      })
+    );
+    return [
+      sims.map((s) => s.championshipProbability / 100),
+      sims.map((s) => s.playoffProbability / 100),
+      sims.map((s) => s.catastrophicRisk / 100),
+    ];
+  }, [players, sim.seed, sim.params.iterations, sim.params.rosterSlots]);
 
   return (
     <div className="multiverse-wrap">
       <div className="section-label">OUTCOME MULTIVERSE</div>
       <Heatmap2D
         xLabels={["Low", "Mid-Low", "Mid", "Mid-High", "High"]}
-        yLabels={["Champ", "Playoff", "Chaos"]}
-        data={[
-          [sim.championshipProbability / 100 * 0.6,
-           sim.championshipProbability / 100 * 0.8,
-           sim.championshipProbability / 100,
-           sim.championshipProbability / 100 * 1.1,
-           sim.championshipProbability / 100 * 1.2].map((v) => Math.min(1, v)),
-          [sim.playoffProbability / 100 * 0.7,
-           sim.playoffProbability / 100 * 0.85,
-           sim.playoffProbability / 100,
-           sim.playoffProbability / 100 * 1.1,
-           sim.playoffProbability / 100 * 1.15].map((v) => Math.min(1, v)),
-          [sim.catastrophicRisk / 100 * 1.4,
-           sim.catastrophicRisk / 100 * 1.2,
-           sim.catastrophicRisk / 100,
-           sim.catastrophicRisk / 100 * 0.8,
-           sim.catastrophicRisk / 100 * 0.6].map((v) => Math.min(1, v))
-        ]}
-        caption="Probability across risk-tolerance axis"
+        yLabels={["Champ", "Make Playoffs", "Chaos"]}
+        data={heatData}
+        caption="Real per-risk-tolerance simulation outcomes (columns = risk tolerance Low→High)"
       />
       <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
         <defs>

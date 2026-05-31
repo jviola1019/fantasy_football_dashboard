@@ -5,8 +5,8 @@ import { Repeat } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { reputationEdge } from "@/lib/models";
-import { BarChart } from "@/components/charts/BarChart";
 import { PanelCard } from "../ui/PanelCard";
+import { DataUnavailable } from "../ui/DataUnavailable";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -32,11 +32,6 @@ export function WaiverWire({ players, envelope }: Props) {
     : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
   const showEdge = panelState.status === "ready";
   const ranked = useMemo(() => rankFreeAgents(players, { showEdge }), [players, showEdge]);
-  const faabBars = [
-    { label: "You (est)", value: 35 },
-    { label: "League median", value: 62 },
-    { label: "Top spender", value: 95 }
-  ];
 
   return (
     <PanelCard
@@ -100,11 +95,10 @@ export function WaiverWire({ players, envelope }: Props) {
         <div className="universe-sidebar">
           <div className="player-profile-card">
             <div className="momentum-header">FAAB BUDGET</div>
-            <BarChart items={faabBars} max={100} />
-            <p className="small-note">
-              Replace with real FAAB once your league&apos;s waiver type and remaining-budget fields are
-              piped through `/api/leagues/[id]/refresh`.
-            </p>
+            <DataUnavailable
+              title="FAAB budgets not connected"
+              description="Real waiver-budget bars need your league's waiver type and remaining-budget fields, surfaced via /api/leagues/[id]/refresh. No real FAAB data is integrated yet, so no placeholder bars are shown."
+            />
           </div>
         </div>
       </div>

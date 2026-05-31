@@ -251,7 +251,7 @@ function TierCollapseView({
         </table>
       </div>
       <div className="radar-wrap">
-        <div className="section-label">ROSTER FRAGILITY X-RAY</div>
+        <div className="section-label">POSITION STRENGTH RADAR</div>
         <RadarChart
           axes={grades.positions.map((p) => ({ label: p.pos, value: scoreFromGrade(p.grade) }))}
           max={100}

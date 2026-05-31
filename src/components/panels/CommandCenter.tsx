@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Zap } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
@@ -24,16 +23,16 @@ type Props = {
   metrics: CommandMetrics;
 };
 
-const TIME_RANGES = ["1D", "7D", "1M", "3M"] as const;
-
 export function CommandCenter({ players, envelope, sim, metrics }: Props) {
-  const [timeRange, setTimeRange] = useState<string>("7D");
   const hasData = players.length > 0;
   const movers = deriveNarrativeMovers(players);
   const grades = derivePositionGrades(players);
   const startSit = deriveStartSitEdge(players);
   const avgEdge = metrics.reputationEdge;
   const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + avgEdge * 1.4)));
+  const missing = new Set(envelope.sourceState.missingFields);
+  const trendingMissing = missing.has("trending_momentum");
+  const fragilityMissing = missing.has("fragility");
 
   return (
     <PanelCard
@@ -44,18 +43,6 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
       icon={<Zap />}
       controls={
         <>
-          <div className="time-range-tabs" role="group" aria-label="Time range">
-            {TIME_RANGES.map((r) => (
-              <button
-                key={r}
-                type="button"
-                className={`time-tab${timeRange === r ? " active" : ""}`}
-                onClick={() => setTimeRange(r)}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
           {envelope.mode === "live" && <span className="live-badge">● LIVE</span>}
           {envelope.mode === "fixture" && <span className="fixture-badge">FIXTURE</span>}
         </>
@@ -64,14 +51,14 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
       <MetricStrip metrics={metrics} missingFields={envelope.sourceState.missingFields} />
 
       <div className="pulse-wrapper">
-        <LeaguePulse players={players} marketEdge={marketEdge} timeRange={timeRange} />
-        <NarrativeMomentum gainers={movers.gainers} decliners={movers.decliners} />
+        <LeaguePulse players={players} marketEdge={marketEdge} />
+        <NarrativeMomentum gainers={movers.gainers} decliners={movers.decliners} unavailable={trendingMissing} />
       </div>
 
       <div className="bottom-row">
         <IntelFeed envelope={envelope} />
         <LineupWinProb sim={sim} />
-        <TeamConstructionScore grades={grades} />
+        <TeamConstructionScore grades={grades} fragilityMissing={fragilityMissing} />
         <RosterFragilityXRay players={players} envelope={envelope} />
         <StartSitEdge rows={startSit} hasData={hasData} />
       </div>
@@ -144,7 +131,7 @@ function MetricStrip({
   );
 }
 
-function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarketRecord[]; marketEdge: number; timeRange: string }) {
+function LeaguePulse({ players, marketEdge }: { players: PlayerMarketRecord[]; marketEdge: number }) {
   const ranked = [...players].sort((a, b) => b.trueValue - a.trueValue);
   const maxVal = ranked[0]?.trueValue ?? 100;
   return (
@@ -153,7 +140,7 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
         <span className="league-pulse-label">LEAGUE PULSE</span>
         <span className="league-pulse-edge-pill">
           <span className="league-pulse-edge-val">{marketEdge}</span>
-          <span className="league-pulse-edge-lbl">Market Edge · {timeRange}</span>
+          <span className="league-pulse-edge-lbl">Market Edge</span>
         </span>
       </div>
 
@@ -184,10 +171,23 @@ function LeaguePulse({ players, marketEdge, timeRange }: { players: PlayerMarket
 function NarrativeMomentum({
   gainers,
   decliners,
+  unavailable,
 }: {
   gainers: PlayerMarketRecord[];
   decliners: PlayerMarketRecord[];
+  unavailable: boolean;
 }) {
+  // Honest gating: narrative momentum derives from trendingMomentum. When that
+  // field is declared missing (no news/trending source), don't rank "gainers"
+  // off a zeroed signal — say so, mirroring the Narrative Velocity KPI.
+  if (unavailable) {
+    return (
+      <div className="narrative-momentum">
+        <div className="momentum-header">NARRATIVE MOMENTUM</div>
+        <p className="muted-note">Trending/sentiment source not integrated — no momentum to rank.</p>
+      </div>
+    );
+  }
   return (
     <div className="narrative-momentum">
       <div className="momentum-header">NARRATIVE MOMENTUM</div>
@@ -285,18 +285,23 @@ function LineupWinProb({ sim }: { sim: SimulationResult }) {
   );
 }
 
-function TeamConstructionScore({ grades }: { grades: PositionGrades }) {
+function TeamConstructionScore({ grades, fragilityMissing }: { grades: PositionGrades; fragilityMissing: boolean }) {
   return (
     <div className="mini-panel">
       <div className="mini-panel-title">Team Construction Score</div>
       <div className="overall-grade">{grades.overall}</div>
       <div className="position-grades">
-        {grades.positions.map(({ pos, grade }) => (
-          <div key={pos} className="pos-grade-row">
-            <span className="pos-label">{pos}</span>
-            <span className={`grade-val grade-${grade[0]?.toLowerCase()}`}>{grade}</span>
-          </div>
-        ))}
+        {grades.positions.map(({ pos, grade }) => {
+          // The DEF grade is driven by fragility; when that field is missing it
+          // is a constant, so show "—" rather than a fabricated letter grade.
+          const show = pos === "DEF" && fragilityMissing ? "—" : grade;
+          return (
+            <div key={pos} className="pos-grade-row">
+              <span className="pos-label">{pos}</span>
+              <span className={`grade-val grade-${show[0]?.toLowerCase()}`}>{show}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
