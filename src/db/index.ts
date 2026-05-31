@@ -55,25 +55,13 @@ function createSqliteDb(filename: string): Db {
 
 // Exported for the schema drift-guard test (db/schemaDrift.test.ts), which
 // asserts this prod DDL and the in-memory test DDL stay structurally identical.
-export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown; prepare: (sql: string) => { get: () => unknown } }): void {
-  const present = sqlite
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-    .get();
-  if (present) {
-    // Existing database: apply additive column migrations idempotently.
-    // SQLite ADD COLUMN throws if the column already exists, so swallow that.
-    try {
-      sqlite.exec("ALTER TABLE leagues ADD COLUMN settings TEXT");
-    } catch {
-      // column already present
-    }
-    try {
-      sqlite.exec("ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT");
-    } catch {
-      // column already present
-    }
-    return;
-  }
+export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown }): void {
+  // Idempotent and safe on BOTH fresh and pre-existing databases: every
+  // statement is CREATE TABLE IF NOT EXISTS, so a DB created before the newer
+  // snapshot tables (rankings/ktc/projections/news) still gets them on the next
+  // boot — the SQLite mirror of the per-module ensure*Table() self-heal used on
+  // Postgres. (Previously this early-returned on an existing DB and skipped the
+  // CREATE block, leaving older DBs missing those tables → "no such table".)
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -172,6 +160,19 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       payload TEXT NOT NULL
     );
   `);
+  // Additive column migrations for DBs created before these columns existed.
+  // SQLite ADD COLUMN throws if the column is already present (the common case
+  // on a fresh DB where the CREATE above already includes them) — swallow that.
+  for (const stmt of [
+    "ALTER TABLE leagues ADD COLUMN settings TEXT",
+    "ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT"
+  ]) {
+    try {
+      sqlite.exec(stmt);
+    } catch {
+      // column already present
+    }
+  }
 }
 
 function createPostgresDb(connectionUrl: string): Db {

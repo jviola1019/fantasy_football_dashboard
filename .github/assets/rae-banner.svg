@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="340" viewBox="0 0 1280 340" role="img" aria-label="RAE — Reputation Arbitrage Engine">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1120"/>
+      <stop offset="0.55" stop-color="#0d1424"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fc0e6"/>
+      <stop offset="1" stop-color="#3f7fa6"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5a9fc4" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#5a9fc4" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#5a9fc4" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="340" fill="url(#bg)"/>
+
+  <!-- faint vertical grid -->
+  <g stroke="#5a9fc4" stroke-opacity="0.06">
+    <line x1="160" y1="0" x2="160" y2="340"/><line x1="320" y1="0" x2="320" y2="340"/>
+    <line x1="480" y1="0" x2="480" y2="340"/><line x1="640" y1="0" x2="640" y2="340"/>
+    <line x1="800" y1="0" x2="800" y2="340"/><line x1="960" y1="0" x2="960" y2="340"/>
+    <line x1="1120" y1="0" x2="1120" y2="340"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="80" y="168" font-family="Georgia, 'Times New Roman', serif" font-size="116" font-weight="700" fill="#f0ece4" letter-spacing="2">RAE</text>
+  <text x="84" y="212" font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace" font-size="20" letter-spacing="9" fill="#8898aa">REPUTATION · ARBITRAGE · ENGINE</text>
+  <text x="84" y="250" font-family="ui-monospace, 'SFMono-Regular', Menlo, monospace" font-size="14.5" letter-spacing="2.5" fill="#5a9fc4">Quant fantasy-football intelligence — honest data, no fabrication.</text>
+
+  <!-- animated equalizer (market data motif) -->
+  <g transform="translate(840,70)">
+    <rect x="0"   y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="44"  y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="88"  y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="132" y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="176" y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="220" y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="264" y="0" width="26" height="200" rx="5" fill="#18222f"/>
+    <rect x="308" y="0" width="26" height="200" rx="5" fill="#18222f"/>
+
+    <rect x="0"   width="26" rx="5" fill="url(#blue)">
+      <animate attributeName="height" values="70;160;100;70" dur="3.4s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="130;40;100;130" dur="3.4s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="44"  width="26" rx="5" fill="url(#blue)">
+      <animate attributeName="height" values="120;60;180;120" dur="3.9s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="80;140;20;80" dur="3.9s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="88"  width="26" rx="5" fill="#d7a857">
+      <animate attributeName="height" values="90;150;60;90" dur="3.1s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="110;50;140;110" dur="3.1s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="132" width="26" rx="5" fill="url(#blue)">
+      <animate attributeName="height" values="150;90;170;150" dur="4.2s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="50;110;30;50" dur="4.2s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="176" width="26" rx="5" fill="url(#blue)">
+      <animate attributeName="height" values="60;140;90;60" dur="3.6s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="140;60;110;140" dur="3.6s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="220" width="26" rx="5" fill="url(#blue)">
+      <animate attributeName="height" values="170;100;150;170" dur="4.0s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="30;100;50;30" dur="4.0s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="264" width="26" rx="5" fill="#d7a857">
+      <animate attributeName="height" values="100;170;80;100" dur="3.3s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="100;30;120;100" dur="3.3s" repeatCount="indefinite"/>
+    </rect>
+    <rect x="308" width="26" rx="5" fill="url(#blue)">
+      <animate attributeName="height" values="130;70;160;130" dur="3.8s" repeatCount="indefinite"/>
+      <animate attributeName="y" values="70;130;40;70" dur="3.8s" repeatCount="indefinite"/>
+    </rect>
+  </g>
+
+  <!-- animated scan underline -->
+  <rect x="80" y="284" width="1120" height="2" fill="url(#fade)">
+    <animate attributeName="opacity" values="0.35;1;0.35" dur="2.6s" repeatCount="indefinite"/>
+  </rect>
+  <circle cx="80" cy="285" r="4" fill="#35c08a">
+    <animate attributeName="cx" values="80;1200;80" dur="9s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0;1;1;0" dur="9s" repeatCount="indefinite"/>
+  </circle>
+</svg>

@@ -1,4 +1,39 @@
-# RAE — Reputation Arbitrage Engine
+<p align="center">
+  <img src=".github/assets/rae-banner.svg" alt="RAE — Reputation Arbitrage Engine" width="100%">
+</p>
+
+<h1 align="center">RAE — Reputation Arbitrage Engine</h1>
+
+<p align="center">
+  <b>Quant fantasy-football intelligence.</b><br>
+  Honest data, no fabrication — every number is derived from a real source or an explicitly-labeled demo fixture.
+</p>
+
+<p align="center">
+  <a href="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
+  <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
+  <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
+  <img alt="374 tests passing" src="https://img.shields.io/badge/tests-374%20passing-35c08a">
+  <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
+</p>
+
+<p align="center">
+  <img src=".github/assets/hero.png" alt="RAE dashboard — Command Center and Market Intelligence" width="100%">
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src=".github/assets/shot-command.png" alt="Command Center"><br><sub><b>Command Center</b> — league pulse, KPIs, lineup win-probability</sub></td>
+    <td width="50%"><img src=".github/assets/shot-market.png" alt="Market Intelligence"><br><sub><b>Market Intelligence</b> — inefficiencies + real per-player VOR heatmap</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — Monte Carlo outcomes across risk tolerance</sub></td>
+    <td width="50%"><img src=".github/assets/shot-universe.png" alt="Player Universe"><br><sub><b>Player Universe</b> — player grid + metric profile radar</sub></td>
+  </tr>
+</table>
+
+---
 
 RAE is a fantasy football behavioral-market intelligence operating system. It is designed around perception asymmetry, narrative propagation, market inefficiency, volatility, uncertainty, fragility, survivability, leverage, chaos exposure, and reproducible simulation.
 
