@@ -56,8 +56,11 @@ describe("makeSnapshotStore", () => {
   it("pruneOlderThan deletes eligible rows and returns the count", async () => {
     const s = store();
     await s.insert("src-a", { a: 1, b: "x" });
-    await new Promise((r) => setTimeout(r, 5));
     await s.insert("src-a", { a: 2, b: "y" });
+    // Sleep so the prune cutoff (Date.now()) is strictly AFTER both rows'
+    // fetchedAt — otherwise a same-millisecond insert+prune on a fast runner
+    // leaves the newest row (fetchedAt == cutoff, not < cutoff) un-pruned.
+    await new Promise((r) => setTimeout(r, 12));
     const pruned = await s.pruneOlderThan("src-a", 0); // keep nothing → both eligible
     expect(pruned).toBeGreaterThanOrEqual(2);
     expect(await s.getLatest("src-a")).toBeNull();
