@@ -200,7 +200,7 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
         <span className="legend-dot liquidity-dot-mid legend-dot-ml" /> Moderate
         <span className="legend-dot liquidity-dot-low legend-dot-ml" /> Low
       </div>
-      <BarChart items={items} max={100} />
+      <BarChart items={items} max={100} valueSuffix="" />
       <p className="small-note liquidity-note">
         Bar length = opportunity score (0–100). Green = high-liquidity / high-upside players.
       </p>
@@ -266,7 +266,7 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
   return (
     <div className="chart-wrap">
       <div className="section-label">SENTIMENT DISTRIBUTION — Current snapshot</div>
-      <BarChart items={items} max={Math.max(1, players.length)} />
+      <BarChart items={items} max={Math.max(1, players.length)} valueSuffix="" />
       <p className="small-note">
         Players grouped by the sign of their current trending-momentum. No per-day
         sentiment source is integrated, so this is a single snapshot — not a forecast.

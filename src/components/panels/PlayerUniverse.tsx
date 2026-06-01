@@ -116,8 +116,12 @@ export function PlayerUniverse({ players, envelope }: Props) {
                     unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
                   },
                   {
+                    // Map signed momentum (−100..100) to a 0..100 position so a
+                    // NEGATIVE trend shows a SHORT spoke (consistent with the
+                    // signed value in the profile), not |momentum| which made a
+                    // −47 look identical to a +47.
                     label: "Trending",
-                    value: Math.abs(selected.trendingMomentum),
+                    value: (selected.trendingMomentum + 100) / 2,
                     unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
                   },
                   { label: "Confidence", value: selected.confidence * 100 },

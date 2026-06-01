@@ -1,7 +1,7 @@
 import type { RAEEnvelope, SourceMeta } from "../governance";
 import type { LiveLeagueSnapshot } from "./fetchLive";
 import type { FpEcrData, FpScoring } from "../fantasypros/types";
-import { buildFpIndex, enrichRoster } from "../fantasypros/enrich";
+import { buildFpIndex, enrichRoster, fpDataToRecords } from "../fantasypros/enrich";
 
 // Convert a live league snapshot + FantasyPros rankings into the RAEEnvelope
 // shape that RaeApp + every panel consume. The output envelope has:
@@ -56,7 +56,8 @@ export function buildLiveEnvelope({
       sourceState: degradedSourceState(snapshot.source, rankingsSource),
       leagueFormat: snapshot.format,
       weeklyProjections: weeklyProjections ?? null,
-      weeklyProjectionsMeta: weeklyProjectionsMeta ?? null
+      weeklyProjectionsMeta: weeklyProjectionsMeta ?? null,
+      draftPool: null
     };
   }
 
@@ -119,7 +120,9 @@ export function buildLiveEnvelope({
     },
     leagueFormat: snapshot.format,
     weeklyProjections: weeklyProjections ?? null,
-    weeklyProjectionsMeta: weeklyProjectionsMeta ?? null
+    weeklyProjectionsMeta: weeklyProjectionsMeta ?? null,
+    // The full FantasyPros-ranked pool so the draft panel can draft any player.
+    draftPool: fpDataToRecords(rankings, rankingsSource)
   };
 }
 

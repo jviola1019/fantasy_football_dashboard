@@ -62,7 +62,12 @@ export const RAEEnvelopeSchema = z.object({
       fetchedAt: z.string().datetime()
     })
     .nullable()
-    .optional()
+    .optional(),
+  // Full draftable player pool (all FantasyPros-ranked players as records), used
+  // by the Draft Intelligence / mock-draft view so you can draft ANY player —
+  // not just the ~15 on your current roster. Null when no rankings are cached;
+  // the draft panel then falls back to `records`. Optional so older payloads parse.
+  draftPool: z.array(PlayerMarketRecordSchema).nullable().optional()
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 

@@ -134,14 +134,23 @@ Sleeper leagues need no credentials (public API). Yahoo is the one platform stil
 
 ## Simulation methodology
 
-The Nexus Simulator uses:
-- deterministic Mulberry32 PRNG,
-- explicit seed and parameter logging,
-- bounded iteration counts,
-- risk tolerance controls,
+The Nexus Simulator runs a **real season Monte Carlo** (`src/lib/seasonSim.ts`):
+every simulated season plays a full round-robin schedule, each weekly matchup is
+decided by sampled team scores, standings seed a single-elimination playoff
+bracket (byes for top seeds), and the bracket winner is champion. Championship /
+playoff probabilities are genuine simulated frequencies, not a threshold
+heuristic. It uses:
+- deterministic Mulberry32 PRNG + Box–Muller normal sampling,
+- a two-level model (between-team strength + within-team weekly variance),
+- league parameters (teams / playoff spots / weeks) from your connected league,
+- the team's real Sleeper `pts_ppr` projections on the live path,
 - assumptions attached to every result.
 
-Current probabilities are development-calibration outputs when fixture mode is enabled. Production calibration requires validated projections, schedule, roster, injury, and scoring settings. RAE does not claim fixture probabilities are live production forecasts.
+**Calibration anchor:** a league-average roster makes the playoffs ≈
+`playoffTeams / numTeams` of the time. The opponent field is modeled as a
+distribution (RAE only has your roster in detail), so those constants are the
+documented assumption. See **[docs/season-sim.md](docs/season-sim.md)** for the
+full methodology and the calibration contract enforced by the test suite.
 
 ## Trade value simulator
 
@@ -274,7 +283,7 @@ npm run lighthouse    # lhci against next start
 
 ## Statistical validation
 
-The dashboard's derived metrics are now backed by 39 property-based statistical tests in `src/lib/derivedMetrics.stats.test.ts` and `src/lib/simulation.calibration.test.ts`. Every metric is asserted for determinism, range bounds, and sensitivity. The Monte Carlo simulation's response to `riskTolerance` is hypothesis-tested via Welch's t-test (p < 0.001) with Cohen's d effect size (|d| ≥ 0.5). The 95% bootstrap confidence interval for championship probability is surfaced in the Nexus Simulator side column.
+The dashboard's derived metrics are backed by property-based statistical tests in `src/lib/derivedMetrics.stats.test.ts`, `src/lib/seasonSim.test.ts`, and `src/lib/simulation.calibration.test.ts`. Every metric is asserted for determinism, range bounds, and sensitivity. The season Monte Carlo is held to an explicit **calibration contract**: a league-average roster makes the playoffs ≈ `playoffTeams / numTeams`, playoff probability is monotonic in roster strength, more variance lowers a favorite's title odds, and stronger real projections raise the odds. The 95% bootstrap confidence interval for championship probability is surfaced in the Nexus Simulator side column.
 
 See `docs/calibration.md` for the production calibration plan (Brier-score targets, reliability diagrams, k-fold cross-validation against historical seasons, parameter tuning procedure).
 
@@ -288,6 +297,6 @@ See `docs/calibration.md` for the production calibration plan (Brier-score targe
 - The Sleeper `user_id ↔ RAE userId` mapping is not yet captured at league-add time, so the cron currently scores the first roster in each Sleeper league as "yours." A one-form-field follow-up on `/settings/leagues` resolves this.
 - No paid sentiment/news/injury adapters yet.
 - Fixture data is not production intelligence.
-- Monte Carlo calibration is structurally deterministic but not production-calibrated without real projections and league settings.
+- The season Monte Carlo is calibrated against league-average baselines and uses your real projections + league settings on the live path, but the opponent field is modeled as a distribution (RAE only has your roster in detail), not each rival's actual lineup — see [docs/season-sim.md](docs/season-sim.md).
 - Multi-tenant organizations / shared teams are out of scope in this pass — single user per account, per-user data isolation enforced by `userId` foreign key and verified by `src/lib/leagues.test.ts`.
 - Automated screenshot, accessibility, and Lighthouse audits require a running browser workflow.

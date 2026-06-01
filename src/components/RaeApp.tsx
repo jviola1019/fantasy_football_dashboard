@@ -26,7 +26,7 @@ import { SYSTEM_ANCHORS } from "./systems";
 
 export { systems, type SystemName } from "./systems";
 
-const SIM_PARAMS = { seed: 20260513, iterations: 2500, rosterSlots: 6, riskTolerance: 0.58 } as const;
+const SIM_BASE = { seed: 20260513, iterations: 2500, riskTolerance: 0.58 } as const;
 
 export interface LeagueOption {
   id: string;
@@ -46,7 +46,26 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
   const [activeSystem, setActiveSystem] = useState<string>("Command Center");
   const players = envelope.records;
 
-  const sim = runNexusSimulation(players, SIM_PARAMS);
+  // Season-sim params from the connected league (falls back to a standard
+  // 12-team / 6-playoff / 9-starter league for the demo or unknown formats),
+  // wired with the real weekly projections when the cron has them.
+  const fmt = envelope.leagueFormat;
+  const rosterSlots = fmt?.starters
+    ? Math.max(1, Object.values(fmt.starters).reduce((a, b) => a + b, 0))
+    : 9;
+  const weeklyProjections = envelope.weeklyProjections
+    ? new Map(Object.entries(envelope.weeklyProjections))
+    : null;
+  const simParams = {
+    ...SIM_BASE,
+    rosterSlots,
+    numTeams: fmt?.numTeams ?? 12,
+    playoffTeams: fmt?.playoffTeams ?? 6,
+    regularSeasonWeeks: fmt?.playoffWeekStart ? Math.max(1, fmt.playoffWeekStart - 1) : 14,
+    weeklyProjections
+  };
+
+  const sim = runNexusSimulation(players, simParams);
   const commandMetrics = deriveCommandMetrics(players);
   const marketMetrics = deriveMarketMetrics(players);
   const scenarios = deriveScenarioComparison(players, sim);
@@ -114,7 +133,12 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
           </PanelRow>
 
           <PanelRow cols={1}>
-            <DraftIntelligence players={players} />
+            {/* The draft board needs the FULL player pool (every rankable
+                player), not just your ~15-player roster — otherwise you can't
+                run a mock draft. Falls back to records only when no pool exists. */}
+            <DraftIntelligence
+              players={envelope.draftPool && envelope.draftPool.length > 0 ? envelope.draftPool : players}
+            />
           </PanelRow>
 
           <PanelRow cols={3}>

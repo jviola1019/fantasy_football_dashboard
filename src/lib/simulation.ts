@@ -1,16 +1,27 @@
 import type { PlayerMarketRecord, SourceMeta } from "./governance";
-import { chaosExposure, reputationEdge } from "./models";
+import {
+  runSeasonSimulation,
+  type FieldModel,
+  type TeamStrength
+} from "./seasonSim";
+
+export { mulberry32 } from "./rng";
 
 export type SimulationParams = {
   seed: number;
   iterations: number;
+  /** Number of starting lineup slots used to build the team's weekly score. */
   rosterSlots: number;
+  /** 0..1. Scales the team's week-to-week variance (higher = boom/bust). */
   riskTolerance: number;
-  // When present, each player's trueValue is overridden with their weekly
-  // projected pts_ppr before the Monte Carlo loop. Off-season / when the
-  // cron has not fired: this field is absent and season-aggregate trueValue
-  // is used unchanged.
+  /** Real weekly pts_ppr per player id, when the projections cron has fired. */
   weeklyProjections?: Map<string, number> | null;
+  /** League size for the simulated season. Default 12. */
+  numTeams?: number;
+  /** Teams that make the playoffs. Default 6. */
+  playoffTeams?: number;
+  /** Regular-season weeks (round-robin length). Default 14. */
+  regularSeasonWeeks?: number;
 };
 
 export type SimulationResult = {
@@ -25,85 +36,98 @@ export type SimulationResult = {
   source: SourceMeta;
 };
 
-export function mulberry32(seed: number): () => number {
-  let state = seed >>> 0;
-  return () => {
-    state += 0x6d2b79f5;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+// ── Player → weekly-points model ────────────────────────────────────────────
+// All quantities are in WEEKLY FANTASY POINTS (PPR). A league-average startable
+// player scores ~AVG_STARTER_PTS; value above/below the median trueValue scales
+// linearly. These anchors make a median roster land at the field mean, which is
+// the calibration anchor (median roster ≈ playoffTeams/numTeams playoff odds).
+const AVG_STARTER_PTS = 11.5;
+const TV_SLOPE = 0.18; // weekly pts per trueValue point away from the median
+const MEDIAN_TV = 50;
+const PLAYER_SIGMA_BASE = 4;
+const PLAYER_SIGMA_SLOPE = 0.08; // weekly sd per volatility point
+const MEDIAN_PLAYER_SIGMA = PLAYER_SIGMA_BASE + PLAYER_SIGMA_SLOPE * 35;
+
+function starterWeeklyMean(p: PlayerMarketRecord, weekly: Map<string, number> | null): number {
+  const proj = weekly?.get(p.id);
+  if (proj != null) return Math.max(0, proj); // real weekly projection (live path)
+  return Math.max(0, AVG_STARTER_PTS + (p.trueValue - MEDIAN_TV) * TV_SLOPE);
+}
+
+function starterWeeklySigma(p: PlayerMarketRecord): number {
+  return PLAYER_SIGMA_BASE + Math.max(0, p.volatility) * PLAYER_SIGMA_SLOPE;
+}
+
+function clamp01(x: number): number {
+  return Math.min(1, Math.max(0, x));
+}
+
+export interface SeasonInputs {
+  team: TeamStrength;
+  field: FieldModel;
+  /** The chosen starters with their weekly means, best first. */
+  starters: Array<{ player: PlayerMarketRecord; weeklyMean: number }>;
 }
 
 /**
- * Build a function that maps a weekly projected-points value onto the same
- * 0-100 scale as `trueValue`, using a linear min-max match between the two
- * ranges as observed across the players that have a projection. Returns the
- * identity when there are too few projected players to fit a range (the
- * weekly path is then effectively unused). Pure; no RNG.
+ * Convert a roster + params into the team and field models the season simulator
+ * consumes. The team comes from the user's real starters; the field is anchored
+ * to league-average scoring so a median roster is calibrated to ≈
+ * playoffTeams/numTeams playoff odds. Risk tolerance scales team variance.
  */
-export function buildProjectionScaler(
-  players: PlayerMarketRecord[],
-  weeklyProjections: Map<string, number> | null
-): (pts: number) => number {
-  if (!weeklyProjections || weeklyProjections.size === 0) return (pts) => pts;
-  const projVals: number[] = [];
-  const tvVals: number[] = [];
-  for (const p of players) {
-    const wp = weeklyProjections.get(p.id);
-    if (wp != null) {
-      projVals.push(wp);
-      tvVals.push(p.trueValue);
-    }
-  }
-  if (projVals.length < 2) return (pts) => pts;
-  const pMin = Math.min(...projVals);
-  const pMax = Math.max(...projVals);
-  const tMin = Math.min(...tvVals);
-  const tMax = Math.max(...tvVals);
-  const pSpan = pMax - pMin || 1;
-  const tSpan = tMax - tMin || 1;
-  return (pts) => tMin + ((pts - pMin) / pSpan) * tSpan;
+export function deriveSeasonInputs(players: PlayerMarketRecord[], params: SimulationParams): SeasonInputs {
+  const rosterSlots = Math.max(1, Math.floor(params.rosterSlots));
+  const weekly = params.weeklyProjections ?? null;
+  const chosen = [...players].sort((a, b) => b.trueValue - a.trueValue).slice(0, rosterSlots);
+
+  let mean = 0;
+  let varSum = 0;
+  const starters = chosen.map((player) => {
+    const m = starterWeeklyMean(player, weekly);
+    const s = starterWeeklySigma(player);
+    mean += m;
+    varSum += s * s;
+    return { player, weeklyMean: m };
+  });
+  starters.sort((a, b) => b.weeklyMean - a.weeklyMean);
+
+  const riskScale = 0.85 + clamp01(params.riskTolerance) * 0.3; // 0→0.85, 1→1.15
+  const team: TeamStrength = { meanWeekly: mean, sigmaWeekly: Math.sqrt(varSum) * riskScale };
+
+  // Anchor the field to the ACTUAL number of starters used (not the requested
+  // rosterSlots) so the league of opponents is the same size as the user's team.
+  // Otherwise a roster with fewer players than rosterSlots (e.g. the 8-player
+  // demo fixture) is scored against a larger field and looks artificially weak.
+  const usedStarters = Math.max(1, starters.length);
+  const fieldMean = usedStarters * AVG_STARTER_PTS;
+  const field: FieldModel = {
+    meanWeekly: fieldMean,
+    betweenTeamSigma: fieldMean * 0.13,
+    withinTeamSigma: Math.sqrt(usedStarters) * MEDIAN_PLAYER_SIGMA
+  };
+
+  return { team, field, starters };
 }
 
+/**
+ * Run a real season Monte Carlo for the roster and return the dashboard's
+ * `SimulationResult`. Probabilities are genuine simulated frequencies — the team
+ * plays a full round-robin season, standings seed a playoff bracket, and the
+ * champion is the bracket winner — not a threshold heuristic.
+ */
 export function runNexusSimulation(players: PlayerMarketRecord[], params: SimulationParams): SimulationResult {
-  const rng = mulberry32(params.seed);
-  const iterations = Math.max(100, Math.min(params.iterations, 50_000));
-  let playoffHits = 0;
-  let championshipHits = 0;
-  let catastropheHits = 0;
-  const drivers = new Map<string, number>();
+  const { team, field, starters } = deriveSeasonInputs(players, params);
+  const numTeams = Math.max(2, Math.floor(params.numTeams ?? 12));
+  const playoffTeams = Math.max(1, Math.min(Math.floor(params.playoffTeams ?? 6), numTeams));
+  const regularSeasonWeeks = Math.max(1, Math.floor(params.regularSeasonWeeks ?? 14));
 
-  // The contention thresholds below (73/83/69) are calibrated to the 0-100
-  // `trueValue` scale. Weekly Sleeper projections (`pts_ppr`) are a single-week
-  // 0-~30 quantity, so feeding them in raw — or with a fixed ×2 — leaves every
-  // roster far below the thresholds and collapses all probabilities to ~0%.
-  // Instead, linearly map the projected-points range onto the trueValue range
-  // observed across the SAME players, so a top-projected player lands near the
-  // top of the trueValue scale and the thresholds stay meaningful on both paths.
-  const projToScale = buildProjectionScaler(players, params.weeklyProjections ?? null);
-
-  for (let i = 0; i < iterations; i += 1) {
-    const sampled = players
-      .map((player) => {
-        // Use the (scale-matched) weekly projection when available; otherwise
-        // fall back to the season-aggregate trueValue.
-        const projectedPts = params.weeklyProjections?.get(player.id);
-        const baseValue = projectedPts != null ? projToScale(projectedPts) : player.trueValue;
-        const shock = (rng() - 0.5) * player.volatility;
-        const score = baseValue + reputationEdge(player) * 0.8 + shock - chaosExposure(player) * (1 - params.riskTolerance) * 0.16;
-        return { player, score };
-      })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, params.rosterSlots);
-
-    const rosterScore = sampled.reduce((sum, item) => sum + item.score, 0) / Math.max(1, sampled.length);
-    if (rosterScore > 73) playoffHits += 1;
-    if (rosterScore > 83) championshipHits += 1;
-    if (sampled.some((item) => chaosExposure(item.player) > 62) && rosterScore < 69) catastropheHits += 1;
-    for (const item of sampled.slice(0, 3)) drivers.set(item.player.id, (drivers.get(item.player.id) ?? 0) + item.score / iterations);
-  }
+  const season = runSeasonSimulation(team, field, {
+    seed: params.seed,
+    iterations: params.iterations,
+    numTeams,
+    regularSeasonWeeks,
+    playoffTeams
+  });
 
   const source = players[0]?.sources[0] ?? {
     source: "No player source available",
@@ -117,37 +141,37 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
     failure: "Simulation ran without calibrated player data."
   };
 
+  const keyDrivers = starters
+    .slice(0, 5)
+    .map(({ player, weeklyMean }) => ({ id: player.id, name: player.name, contribution: round1(weeklyMean) }));
+
   return {
     seed: params.seed,
     params,
-    championshipProbability: pct(championshipHits / iterations),
-    playoffProbability: pct(playoffHits / iterations),
-    catastrophicRisk: pct(catastropheHits / iterations),
-    // regretIndex is a weighted composite (catastrophes + a fraction of
-    // playoff misses). The raw weighted sum can exceed the iteration count, so
-    // it is normalized by the worst-case weight before being expressed as a
-    // percentage — it can never report an impossible >100%.
-    regretIndex: pct(
-      (catastropheHits + (iterations - playoffHits) * 0.35) / (iterations * 1.35)
-    ),
-    keyDrivers: Array.from(drivers.entries())
-      .map(([id, contribution]) => ({ id, name: players.find((player) => player.id === id)?.name ?? id, contribution: Math.round(contribution * 10) / 10 }))
-      .sort((a, b) => b.contribution - a.contribution)
-      .slice(0, 5),
+    championshipProbability: pct(season.championshipProbability),
+    playoffProbability: pct(season.playoffProbability),
+    // "Catastrophe" = finishing in the bottom third of the standings.
+    catastrophicRisk: pct(season.bottomProbability),
+    // "Regret" = the probability of missing the playoffs entirely.
+    regretIndex: pct(1 - season.playoffProbability),
+    keyDrivers,
     assumptions: [
-      "Monte Carlo shocks are seeded and replayable.",
-      "These are a roster-strength contention HEURISTIC, not a season-simulated probability: there is no schedule, opponent, week-by-week scoring, or inter-player correlation. They report the fraction of sampled rosters whose top-N strength clears a contention bar on the 0-100 trueValue scale.",
-      "Weekly projections, when connected, are range-matched onto the trueValue scale before thresholding (see buildProjectionScaler).",
-      "Risk tolerance linearly reduces chaos penalty; this is documented and intentionally simple."
+      `Real season Monte Carlo: ${numTeams}-team league, ${regularSeasonWeeks}-week round-robin, top ${playoffTeams} make a single-elimination bracket (byes for top seeds), over ${season.iterations.toLocaleString()} simulated seasons.`,
+      "Each weekly matchup is decided by sampled team scores; the user's team uses its real starters' weekly means/variances and opponents draw a season strength from the league distribution.",
+      "Live path: each starter's weekly mean is its real Sleeper pts_ppr projection; off-season it is mapped from season-aggregate trueValue. Risk tolerance scales week-to-week variance.",
+      "Calibration anchor: a league-average roster makes the playoffs ≈ playoffTeams/numTeams of the time (see docs/season-sim.md)."
     ],
     source
   };
 }
 
+function round1(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
 /**
- * Convert a 0..1 ratio to a one-decimal percentage, clamped to [0, 100].
- * The clamp is a hard guard: a probability or risk index must never render an
- * impossible value, regardless of upstream weighting.
+ * Convert a 0..1 probability to a one-decimal percentage, clamped to [0, 100].
+ * A probability must never render an impossible value.
  */
 function pct(value: number): number {
   const bounded = Math.min(1, Math.max(0, value));

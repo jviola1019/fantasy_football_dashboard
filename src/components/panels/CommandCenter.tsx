@@ -271,8 +271,10 @@ function LineupWinProb({ sim }: { sim: SimulationResult }) {
             stroke="rgba(119,215,176,0.5)"
             strokeWidth="1.5"
           />
-          <text x={tCx} y={tTop - 8} textAnchor="middle" fontSize="9" fill="var(--muted)">P90</text>
-          <text x={tCx} y={tTop + 2} textAnchor="middle" fontSize="10" fill="var(--green)">{p90}%</text>
+          {/* Three distinct points: median in the centre, P10 (downside) and
+              P90 (upside) on the two base corners. The apex carries the small
+              "median" caption — not a duplicate P90. */}
+          <text x={tCx} y={tTop - 2} textAnchor="middle" fontSize="8" fill="var(--muted)">MEDIAN</text>
           <text x={tCx} y={(tTop + tBot) / 2 + 4} textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">{mid}%</text>
           <text x={tCx - halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">P10</text>
           <text x={tCx - halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--red)">{p10}%</text>
