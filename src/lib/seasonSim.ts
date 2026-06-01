@@ -44,6 +44,13 @@ export interface SeasonSimConfig {
   playoffTeams: number;
 }
 
+/**
+ * Final-season outcome tiers for the user's team, deepest last. Mutually
+ * exclusive and exhaustive — every simulated season lands in exactly one.
+ */
+export const OUTCOME_TIERS = ["Missed", "Playoffs", "Finalist", "Champion"] as const;
+export type OutcomeTier = (typeof OUTCOME_TIERS)[number];
+
 export interface SeasonSimResult {
   /** P(team makes the playoffs). */
   playoffProbability: number;
@@ -55,6 +62,18 @@ export interface SeasonSimResult {
   bottomProbability: number;
   /** Expected regular-season wins. */
   expectedWins: number;
+  /**
+   * Marginal P(team finishes the regular season with exactly W wins), indexed
+   * by win total 0..regularSeasonWeeks. Sums to 1.
+   */
+  winsDistribution: number[];
+  /**
+   * JOINT P(W wins AND final tier), as `[winTotal][tierIndex]` where the tier
+   * order is {@link OUTCOME_TIERS}. The whole matrix sums to 1, so a cell's
+   * value is the true probability of that exact (wins, outcome) pair — visual
+   * weight in a heatmap then matches real likelihood.
+   */
+  winOutcomeJoint: number[][];
   iterations: number;
 }
 
@@ -120,10 +139,11 @@ function simulateBracket(
   means: number[],
   sigmas: number[],
   rng: () => number
-): number {
+): { champion: number; runnerUp: number } {
   const seedRank = new Map<number, number>();
   seeded.forEach((t, i) => seedRank.set(t, i));
   let remaining = seeded.slice();
+  let runnerUp = -1;
   while (remaining.length > 1) {
     const n = remaining.length;
     const pow2 = largestPow2LE(n);
@@ -140,11 +160,16 @@ function simulateBracket(
       const b = playing[playing.length - 1 - i]!; // lower seed
       const sa = means[a]! + gaussian(rng) * sigmas[a]!;
       const sb = means[b]! + gaussian(rng) * sigmas[b]!;
-      winners.push(sa >= sb ? a : b);
+      const winner = sa >= sb ? a : b;
+      const loser = sa >= sb ? b : a;
+      winners.push(winner);
+      // The final is the round where exactly two teams play; its loser is the
+      // runner-up. (n === 2 ⇒ pow2 === 2 ⇒ numPlaying === 2, no byes.)
+      if (n === 2) runnerUp = loser;
     }
     remaining = [...byes, ...winners].sort((x, y) => seedRank.get(x)! - seedRank.get(y)!);
   }
-  return remaining[0]!;
+  return { champion: remaining[0]!, runnerUp };
 }
 
 export function runSeasonSimulation(
@@ -167,6 +192,11 @@ export function runSeasonSimulation(
   let byeHits = 0;
   let bottomHits = 0;
   let totalWins = 0;
+
+  // Per-win-total counts (marginal) and joint (wins × outcome-tier) counts.
+  // Tier index follows OUTCOME_TIERS: 0 Missed, 1 Playoffs, 2 Finalist, 3 Champion.
+  const winsCount = new Array<number>(weeks + 1).fill(0);
+  const jointCount: number[][] = Array.from({ length: weeks + 1 }, () => [0, 0, 0, 0]);
 
   const means = new Array<number>(numTeams);
   const sigmas = new Array<number>(numTeams);
@@ -194,7 +224,9 @@ export function runSeasonSimulation(
         else wins[b]!++;
       }
     }
-    totalWins += wins[0]!;
+    const userWins = wins[0]!;
+    totalWins += userWins;
+    winsCount[userWins]!++;
 
     // Seed by (wins desc, points-for desc).
     const order = [...Array(numTeams).keys()].sort((x, y) => wins[y]! - wins[x]! || pf[y]! - pf[x]!);
@@ -203,10 +235,20 @@ export function runSeasonSimulation(
     if (userSeed <= byeCount) byeHits++;
     if (userSeed > bottomThreshold) bottomHits++;
 
+    // Resolve the user's final outcome tier for the joint (wins × outcome) grid.
+    let tier = 0; // Missed
     if (userSeed <= playoffTeams) {
-      const champion = simulateBracket(order.slice(0, playoffTeams), means, sigmas, rng);
-      if (champion === 0) champHits++;
+      const { champion, runnerUp } = simulateBracket(order.slice(0, playoffTeams), means, sigmas, rng);
+      if (champion === 0) {
+        tier = 3; // Champion
+        champHits++;
+      } else if (runnerUp === 0) {
+        tier = 2; // Finalist (lost the championship game)
+      } else {
+        tier = 1; // Made playoffs, eliminated before the final
+      }
     }
+    jointCount[userWins]![tier]!++;
   }
 
   return {
@@ -215,6 +257,8 @@ export function runSeasonSimulation(
     byeProbability: byeHits / iterations,
     bottomProbability: bottomHits / iterations,
     expectedWins: totalWins / iterations,
+    winsDistribution: winsCount.map((c) => c / iterations),
+    winOutcomeJoint: jointCount.map((row) => row.map((c) => c / iterations)),
     iterations
   };
 }

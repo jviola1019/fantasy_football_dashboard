@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import type { RAEEnvelope } from "@/lib/governance";
 import { cn } from "@/lib/cn";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,6 +25,8 @@ interface Props {
  * out with Tailwind utilities on a flex row that reflows cleanly down to mobile.
  */
 export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeLeagueId = null }: Props) {
+  const navId = useId();
+  const reduce = useReducedMotion();
   const mode = envelope.mode;
   const badgeClass =
     mode === "live"
@@ -74,10 +78,11 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
         </div>
       </div>
 
-      {/* Numbered system tab strip — scrolls horizontally on narrow screens. */}
+      {/* Top-level system nav — a sliding-underline rail that reads as a single
+          premium control. Scrolls horizontally on narrow screens. */}
       <nav
         aria-label="Top-level systems"
-        className="-mx-1 flex items-center gap-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="topbar-nav -mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {systems.map((system, index) => {
           const isActive = active === system;
@@ -88,14 +93,36 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               onClick={() => onSelect(system)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "shrink-0 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-150",
+                "group relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 pb-2 pt-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
                 isActive
-                  ? "bg-rae-blue/12 text-foreground ring-1 ring-rae-blue/35 border-b-2 border-rae-blue/60"
-                  : "text-muted-foreground hover:bg-rae-blue/6 hover:text-foreground"
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:bg-rae-blue/[0.06] hover:text-foreground"
               )}
             >
-              <span className="tabular-nums text-rae-blue/70">{index + 1}</span>{" "}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "grid h-[18px] min-w-[18px] place-items-center rounded-[5px] px-1 text-[10px] font-bold tabular-nums transition-colors duration-200",
+                  isActive
+                    ? "bg-rae-blue/20 text-rae-blue"
+                    : "bg-muted/60 text-muted-foreground group-hover:text-rae-blue/80"
+                )}
+              >
+                {index + 1}
+              </span>
               {system}
+              {isActive && (
+                <motion.span
+                  layoutId={`topbar-underline-${navId}`}
+                  aria-hidden="true"
+                  className="topbar-underline absolute inset-x-1.5 -bottom-[1px] h-[2.5px] rounded-full"
+                  transition={
+                    reduce
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 520, damping: 40, mass: 0.6 }
+                  }
+                />
+              )}
             </button>
           );
         })}

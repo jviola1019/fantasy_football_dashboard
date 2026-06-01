@@ -10,7 +10,7 @@ import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derive
 import { bootstrapCI } from "@/lib/stats/distribution";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
-import { Heatmap2D } from "@/components/charts/Heatmap2D";
+import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { ReliabilityDiagram } from "@/components/charts/ReliabilityDiagram";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
@@ -162,6 +162,66 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   );
 }
 
+interface OutcomeHeat {
+  data: number[][];
+  xLabels: string[];
+  yLabels: string[];
+  maxCell: number;
+  caption: string;
+}
+
+/**
+ * Build the Outcome Multiverse heatmap from the season sim's joint
+ * (wins × outcome) distribution. Columns are the win totals carrying the most
+ * probability mass (up to 8, shown ascending); rows are the four outcome tiers
+ * with the deepest run on top. Each cell is the TRUE joint probability of that
+ * (wins, outcome) pair — so the grid sums to ~100% and intensity = likelihood.
+ * Returns null when there is no mass to chart (e.g. no player data).
+ */
+function buildOutcomeHeat(dist: SimulationResult["distribution"]): OutcomeHeat | null {
+  const { wins, joint, tiers } = dist;
+  const totalMass = wins.reduce((s, p) => s + p, 0);
+  if (totalMass <= 0) return null;
+
+  // Win-total columns: the (≤8) totals with the most marginal mass, ascending.
+  const cols = wins
+    .map((p, w) => ({ w, p }))
+    .filter((x) => x.p > 0.001)
+    .sort((a, b) => b.p - a.p)
+    .slice(0, 8)
+    .map((x) => x.w)
+    .sort((a, b) => a - b);
+  if (cols.length === 0) return null;
+
+  // Rows: deepest tier first (Champion → Finalist → Playoffs → Missed).
+  const rowOrder = tiers.map((_, i) => i).reverse();
+  const data = rowOrder.map((ti) => cols.map((w) => joint[w]?.[ti] ?? 0));
+  const yLabels = rowOrder.map((ti) => tiers[ti] ?? "");
+  const xLabels = cols.map((w) => `${w} W`);
+  const maxCell = Math.max(0.0001, ...data.flat());
+
+  // Name the single most-likely (wins, outcome) pair so the chart has a plain-
+  // English takeaway rather than only a grid of percentages.
+  let bestW = cols[0]!;
+  let bestTi = rowOrder[0]!;
+  let bestP = -1;
+  for (const w of cols) {
+    for (const ti of rowOrder) {
+      const p = joint[w]?.[ti] ?? 0;
+      if (p > bestP) {
+        bestP = p;
+        bestW = w;
+        bestTi = ti;
+      }
+    }
+  }
+  const caption =
+    `P(regular-season wins × playoff outcome) over the simulated seasons — columns = wins, ` +
+    `cell = true % of seasons. Most likely: ${bestW} wins → ${tiers[bestTi]} (${Math.round(bestP * 100)}%).`;
+
+  return { data, xLabels, yLabels, maxCell, caption };
+}
+
 function OutcomeMultiverse({
   players, sim, running,
 }: {
@@ -180,36 +240,27 @@ function OutcomeMultiverse({
     { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: "#d9866f" },
   ];
 
-  // Real risk-tolerance axis: run the SAME simulation at five tolerance levels
-  // and read the actual championship / playoff / catastrophe probabilities — not
-  // the displayed sim's single value times hardcoded column multipliers (which
-  // was fabricated and made the heatmap meaningless). Mirrors VolatilitySurface.
-  const heatData = useMemo(() => {
-    const riskLevels = [0.1, 0.3, 0.5, 0.7, 0.9];
-    const sims = riskLevels.map((rt) =>
-      runNexusSimulation(players, {
-        seed: sim.seed,
-        iterations: sim.params.iterations,
-        rosterSlots: sim.params.rosterSlots,
-        riskTolerance: rt,
-      })
-    );
-    return [
-      sims.map((s) => s.championshipProbability / 100),
-      sims.map((s) => s.playoffProbability / 100),
-      sims.map((s) => s.catastrophicRisk / 100),
-    ];
-  }, [players, sim.seed, sim.params.iterations, sim.params.rosterSlots]);
+  // Honest, useful heatmap: the JOINT distribution of regular-season wins ×
+  // playoff outcome straight from the season Monte Carlo. Every cell is a real
+  // simulated frequency (the whole grid sums to 100%), so visual weight matches
+  // true likelihood — unlike the old risk-tolerance sweep, whose rows came out
+  // dead flat (Make-Playoffs 100/100/100, Chaos 0/0/0) for any non-marginal team.
+  const heat = useMemo(() => buildOutcomeHeat(sim.distribution), [sim.distribution]);
 
   return (
     <div className="multiverse-wrap">
       <div className="section-label">OUTCOME MULTIVERSE</div>
-      <Heatmap2D
-        xLabels={["Low", "Mid-Low", "Mid", "Mid-High", "High"]}
-        yLabels={["Champ", "Make Playoffs", "Chaos"]}
-        data={heatData}
-        caption="Real per-risk-tolerance simulation outcomes (columns = risk tolerance Low→High)"
-      />
+      {heat ? (
+        <Heatmap2D
+          xLabels={heat.xLabels}
+          yLabels={heat.yLabels}
+          data={heat.data}
+          colorScale={(v) => DEFAULT_COLOR(heat.maxCell > 0 ? v / heat.maxCell : 0)}
+          caption={heat.caption}
+        />
+      ) : (
+        <p className="muted-note">No simulated seasons to chart yet.</p>
+      )}
       <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
         <defs>
           <filter id="multiverseGlow">

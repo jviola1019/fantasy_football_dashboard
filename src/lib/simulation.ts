@@ -1,6 +1,7 @@
 import type { PlayerMarketRecord, SourceMeta } from "./governance";
 import {
   runSeasonSimulation,
+  OUTCOME_TIERS,
   type FieldModel,
   type TeamStrength
 } from "./seasonSim";
@@ -34,6 +35,18 @@ export type SimulationResult = {
   keyDrivers: Array<{ id: string; name: string; contribution: number }>;
   assumptions: string[];
   source: SourceMeta;
+  /**
+   * Real simulated season-outcome distribution for the user's team. `wins[W]`
+   * is P(W regular-season wins); `joint[W][tier]` is the JOINT P(W wins AND
+   * final tier) with tiers ordered as {@link OUTCOME_TIERS}. Powers the Outcome
+   * Multiverse heatmap with genuine (not fabricated) frequencies.
+   */
+  distribution: {
+    wins: number[];
+    joint: number[][];
+    tiers: readonly string[];
+    weeks: number;
+  };
 };
 
 // ── Player → weekly-points model ────────────────────────────────────────────
@@ -161,7 +174,13 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
       "Live path: each starter's weekly mean is its real Sleeper pts_ppr projection; off-season it is mapped from season-aggregate trueValue. Risk tolerance scales week-to-week variance.",
       "Calibration anchor: a league-average roster makes the playoffs ≈ playoffTeams/numTeams of the time (see docs/season-sim.md)."
     ],
-    source
+    source,
+    distribution: {
+      wins: season.winsDistribution,
+      joint: season.winOutcomeJoint,
+      tiers: OUTCOME_TIERS,
+      weeks: regularSeasonWeeks
+    }
   };
 }
 

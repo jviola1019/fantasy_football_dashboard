@@ -187,9 +187,16 @@ export function deriveViralVelocity(players: PlayerMarketRecord[]): string {
   return "Low";
 }
 
-export function deriveLiquidityDepth(players: PlayerMarketRecord[]): string {
-  const total = players.reduce((s, p) => s + p.perceivedValue, 0) * 1000;
-  return `$${(total / 1_000_000).toFixed(2)}M`;
+/**
+ * Aggregate roster-value index — the sum of players' perceivedValue (a unitless
+ * 0–100 ECR-derived score), NOT a dollar figure. The old version multiplied by
+ * 1000 and rendered "$X.XXM", inventing a currency magnitude the data never
+ * had. Returns a compact unitless number string (e.g. "1.2k").
+ */
+export function deriveAggregateValueIndex(players: PlayerMarketRecord[]): string {
+  const total = players.reduce((s, p) => s + p.perceivedValue, 0);
+  if (!Number.isFinite(total) || total <= 0) return "—";
+  return total >= 1000 ? `${(total / 1000).toFixed(1)}k` : String(Math.round(total));
 }
 
 export function deriveStartSitEdge(players: PlayerMarketRecord[]): Array<{ player: PlayerMarketRecord; proj: number; repl: number; edge: number }> {

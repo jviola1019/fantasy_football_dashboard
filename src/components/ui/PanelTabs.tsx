@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
 interface PanelTabsProps {
@@ -11,19 +13,26 @@ interface PanelTabsProps {
 }
 
 /**
- * Controlled in-panel tab bar. Each tab is a fully-outlined chip — the active
- * one is ringed in the accent colour with a tinted fill — so the tab strip
- * reads clearly as a segmented control. Each panel keeps its own `useState`
- * for the active tab and renders this for a consistent look (horizontal
- * scroll on overflow, full keyboard + ARIA).
+ * Controlled in-panel tab bar, styled as a recessed segmented control. The
+ * active segment is marked by a single slate-blue pill that slides between
+ * tabs via a Framer Motion shared-layout animation (`layoutId`) — so switching
+ * tabs reads as one continuous control rather than a set of toggling buttons.
+ *
+ * `useId()` namespaces the `layoutId` per instance: two PanelTabs on screen
+ * (e.g. Player Universe + Market Intelligence) animate independently instead
+ * of the pill flying across panels. Honors `prefers-reduced-motion` by
+ * dropping the slide to an instant cross-fade.
  */
 export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: PanelTabsProps) {
+  const layoutId = useId();
+  const reduce = useReducedMotion();
+
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "mb-3 flex items-center gap-1.5 overflow-x-auto pb-0.5",
+        "panel-tabs mb-3 inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border/70 bg-secondary/40 p-1",
         "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className
       )}
@@ -38,13 +47,23 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: Pane
             aria-selected={isActive}
             onClick={() => onSelect(tab)}
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-md border-2 px-3.5 py-2 text-xs font-semibold uppercase tracking-[0.06em] transition-colors",
-              isActive
-                ? "border-rae-amber bg-rae-amber/10 text-foreground"
-                : "border-border text-muted-foreground hover:border-ring/60 hover:text-foreground"
+              "relative shrink-0 whitespace-nowrap rounded-[6px] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
-            {tab}
+            {isActive && (
+              <motion.span
+                layoutId={`panel-tab-pill-${layoutId}`}
+                aria-hidden="true"
+                className="panel-tab-pill absolute inset-0 rounded-[6px]"
+                transition={
+                  reduce
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 480, damping: 38, mass: 0.7 }
+                }
+              />
+            )}
+            <span className="relative z-[1]">{tab}</span>
           </button>
         );
       })}

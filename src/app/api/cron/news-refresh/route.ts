@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeEqual } from "@/lib/timingSafe";
 import { fetchEspnNews } from "@/lib/espn/news";
 import { insertNewsSnapshot, pruneOldNewsSnapshots } from "@/lib/espn/newsSnapshot";
 import { redact } from "@/lib/redact";
@@ -27,7 +28,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!expected) {
     return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
   }
-  if (auth !== `Bearer ${expected}`) {
+  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

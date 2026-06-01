@@ -105,9 +105,14 @@ function MetricStrip({
         },
     {
       label: "League Advantage",
-      value: `${metrics.leagueAdvantage}%`,
+      // Empty/pre-draft rosters yield NaN here; show "—" rather than "NaN%".
+      value: Number.isFinite(metrics.leagueAdvantage) ? `${metrics.leagueAdvantage}%` : "—",
       sub: "vs League Median",
-      color: metrics.leagueAdvantage >= 50 ? "pos" : "neg"
+      color: !Number.isFinite(metrics.leagueAdvantage)
+        ? "neu"
+        : metrics.leagueAdvantage >= 50
+          ? "pos"
+          : "neg"
     },
     chaosUnavailable
       ? { label: "Chaos Exposure", value: "—", sub: "Data source not integrated", color: "neu" }
@@ -219,22 +224,28 @@ function NarrativeMomentum({
 }
 
 function IntelFeed({ envelope }: { envelope: RAEEnvelope }) {
+  // These are provenance lines (data assumptions / adapter state), not
+  // time-stamped events — so we show the ONE real timestamp the envelope
+  // carries (when the data was fetched) once, rather than fabricating a
+  // per-row "Xm ago" age that would read as real event times.
   const alerts = [
     ...envelope.sourceState.assumptions,
     envelope.sourceState.failure ?? "Adapter state nominal.",
     `Mode: ${envelope.mode.toUpperCase()} · Freshness: ${envelope.sourceState.freshness}`,
   ].filter(Boolean);
-  const offsetTimestamps = alerts.map((_, i) => {
-    const mins = i * 7;
-    return mins < 60 ? `${mins}m ago` : `${Math.floor(mins / 60)}h ago`;
-  });
+  const stampSource = envelope.sourceState.fetchedAt ?? envelope.generatedAt;
+  const asOf = stampSource ? new Date(stampSource) : null;
+  const asOfLabel = asOf && !Number.isNaN(asOf.getTime())
+    ? asOf.toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
   return (
     <div className="mini-panel">
       <div className="mini-panel-title">Intelligence Feed</div>
+      {asOfLabel && <div className="intel-asof">As of {asOfLabel}</div>}
       <ul className="intel-list">
         {alerts.map((a, i) => (
           <li key={i} className="intel-item">
-            <span className="intel-ts">{offsetTimestamps[i]}</span>
+            <span className="intel-dot" aria-hidden="true" />
             <span>{a}</span>
           </li>
         ))}

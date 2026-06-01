@@ -379,8 +379,26 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 
 /* ─── Intel Feed ────────────────────────────────────────────────────────── */
 .intel-list { display: flex; flex-direction: column; gap: 5px; }
-.intel-item { display: flex; flex-direction: column; gap: 1px; font-size: 10px; color: var(--muted); border-bottom: 1px solid rgba(214,226,226,0.05); padding-bottom: 4px; }
+.intel-item { display: flex; align-items: baseline; gap: 7px; font-size: 10px; color: var(--muted); border-bottom: 1px solid rgba(214,226,226,0.05); padding-bottom: 4px; }
 .intel-ts { font-size: 9px; color: var(--blue); }
+/* Single real "as of <fetch time>" stamp for the provenance feed (replaces the
+   former fabricated per-row "Xm ago" ages). */
+.intel-asof {
+  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-size: 9px;
+  color: var(--blue);
+  letter-spacing: .04em;
+  margin-bottom: 6px;
+  opacity: .85;
+}
+.intel-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: rgba(90, 159, 196, 0.55);
+}
 
 /* ─── Team Construction Score ───────────────────────────────────────────── */
 .overall-grade { font-size: 32px; font-weight: 800; color: var(--green); text-align: center; margin: 6px 0; }
@@ -984,6 +1002,47 @@ td small { color: var(--muted); }
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* ─── Tab systems (TopBar nav + in-panel PanelTabs) ───────────────────────── */
+/* Both tab strips share a sliding-indicator pattern driven by Framer Motion
+   `layoutId`. The visual treatment of the indicator lives here so the motion
+   component stays a thin wrapper.
+
+   PanelTabs: a recessed segmented control. The active segment is a raised,
+   slate-tinted pill with a top sheen + soft drop so it reads as physically
+   lifted above the track. */
+.panel-tabs {
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.panel-tab-pill {
+  background: linear-gradient(180deg, rgba(90, 159, 196, 0.26), rgba(90, 159, 196, 0.12));
+  border: 1px solid rgba(90, 159, 196, 0.42);
+  box-shadow:
+    0 1px 6px rgba(90, 159, 196, 0.18),
+    inset 0 1px 0 rgba(186, 219, 236, 0.28);
+}
+
+/* TopBar nav: a flat rail with a single slate-blue underline that slides
+   between systems. The underline gets a soft glow so it stands off the
+   blurred header backdrop. */
+.topbar-nav {
+  position: relative;
+}
+.topbar-nav::after {
+  /* Hairline baseline the active underline rides along. */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: rgba(90, 159, 196, 0.14);
+  pointer-events: none;
+}
+.topbar-underline {
+  background: linear-gradient(90deg, rgba(90, 159, 196, 0.7), var(--blue), rgba(90, 159, 196, 0.7));
+  box-shadow: 0 0 8px rgba(90, 159, 196, 0.55);
 }
 
 /* Panel tab body fade-through. Consumer panels add `data-state="enter"` on

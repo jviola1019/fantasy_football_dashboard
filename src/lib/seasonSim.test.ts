@@ -93,4 +93,39 @@ describe("runSeasonSimulation", () => {
       expect(r.expectedWins).toBeLessThanOrEqual(CONFIG.regularSeasonWeeks);
     }
   });
+
+  it("DISTRIBUTION: winsDistribution + winOutcomeJoint are proper probability mass functions", () => {
+    const r = runSeasonSimulation({ meanWeekly: 110, sigmaWeekly: 28 }, FIELD, CONFIG);
+    // Lengths match the schedule.
+    expect(r.winsDistribution).toHaveLength(CONFIG.regularSeasonWeeks + 1);
+    expect(r.winOutcomeJoint).toHaveLength(CONFIG.regularSeasonWeeks + 1);
+    expect(r.winOutcomeJoint.every((row) => row.length === 4)).toBe(true);
+
+    const sumWins = r.winsDistribution.reduce((s, p) => s + p, 0);
+    const sumJoint = r.winOutcomeJoint.flat().reduce((s, p) => s + p, 0);
+    expect(sumWins).toBeCloseTo(1, 6);
+    expect(sumJoint).toBeCloseTo(1, 6);
+    expect(r.winsDistribution.every((p) => p >= 0)).toBe(true);
+    expect(r.winOutcomeJoint.flat().every((p) => p >= 0)).toBe(true);
+
+    // The joint's win-marginal must equal winsDistribution row-for-row.
+    r.winsDistribution.forEach((p, w) => {
+      const rowSum = r.winOutcomeJoint[w]!.reduce((s, x) => s + x, 0);
+      expect(rowSum).toBeCloseTo(p, 6);
+    });
+
+    // The expected wins implied by the distribution matches the reported mean.
+    const meanFromDist = r.winsDistribution.reduce((s, p, w) => s + p * w, 0);
+    expect(meanFromDist).toBeCloseTo(r.expectedWins, 6);
+  });
+
+  it("DISTRIBUTION: Champion-tier mass equals championshipProbability; Missed-tier complements playoffs", () => {
+    const r = runSeasonSimulation({ meanWeekly: 112, sigmaWeekly: 28 }, FIELD, CONFIG);
+    // Tier order is [Missed, Playoffs, Finalist, Champion] (see OUTCOME_TIERS).
+    const champMass = r.winOutcomeJoint.reduce((s, row) => s + row[3]!, 0);
+    const missedMass = r.winOutcomeJoint.reduce((s, row) => s + row[0]!, 0);
+    expect(champMass).toBeCloseTo(r.championshipProbability, 6);
+    // Missed + any playoff tier = 1; so Missed = 1 − playoffProbability.
+    expect(missedMass).toBeCloseTo(1 - r.playoffProbability, 6);
+  });
 });

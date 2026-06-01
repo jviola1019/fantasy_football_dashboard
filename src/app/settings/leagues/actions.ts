@@ -69,8 +69,12 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     });
     revalidatePath("/settings/leagues");
     return { ok: true, leagueId: league.id };
-  } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : "Failed to add league" };
+  } catch {
+    // Never surface a raw DB/driver error to the browser — it can leak internal
+    // detail (table/constraint names, connection failures). Return a fixed,
+    // user-actionable message. Validation + verification above already handle
+    // the cases the user can fix; anything reaching here is an internal fault.
+    return { ok: false, error: "Could not save this league. Please try again." };
   }
 }
 

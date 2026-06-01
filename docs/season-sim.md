@@ -25,6 +25,17 @@ For each of `iterations` simulated seasons:
 Reported frequencies: `playoffProbability`, `championshipProbability`,
 `byeProbability` (top seed), `bottomProbability` (bottom third), `expectedWins`.
 
+The sim also returns two distributions for the Outcome Multiverse heatmap:
+`winsDistribution[w]` = P(the team finishes the regular season with exactly `w`
+wins), and `winOutcomeJoint[w][tier]` = the JOINT P(`w` wins AND a final outcome
+`tier`), where tiers are `Missed → Playoffs → Finalist → Champion`. Both are
+proper probability mass functions (each sums to 1; the joint's win-marginal
+equals `winsDistribution`, its Champion-tier mass equals
+`championshipProbability`, and its Missed-tier mass equals
+`1 − playoffProbability` — all enforced in `seasonSim.test.ts`). Because the
+joint sums to 100%, a heatmap cell's intensity reflects the *true* probability
+of that (wins, outcome) pair rather than a re-scaled or fabricated value.
+
 ## The scoring model (two-level / hierarchical)
 
 All scores are in **weekly fantasy points (PPR)**.

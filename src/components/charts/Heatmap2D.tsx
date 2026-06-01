@@ -7,7 +7,7 @@
 // Sprint 3 D5 palette: slate-blue (low) → warm-amber (mid) → coral (high).
 // Three-band scale matches the new --blue / --accent-warm / --red system.
 // Opacity ramps within each band so low-value cells are never invisible.
-const DEFAULT_COLOR = (v: number): string => {
+export const DEFAULT_COLOR = (v: number): string => {
   if (v < 0.33) {
     const t = v / 0.33;
     return `rgba(74, 141, 183, ${0.22 + t * 0.52})`;       // slate-blue ramp

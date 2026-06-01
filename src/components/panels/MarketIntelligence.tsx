@@ -12,7 +12,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import { runNexusSimulation } from "@/lib/simulation";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, marketInefficiency, confidenceInterval } from "@/lib/models";
-import { deriveLiquidityDepth } from "@/lib/derivedMetrics";
+import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
 import { LineChart } from "@/components/charts/LineChart";
 import { fmt, fmtPct } from "@/lib/utils";
 
@@ -106,7 +106,7 @@ export function MarketIntelligence({ players, marketMetrics, envelope }: Props) 
 }
 
 function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: PlayerMarketRecord[] }) {
-  const depth = deriveLiquidityDepth(players);
+  const valueIndex = deriveAggregateValueIndex(players);
   const priceDisc = fmtPct(metrics.priceDiscoveryPct);
   // Qualifiers are derived from the actual values — not hardcoded strings that
   // would print "High" / "Favorable" regardless of the number shown.
@@ -115,7 +115,7 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
     { label: "Market Inefficiency", value: fmtPct(metrics.inefficiencyPct), sub: "Avg Value Over Replacement", color: "neu" },
     { label: "Liquidity Score", value: `${fmt(liq, 1)}/10`, sub: liq >= 6.5 ? "High" : liq >= 3.5 ? "Moderate" : "Low", color: liq >= 6.5 ? "pos" : "neu" },
     { label: "Arbitrage Opps", value: String(metrics.arbitrageCount), sub: "High-edge plays", color: metrics.arbitrageCount > 3 ? "pos" : "neu" },
-    { label: "Liquidity Depth", value: depth, sub: "Total Market Cap", color: "neu" },
+    { label: "Aggregate Value", value: valueIndex, sub: "Roster value index (ECR)", color: "neu" },
     { label: "Price Discovery", value: priceDisc, sub: "Volatility-implied", color: "neu" },
     { label: "Market Regime", value: metrics.marketRegime, sub: metrics.marketRegime === "Inefficient" ? "Favorable for exploitation" : "Efficiently priced", color: metrics.marketRegime === "Inefficient" ? "neg" : "pos" },
   ];

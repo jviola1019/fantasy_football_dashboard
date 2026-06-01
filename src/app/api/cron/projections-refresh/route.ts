@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { safeEqual } from "@/lib/timingSafe";
 import {
   buildSnapshotPayload,
   fetchSleeperWeeklyProjections,
@@ -35,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!expected) {
     return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
   }
-  if (auth !== `Bearer ${expected}`) {
+  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 

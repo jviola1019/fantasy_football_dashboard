@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { getDb, getDriver } from "@/db";
 import { INIT_SQL } from "@/db/schema-pg";
+import { safeEqual } from "@/lib/timingSafe";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!expected) {
     return NextResponse.json({ error: "DB_INIT_TOKEN is not set" }, { status: 503 });
   }
-  if (token !== expected) {
+  if (!safeEqual(token ?? "", expected)) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
