@@ -56,9 +56,16 @@
 - [x] PR 8 — Friendly auth-error map, signed-in UserMenu + sign-out, DemoBanner, inline login validation.
 - [x] PR 9 — Per-account isolation e2e gate + `docs/account-isolation.md`.
 
+## Phase 9 — Real season Monte Carlo + honesty/UX pass (shipped)
+- [x] Replaced the uncalibrated Nexus heuristic with a real **season Monte Carlo** (`src/lib/seasonSim.ts`): round-robin schedule, sampled weekly matchups, re-seeded single-elimination bracket with byes. Calibration contract enforced by tests (avg roster ≈ playoffTeams/numTeams, monotonic, favorite-variance, live-projection-driven).
+- [x] Outcome heatmaps (Nexus + Market Intelligence) now render the real **joint wins × playoff-outcome distribution** (`src/lib/outcomeHeat.ts`, grid sums to 100%), replacing the dead-flat risk-tolerance sweep.
+- [x] Mock-draft draft pool plumbed to the **full FantasyPros consensus** (`draftPool` on the envelope) so any player — including incoming rookies — can be drafted.
+- [x] FAAB-ratio extraction from Sleeper league settings (`extractSleeperFaabRatio`); the FAAB-depleted lifecycle rule is live end-to-end.
+- [x] Sleeper team identity captured at league-add time (optional **Sleeper username** field → `resolveSleeperRosterId`); the cron/envelope score the user's actual roster.
+- [x] Tab systems modernized (sliding-underline TopBar nav + segmented PanelTabs, Framer Motion `useReducedMotion`); security hardening (timing-safe token checks, sanitized add-league errors).
+
 ## Still deferred (genuine future work)
 - [ ] Yahoo Fantasy adapter (needs a registered Yahoo developer app for OAuth).
 - [ ] Paid projection / injury / sentiment feeds (only free-tier adapters wired today).
-- [ ] FAAB-ratio extraction from league settings (the FAAB-depleted lifecycle rule stays dormant until then).
-- [ ] Sleeper `user_id ↔ RAE userId` capture at league-add time (cron currently scores the first roster).
-- [ ] Auto-load the signed-in user's first league on the homepage (the DemoBanner bridges the gap for now).
+- [ ] ESPN FAAB-ratio extraction (Sleeper FAAB is wired; ESPN's `acquisitionBudget`/`waiverRank` path needs an ESPN-FAAB league to fixture-pin).
+- [ ] Auto-load the signed-in user's first league on the homepage (the DemoBanner + `RAE_ENABLE_LIVE_HOMEPAGE` flag bridge the gap for now).

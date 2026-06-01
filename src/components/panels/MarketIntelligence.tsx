@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { LineChart as LineChartIcon } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
-import { Heatmap2D } from "@/components/charts/Heatmap2D";
+import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { BarChart } from "@/components/charts/BarChart";
 import { runNexusSimulation } from "@/lib/simulation";
+import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, marketInefficiency, confidenceInterval } from "@/lib/models";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
@@ -276,26 +277,35 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
 }
 
 function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
-  const riskLevels = [0.1, 0.3, 0.5, 0.7, 0.9];
-  const riskLabels = ["Low", "Mid-Low", "Mid", "Mid-High", "High"];
-  // Run simulation at each risk tolerance to build the probability grid.
-  const sims = riskLevels.map((rt) =>
-    runNexusSimulation(players, { seed: 20260513, iterations: 600, rosterSlots: 6, riskTolerance: rt })
-  );
-  const data = [
-    sims.map((s) => s.championshipProbability / 100),
-    sims.map((s) => s.playoffProbability / 100),
-    sims.map((s) => s.catastrophicRisk / 100)
-  ];
+  // Honest landscape: the season sim's real JOINT (wins × playoff-outcome)
+  // distribution — every cell is a true simulated frequency (grid sums to
+  // 100%). The old version swept five risk-tolerance columns, whose rows came
+  // out dead-flat (Playoff 100/100/100, Chaos 0/0/0) for any non-marginal team.
+  const heat = useMemo(() => {
+    if (players.length === 0) return null;
+    const sim = runNexusSimulation(players, {
+      seed: 20260513,
+      iterations: 2500,
+      rosterSlots: 6,
+      riskTolerance: 0.5
+    });
+    return buildOutcomeHeat(sim.distribution);
+  }, [players]);
+
   return (
     <div className="chart-wrap vol-surface-wrap">
       <div className="section-label">OUTCOME PROBABILITY LANDSCAPE</div>
-      <Heatmap2D
-        xLabels={riskLabels}
-        yLabels={["Champ", "Playoff", "Chaos"]}
-        data={data}
-        caption="Rows: outcome type. Columns: risk tolerance. Color: blue=low → amber=mid → red=high."
-      />
+      {heat ? (
+        <Heatmap2D
+          xLabels={heat.xLabels}
+          yLabels={heat.yLabels}
+          data={heat.data}
+          colorScale={(v) => DEFAULT_COLOR(heat.maxCell > 0 ? v / heat.maxCell : 0)}
+          caption={heat.caption}
+        />
+      ) : (
+        <p className="muted-note">No simulated seasons to chart yet.</p>
+      )}
     </div>
   );
 }

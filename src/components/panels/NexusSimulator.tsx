@@ -11,6 +11,7 @@ import { bootstrapCI } from "@/lib/stats/distribution";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
+import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import { ReliabilityDiagram } from "@/components/charts/ReliabilityDiagram";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
@@ -160,66 +161,6 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       </div>
     </PanelCard>
   );
-}
-
-interface OutcomeHeat {
-  data: number[][];
-  xLabels: string[];
-  yLabels: string[];
-  maxCell: number;
-  caption: string;
-}
-
-/**
- * Build the Outcome Multiverse heatmap from the season sim's joint
- * (wins × outcome) distribution. Columns are the win totals carrying the most
- * probability mass (up to 8, shown ascending); rows are the four outcome tiers
- * with the deepest run on top. Each cell is the TRUE joint probability of that
- * (wins, outcome) pair — so the grid sums to ~100% and intensity = likelihood.
- * Returns null when there is no mass to chart (e.g. no player data).
- */
-function buildOutcomeHeat(dist: SimulationResult["distribution"]): OutcomeHeat | null {
-  const { wins, joint, tiers } = dist;
-  const totalMass = wins.reduce((s, p) => s + p, 0);
-  if (totalMass <= 0) return null;
-
-  // Win-total columns: the (≤8) totals with the most marginal mass, ascending.
-  const cols = wins
-    .map((p, w) => ({ w, p }))
-    .filter((x) => x.p > 0.001)
-    .sort((a, b) => b.p - a.p)
-    .slice(0, 8)
-    .map((x) => x.w)
-    .sort((a, b) => a - b);
-  if (cols.length === 0) return null;
-
-  // Rows: deepest tier first (Champion → Finalist → Playoffs → Missed).
-  const rowOrder = tiers.map((_, i) => i).reverse();
-  const data = rowOrder.map((ti) => cols.map((w) => joint[w]?.[ti] ?? 0));
-  const yLabels = rowOrder.map((ti) => tiers[ti] ?? "");
-  const xLabels = cols.map((w) => `${w} W`);
-  const maxCell = Math.max(0.0001, ...data.flat());
-
-  // Name the single most-likely (wins, outcome) pair so the chart has a plain-
-  // English takeaway rather than only a grid of percentages.
-  let bestW = cols[0]!;
-  let bestTi = rowOrder[0]!;
-  let bestP = -1;
-  for (const w of cols) {
-    for (const ti of rowOrder) {
-      const p = joint[w]?.[ti] ?? 0;
-      if (p > bestP) {
-        bestP = p;
-        bestW = w;
-        bestTi = ti;
-      }
-    }
-  }
-  const caption =
-    `P(regular-season wins × playoff outcome) over the simulated seasons — columns = wins, ` +
-    `cell = true % of seasons. Most likely: ${bestW} wins → ${tiers[bestTi]} (${Math.round(bestP * 100)}%).`;
-
-  return { data, xLabels, yLabels, maxCell, caption };
 }
 
 function OutcomeMultiverse({

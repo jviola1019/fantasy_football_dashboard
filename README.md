@@ -14,7 +14,7 @@
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
   <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
-  <img alt="374 tests passing" src="https://img.shields.io/badge/tests-374%20passing-35c08a">
+  <img alt="385 tests passing" src="https://img.shields.io/badge/tests-385%20passing-35c08a">
   <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
 </p>
 
@@ -28,7 +28,7 @@
     <td width="50%"><img src=".github/assets/shot-market.png" alt="Market Intelligence"><br><sub><b>Market Intelligence</b> — inefficiencies + real per-player VOR heatmap</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — Monte Carlo outcomes across risk tolerance</sub></td>
+    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — season Monte Carlo: joint wins × playoff-outcome distribution</sub></td>
     <td width="50%"><img src=".github/assets/shot-universe.png" alt="Player Universe"><br><sub><b>Player Universe</b> — player grid + metric profile radar</sub></td>
   </tr>
 </table>
@@ -232,8 +232,8 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 208 unit/integration tests; CI runs typecheck + lint + vitest + Playwright +
-Lighthouse on every push (`.github/workflows/ci.yml`).
+`vitest` holds 385 unit/integration tests (4 live-API specs skipped unless `RAE_LIVE_TESTS=1`);
+CI runs typecheck + lint + vitest + Playwright + Lighthouse on every push (`.github/workflows/ci.yml`).
 
 ## Design philosophy
 
@@ -242,7 +242,7 @@ RAE uses a professional "pro sports-analytics" design language: a disciplined da
 Implementation rules:
 - DOM owns KPI cards, tables, lists, gauges, player leaderboards, and controls (a11y, copy, selection).
 - All abstract decorative 3-D WebGL scenes from earlier versions have been removed (no three.js, no `<canvas>`) and replaced with 2-D player-forward views: Command Center uses a player leaderboard, Player Universe uses a player grid, Narrative Engine uses a narrative-pressure bar list, Market Intelligence uses bar charts, and Draft Intelligence uses a 2-D draft board.
-- The two-parameter risk landscape (outcome × risk-tolerance) is rendered as an accessible **2-D SVG heatmap** (`Heatmap2D.tsx`, fluid/`viewBox`-scaled) in the Nexus Simulator and the Market Intelligence Trends tab — its cells come from real per-risk-tolerance simulation runs, not hardcoded multipliers.
+- The season-outcome landscape is rendered as an accessible **2-D SVG heatmap** (`Heatmap2D.tsx`, fluid/`viewBox`-scaled) in the Nexus Simulator and the Market Intelligence Trends tab. Its cells are the season Monte Carlo's real **joint distribution of regular-season wins × playoff outcome** (`src/lib/outcomeHeat.ts`) — every cell is a true simulated frequency and the whole grid sums to 100%, so intensity reflects real likelihood (it replaced an earlier risk-tolerance sweep whose rows came out dead-flat for any non-marginal team).
 - Every animation responds to `prefers-reduced-motion` via Framer Motion's `useReducedMotion()`.
 - No decorative neon palette. Position colors (QB/RB/WR/TE/K/DEF) provide the only status-driven color signal.
 
@@ -293,8 +293,8 @@ See `docs/calibration.md` for the production calibration plan (Brier-score targe
 - The Sleeper `/v1/players/nfl` payload is ~19 MB. Solved via the daily Vercel cron at `/api/cron/players-refresh` which snapshots into the `players_snapshots` Postgres table; `loadRAEEnvelope` reads the snapshot first and only falls back to a live fetch when the snapshot is older than 36h or missing. Vercel Cron Jobs are gated by the `CRON_SECRET` env var.
 - Yahoo Fantasy adapter is deferred (OAuth requires a registered Yahoo developer app).
 - Paid feeds (FantasyPros projections, paid injury/sentiment) are not implemented. Free-tier adapters (open-meteo weather, public NFL RSS) are wired and respect the same governance envelope contract.
-- The lifecycle cron at `/api/cron/lifecycle-check` runs once daily (09:30 UTC, staggered after the players/rankings/KTC snapshots) and pulls each user's roster live via `src/lib/leagues/fetchLive.ts` (decrypts ESPN cookies / hits Sleeper, normalizes through `PlayerMarketRecordSchema`) before running the rules engine. The daily cadence is the Vercel Hobby-plan cap of one run per cron per day; Pro plans can tighten the interval in `vercel.ts`. The FAAB-depleted rule activates automatically when `faabRemainingRatio` is surfaced on the snapshot (Sleeper: `settings.waiver_budget` − `rosters[i].settings.waiver_budget_used`).
-- The Sleeper `user_id ↔ RAE userId` mapping is not yet captured at league-add time, so the cron currently scores the first roster in each Sleeper league as "yours." A one-form-field follow-up on `/settings/leagues` resolves this.
+- The lifecycle cron at `/api/cron/lifecycle-check` runs once daily (09:30 UTC, staggered after the players/rankings/KTC snapshots) and pulls each user's roster live via `src/lib/leagues/fetchLive.ts` (decrypts ESPN cookies / hits Sleeper, normalizes through `PlayerMarketRecordSchema`) before running the rules engine. The daily cadence is the Vercel Hobby-plan cap of one run per cron per day; Pro plans can tighten the interval in `vercel.ts`. The FAAB-depleted rule is wired end-to-end for **Sleeper** leagues: `fetchLeagueLive` surfaces `myFaabRemainingRatio` (`extractSleeperFaabRatio`: `settings.waiver_budget` − `rosters[i].settings.waiver_budget_used`) and the cron passes it into the rules engine, which alerts when the ratio falls below 0.1. (ESPN FAAB extraction is the one piece still pending — see below.)
+- Each Sleeper league captures an optional **Sleeper username** at add-time (`/settings/leagues`); `resolveSleeperRosterId` (`src/lib/leagues/fetchLive.ts`) maps it to the owner's `roster_id` so the lifecycle cron and the live envelope score the user's **actual** team. It falls back to the first roster only when no username was provided.
 - No paid sentiment/news/injury adapters yet.
 - Fixture data is not production intelligence.
 - The season Monte Carlo is calibrated against league-average baselines and uses your real projections + league settings on the live path, but the opponent field is modeled as a distribution (RAE only has your roster in detail), not each rival's actual lineup — see [docs/season-sim.md](docs/season-sim.md).
