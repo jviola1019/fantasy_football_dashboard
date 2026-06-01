@@ -386,10 +386,11 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .intel-asof {
   font-family: "IBM Plex Mono", "Courier New", monospace;
   font-size: 9px;
+  /* Full --blue (#5a9fc4) on --panel-2 (#18222f) clears WCAG AA (~5.1:1).
+     An earlier opacity:.85 dimmed it to #508cae (4.35:1) → axe-flagged. */
   color: var(--blue);
   letter-spacing: .04em;
   margin-bottom: 6px;
-  opacity: .85;
 }
 .intel-dot {
   flex: none;
