@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { runNexusSimulation } from "@/lib/simulation";
 import type { RAEEnvelope } from "@/lib/governance";
 import {
@@ -22,7 +22,7 @@ import { PreDraftAudit } from "./panels/PreDraftAudit";
 import { WaiverWire } from "./panels/WaiverWire";
 import { TradeCenter } from "./panels/TradeCenter";
 import { DemoBanner } from "./topbar/DemoBanner";
-import { SYSTEM_ANCHORS } from "./systems";
+import { SYSTEM_ANCHORS, systems } from "./systems";
 
 export { systems, type SystemName } from "./systems";
 
@@ -87,15 +87,57 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
   const marketMetrics = deriveMarketMetrics(marketPool);
   const scenarios = deriveScenarioComparison(players, sim);
 
+  // Suppress the scroll-spy briefly after a click so the programmatic smooth
+  // scroll doesn't make the highlight flicker through intervening panels.
+  const programmaticUntilRef = useRef(0);
+
   // Selecting a system highlights its nav entry AND scrolls its panel into
   // view. scroll-mt-* on PanelCard clears the sticky TopBar.
   const goToSystem = (system: string) => {
     setActiveSystem(system);
+    programmaticUntilRef.current = Date.now() + 900;
     const anchor = SYSTEM_ANCHORS[system];
     if (!anchor) return;
     const el = typeof document !== "undefined" ? document.getElementById(anchor) : null;
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+
+  // Scroll-spy: as the user scrolls, highlight the system whose panel is most
+  // in view (below the sticky TopBar). Tracks every panel's intersection ratio
+  // and picks the dominant one. Honors the click guard above.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const byId = new Map<string, string>();
+    const targets: HTMLElement[] = [];
+    for (const system of systems) {
+      const el = document.getElementById(SYSTEM_ANCHORS[system] ?? "");
+      if (el) {
+        byId.set(el.id, system);
+        targets.push(el);
+      }
+    }
+    if (targets.length === 0) return;
+    const ratios = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) ratios.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
+        if (Date.now() < programmaticUntilRef.current) return;
+        let bestId: string | null = null;
+        let bestRatio = 0;
+        for (const [id, r] of ratios) {
+          if (r > bestRatio) {
+            bestRatio = r;
+            bestId = id;
+          }
+        }
+        const sys = bestId ? byId.get(bestId) : null;
+        if (sys) setActiveSystem(sys);
+      },
+      { rootMargin: "-110px 0px -45% 0px", threshold: [0, 0.2, 0.4, 0.6, 0.8, 1] }
+    );
+    for (const el of targets) observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <SidebarProvider>

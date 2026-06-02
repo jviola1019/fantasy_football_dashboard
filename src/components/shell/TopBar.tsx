@@ -93,7 +93,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               onClick={() => onSelect(system)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "group relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 pb-2 pt-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+                "group relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 pb-[18px] pt-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
                 isActive
                   ? "text-foreground"
                   : "text-muted-foreground hover:bg-rae-blue/[0.06] hover:text-foreground"
@@ -102,7 +102,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               <span
                 aria-hidden="true"
                 className={cn(
-                  "grid h-[18px] min-w-[18px] place-items-center rounded-[5px] px-1 text-[10px] font-bold tabular-nums transition-colors duration-200",
+                  "grid h-5 min-w-5 place-items-center rounded-md px-1.5 text-[10px] font-bold leading-none tabular-nums transition-colors duration-200",
                   isActive
                     ? "bg-rae-blue/20 text-rae-blue"
                     : "bg-muted/60 text-muted-foreground group-hover:text-rae-blue/80"
