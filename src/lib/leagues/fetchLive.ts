@@ -77,6 +77,38 @@ export function extractSleeperFaabRatio(
   return remaining / total;
 }
 
+/**
+ * Pure helper — extract the user's FAAB-remaining ratio (0..1) from ESPN's
+ * league settings + the user's team. ESPN exposes FAAB as
+ * `settings.acquisitionSettings.{isUsingAcquisitionBudget, acquisitionBudget}`
+ * and per-team `transactionCounter.acquisitionBudgetSpent`. Returns null unless
+ * the league explicitly uses an acquisition budget (so we never surface FAAB
+ * for a non-FAAB ESPN league), the total is positive, and the computed ratio is
+ * a sane [0, 1]. Exported for unit testing without an ESPN fetch.
+ */
+export function extractEspnFaabRatio(
+  leagueSettings: Record<string, unknown> | null | undefined,
+  team: Record<string, unknown> | null | undefined
+): number | null {
+  if (!leagueSettings || !team) return null;
+  const acqRaw = leagueSettings.acquisitionSettings;
+  if (!acqRaw || typeof acqRaw !== "object") return null;
+  const acq = acqRaw as Record<string, unknown>;
+  // Only FAAB-budget leagues. A non-FAAB league must not surface a ratio.
+  if (acq.isUsingAcquisitionBudget !== true) return null;
+  const total = typeof acq.acquisitionBudget === "number" ? acq.acquisitionBudget : null;
+  if (total === null || total <= 0) return null;
+  const tcRaw = team.transactionCounter;
+  const spentRaw =
+    tcRaw && typeof tcRaw === "object"
+      ? (tcRaw as Record<string, unknown>).acquisitionBudgetSpent
+      : undefined;
+  const spent = typeof spentRaw === "number" ? spentRaw : 0; // omitted ⇒ none spent
+  const remaining = total - spent;
+  if (remaining < 0 || remaining > total) return null;
+  return remaining / total;
+}
+
 // ---------------------------------------------------------------------------
 // Pure team-identification helpers (exported so they can be unit-tested)
 // ---------------------------------------------------------------------------
@@ -372,10 +404,13 @@ async function fetchEspnLive(
     source: result.source,
     failure: null,
     format,
-    // ESPN: FAAB extraction not yet wired. Their settings live under
-    // settings.acquisitionSettings.acquisitionBudget + teamData.waiverRank;
-    // separate ticket once an ESPN-FAAB league is available to fixture-pin.
-    myFaabRemainingRatio: null,
+    // ESPN FAAB: read settings.acquisitionSettings + the user's team
+    // transactionCounter. Null for non-FAAB leagues or when the team is
+    // unresolved. Feeds the lifecycle FAAB-depleted rule, same as Sleeper.
+    myFaabRemainingRatio: extractEspnFaabRatio(
+      result.data.settings ?? null,
+      myTeam as unknown as Record<string, unknown> | null
+    ),
     leagueRawData: espnRawData,
     draftStatus: null
   };

@@ -73,8 +73,11 @@ See `SPRINT5.md` for the plan and `reports/audit-sprint5.md` for the ledger.
 - [x] **UI/UX**: TopBar +10px breathing room; roomier segmented PanelTabs.
 - [x] **QA**: security re-audit (SAFE TO SHIP, no cross-account/credential leak); `e2e/15-sprint5-panels.spec.ts` (all 9 panels, every tab, new interactions, junk-text + overflow at 4 viewports); 417 vitest + 78 e2e; live 2025 Brier backtest reproduces exactly.
 
+## Phase 11 — Remaining-task close-out (shipped)
+- [x] **Homepage auto-load**: a signed-in user with ≥1 league gets a live envelope from their active league (cookie) or `leagues[0]` automatically (`resolveHome` in `src/app/page.tsx`); 0-league users get the NoLeague CTA; anonymous gets the demo. The old `RAE_ENABLE_LIVE_HOMEPAGE` flag is now only an ops override.
+- [x] **ESPN FAAB-ratio extraction** (`extractEspnFaabRatio`): reads `settings.acquisitionSettings.{isUsingAcquisitionBudget,acquisitionBudget}` + the team's `transactionCounter.acquisitionBudgetSpent`; FAAB-leagues only; feeds the lifecycle FAAB-depleted rule like Sleeper. 8 unit tests.
+- [x] **In-season opportunity**: the `opportunity-refresh` cron already resolves the *current* season via `getNflState` when `season_type==="regular"` and falls back to the last completed season off-season — so it auto-upgrades to current-week snap data once 2026 games are played (nflverse publishes `snap_counts_2026` then).
+- [x] **TopBar scroll-spy**: the active system highlight follows scroll (IntersectionObserver); numbered badges enlarged; the glowing underline sits ~10px below the label. `e2e/16-topbar-nav.spec.ts`.
+
 ## Still deferred (genuine future work)
-- [ ] Yahoo Fantasy adapter (needs a registered Yahoo developer app for OAuth).
-- [ ] ESPN FAAB-ratio extraction (Sleeper FAAB is wired; ESPN's `acquisitionBudget`/`waiverRank` path needs an ESPN-FAAB league to fixture-pin).
-- [ ] In-season (current-week) opportunity: today's `opportunity` is last-season snap share (off-season role proxy); wire the current-season snap feed once games are played.
-- [ ] Auto-load the signed-in user's first league on the homepage (the DemoBanner + `RAE_ENABLE_LIVE_HOMEPAGE` flag bridge the gap for now).
+- [ ] Yahoo Fantasy adapter — the one item requiring external setup: a registered Yahoo Developer app (OAuth2 client id/secret + redirect URI) and a real Yahoo fantasy account to build and verify against. Not implementable without those credentials; would otherwise ship untested OAuth code.

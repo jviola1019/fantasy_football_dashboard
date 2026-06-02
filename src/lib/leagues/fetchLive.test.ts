@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { resolveSleeperRosterId, resolveEspnTeam, extractSleeperFaabRatio } from "./fetchLive";
+import {
+  resolveSleeperRosterId,
+  resolveEspnTeam,
+  extractSleeperFaabRatio,
+  extractEspnFaabRatio
+} from "./fetchLive";
 
 // ---------------------------------------------------------------------------
 // resolveSleeperRosterId
@@ -179,6 +184,71 @@ describe("extractSleeperFaabRatio", () => {
       { waiver_budget: 100 },
       { waiver_budget_used: 95 }
     );
+    expect(ratio).not.toBeNull();
+    expect(ratio!).toBeLessThan(0.1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// extractEspnFaabRatio
+// ---------------------------------------------------------------------------
+
+const ESPN_FAAB_SETTINGS = {
+  acquisitionSettings: { isUsingAcquisitionBudget: true, acquisitionBudget: 100 }
+};
+
+describe("extractEspnFaabRatio", () => {
+  it("returns the correct ratio for a FAAB league", () => {
+    // $100 budget, $40 spent → 0.60 remaining.
+    expect(
+      extractEspnFaabRatio(ESPN_FAAB_SETTINGS, { transactionCounter: { acquisitionBudgetSpent: 40 } })
+    ).toBeCloseTo(0.6, 5);
+  });
+
+  it("treats an absent acquisitionBudgetSpent as 0 spent", () => {
+    expect(extractEspnFaabRatio(ESPN_FAAB_SETTINGS, { transactionCounter: {} })).toBe(1);
+    expect(extractEspnFaabRatio(ESPN_FAAB_SETTINGS, {})).toBe(1);
+  });
+
+  it("returns ~0 when the whole budget is spent", () => {
+    expect(
+      extractEspnFaabRatio(ESPN_FAAB_SETTINGS, { transactionCounter: { acquisitionBudgetSpent: 100 } })
+    ).toBe(0);
+  });
+
+  it("returns null when the league does NOT use an acquisition budget", () => {
+    expect(
+      extractEspnFaabRatio(
+        { acquisitionSettings: { isUsingAcquisitionBudget: false, acquisitionBudget: 100 } },
+        { transactionCounter: { acquisitionBudgetSpent: 10 } }
+      )
+    ).toBeNull();
+    // Missing the flag is treated as not-FAAB (conservative — never surface a
+    // ratio for a league we can't confirm uses FAAB).
+    expect(
+      extractEspnFaabRatio({ acquisitionSettings: { acquisitionBudget: 100 } }, { transactionCounter: {} })
+    ).toBeNull();
+  });
+
+  it("returns null with missing settings / acquisitionSettings / team", () => {
+    expect(extractEspnFaabRatio(null, {})).toBeNull();
+    expect(extractEspnFaabRatio({}, {})).toBeNull();
+    expect(extractEspnFaabRatio(ESPN_FAAB_SETTINGS, null)).toBeNull();
+  });
+
+  it("returns null when the budget is zero/negative or overspent (corrupt)", () => {
+    expect(
+      extractEspnFaabRatio({ acquisitionSettings: { isUsingAcquisitionBudget: true, acquisitionBudget: 0 } }, {})
+    ).toBeNull();
+    expect(
+      extractEspnFaabRatio(ESPN_FAAB_SETTINGS, { transactionCounter: { acquisitionBudgetSpent: 150 } })
+    ).toBeNull();
+  });
+
+  it("activates the lifecycle threshold (< 0.1) for a depleted ESPN budget", () => {
+    const ratio = extractEspnFaabRatio(ESPN_FAAB_SETTINGS, {
+      transactionCounter: { acquisitionBudgetSpent: 95 }
+    });
     expect(ratio).not.toBeNull();
     expect(ratio!).toBeLessThan(0.1);
   });
