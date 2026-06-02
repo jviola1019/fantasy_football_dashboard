@@ -135,6 +135,22 @@ describe("derivedMetrics — statistical properties", () => {
       }
     });
 
+    it("deriveScenarioComparison: points are realistic season totals anchored to the weekly model", () => {
+      const s = deriveScenarioComparison(fixturePlayers, sim);
+      for (const row of [s.bestCase, s.baseline, s.worstCase]) {
+        // A fantasy team scores roughly 60–160 pts/week over ~14 weeks ⇒ a
+        // believable season band. (The old sum(trueValue)*16 produced ~10k+.)
+        expect(row.pointsFor).toBeGreaterThan(400);
+        expect(row.pointsFor).toBeLessThan(3000);
+        expect(row.pointsAgainst).toBeGreaterThan(400);
+        expect(row.pointsAgainst).toBeLessThan(3000);
+      }
+      // Points-for tracks the best→worst scale; points-against is the league
+      // average (you face an average schedule) so it stays constant.
+      expect(s.bestCase.pointsFor).toBeGreaterThan(s.worstCase.pointsFor);
+      expect(s.bestCase.pointsAgainst).toBe(s.baseline.pointsAgainst);
+    });
+
     it("derivePositionGrades: every position emits a grade letter", () => {
       const g = derivePositionGrades(fixturePlayers);
       const valid = /^[ABCD][+-]?$/;

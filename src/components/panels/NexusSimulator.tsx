@@ -378,16 +378,19 @@ function KeyDrivers({ sim, hasData }: { sim: SimulationResult; hasData: boolean 
   if (!hasData || sim.keyDrivers.length === 0) {
     return <div className="mini-panel"><div className="mini-panel-title">Key Drivers</div><p className="muted-note">No data.</p></div>;
   }
-  const maxContrib = Math.max(...sim.keyDrivers.map((d) => d.contribution), 1);
+  // Each driver's contribution is its projected weekly points — show the REAL
+  // pts/week (not an abstract 0-100), so the bars read as "what each starter
+  // actually adds per week."
   const items = sim.keyDrivers.map((d) => ({
     label: d.name.split(" ").pop() ?? d.name,
-    value: Math.round((d.contribution / maxContrib) * 100),
+    value: Math.round(d.contribution * 10) / 10,
     color: "#77d7b0",
   }));
+  const maxV = Math.max(...items.map((i) => i.value), 1);
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">Key Drivers</div>
-      <BarChart items={items} max={100} />
+      <div className="mini-panel-title">Key Drivers — proj pts/week</div>
+      <BarChart items={items} max={maxV} valueSuffix="" />
     </div>
   );
 }

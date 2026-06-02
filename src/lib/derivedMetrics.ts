@@ -1,6 +1,6 @@
 import type { PlayerMarketRecord } from "./governance";
 import { reputationEdge, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
-import { runNexusSimulation, type SimulationResult } from "./simulation";
+import { runNexusSimulation, deriveSeasonInputs, type SimulationResult } from "./simulation";
 import { avg, clamp, gradeFromScore } from "./utils";
 
 const BASE_PARAMS = { seed: 20260513, iterations: 2500, rosterSlots: 6, riskTolerance: 0.58 } as const;
@@ -79,9 +79,13 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
-function simToRow(sim: SimulationResult, players: PlayerMarketRecord[], scale = 1.0): ScenarioRow {
-  const basePoints = players.reduce((s, p) => s + p.trueValue, 0) * 16;
-
+function simToRow(
+  sim: SimulationResult,
+  weeklyFor: number,
+  weeklyAgainst: number,
+  weeks: number,
+  scale = 1.0
+): ScenarioRow {
   // Every probability is clamped to [0, 100]. The three tiers are also forced
   // into the only ordering that is logically possible: winning the title
   // implies a top-3 finish, which implies making the playoffs. Without this a
@@ -99,8 +103,12 @@ function simToRow(sim: SimulationResult, players: PlayerMarketRecord[], scale = 
     championship: round1(championship),
     topThree: round1(topThree),
     playoffs: round1(playoffs),
-    pointsFor: Math.round(basePoints * scale),
-    pointsAgainst: Math.round(basePoints * (2 - scale) * 0.97),
+    // Real season points: the team's expected weekly score (sum of starter
+    // weekly means from the season model) × weeks, scaled for the scenario.
+    // Points-against is the league-average opponent total (you face an average
+    // schedule), so it does NOT scale with your own strength.
+    pointsFor: Math.round(weeklyFor * weeks * scale),
+    pointsAgainst: Math.round(weeklyAgainst * weeks),
     finalRank: Math.min(12, Math.max(1, Math.round((100 - playoffs) / 11) + 1)),
   };
 }
@@ -147,10 +155,15 @@ export function deriveOutcomeDistribution(sim: SimulationResult): OutcomeDistrib
 export function deriveScenarioComparison(players: PlayerMarketRecord[], baseline: SimulationResult): ScenarioComparison {
   const best = runNexusSimulation(players, { ...BASE_PARAMS, riskTolerance: 0.9 });
   const worst = runNexusSimulation(players, { ...BASE_PARAMS, riskTolerance: 0.15 });
+  // Anchor points to the real weekly model ONCE (from the baseline params) so
+  // all three scenarios share the same team/field and differ only by the
+  // best/worst scale — not by an incidental difference in starter count.
+  const { team, field } = deriveSeasonInputs(players, baseline.params);
+  const weeks = Math.max(1, baseline.params.regularSeasonWeeks ?? 14);
   return {
-    bestCase: simToRow(best, players, 1.12),
-    baseline: simToRow(baseline, players, 1.0),
-    worstCase: simToRow(worst, players, 0.87),
+    bestCase: simToRow(best, team.meanWeekly, field.meanWeekly, weeks, 1.12),
+    baseline: simToRow(baseline, team.meanWeekly, field.meanWeekly, weeks, 1.0),
+    worstCase: simToRow(worst, team.meanWeekly, field.meanWeekly, weeks, 0.87),
   };
 }
 
