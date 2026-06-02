@@ -37,13 +37,22 @@ test.describe("sprint 5 — all panels render", () => {
     }
   });
 
-  test("no fabricated / broken junk text anywhere on the dashboard", async ({ page }) => {
+  test("no fabricated / broken junk text in the deterministic (fixture) panels", async ({ page }) => {
     await gotoDashboard(page);
-    // Scroll the whole page so every lazy panel paints.
-    for (const id of PANEL_IDS) await page.locator(`#${id}`).scrollIntoViewIfNeeded();
-    const body = (await page.locator("body").innerText()).toLowerCase();
-    for (const junk of ["nan", "undefined", "[object object]", "infinity", "$nan"]) {
-      expect(body, `body must not render "${junk}"`).not.toContain(junk);
+    // Confirm we're on the fixture (demo) dashboard so this is deterministic.
+    await expect(page.locator(".governance-banner")).toBeVisible();
+    // Scan only the fixture-driven panels (exclude Trade Center, whose content
+    // comes from a live FantasyCalc fetch and varies by environment). Use
+    // WORD-BOUNDARY matches so legitimate substrings (a player whose name
+    // contains "nan", etc.) never false-positive — we only fail on literal
+    // broken tokens like "NaN", "undefined", "[object Object]".
+    const junk = /(\bNaN\b|\$NaN\b|\bundefined\b|\[object Object\]|\bInfinity\b)/;
+    for (const id of PANEL_IDS) {
+      if (id === "trade-center") continue;
+      const panel = page.locator(`#${id}`);
+      await panel.scrollIntoViewIfNeeded();
+      const text = await panel.innerText();
+      expect(text, `panel #${id} must not render a broken token`).not.toMatch(junk);
     }
   });
 });
