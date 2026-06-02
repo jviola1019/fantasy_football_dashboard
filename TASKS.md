@@ -64,8 +64,17 @@
 - [x] Sleeper team identity captured at league-add time (optional **Sleeper username** field → `resolveSleeperRosterId`); the cron/envelope score the user's actual roster.
 - [x] Tab systems modernized (sliding-underline TopBar nav + segmented PanelTabs, Framer Motion `useReducedMotion`); security hardening (timing-safe token checks, sanitized add-league errors).
 
+## Phase 10 — Sprint 5: league-universe data model, model accuracy & total QA (shipped)
+See `SPRINT5.md` for the plan and `reports/audit-sprint5.md` for the ledger.
+- [x] **Season-mirror data model** (`draftState.ts`, `mirrorLeague.ts`, `buildUniverse.ts`): import a league → completed season + an empty-roster upcoming mirror; rosters refresh on every account load so a finished draft flips pre→post automatically. Market panels show the **whole league universe pre-draft / free agents post-draft** (universe − ∪ all rosters); works for any account, all 12 teams. Verified live on jviola's 2025 league.
+- [x] **Scoring formats** PPR / Half / Standard threaded through rankings selection + the in-season projection field (`pickProjectionPoints`) + value/sim/tiers; surfaced in the governance banner.
+- [x] **FREE nflverse opportunity** (`src/lib/nflverse/`): snap-share → real `opportunity` via `/api/cron/opportunity-refresh` snapshot, dropped from `missingFields`. Narrative / Liquidity / Waiver now run on free data.
+- [x] **Panel reworks**: Command Center League Pulse (fixed-grid bars + aligned values); Market Intelligence (universe set, Price Discovery line→scatter, all 6 tabs audited); Player Universe (5 working tabs + grid cap/search); Nexus (real points-for/against + pts/week drivers); Draft (per-round/kicker-late recs + "+ Mine"/"Taken by opponent" buttons); Waiver (value-driven importance + search); Trade Center verified.
+- [x] **UI/UX**: TopBar +10px breathing room; roomier segmented PanelTabs.
+- [x] **QA**: security re-audit (SAFE TO SHIP, no cross-account/credential leak); `e2e/15-sprint5-panels.spec.ts` (all 9 panels, every tab, new interactions, junk-text + overflow at 4 viewports); 417 vitest + 78 e2e; live 2025 Brier backtest reproduces exactly.
+
 ## Still deferred (genuine future work)
 - [ ] Yahoo Fantasy adapter (needs a registered Yahoo developer app for OAuth).
-- [ ] Paid projection / injury / sentiment feeds (only free-tier adapters wired today).
 - [ ] ESPN FAAB-ratio extraction (Sleeper FAAB is wired; ESPN's `acquisitionBudget`/`waiverRank` path needs an ESPN-FAAB league to fixture-pin).
+- [ ] In-season (current-week) opportunity: today's `opportunity` is last-season snap share (off-season role proxy); wire the current-season snap feed once games are played.
 - [ ] Auto-load the signed-in user's first league on the homepage (the DemoBanner + `RAE_ENABLE_LIVE_HOMEPAGE` flag bridge the gap for now).

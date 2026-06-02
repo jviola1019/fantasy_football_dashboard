@@ -14,7 +14,7 @@
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
   <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
-  <img alt="385 tests passing" src="https://img.shields.io/badge/tests-385%20passing-35c08a">
+  <img alt="417 tests passing" src="https://img.shields.io/badge/tests-417%20passing-35c08a">
   <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
 </p>
 
@@ -56,9 +56,13 @@ Preferred production adapters:
 - NFLverse/nflfastR/nflreadr for historical and projection features.
 - Weather, injury, RSS/news, and sentiment feeds where legal and available.
 
-Current implementation:
-- Sleeper identity adapter is implemented.
-- RAE intentionally refuses to infer market values, ownership, sentiment, or rankings from identity records alone.
+Current implementation (all FREE — no paid feeds, no API keys beyond what's noted):
+- **Sleeper** — identity/league/rosters, weekly projections (`api.sleeper.com`), 24h trending adds/drops (`trendingMomentum` proxy).
+- **FantasyPros** — consensus ECR/ADP per scoring (PPR / Half / Standard) → value, draft pool, the league universe.
+- **nflverse** — free, CC-BY snap counts → a real `opportunity` (role/usage) score, stamped onto records by the `/api/cron/opportunity-refresh` snapshot (`src/lib/nflverse/`). Replaces any paid snap-share/target-share feed; see [docs/data-sources.md](docs/data-sources.md) for the full free-source matrix.
+- **ESPN** — private-league rosters (encrypted cookies) + public news headline-velocity (a second `trendingMomentum` source).
+- **open-meteo** weather, FantasyCalc/KTC/DynastyProcess trade values — all free.
+- RAE still refuses to infer a metric it has no source for: any field without real data is declared in `missingFields` and renders "—", never a fabricated number.
 - Development fixtures exist only as clearly labeled dev/test fixtures. Enable with `RAE_ALLOW_FIXTURES=true`.
 
 ## Environment variables
@@ -232,7 +236,7 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 385 unit/integration tests (4 live-API specs skipped unless `RAE_LIVE_TESTS=1`);
+`vitest` holds 417 unit/integration tests (4 live-API specs skipped unless `RAE_LIVE_TESTS=1`);
 CI runs typecheck + lint + vitest + Playwright + Lighthouse on every push (`.github/workflows/ci.yml`).
 
 ## Design philosophy
@@ -292,10 +296,10 @@ See `docs/calibration.md` for the production calibration plan (Brier-score targe
 - ESPN cookies (`espn_s2`, `SWID`) expire periodically. When ESPN refresh starts returning `unavailable`, the user needs to paste fresh cookies into `/settings/leagues`. There is no programmatic refresh path.
 - The Sleeper `/v1/players/nfl` payload is ~19 MB. Solved via the daily Vercel cron at `/api/cron/players-refresh` which snapshots into the `players_snapshots` Postgres table; `loadRAEEnvelope` reads the snapshot first and only falls back to a live fetch when the snapshot is older than 36h or missing. Vercel Cron Jobs are gated by the `CRON_SECRET` env var.
 - Yahoo Fantasy adapter is deferred (OAuth requires a registered Yahoo developer app).
-- Paid feeds (FantasyPros projections, paid injury/sentiment) are not implemented. Free-tier adapters (open-meteo weather, public NFL RSS) are wired and respect the same governance envelope contract.
+- No paid feeds are used. `opportunity` now comes from FREE nflverse snap counts (role proxy from the latest season's games, via `/api/cron/opportunity-refresh`); `trendingMomentum` from free Sleeper trending + ESPN news velocity. Off-season, opportunity reflects last season's role (declared in the source assumptions).
 - The lifecycle cron at `/api/cron/lifecycle-check` runs once daily (09:30 UTC, staggered after the players/rankings/KTC snapshots) and pulls each user's roster live via `src/lib/leagues/fetchLive.ts` (decrypts ESPN cookies / hits Sleeper, normalizes through `PlayerMarketRecordSchema`) before running the rules engine. The daily cadence is the Vercel Hobby-plan cap of one run per cron per day; Pro plans can tighten the interval in `vercel.ts`. The FAAB-depleted rule is wired end-to-end for **Sleeper** leagues: `fetchLeagueLive` surfaces `myFaabRemainingRatio` (`extractSleeperFaabRatio`: `settings.waiver_budget` − `rosters[i].settings.waiver_budget_used`) and the cron passes it into the rules engine, which alerts when the ratio falls below 0.1. (ESPN FAAB extraction is the one piece still pending — see below.)
 - Each Sleeper league captures an optional **Sleeper username** at add-time (`/settings/leagues`); `resolveSleeperRosterId` (`src/lib/leagues/fetchLive.ts`) maps it to the owner's `roster_id` so the lifecycle cron and the live envelope score the user's **actual** team. It falls back to the first roster only when no username was provided.
-- No paid sentiment/news/injury adapters yet.
+- Injury status uses Sleeper's `injury_status` (free); no paid injury/sentiment classifier. Reddit/Google-Trends were evaluated and deferred (rate-limit/ToS risk — see docs/data-sources.md).
 - Fixture data is not production intelligence.
 - The season Monte Carlo is calibrated against league-average baselines and uses your real projections + league settings on the live path, but the opponent field is modeled as a distribution (RAE only has your roster in detail), not each rival's actual lineup — see [docs/season-sim.md](docs/season-sim.md).
 - Multi-tenant organizations / shared teams are out of scope in this pass — single user per account, per-user data isolation enforced by `userId` foreign key and verified by `src/lib/leagues.test.ts`.

@@ -2,7 +2,7 @@
 
 **Author:** Claude Opus 4.8 (`claude-opus-4-8`)
 **Date opened:** 2026-06-01
-**Status:** PLAN (awaiting approval — no code written yet)
+**Status:** ✅ SHIPPED (2026-06-02) — all 14 phases complete; ledger in `reports/audit-sprint5.md`
 **Predecessors:** Phases 1–9 (`TASKS.md`), Sprint 4 reverification (`reports/opus48-reverification.md`), 2026-06-01 audit (`reports/audit-2026-06-01.md`)
 
 > **Prime directive (unchanged):** no synthetic data presented as real. Every number
