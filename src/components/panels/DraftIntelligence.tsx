@@ -20,21 +20,35 @@ const TABS = ["Live Board", "Recommendations", "Tier Collapse", "Multiverse"] as
 export function DraftIntelligence({ players }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Live Board");
   const [myPicks, setMyPicks] = useState<Set<string>>(new Set());
+  // Players drafted by OTHER teams — removed from the pool so you can mock how
+  // the board falls as opponents pick, without adding them to your roster.
+  const [taken, setTaken] = useState<Set<string>>(new Set());
 
   const myRoster = useMemo(() => players.filter((p) => myPicks.has(p.id)), [players, myPicks]);
-  const available = useMemo(() => players.filter((p) => !myPicks.has(p.id)), [players, myPicks]);
+  const available = useMemo(
+    () => players.filter((p) => !myPicks.has(p.id) && !taken.has(p.id)),
+    [players, myPicks, taken]
+  );
   const recommendations = useMemo(() => recommend({ available, myRoster }, 8), [available, myRoster]);
   const tiers = useMemo(() => tiersByPosition(available), [available]);
   const collapseSignals = useMemo(() => tierCollapseSignals(tiers), [tiers]);
   const grades = useMemo(() => derivePositionGrades(myRoster), [myRoster]);
 
-  const togglePick = (id: string) =>
-    setMyPicks((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Draft to MY team (also clears any opponent mark); to an OPPONENT (clears any
+  // mine mark); release returns a player to the pool.
+  const draftMine = (id: string) => {
+    setTaken((t) => { const n = new Set(t); n.delete(id); return n; });
+    setMyPicks((p) => { const n = new Set(p); n.add(id); return n; });
+  };
+  const draftOpponent = (id: string) => {
+    setMyPicks((p) => { const n = new Set(p); n.delete(id); return n; });
+    setTaken((t) => { const n = new Set(t); n.add(id); return n; });
+  };
+  const release = (id: string) => {
+    setMyPicks((p) => { const n = new Set(p); n.delete(id); return n; });
+    setTaken((t) => { const n = new Set(t); n.delete(id); return n; });
+  };
+  const reset = () => { setMyPicks(new Set()); setTaken(new Set()); };
 
   return (
     <PanelCard
@@ -44,7 +58,12 @@ export function DraftIntelligence({ players }: Props) {
       eyebrow="Read the room. Anticipate the run."
       icon={<ClipboardList />}
       controls={
-        <span className="muted-text">{myRoster.length} on roster · {available.length} available</span>
+        <span className="draft-controls">
+          <span className="muted-text">{myRoster.length} mine · {taken.size} taken · {available.length} left</span>
+          {(myPicks.size > 0 || taken.size > 0) && (
+            <button type="button" className="draft-reset-btn" onClick={reset}>Reset</button>
+          )}
+        </span>
       }
     >
       <PanelTabs
@@ -58,7 +77,10 @@ export function DraftIntelligence({ players }: Props) {
         <LiveBoard
           available={available}
           myRoster={myRoster}
-          onToggle={togglePick}
+          takenCount={taken.size}
+          onDraftMine={draftMine}
+          onDraftOpponent={draftOpponent}
+          onRelease={release}
           recommendations={recommendations}
         />
       )}
@@ -78,19 +100,25 @@ export function DraftIntelligence({ players }: Props) {
 function LiveBoard({
   available,
   myRoster,
-  onToggle,
+  takenCount,
+  onDraftMine,
+  onDraftOpponent,
+  onRelease,
   recommendations
 }: {
   available: PlayerMarketRecord[];
   myRoster: PlayerMarketRecord[];
-  onToggle: (id: string) => void;
+  takenCount: number;
+  onDraftMine: (id: string) => void;
+  onDraftOpponent: (id: string) => void;
+  onRelease: (id: string) => void;
   recommendations: Recommendation[];
 }) {
   const topPick = recommendations[0];
   return (
     <div className="universe-layout">
       <div className="table-wrap" tabIndex={0}>
-        <div className="section-label">AVAILABLE — click to add to roster</div>
+        <div className="section-label">AVAILABLE — draft to your team or mark taken by an opponent</div>
         <table>
           <thead>
             <tr>
@@ -99,16 +127,17 @@ function LiveBoard({
               <th>Team</th>
               <th>True</th>
               <th>Edge</th>
+              <th>Draft</th>
             </tr>
           </thead>
           <tbody>
             {available.length === 0 && (
               <tr>
-                <td colSpan={5}>No available players (or empty envelope).</td>
+                <td colSpan={6}>No available players (or empty envelope).</td>
               </tr>
             )}
             {available.slice(0, 16).map((p) => (
-              <tr key={p.id} onClick={() => onToggle(p.id)} style={{ cursor: "pointer" }}>
+              <tr key={p.id}>
                 <td>{p.name}</td>
                 <td>{p.position}</td>
                 <td>{p.team ?? "—"}</td>
@@ -116,6 +145,24 @@ function LiveBoard({
                 <td className={reputationEdge(p) >= 0 ? "pos-text" : "neg-text"}>
                   {reputationEdge(p) >= 0 ? "+" : ""}
                   {reputationEdge(p)}
+                </td>
+                <td className="draft-actions">
+                  <button
+                    type="button"
+                    className="draft-btn draft-btn-mine"
+                    onClick={() => onDraftMine(p.id)}
+                    aria-label={`Draft ${p.name} to my team`}
+                  >
+                    + Mine
+                  </button>
+                  <button
+                    type="button"
+                    className="draft-btn draft-btn-opp"
+                    onClick={() => onDraftOpponent(p.id)}
+                    aria-label={`Mark ${p.name} taken by an opponent`}
+                  >
+                    Taken
+                  </button>
                 </td>
               </tr>
             ))}
@@ -152,11 +199,11 @@ function LiveBoard({
           )}
         </div>
         <div className="universe-stats">
-          <div className="section-label">YOUR ROSTER ({myRoster.length})</div>
+          <div className="section-label">YOUR ROSTER ({myRoster.length}) · {takenCount} taken</div>
           <ul className="rising-list">
-            {myRoster.length === 0 && <li className="muted-text">No picks yet — click rows on the left to draft.</li>}
+            {myRoster.length === 0 && <li className="muted-text">No picks yet — use “+ Mine” to draft, “Taken” to mock opponents.</li>}
             {myRoster.map((p) => (
-              <li key={p.id} className="rising-item" onClick={() => onToggle(p.id)} style={{ cursor: "pointer" }}>
+              <li key={p.id} className="rising-item draft-roster-row" onClick={() => onRelease(p.id)} title="Click to release">
                 <span>{p.name}</span>
                 <span className="muted-text">{p.position}</span>
               </li>

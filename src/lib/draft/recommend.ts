@@ -29,6 +29,12 @@ const DEFAULT_TARGETS: Record<PlayerMarketRecord["position"], number> = {
   DEF: 1
 };
 
+// Positions that are low-leverage and should be drafted LATE — never before the
+// core starters are essentially set. A kicker or defense taken early is wasted
+// draft capital.
+const LATE_ONLY = new Set<PlayerMarketRecord["position"]>(["K", "DEF"]);
+const CORE_POSITIONS: ReadonlyArray<PlayerMarketRecord["position"]> = ["QB", "RB", "WR", "TE"];
+
 export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
   const targets = { ...DEFAULT_TARGETS, ...(input.targets ?? {}) };
   const myCounts = countByPosition(input.myRoster);
@@ -43,6 +49,15 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
     }
   }
 
+  // Unfilled core (QB/RB/WR/TE) starter slots — the round-awareness signal. An
+  // empty roster has high coreRemaining (draft skill players); a nearly-set
+  // roster has ~0 (now K/DEF become sensible). Works for any roster size without
+  // hardcoding round numbers.
+  const coreRemaining = CORE_POSITIONS.reduce(
+    (s, pos) => s + Math.max(0, (targets[pos] ?? 0) - (myCounts[pos] ?? 0)),
+    0
+  );
+
   return input.available
     .map((player) => {
       const reasons: string[] = [];
@@ -55,22 +70,41 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
       let score = edge * 1.5 + opportunity * 0.6 - fragilityPenalty;
       let category: RecommendationCategory = "Value";
 
-      if (need > 0) {
-        score += need * 8;
-        reasons.push(`fills ${player.position} need (have ${have}, target ${targets[player.position] ?? 0})`);
-        category = "Need";
-      }
-
-      if (lastInTier.has(player.id)) {
-        score += 12;
-        reasons.push("last in tier — run risk");
-        category = "Run";
-      } else if (have >= (targets[player.position] ?? 0)) {
-        category = "Stash";
-        reasons.push("depth pick / stash");
-      } else if (edge > 8) {
-        category = "Value";
-        reasons.push(`reputation edge +${edge.toFixed(1)}`);
+      if (LATE_ONLY.has(player.position)) {
+        // Bury K/DEF behind every startable skill player until the core roster
+        // is essentially complete (coreRemaining <= 1). Kickers are lowest
+        // leverage even once needed.
+        if (coreRemaining > 1) {
+          score -= 100;
+          category = "Stash";
+          reasons.push(`hold ${player.position} — fill your starters first (${coreRemaining} core slots open)`);
+        } else if (need > 0) {
+          score += 4;
+          category = "Need";
+          reasons.push(`fill ${player.position} — rosters nearly set`);
+        } else {
+          category = "Stash";
+          reasons.push("depth pick / stash");
+        }
+        if (player.position === "K") score -= 4; // kickers are near-fungible
+      } else {
+        // Core positions: standard need-weighted scoring.
+        if (need > 0) {
+          score += need * 8;
+          reasons.push(`fills ${player.position} need (have ${have}, target ${targets[player.position] ?? 0})`);
+          category = "Need";
+        }
+        if (lastInTier.has(player.id)) {
+          score += 12;
+          reasons.push("last in tier — run risk");
+          category = "Run";
+        } else if (have >= (targets[player.position] ?? 0)) {
+          category = "Stash";
+          reasons.push("depth pick / stash");
+        } else if (edge > 8) {
+          category = "Value";
+          reasons.push(`reputation edge +${edge.toFixed(1)}`);
+        }
       }
 
       if (player.trendingMomentum > 30) reasons.push(`trending tailwind +${player.trendingMomentum}`);
