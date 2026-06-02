@@ -804,6 +804,10 @@ td small { color: var(--muted); }
 .liquidity-note { margin-top: 6px; }
 .flow-legend { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+/* Price Discovery scatter + its legend dots. */
+.pd-scatter { display: block; overflow: visible; }
+.pd-dot-under { background: var(--green); }
+.pd-dot-over { background: var(--red); }
 .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--muted); }
 .chart-legend { display: flex; gap: 12px; margin-bottom: 6px; }
 .heatmap-wrap { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); margin-top: 8px; }

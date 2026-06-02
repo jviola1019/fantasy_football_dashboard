@@ -14,7 +14,6 @@ import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, marketInefficiency, confidenceInterval } from "@/lib/models";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
-import { LineChart } from "@/components/charts/LineChart";
 import { fmt, fmtPct } from "@/lib/utils";
 
 type Props = {
@@ -310,34 +309,80 @@ function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
   );
 }
 
+// Price Discovery as a value-vs-market SCATTER with a fair-value diagonal.
+// A 600-point twin line graph was unreadable; a scatter directly shows
+// mispricing: points ABOVE the diagonal are undervalued (true > market),
+// BELOW are overvalued. The N most valuable players are plotted (bounded).
+const PD_W = 520;
+const PD_H = 300;
+const PD_PAD = 34;
+const PD_MAX_POINTS = 150;
+
 function PriceDiscoveryView({ players }: { players: PlayerMarketRecord[] }) {
-  const series = [
-    {
-      label: "Market Value",
-      color: "#7bb7ce",
-      points: [...players].sort((a, b) => a.perceivedValue - b.perceivedValue).map((p) => p.perceivedValue),
-    },
-    {
-      label: "True Value",
-      color: "#77d7b0",
-      points: [...players].sort((a, b) => a.perceivedValue - b.perceivedValue).map((p) => p.trueValue),
-    },
-  ];
-  const labels = [...players].sort((a, b) => a.perceivedValue - b.perceivedValue).map((p) =>
-    p.name.split(" ").pop() ?? ""
+  const pts = [...players]
+    .filter((p) => p.trueValue > 0 || p.perceivedValue > 0)
+    .sort((a, b) => b.trueValue - a.trueValue)
+    .slice(0, PD_MAX_POINTS);
+
+  if (pts.length === 0) {
+    return (
+      <div className="chart-wrap">
+        <div className="section-label">PRICE DISCOVERY — True vs Market Value</div>
+        <p className="muted-note">No validated market records to chart.</p>
+      </div>
+    );
+  }
+
+  const maxV = Math.max(100, ...pts.map((p) => Math.max(p.trueValue, p.perceivedValue)));
+  const x = (v: number) => PD_PAD + (v / maxV) * (PD_W - 2 * PD_PAD);
+  const y = (v: number) => PD_H - PD_PAD - (v / maxV) * (PD_H - 2 * PD_PAD);
+  // Label the three biggest mispricings (largest |true − market|).
+  const labelled = new Set(
+    [...pts].sort((a, b) => Math.abs(b.trueValue - b.perceivedValue) - Math.abs(a.trueValue - a.perceivedValue))
+      .slice(0, 3)
+      .map((p) => p.id)
   );
+
   return (
     <div className="chart-wrap">
-      <div className="section-label">PRICE DISCOVERY — Market vs True Value</div>
-      <div className="chart-legend">
-        {series.map((s) => (
-          <span key={s.label} className="legend-item">
-            <span className="legend-dot" style={{ background: s.color }} />
-            {s.label}
-          </span>
-        ))}
+      <div className="section-label">PRICE DISCOVERY — True vs Market Value</div>
+      <div className="flow-legend">
+        <span className="legend-dot pd-dot-under" /> Undervalued (true &gt; market)
+        <span className="legend-dot pd-dot-over legend-dot-ml" /> Overvalued
       </div>
-      <LineChart series={series} labels={labels} height={140} />
+      <svg viewBox={`0 0 ${PD_W} ${PD_H}`} width="100%" role="img"
+        aria-label="Scatter of true value versus market value; points above the diagonal are undervalued"
+        className="pd-scatter">
+        {/* axes */}
+        <line x1={PD_PAD} y1={PD_H - PD_PAD} x2={PD_W - PD_PAD} y2={PD_H - PD_PAD} stroke="var(--line)" strokeWidth="1" />
+        <line x1={PD_PAD} y1={PD_PAD} x2={PD_PAD} y2={PD_H - PD_PAD} stroke="var(--line)" strokeWidth="1" />
+        {/* fair-value diagonal y = x */}
+        <line x1={x(0)} y1={y(0)} x2={x(maxV)} y2={y(maxV)} stroke="rgba(141,154,160,0.45)" strokeWidth="1" strokeDasharray="4 3" />
+        <text x={x(maxV) - 4} y={y(maxV) - 6} fontSize="8" fill="var(--muted)" textAnchor="end">fair value</text>
+        {/* points */}
+        {pts.map((p) => {
+          const under = p.trueValue >= p.perceivedValue;
+          const cx = x(p.perceivedValue);
+          const cy = y(p.trueValue);
+          const big = labelled.has(p.id);
+          return (
+            <g key={p.id}>
+              <circle cx={cx} cy={cy} r={big ? 4 : 2.6}
+                fill={under ? "var(--green)" : "var(--red)"} opacity={big ? 0.95 : 0.6}>
+                <title>{`${p.name} — market ${p.perceivedValue}, true ${p.trueValue} (${under ? "+" : ""}${p.trueValue - p.perceivedValue})`}</title>
+              </circle>
+              {big && (
+                <text x={cx + 5} y={cy - 4} fontSize="8" fill="var(--cream)">{p.name.split(" ").pop()}</text>
+              )}
+            </g>
+          );
+        })}
+        <text x={PD_W - PD_PAD} y={PD_H - PD_PAD + 14} fontSize="8" fill="var(--muted)" textAnchor="end">Market value →</text>
+        <text x={PD_PAD - 6} y={PD_PAD - 6} fontSize="8" fill="var(--muted)">True value ↑</text>
+      </svg>
+      <p className="small-note">
+        Each dot is a player; distance from the dashed fair-value line = mispricing. {pts.length} players shown.
+      </p>
     </div>
   );
 }
