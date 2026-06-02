@@ -38,7 +38,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
   return (
     <header
       aria-label="RAE primary navigation"
-      className="sticky top-0 z-20 flex flex-col gap-2 border-b border-border bg-background/85 px-3 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:px-4"
+      className="sticky top-0 z-20 flex flex-col gap-2 border-b border-border bg-background/85 px-3 pt-2 pb-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:px-4"
     >
       <div className="flex items-center gap-3">
         <SidebarTrigger className="text-muted-foreground" />
@@ -82,7 +82,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
           premium control. Scrolls horizontally on narrow screens. */}
       <nav
         aria-label="Top-level systems"
-        className="topbar-nav -mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="topbar-nav -mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {systems.map((system, index) => {
           const isActive = active === system;

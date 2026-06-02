@@ -32,7 +32,7 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: Pane
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "panel-tabs mb-3 inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-lg border border-border/70 bg-secondary/40 p-1",
+        "panel-tabs mb-3 inline-flex max-w-full items-center gap-1.5 overflow-x-auto rounded-lg border border-border/70 bg-secondary/40 p-1.5",
         "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className
       )}
@@ -47,7 +47,7 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: Pane
             aria-selected={isActive}
             onClick={() => onSelect(tab)}
             className={cn(
-              "relative shrink-0 whitespace-nowrap rounded-[6px] px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+              "relative shrink-0 whitespace-nowrap rounded-md px-4 py-2 text-xs font-semibold uppercase tracking-[0.07em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
               isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
