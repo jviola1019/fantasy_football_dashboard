@@ -63,12 +63,16 @@ export function deriveNarrativeMovers(players: PlayerMarketRecord[]) {
 }
 
 export function deriveMarketMetrics(players: PlayerMarketRecord[]): MarketMetrics {
+  const meanIneff = avg(players.map(marketInefficiency));
   return {
-    inefficiencyPct: avg(players.map(marketInefficiency)),
+    inefficiencyPct: meanIneff,
     liquidityScore: avg(players.map(liquidityScore)),
     arbitrageCount: players.filter((p) => Math.abs(reputationEdge(p)) > 8).length,
-    priceDiscoveryPct: avg(players.map((p) => p.volatility * 0.18)),
-    marketRegime: avg(players.map(marketInefficiency)) > 15 ? "Inefficient" : "Efficient",
+    // Honest: the average week-to-week variance (volatility, 0-100), not a
+    // rescaled "price discovery %". Surfaced as a "Volatility Index".
+    priceDiscoveryPct: avg(players.map((p) => p.volatility)),
+    // An empty pool has no market signal — don't assert "Efficient" on no data.
+    marketRegime: players.length === 0 ? "Unknown" : meanIneff > 15 ? "Inefficient" : "Efficient",
     topInefficiencies: [...players]
       .sort((a, b) => Math.abs(reputationEdge(b)) - Math.abs(reputationEdge(a)))
       .slice(0, 5),

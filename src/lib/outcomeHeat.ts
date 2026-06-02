@@ -27,12 +27,14 @@ export function buildOutcomeHeat(dist: SimulationResult["distribution"]): Outcom
   const totalMass = wins.reduce((s, p) => s + p, 0);
   if (totalMass <= 0) return null;
 
-  // Win-total columns: the (≤8) totals with the most marginal mass, ascending.
+  // Win-total columns: the (≤6) totals with the most marginal mass, ascending.
+  // Capped at 6 (was 8) so the fixed-cell Heatmap2D stays readable at 3-up
+  // desktop widths; 6 covers the central ~99% of a season's win distribution.
   const cols = wins
     .map((p, w) => ({ w, p }))
     .filter((x) => x.p > 0.001)
     .sort((a, b) => b.p - a.p)
-    .slice(0, 8)
+    .slice(0, 6)
     .map((x) => x.w)
     .sort((a, b) => a - b);
   if (cols.length === 0) return null;

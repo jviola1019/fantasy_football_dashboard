@@ -246,9 +246,10 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
       </div>
       <div className="profile-metrics">
         {[
+          // These are unitless 0-100 ECR-derived scores, not dollars.
           ["Reputation Score", player.trueValue],
-          ["Market Value", `$${player.perceivedValue}`],
-          ["True Value", `$${player.trueValue}`],
+          ["Market Value", player.perceivedValue],
+          ["True Value", player.trueValue],
         ].map(([k, v]) => (
           <div key={String(k)} className="profile-row">
             <span>{k}</span>
@@ -289,8 +290,8 @@ function UniverseStats({
           <small>Undervalued</small>
         </div>
         <div className="stat-box">
-          <strong>{fmt(avgIneff, 1)}%</strong>
-          <small>Avg Inefficiency</small>
+          <strong>{fmt(avgIneff, 1)}</strong>
+          <small>Avg Inefficiency (VOR)</small>
         </div>
       </div>
       <div className="section-label mt8">RISING STARS</div>

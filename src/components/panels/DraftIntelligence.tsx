@@ -357,7 +357,7 @@ function DraftBoardView({ recommendations }: { recommendations: Recommendation[]
         </ol>
       )}
       <p className="small-note draft-board-note">
-        Ranked by composite draft score. VALUE = underpriced opportunity · NEED = positional gap · UPSIDE = high-ceiling pick.
+        Ranked by composite draft score. VALUE = underpriced · NEED = positional gap · RUN = last in a tier (act now) · STASH = depth pick.
       </p>
     </div>
   );

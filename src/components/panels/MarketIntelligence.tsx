@@ -14,7 +14,7 @@ import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, marketInefficiency, confidenceInterval } from "@/lib/models";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
-import { fmt, fmtPct } from "@/lib/utils";
+import { fmt } from "@/lib/utils";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -107,17 +107,19 @@ export function MarketIntelligence({ players, marketMetrics, envelope }: Props) 
 
 function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: PlayerMarketRecord[] }) {
   const valueIndex = deriveAggregateValueIndex(players);
-  const priceDisc = fmtPct(metrics.priceDiscoveryPct);
   // Qualifiers are derived from the actual values — not hardcoded strings that
   // would print "High" / "Favorable" regardless of the number shown.
   const liq = metrics.liquidityScore;
+  const regimeKnown = metrics.marketRegime === "Inefficient" || metrics.marketRegime === "Efficient";
   const cards = [
-    { label: "Market Inefficiency", value: fmtPct(metrics.inefficiencyPct), sub: "Avg Value Over Replacement", color: "neu" },
+    // Inefficiency + volatility are unitless VOR/variance INDICES (0-100-ish),
+    // not percentages — show the raw index, no "%".
+    { label: "Market Inefficiency", value: fmt(metrics.inefficiencyPct, 1), sub: "Avg value-over-replacement index", color: "neu" },
     { label: "Liquidity Score", value: `${fmt(liq, 1)}/10`, sub: liq >= 6.5 ? "High" : liq >= 3.5 ? "Moderate" : "Low", color: liq >= 6.5 ? "pos" : "neu" },
     { label: "Arbitrage Opps", value: String(metrics.arbitrageCount), sub: "High-edge plays", color: metrics.arbitrageCount > 3 ? "pos" : "neu" },
     { label: "Aggregate Value", value: valueIndex, sub: "Roster value index (ECR)", color: "neu" },
-    { label: "Price Discovery", value: priceDisc, sub: "Volatility-implied", color: "neu" },
-    { label: "Market Regime", value: metrics.marketRegime, sub: metrics.marketRegime === "Inefficient" ? "Favorable for exploitation" : "Efficiently priced", color: metrics.marketRegime === "Inefficient" ? "neg" : "pos" },
+    { label: "Volatility Index", value: fmt(metrics.priceDiscoveryPct, 1), sub: "Avg week-to-week variance", color: "neu" },
+    { label: "Market Regime", value: regimeKnown ? metrics.marketRegime : "—", sub: !regimeKnown ? "No market data" : metrics.marketRegime === "Inefficient" ? "Favorable for exploitation" : "Efficiently priced", color: !regimeKnown ? "neu" : metrics.marketRegime === "Inefficient" ? "neg" : "pos" },
   ];
   return (
     <div className="kpi-row kpi-row-sm">
@@ -161,9 +163,9 @@ function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players:
                 <tr key={p.id}>
                   <td>{p.name}</td>
                   <td>{p.position}</td>
-                  <td>${p.perceivedValue}</td>
+                  <td>{p.perceivedValue}</td>
                   <td>
-                    ${p.trueValue}{" "}
+                    {p.trueValue}{" "}
                     <small>[{ci[0]}, {ci[1]}]</small>
                   </td>
                   <td className={edge >= 0 ? "pos-text" : "neg-text"}>

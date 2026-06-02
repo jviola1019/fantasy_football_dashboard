@@ -16,7 +16,7 @@ import {
   deriveStartSitEdge,
 } from "@/lib/derivedMetrics";
 import { derivePanelState } from "@/lib/panelState";
-import { fmt, fmtPct } from "@/lib/utils";
+import { fmt } from "@/lib/utils";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -93,7 +93,8 @@ function MetricStrip({
     },
     {
       label: "Market Inefficiency",
-      value: fmtPct(metrics.marketInefficiency),
+      // VOR magnitude (unitless index), not a percentage — no "%".
+      value: fmt(metrics.marketInefficiency, 1),
       sub: "Avg Value Over Replacement",
       color: "neu"
     },
