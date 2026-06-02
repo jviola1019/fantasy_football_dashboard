@@ -145,6 +145,14 @@ export const newsSnapshots = pgTable("news_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+export const opportunitySnapshots = pgTable("opportunity_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 // ─── Snapshot-table DDL: single source of truth ──────────────────────────────
 // All five snapshot tables share an identical shape. Defining the DDL once here
 // (and composing INIT_SQL + the runtime ensure*Table self-heal from it) removes
@@ -156,7 +164,8 @@ export const SNAPSHOT_TABLES = [
   "rankings_snapshots",
   "ktc_snapshots",
   "projections_snapshots",
-  "news_snapshots"
+  "news_snapshots",
+  "opportunity_snapshots"
 ] as const;
 
 export type SnapshotTableName = (typeof SNAPSHOT_TABLES)[number];

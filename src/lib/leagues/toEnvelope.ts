@@ -11,6 +11,20 @@ import {
 } from "./draftState";
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
 import { buildLeagueUniverse, buildFreeAgents } from "./buildUniverse";
+import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
+
+/**
+ * Stamp the FREE nflverse opportunity score (snap share, 0-100) onto records by
+ * normalized name. Records without a match keep their existing opportunity
+ * (0/declared-missing). Pure — returns a new array.
+ */
+function withOpportunity(records: PlayerMarketRecord[], scores: OpportunityMap | null): PlayerMarketRecord[] {
+  if (!scores) return records;
+  return records.map((r) => {
+    const s = scores[normalizeOppName(r.name)];
+    return s ? { ...r, opportunity: s.score } : r;
+  });
+}
 
 // Cap the serialized universe so the SSR props payload stays bounded. The top
 // ~600 players by value cover everything draftable plus deep waiver targets;
@@ -55,6 +69,9 @@ export interface BuildEnvelopeOptions {
   playersSnapshot?: SleeperPlayersMap | null;
   /** Current NFL season ("2026") for the season-mirror. Defaults to the league's own season. */
   currentSeason?: string;
+  /** FREE nflverse opportunity scores (normalized-name → snap-share 0-100). When
+   * present, `opportunity` is stamped onto records and dropped from missingFields. */
+  opportunityScores?: OpportunityMap | null;
 }
 
 /**
@@ -92,10 +109,14 @@ export function buildLiveEnvelope({
   weeklyProjectionsMeta,
   newsMomentumScores,
   playersSnapshot,
-  currentSeason
+  currentSeason,
+  opportunityScores
 }: BuildEnvelopeOptions): RAEEnvelope {
   const season0 = currentSeason ?? String(snapshot.league.season);
   const { draftState, season } = deriveLeagueMeta(snapshot, season0);
+  const oppScores = opportunityScores ?? null;
+  const opportunityActive = !!(oppScores && Object.keys(oppScores).length > 0);
+  const allRosters = snapshot.allRosters.map((r) => withOpportunity(r, oppScores));
 
   // Build the league universe + free agents when both the players snapshot and
   // rankings are present. Capped + value-sorted to keep the payload bounded.
@@ -108,8 +129,9 @@ export function buildLiveEnvelope({
       trendingDrops,
       newsMomentumScores
     });
-    leagueUniverse = [...full].sort((a, b) => b.trueValue - a.trueValue).slice(0, UNIVERSE_LIMIT);
-    freeAgents = buildFreeAgents(leagueUniverse, snapshot.allRosters);
+    const sorted = [...full].sort((a, b) => b.trueValue - a.trueValue).slice(0, UNIVERSE_LIMIT);
+    leagueUniverse = withOpportunity(sorted, oppScores);
+    freeAgents = buildFreeAgents(leagueUniverse, allRosters);
   }
   if (!rankings) {
     // No rankings cached yet — still emit live mode with the identity-only
@@ -117,7 +139,7 @@ export function buildLiveEnvelope({
     return {
       mode: "live",
       generatedAt: new Date().toISOString(),
-      records: snapshot.myRoster,
+      records: withOpportunity(snapshot.myRoster, oppScores),
       sourceState: degradedSourceState(snapshot.source, rankingsSource),
       leagueFormat: snapshot.format,
       weeklyProjections: weeklyProjections ?? null,
@@ -128,7 +150,7 @@ export function buildLiveEnvelope({
       season,
       leagueUniverse: null,
       freeAgents: null,
-      allRosters: snapshot.allRosters
+      allRosters
     };
   }
 
@@ -151,55 +173,58 @@ export function buildLiveEnvelope({
   const rankingsMissing = trendingActive
     ? rankingsSource.missingFields.filter((f) => f !== "trending_momentum")
     : rankingsSource.missingFields;
+  // opportunity is no longer missing once the FREE nflverse snap-share map is
+  // applied (it's a role proxy, declared as such in the assumptions).
+  const rankingsMissing2 = opportunityActive
+    ? rankingsMissing.filter((f) => f !== "opportunity")
+    : rankingsMissing;
   const missingUnion = Array.from(
-    new Set([...snapshot.source.missingFields, ...rankingsMissing])
-  );
+    new Set([...snapshot.source.missingFields, ...rankingsMissing2])
+  ).filter((f) => !(opportunityActive && f === "opportunity"));
   const compositeFreshness =
     snapshot.source.freshness === "fresh" && rankingsSource.freshness === "fresh"
       ? "fresh"
       : "stale";
 
+  const trendingAssumption = newsActive
+    ? "trending_momentum from ESPN headline velocity (recency-weighted, 72h window). Not NLP sentiment classification."
+    : proxyActive
+      ? "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification."
+      : "Trending momentum not derived; declared in missingFields.";
+  const opportunityAssumption = opportunityActive
+    ? "opportunity = nflverse snap share (free, CC-BY) — a real role/usage proxy from the latest season's games."
+    : "In-season opportunity not derived; declared in missingFields.";
+
   return {
     mode: "live",
     generatedAt: new Date().toISOString(),
-    records: enriched,
+    records: withOpportunity(enriched, oppScores),
     sourceState: {
-      source: `${snapshot.source.source} + ${rankingsSource.source}`,
+      source: `${snapshot.source.source} + ${rankingsSource.source}${opportunityActive ? " + nflverse snaps" : ""}`,
       fetchedAt: rankingsSource.fetchedAt,
       ttlSeconds: Math.min(snapshot.source.ttlSeconds, rankingsSource.ttlSeconds),
       freshness: compositeFreshness,
       confidence: Math.min(snapshot.source.confidence, rankingsSource.confidence),
       validation: "valid",
       missingFields: missingUnion,
-      assumptions: newsActive
-        ? [
-            "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-            "trending_momentum from ESPN headline velocity (recency-weighted, 72h window). Not NLP sentiment classification.",
-            "In-season opportunity not derived; declared in missingFields."
-          ]
-        : proxyActive
-          ? [
-              "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-              "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification.",
-              "In-season opportunity not derived; declared in missingFields."
-            ]
-          : [
-              "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
-              "Trending momentum and in-season opportunity not derived; declared in missingFields."
-            ],
+      assumptions: [
+        "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
+        trendingAssumption,
+        opportunityAssumption
+      ],
       failure: null
     },
     leagueFormat: snapshot.format,
     weeklyProjections: weeklyProjections ?? null,
     weeklyProjectionsMeta: weeklyProjectionsMeta ?? null,
     // The full FantasyPros-ranked pool so the draft panel can draft any player.
-    draftPool: fpDataToRecords(rankings, rankingsSource),
+    draftPool: withOpportunity(fpDataToRecords(rankings, rankingsSource), oppScores),
     // Sprint 5: league-universe / season-mirror.
     draftState,
     season,
     leagueUniverse,
     freeAgents,
-    allRosters: snapshot.allRosters
+    allRosters
   };
 }
 

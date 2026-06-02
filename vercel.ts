@@ -65,6 +65,10 @@ const config: VercelConfig = {
     // cron does NOT consume it today — running before lifecycle-check (09:30) is
     // simply reserved headroom for a future news-driven lifecycle rule.
     { path: "/api/cron/news-refresh", schedule: "20 9 * * *" },
+    // 09:25 UTC. FREE nflverse snap-share snapshot → the homepage stamps a real
+    // `opportunity` (role/usage) onto records, so Narrative/Liquidity/Waiver run
+    // on free data instead of declaring opportunity unavailable.
+    { path: "/api/cron/opportunity-refresh", schedule: "25 9 * * *" },
     // Once daily at 09:30 UTC (after all data snapshots). Walks every stored
     // league and emits drift notifications (stacked bye weeks, FAAB drained,
     // injured starters). Vercel Hobby plan caps each cron at one run per day.

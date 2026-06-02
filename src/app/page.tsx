@@ -8,6 +8,7 @@ import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
+import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
 import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
@@ -90,14 +91,15 @@ async function resolveHome(): Promise<HomeResolution> {
         // Fetch rankings, trending, NFL state, news snapshot, and players
         // snapshot in parallel. Each fails open to null so a partial outage
         // doesn't tank the homepage.
-        const [rankings, trendingAddsResult, trendingDropsResult, nflState, newsSnapshot, playersSnapshot] =
+        const [rankings, trendingAddsResult, trendingDropsResult, nflState, newsSnapshot, playersSnapshot, oppSnapshot] =
           await Promise.all([
             getLatestRankingsSnapshot(scoring),
             getTrendingPlayers("add", 24, 100).catch(() => null),
             getTrendingPlayers("drop", 24, 100).catch(() => null),
             getNflState().catch(() => null),
             getLatestNewsSnapshot("espn-nfl").catch(() => null),
-            getLatestPlayersSnapshot().catch(() => null)
+            getLatestPlayersSnapshot().catch(() => null),
+            getLatestOpportunitySnapshot("nfl").catch(() => null)
           ]);
         const trendingAdds = buildTrendingMap(trendingAddsResult?.data ?? null);
         const trendingDrops = buildTrendingMap(trendingDropsResult?.data ?? null);
@@ -167,7 +169,8 @@ async function resolveHome(): Promise<HomeResolution> {
             weeklyProjectionsMeta,
             newsMomentumScores,
             playersSnapshot: playersSnapshot?.players ?? null,
-            currentSeason: nflData?.season
+            currentSeason: nflData?.season,
+            opportunityScores: oppSnapshot?.scores ?? null
           }),
           leagueOptions,
           activeLeagueId

@@ -155,6 +155,16 @@ export const newsSnapshots = sqliteTable("news_snapshots", {
   payload: text("payload").notNull()
 });
 
+export const opportunitySnapshots = sqliteTable("opportunity_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: integer("fetchedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: text("payload").notNull()
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;
@@ -164,3 +174,4 @@ export type DbRankingsSnapshot = typeof rankingsSnapshots.$inferSelect;
 export type DbKtcSnapshot = typeof ktcSnapshots.$inferSelect;
 export type DbProjectionsSnapshot = typeof projectionsSnapshots.$inferSelect;
 export type DbNewsSnapshot = typeof newsSnapshots.$inferSelect;
+export type DbOpportunitySnapshot = typeof opportunitySnapshots.$inferSelect;
