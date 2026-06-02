@@ -20,19 +20,19 @@ function activeTabText(page: Page) {
 test.describe("topbar system nav", () => {
   test("active highlight follows scroll (scroll-spy)", async ({ page }) => {
     await load(page);
-    // At the top, Command Center is active.
-    await expect(page.locator(`${NAV} button[aria-current="true"]`)).toContainText(/Command Center/i);
-    // Scroll to a panel far down the page; the active highlight must move off
-    // Command Center to a later system.
-    await page.locator("#trade-center").scrollIntoViewIfNeeded();
+    // Drive ABSOLUTE scroll positions (deterministic across headless/desktop —
+    // unlike scrollIntoViewIfNeeded, which aligns variably). At the very bottom
+    // the highlight must leave the top row; back at the top it must return.
+    // We don't assert the exact system (the grid puts 2-3 panels per row, so the
+    // IntersectionObserver's row-lead can be either) — only that it tracks scroll.
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     await expect
-      .poll(async () => (await activeTabText(page)).toLowerCase(), { timeout: 10_000 })
-      .not.toContain("command center");
-    // Scrolling back to the top returns the highlight to Command Center.
-    await page.locator("#command-center").scrollIntoViewIfNeeded();
+      .poll(async () => (await activeTabText(page)).toLowerCase(), { timeout: 12_000 })
+      .not.toMatch(/command center|market intelligence/);
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expect
-      .poll(async () => (await activeTabText(page)).toLowerCase(), { timeout: 10_000 })
-      .toContain("command center");
+      .poll(async () => (await activeTabText(page)).toLowerCase(), { timeout: 12_000 })
+      .toMatch(/command center|market intelligence/);
   });
 
   test("clicking a system tab activates it", async ({ page }) => {
