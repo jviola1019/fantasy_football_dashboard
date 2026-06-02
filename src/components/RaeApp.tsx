@@ -112,6 +112,15 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
         <DemoBanner visible={envelope.mode === "fixture"} />
 
         <div className="governance-banner" role="status">
+          {fmt ? (
+            <span>
+              <b>League:</b> {fmt.scoringFormat === "PPR" ? "PPR" : fmt.scoringFormat === "HALF" ? "Half-PPR" : "Standard"}
+              {" · "}{fmt.numTeams}-team
+              {envelope.season ? ` · ${envelope.season.completed ? `${envelope.season.completed}→` : ""}${envelope.season.upcoming}` : ""}
+              {draftState !== "unknown" ? ` · ${draftState === "pre" ? "pre-draft (full universe)" : "post-draft (free agents)"}` : ""}
+              {" · "}
+            </span>
+          ) : null}
           <b>Source state:</b> {envelope.sourceState.source} · freshness {envelope.sourceState.freshness} · confidence {(envelope.sourceState.confidence * 100).toFixed(0)}% · validation {envelope.sourceState.validation}.
           {envelope.sourceState.failure ? <span> Failure: {envelope.sourceState.failure}</span> : null}
           {envelope.sourceState.missingFields.length > 0 ? (

@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
+import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
 import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
@@ -139,7 +140,9 @@ async function resolveHome(): Promise<HomeResolution> {
           if (projSnapshot) {
             const pts: Record<string, number> = {};
             for (const [id, p] of Object.entries(projSnapshot.data.projections)) {
-              if (p.pts_ppr != null) pts[id] = p.pts_ppr;
+              // Format-aware: PPR / Half / Standard pick their own points field.
+              const v = pickProjectionPoints(p, scoring);
+              if (v != null) pts[id] = v;
             }
             if (Object.keys(pts).length > 0) {
               weeklyProjections = pts;
