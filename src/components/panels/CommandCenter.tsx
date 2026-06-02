@@ -5,7 +5,9 @@ import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
 import { DataUnavailable } from "../ui/DataUnavailable";
 import type { SimulationResult } from "@/lib/simulation";
-import { PlayerRow } from "../PlayerRow";
+import { PositionBadge } from "../PlayerRow";
+import { PlayerHeadshot } from "../PlayerHeadshot";
+import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 import type { CommandMetrics, PositionGrades } from "@/lib/derivedMetrics";
 import { narrativeVelocity } from "@/lib/models";
 import {
@@ -136,9 +138,21 @@ function MetricStrip({
   );
 }
 
+const PULSE_POS_COLOR: Record<string, string> = {
+  QB: "var(--pos-qb)",
+  RB: "var(--pos-rb)",
+  WR: "var(--pos-wr)",
+  TE: "var(--pos-te)",
+  K: "var(--muted)",
+  DEF: "var(--muted)"
+};
+const PULSE_MAX_ROWS = 14;
+
 function LeaguePulse({ players, marketEdge }: { players: PlayerMarketRecord[]; marketEdge: number }) {
-  const ranked = [...players].sort((a, b) => b.trueValue - a.trueValue);
-  const maxVal = ranked[0]?.trueValue ?? 100;
+  const ranked = [...players].sort((a, b) => b.trueValue - a.trueValue).slice(0, PULSE_MAX_ROWS);
+  // Scale bars to the strongest player shown (top = full track). A 4% floor
+  // keeps a low-but-nonzero value visible without distorting the comparison.
+  const maxVal = Math.max(ranked[0]?.trueValue ?? 1, 1);
   return (
     <div className="league-pulse" role="region" aria-label="League pulse player leaderboard">
       <div className="league-pulse-topbar">
@@ -155,18 +169,31 @@ function LeaguePulse({ players, marketEdge }: { players: PlayerMarketRecord[]; m
           <span>Awaiting league data</span>
         </div>
       ) : (
-        <ol className="leaderboard-list" aria-label="Players ranked by true value">
-          {ranked.map((p, idx) => (
-            <li key={p.id} className="leaderboard-row">
-              <span className="lb-rank">{idx + 1}</span>
-              <PlayerRow
-                player={p}
-                metricValue={Math.round(p.trueValue)}
-                barPct={(p.trueValue / maxVal) * 100}
-                size={32}
-              />
-            </li>
-          ))}
+        <ol className="lp-board" aria-label="Players ranked by true value">
+          {ranked.map((p, idx) => {
+            const value = Math.round(p.trueValue);
+            const pct = p.trueValue > 0 ? Math.max(4, (p.trueValue / maxVal) * 100) : 0;
+            return (
+              <li key={p.id} className="lp-row">
+                <span className="lp-rank">{idx + 1}</span>
+                <PlayerHeadshot player={p} fallbacks={fixtureHeadshotFallbacks[p.id] ?? []} size={26} />
+                <span className="lp-id">
+                  <span className="lp-name">{p.name}</span>
+                  <PositionBadge position={p.position} />
+                </span>
+                <span className="lp-bar-track" aria-hidden="true">
+                  <span
+                    className="lp-bar"
+                    style={{
+                      ["--bar-w" as string]: `${pct}%`,
+                      ["--bar-c" as string]: PULSE_POS_COLOR[p.position] ?? "var(--green)"
+                    }}
+                  />
+                </span>
+                <span className="lp-value">{value}</span>
+              </li>
+            );
+          })}
         </ol>
       )}
     </div>

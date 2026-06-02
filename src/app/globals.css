@@ -497,29 +497,68 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .pos-badge[data-pos="k"],
 .pos-badge[data-pos="def"] { background: rgba(141,154,160,0.18); color: var(--muted); }
 
-/* Leaderboard list used in LeaguePulse */
-.leaderboard-list {
+/* League Pulse leaderboard — a fixed grid (rank | headshot | name | bar | value)
+   so the bar track is the SAME width on every row (bars are directly
+   comparable) and the values form a clean right-aligned tabular column. The old
+   flex layout put a thin bar under the name in a variable-width column, so equal
+   ratios rendered unequal pixels and the numbers never lined up. */
+.lp-board {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 4px 0;
   display: flex;
   flex-direction: column;
 }
-.leaderboard-row {
-  display: flex;
+.lp-row {
+  display: grid;
+  grid-template-columns: 16px 26px minmax(0, 1fr) 72px 30px;
   align-items: center;
   gap: 8px;
-  padding: 2px 12px 2px 8px;
+  padding: 3px 12px 3px 8px;
   border-bottom: 1px solid rgba(214,226,226,0.05);
 }
-.leaderboard-row:last-child { border-bottom: none; }
-.lb-rank {
+.lp-row:last-child { border-bottom: none; }
+.lp-rank {
   font-size: 11px;
   font-weight: 700;
   color: var(--muted);
-  min-width: 18px;
   text-align: right;
-  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.lp-id {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.lp-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lp-bar-track {
+  height: 7px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.lp-bar {
+  display: block;
+  height: 100%;
+  width: var(--bar-w, 0%);
+  background: var(--bar-c, var(--green));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.lp-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cream);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 .league-pulse-topbar {
   display: flex;
