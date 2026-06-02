@@ -46,6 +46,22 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
   const [activeSystem, setActiveSystem] = useState<string>("Command Center");
   const players = envelope.records;
 
+  // Sprint 5: market-facing panels (Market Intelligence, Waiver, Player
+  // Universe) show the whole league universe PRE-draft and only free agents
+  // POST-draft; Command Center + Nexus always stay on the user's own roster.
+  // `unknown` (fixtures, pre-Sprint-5 payloads) falls back to the roster.
+  const draftState = envelope.draftState ?? "unknown";
+  const universePool =
+    envelope.leagueUniverse && envelope.leagueUniverse.length > 0
+      ? envelope.leagueUniverse
+      : envelope.draftPool && envelope.draftPool.length > 0
+        ? envelope.draftPool
+        : players;
+  const freeAgentPool =
+    envelope.freeAgents && envelope.freeAgents.length > 0 ? envelope.freeAgents : universePool;
+  const marketPool =
+    draftState === "pre" ? universePool : draftState === "post" ? freeAgentPool : players;
+
   // Season-sim params from the connected league (falls back to a standard
   // 12-team / 6-playoff / 9-starter league for the demo or unknown formats),
   // wired with the real weekly projections when the cron has them.
@@ -67,7 +83,8 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
 
   const sim = runNexusSimulation(players, simParams);
   const commandMetrics = deriveCommandMetrics(players);
-  const marketMetrics = deriveMarketMetrics(players);
+  // Market metrics describe the market set the panel actually shows.
+  const marketMetrics = deriveMarketMetrics(marketPool);
   const scenarios = deriveScenarioComparison(players, sim);
 
   // Selecting a system highlights its nav entry AND scrolls its panel into
@@ -115,14 +132,14 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
               metrics={commandMetrics}
             />
             <MarketIntelligence
-              players={players}
+              players={marketPool}
               marketMetrics={marketMetrics}
               envelope={envelope}
             />
           </PanelRow>
 
           <PanelRow cols={3}>
-            <PlayerUniverse players={players} envelope={envelope} />
+            <PlayerUniverse players={universePool} envelope={envelope} />
             <NarrativeEngine players={players} envelope={envelope} />
             <NexusSimulator
               players={players}
@@ -134,16 +151,15 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
 
           <PanelRow cols={1}>
             {/* The draft board needs the FULL player pool (every rankable
-                player), not just your ~15-player roster — otherwise you can't
-                run a mock draft. Falls back to records only when no pool exists. */}
-            <DraftIntelligence
-              players={envelope.draftPool && envelope.draftPool.length > 0 ? envelope.draftPool : players}
-            />
+                player incl. incoming rookies), not just your ~15-player roster.
+                `universePool` is the Sleeper-keyed league universe (falls back to
+                the FantasyPros draftPool, then the roster). */}
+            <DraftIntelligence players={universePool} />
           </PanelRow>
 
           <PanelRow cols={3}>
             <PreDraftAudit players={players} envelope={envelope} />
-            <WaiverWire players={players} envelope={envelope} />
+            <WaiverWire players={marketPool} envelope={envelope} />
             <TradeCenter />
           </PanelRow>
         </PanelGrid>

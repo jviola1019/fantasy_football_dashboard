@@ -79,13 +79,19 @@ async function resolveHome(): Promise<HomeResolution> {
         platform: l.platform
       }));
       const live = await fetchLeagueLive(userId, activeLeagueId, db);
-      if (live && live.myRoster.length > 0) {
+      // Proceed when there's a real roster OR a parsed league format — the
+      // latter lets a pre-draft / brand-new empty league (no rosters yet) still
+      // render a live envelope with the full draftable universe (Sprint 5).
+      if (live && (live.myRoster.length > 0 || live.format !== null)) {
+        // Pick the FantasyPros scoring variant that matches the league format
+        // (PPR / HALF / STD) so value/VOR reflect the user's real scoring.
+        const scoring = live.format?.scoringFormat ?? "PPR";
         // Fetch rankings, trending, NFL state, news snapshot, and players
         // snapshot in parallel. Each fails open to null so a partial outage
         // doesn't tank the homepage.
         const [rankings, trendingAddsResult, trendingDropsResult, nflState, newsSnapshot, playersSnapshot] =
           await Promise.all([
-            getLatestRankingsSnapshot("PPR"),
+            getLatestRankingsSnapshot(scoring),
             getTrendingPlayers("add", 24, 100).catch(() => null),
             getTrendingPlayers("drop", 24, 100).catch(() => null),
             getNflState().catch(() => null),
@@ -95,9 +101,9 @@ async function resolveHome(): Promise<HomeResolution> {
         const trendingAdds = buildTrendingMap(trendingAddsResult?.data ?? null);
         const trendingDrops = buildTrendingMap(trendingDropsResult?.data ?? null);
         const rankingsSource = rankings
-          ? rankingsSourceFromSnapshot("PPR", rankings.fetchedAt)
+          ? rankingsSourceFromSnapshot(scoring, rankings.fetchedAt)
           : rankingsSourceFromSnapshot(
-              "PPR",
+              scoring,
               null,
               "rankings cache empty — cron may not have fired yet"
             );
@@ -156,7 +162,9 @@ async function resolveHome(): Promise<HomeResolution> {
             trendingDrops,
             weeklyProjections,
             weeklyProjectionsMeta,
-            newsMomentumScores
+            newsMomentumScores,
+            playersSnapshot: playersSnapshot?.players ?? null,
+            currentSeason: nflData?.season
           }),
           leagueOptions,
           activeLeagueId

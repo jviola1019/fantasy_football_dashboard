@@ -8,6 +8,7 @@ import {
   getLeagueUsers as getSleeperUsers,
   getRosters as getSleeperRosters
 } from "../sleeper/league";
+import { getDraft as getSleeperDraft } from "../sleeper/drafts";
 import { getLatestPlayersSnapshot } from "../sleeper/snapshot";
 import type { SleeperPlayersMap, SleeperRoster } from "../sleeper/schemas";
 import type { EspnTeam } from "../espn/schemas";
@@ -38,6 +39,17 @@ export interface LiveLeagueSnapshot {
    * the field (ESPN). Consumed by the lifecycle cron's FAAB-depleted rule.
    */
   myFaabRemainingRatio: number | null;
+  /**
+   * The raw upstream league payload (Sleeper league object / ESPN settings),
+   * so the season-mirror + draft-state derivation can read `status`,
+   * `previous_league_id`, `season`, etc. without re-fetching. Null on failure.
+   */
+  leagueRawData: Record<string, unknown> | null;
+  /**
+   * The Sleeper draft object's `status` ("pre_draft"|"drafting"|"complete"),
+   * used as the backup draft-state signal. Null for ESPN / when no draft_id.
+   */
+  draftStatus: string | null;
 }
 
 /**
@@ -159,7 +171,9 @@ export async function fetchLeagueLive(
       source: unavailableSource(`ESPN league ${league.externalLeagueId}`, "missing credentials"),
       failure: "missing credentials",
       format: null,
-      myFaabRemainingRatio: null
+      myFaabRemainingRatio: null,
+      leagueRawData: null,
+      draftStatus: null
     };
   }
   return fetchEspnLive(league, creds);
@@ -177,6 +191,7 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
   // are missing, the format is useful so PreDraftAudit can audit settings on
   // a freshly-added pre-draft league that doesn't have rosters yet.
   const format = info.data ? parseSleeperFormat(info.data) : null;
+  const leagueRawData = info.data ? (info.data as unknown as Record<string, unknown>) : null;
 
   if (!info.data || !rosters.data || rosters.data.length === 0) {
     return {
@@ -186,7 +201,9 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       source: info.source.freshness === "unavailable" ? info.source : rosters.source,
       failure: info.source.failure ?? rosters.source.failure ?? "no rosters returned",
       format,
-      myFaabRemainingRatio: null
+      myFaabRemainingRatio: null,
+      leagueRawData,
+      draftStatus: null
     };
   }
   if (!snapshot) {
@@ -200,7 +217,9 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       ),
       failure: "no players snapshot",
       format,
-      myFaabRemainingRatio: null
+      myFaabRemainingRatio: null,
+      leagueRawData,
+      draftStatus: null
     };
   }
 
@@ -230,6 +249,12 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       )
     : null;
 
+  // Backup draft-state signal: fetch the draft object's status. Bounded +
+  // fails open so a slow/missing draft endpoint never blocks the homepage.
+  const draftId = info.data.draft_id ?? null;
+  const draft = draftId ? await getSleeperDraft(draftId).catch(() => null) : null;
+  const draftStatus = draft?.data?.status ?? null;
+
   return {
     league,
     allRosters,
@@ -237,7 +262,9 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     source: rosters.source,
     failure: null,
     format,
-    myFaabRemainingRatio
+    myFaabRemainingRatio,
+    leagueRawData,
+    draftStatus
   };
 }
 
@@ -284,6 +311,10 @@ async function fetchEspnLive(
   // can still surface scoring + starter slots on a fresh pre-draft league.
   const format = result.data?.settings ? parseEspnFormat(result.data.settings) : null;
 
+  const espnRawData = result.data?.settings
+    ? (result.data.settings as unknown as Record<string, unknown>)
+    : null;
+
   if (!result.data || !result.data.teams || result.data.teams.length === 0) {
     return {
       league,
@@ -292,7 +323,9 @@ async function fetchEspnLive(
       source: result.source,
       failure: result.source.failure ?? "no teams returned",
       format,
-      myFaabRemainingRatio: null
+      myFaabRemainingRatio: null,
+      leagueRawData: espnRawData,
+      draftStatus: null
     };
   }
 
@@ -342,6 +375,8 @@ async function fetchEspnLive(
     // ESPN: FAAB extraction not yet wired. Their settings live under
     // settings.acquisitionSettings.acquisitionBudget + teamData.waiverRank;
     // separate ticket once an ESPN-FAAB league is available to fixture-pin.
-    myFaabRemainingRatio: null
+    myFaabRemainingRatio: null,
+    leagueRawData: espnRawData,
+    draftStatus: null
   };
 }

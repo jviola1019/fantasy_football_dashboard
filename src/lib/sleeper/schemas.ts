@@ -47,7 +47,10 @@ export const SleeperLeagueSchema = z
     settings: z.record(z.string(), z.unknown()).nullable().optional(),
     scoring_settings: z.record(z.string(), z.unknown()).nullable().optional(),
     roster_positions: z.array(z.string()).nullable().optional(),
-    draft_id: z.string().nullable().optional()
+    draft_id: z.string().nullable().optional(),
+    // Year-chain link to the prior season's league (Sleeper renewal). Lets the
+    // season-mirror tell a brand-new league (no history) from a renewal.
+    previous_league_id: z.string().nullable().optional()
   })
   .passthrough();
 export type SleeperLeague = z.infer<typeof SleeperLeagueSchema>;

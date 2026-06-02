@@ -1,7 +1,21 @@
-import type { RAEEnvelope, SourceMeta } from "../governance";
+import type { RAEEnvelope, SourceMeta, PlayerMarketRecord } from "../governance";
 import type { LiveLeagueSnapshot } from "./fetchLive";
 import type { FpEcrData, FpScoring } from "../fantasypros/types";
+import type { SleeperPlayersMap } from "../sleeper/schemas";
 import { buildFpIndex, enrichRoster, fpDataToRecords } from "../fantasypros/enrich";
+import {
+  detectSleeperDraftState,
+  detectEspnDraftState,
+  anyRosterNonEmpty,
+  type DraftState
+} from "./draftState";
+import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
+import { buildLeagueUniverse, buildFreeAgents } from "./buildUniverse";
+
+// Cap the serialized universe so the SSR props payload stays bounded. The top
+// ~600 players by value cover everything draftable plus deep waiver targets;
+// 0-value deep players add weight without market relevance.
+const UNIVERSE_LIMIT = 600;
 
 // Convert a live league snapshot + FantasyPros rankings into the RAEEnvelope
 // shape that RaeApp + every panel consume. The output envelope has:
@@ -34,6 +48,38 @@ export interface BuildEnvelopeOptions {
    * source. Sleeper proxy stays as fallback when this is absent.
    */
   newsMomentumScores?: Record<string, number> | null;
+  /**
+   * The full Sleeper players map (from the daily snapshot). When present with
+   * rankings, the envelope builds `leagueUniverse` + `freeAgents` (Sprint 5).
+   */
+  playersSnapshot?: SleeperPlayersMap | null;
+  /** Current NFL season ("2026") for the season-mirror. Defaults to the league's own season. */
+  currentSeason?: string;
+}
+
+/**
+ * Derive draft-state + the completed/upcoming season pair from the snapshot's
+ * raw league payload. Platform-aware (Sleeper status/chain vs. ESPN roster-fill).
+ */
+function deriveLeagueMeta(
+  snapshot: LiveLeagueSnapshot,
+  currentSeason: string
+): { draftState: DraftState; season: SeasonMirror } {
+  const raw = snapshot.leagueRawData ?? {};
+  if (snapshot.league.platform === "sleeper") {
+    const status = typeof raw.status === "string" ? raw.status : null;
+    const leagueSeason = typeof raw.season === "string" ? raw.season : String(snapshot.league.season);
+    const prev = typeof raw.previous_league_id === "string" ? raw.previous_league_id : null;
+    return {
+      draftState: detectSleeperDraftState(status, snapshot.draftStatus, anyRosterNonEmpty(snapshot.allRosters)),
+      season: resolveSleeperSeasonMirror(status, leagueSeason, prev, currentSeason)
+    };
+  }
+  const expected = snapshot.format
+    ? Object.values(snapshot.format.starters).reduce((s, n) => s + n, 0)
+    : 0;
+  const draftState = detectEspnDraftState(snapshot.allRosters, expected);
+  return { draftState, season: resolveEspnSeasonMirror(snapshot.league.season, draftState) };
 }
 
 export function buildLiveEnvelope({
@@ -44,8 +90,27 @@ export function buildLiveEnvelope({
   trendingDrops,
   weeklyProjections,
   weeklyProjectionsMeta,
-  newsMomentumScores
+  newsMomentumScores,
+  playersSnapshot,
+  currentSeason
 }: BuildEnvelopeOptions): RAEEnvelope {
+  const season0 = currentSeason ?? String(snapshot.league.season);
+  const { draftState, season } = deriveLeagueMeta(snapshot, season0);
+
+  // Build the league universe + free agents when both the players snapshot and
+  // rankings are present. Capped + value-sorted to keep the payload bounded.
+  let leagueUniverse: PlayerMarketRecord[] | null = null;
+  let freeAgents: PlayerMarketRecord[] | null = null;
+  if (playersSnapshot && rankings) {
+    const full = buildLeagueUniverse(playersSnapshot, rankings, {
+      rankingsSource,
+      trendingAdds,
+      trendingDrops,
+      newsMomentumScores
+    });
+    leagueUniverse = [...full].sort((a, b) => b.trueValue - a.trueValue).slice(0, UNIVERSE_LIMIT);
+    freeAgents = buildFreeAgents(leagueUniverse, snapshot.allRosters);
+  }
   if (!rankings) {
     // No rankings cached yet — still emit live mode with the identity-only
     // roster. Panels will read source.missingFields and show "—" everywhere.
@@ -57,7 +122,13 @@ export function buildLiveEnvelope({
       leagueFormat: snapshot.format,
       weeklyProjections: weeklyProjections ?? null,
       weeklyProjectionsMeta: weeklyProjectionsMeta ?? null,
-      draftPool: null
+      draftPool: null,
+      // No rankings ⇒ no value-enriched universe; still expose real structure.
+      draftState,
+      season,
+      leagueUniverse: null,
+      freeAgents: null,
+      allRosters: snapshot.allRosters
     };
   }
 
@@ -122,7 +193,13 @@ export function buildLiveEnvelope({
     weeklyProjections: weeklyProjections ?? null,
     weeklyProjectionsMeta: weeklyProjectionsMeta ?? null,
     // The full FantasyPros-ranked pool so the draft panel can draft any player.
-    draftPool: fpDataToRecords(rankings, rankingsSource)
+    draftPool: fpDataToRecords(rankings, rankingsSource),
+    // Sprint 5: league-universe / season-mirror.
+    draftState,
+    season,
+    leagueUniverse,
+    freeAgents,
+    allRosters: snapshot.allRosters
   };
 }
 
