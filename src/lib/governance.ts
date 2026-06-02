@@ -67,7 +67,31 @@ export const RAEEnvelopeSchema = z.object({
   // by the Draft Intelligence / mock-draft view so you can draft ANY player —
   // not just the ~15 on your current roster. Null when no rankings are cached;
   // the draft panel then falls back to `records`. Optional so older payloads parse.
-  draftPool: z.array(PlayerMarketRecordSchema).nullable().optional()
+  draftPool: z.array(PlayerMarketRecordSchema).nullable().optional(),
+
+  // ── Sprint 5: league-universe / season-mirror model ───────────────────────
+  // Whether the connected league has drafted yet. Drives which player set the
+  // market panels show (pre → whole universe, post → free agents, unknown →
+  // the user's own roster). All five fields are nullable/optional so fixture,
+  // unavailable, and pre-Sprint-5 payloads parse unchanged.
+  draftState: z.enum(["pre", "post", "unknown"]).nullable().optional(),
+  // The completed (final results) and upcoming (drafting/planning) seasons. For
+  // an imported completed league this is {completed:"2025", upcoming:"2026"}; a
+  // brand-new league with no history has completed:null.
+  season: z
+    .object({ completed: z.string().nullable(), upcoming: z.string() })
+    .nullable()
+    .optional(),
+  // Every active, fantasy-relevant player (Sleeper identity + FantasyPros
+  // value), keyed `sleeper:<id>`. The PRE-draft market/waiver/explore set.
+  leagueUniverse: z.array(PlayerMarketRecordSchema).nullable().optional(),
+  // leagueUniverse minus the union of every team's roster — the POST-draft
+  // free-agent / waiver pool. Ids share the Sleeper space so the subtraction
+  // is exact.
+  freeAgents: z.array(PlayerMarketRecordSchema).nullable().optional(),
+  // Every team's roster (not just the user's), so panels can verify the whole
+  // league rather than a single team.
+  allRosters: z.array(z.array(PlayerMarketRecordSchema)).nullable().optional()
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 

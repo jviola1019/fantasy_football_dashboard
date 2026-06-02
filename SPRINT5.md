@@ -51,8 +51,11 @@ Add (all nullable/optional so legacy/fixture callers are unaffected):
 - Pure function + unit tests over both platforms' fixtures.
 
 ### 2.3 The 2026 mirror (`src/lib/leagues/seasonMirror.ts`, new)
-- On import, record the league's own season as `completed`. Compute `upcoming = String(Number(completed)+1)` (clamp to the live `getNflState().season`).
-- **Sleeper:** look up the user's leagues for `upcoming`; if a successor exists (match by `previous_league_id`/name) use it directly (it is genuinely pre-draft/empty until their draft). If none exists yet, synthesize an **upcoming view** from the completed league's real settings (teams, size, scoring, roster slots) with **empty** rosters — labelled "2026 (upcoming · undrafted)". This is **not** fabricated player data: settings are real, rosters are genuinely empty.
+Three import cases, all converging on the same honest rule — *empty rosters are real, settings are real, the player universe is the current one*:
+- **Case A — imported COMPLETED league (has history):** record its season as `completed`. Compute `upcoming = String(Number(completed)+1)` (clamp to the live `getNflState().season`). **Sleeper:** look up the user's leagues for `upcoming`; if a successor exists (match by `previous_league_id`/name) use it directly (genuinely pre-draft/empty until their draft). If none exists yet, synthesize an **upcoming view** from the completed league's real settings (teams, size, scoring, roster slots) with **empty** rosters — labelled "2026 (upcoming · undrafted)".
+- **Case B — imported UPCOMING league with a predecessor (renewal chain):** use the real upcoming league directly.
+- **Case C — brand-NEW empty league, no history (owner refinement):** the user adds a fresh league that has no prior season. Treat it as a pre-draft league: **all rosters empty** (same as the Case-A mirror), **settings taken from the newest available year** (the live `getNflState().season`), and the **full player universe** available pre-draft. `completed` is null; `upcoming` = current season.
+- In every case rosters are either genuinely empty (undrafted) or the real fetched rosters — **never fabricated**. The "upcoming · undrafted" label is shown whenever rosters are empty.
 - **Refresh-on-load:** on every authenticated homepage load, re-pull leagues + rosters (bounded, cached by short TTL) so a completed real draft flips `draftState` to `post` automatically. Wire in `src/app/page.tsx` + `loadRAEEnvelope`.
 
 ### 2.4 League player universe (`src/lib/leagues/universe.ts`, new)
