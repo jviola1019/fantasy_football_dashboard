@@ -872,6 +872,20 @@ td small { color: var(--muted); }
 .rising-item { display: flex; justify-content: space-between; font-size: 10px; padding: 2px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .radar-wrap { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); margin-top: 8px; }
 .universe-sidebar { display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+/* Player Universe — working-tab views (Tiers / Comparison / Watchlist / Projections). */
+.pu-grid-note { margin-top: 6px; }
+.pu-radar-note { margin-top: 6px; }
+.universe-tiers { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.tier-pos-block { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--panel-2); }
+.tier-pos-head { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--blue); margin-bottom: 4px; }
+.tier-band-row { display: grid; grid-template-columns: 54px 1fr; gap: 6px; align-items: start; padding: 2px 0; }
+.tier-band-label { font-size: 9px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 2px; }
+.tier-band-players { display: flex; flex-wrap: wrap; gap: 4px; }
+.tier-chip { font-size: 10px; color: var(--cream); background: rgba(90,159,196,0.1); border: 1px solid rgba(90,159,196,0.22); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.tier-chip b { color: var(--blue); font-variant-numeric: tabular-nums; }
+.watch-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.watch-col { min-width: 0; }
+.cmp-self { background: rgba(90,159,196,0.1); }
 
 /* ─── Narrative Engine ───────────────────────────────────────────────────── */
 .narrative-layout { display: grid; grid-template-columns: 1fr 140px; gap: 8px; }

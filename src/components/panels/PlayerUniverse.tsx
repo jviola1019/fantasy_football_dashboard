@@ -6,6 +6,7 @@ import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
+import { DataUnavailable } from "../ui/DataUnavailable";
 import { marketInefficiency, narrativeVelocity } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
@@ -53,6 +54,13 @@ export function PlayerUniverse({ players, envelope }: Props) {
   // Real third stat (replaces the old hardcoded "176 Leagues Analyzed").
   const undervalued = players.filter((p) => p.trueValue > p.perceivedValue).length;
 
+  // The universe can be hundreds of players (whole-league pool). Show the top
+  // slice by value when browsing; show all matches when searching — so the grid
+  // stays fast and readable instead of dumping 600 cards.
+  const GRID_CAP = 60;
+  const sortedByValue = [...players].sort((a, b) => b.trueValue - a.trueValue);
+  const gridPlayers = (searchQuery ? filtered : sortedByValue).slice(0, searchQuery ? 150 : GRID_CAP);
+
   // O(1) lookup for per-axis dashed rendering. Empty Set when no envelope
   // provided (legacy callers) → all axes treated as available.
   const missing = envelope
@@ -85,61 +93,77 @@ export function PlayerUniverse({ players, envelope }: Props) {
         ariaLabel="Player Universe tabs"
       />
 
-      <div className="universe-layout">
-        <GalaxyView
-          players={filtered}
-          allPlayers={players}
-          selectedIdx={selectedIdx}
-          onSelect={setSelectedIdx}
-        />
-        <div className="universe-sidebar">
-          {selected && <PlayerProfile player={selected} />}
-          <UniverseStats
-            count={players.length}
-            undervalued={undervalued}
-            avgIneff={avgIneff}
-            risingStars={risingStars}
-          />
-          {selected && (
-            <div className="radar-wrap">
-              <div className="section-label">METRIC PROFILE</div>
-              <RadarChart
-                axes={[
-                  {
-                    label: "Value",
-                    value: selected.trueValue,
-                    unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
-                  },
-                  {
-                    label: "Oppty",
-                    value: selected.opportunity,
-                    unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
-                  },
-                  {
-                    // Map signed momentum (−100..100) to a 0..100 position so a
-                    // NEGATIVE trend shows a SHORT spoke (consistent with the
-                    // signed value in the profile), not |momentum| which made a
-                    // −47 look identical to a +47.
-                    label: "Trending",
-                    value: (selected.trendingMomentum + 100) / 2,
-                    unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
-                  },
-                  { label: "Confidence", value: selected.confidence * 100 },
-                  { label: "Stability", value: 100 - selected.volatility },
-                ]}
-                max={100}
-                size={140}
-              />
-              {anyAxisMissing ? (
-                <p className="small-note" style={{ marginTop: 6 }}>
-                  Axes marked <code>*</code> have no integrated data source yet — radar polygon
-                  drops to 0 on those edges rather than show a fabricated reading.
-                </p>
-              ) : null}
-            </div>
-          )}
+      {activeTab === "Universe" && (
+        <div className="universe-layout">
+          <div>
+            <GalaxyView
+              players={gridPlayers}
+              allPlayers={players}
+              selectedIdx={selectedIdx}
+              onSelect={setSelectedIdx}
+            />
+            {!searchQuery && players.length > gridPlayers.length ? (
+              <p className="small-note pu-grid-note">
+                Showing the top {gridPlayers.length} of {players.length} by value — search to find any player.
+              </p>
+            ) : null}
+          </div>
+          <div className="universe-sidebar">
+            {selected && <PlayerProfile player={selected} />}
+            <UniverseStats
+              count={players.length}
+              undervalued={undervalued}
+              avgIneff={avgIneff}
+              risingStars={risingStars}
+            />
+            {selected && (
+              <div className="radar-wrap">
+                <div className="section-label">METRIC PROFILE</div>
+                <RadarChart
+                  axes={[
+                    {
+                      label: "Value",
+                      value: selected.trueValue,
+                      unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
+                    },
+                    {
+                      label: "Oppty",
+                      value: selected.opportunity,
+                      unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
+                    },
+                    {
+                      // Map signed momentum (−100..100) to a 0..100 position so a
+                      // NEGATIVE trend shows a SHORT spoke (consistent with the
+                      // signed value in the profile), not |momentum| which made a
+                      // −47 look identical to a +47.
+                      label: "Trending",
+                      value: (selected.trendingMomentum + 100) / 2,
+                      unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
+                    },
+                    { label: "Confidence", value: selected.confidence * 100 },
+                    { label: "Stability", value: 100 - selected.volatility },
+                  ]}
+                  max={100}
+                  size={140}
+                />
+                {anyAxisMissing ? (
+                  <p className="small-note pu-radar-note">
+                    Axes marked <code>*</code> have no integrated data source yet — radar polygon
+                    drops to 0 on those edges rather than show a fabricated reading.
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === "Tiers" && <UniverseTiers players={players} />}
+      {activeTab === "Comparison" && <UniverseComparison player={selected} players={players} />}
+      {activeTab === "Watchlist" && (
+        <UniverseWatchlist players={players} trendingUnavailable={missing.has("trending_momentum")} />
+      )}
+      {activeTab === "Projections" && <UniverseProjections envelope={envelope} players={players} />}
     </PanelCard>
   );
 }
@@ -280,6 +304,155 @@ function UniverseStats({
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+// ── Tab: Tiers — value bands per position ─────────────────────────────────────
+const TIER_BANDS: Array<{ label: string; min: number }> = [
+  { label: "Elite", min: 85 },
+  { label: "Tier 1", min: 70 },
+  { label: "Tier 2", min: 55 },
+  { label: "Tier 3", min: 40 },
+  { label: "Deep", min: 0 }
+];
+const TIER_POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"] as const;
+
+function UniverseTiers({ players }: { players: PlayerMarketRecord[] }) {
+  return (
+    <div className="universe-tiers">
+      <div className="section-label">VALUE TIERS BY POSITION</div>
+      {TIER_POSITIONS.map((pos) => {
+        const atPos = players.filter((p) => p.position === pos).sort((a, b) => b.trueValue - a.trueValue);
+        if (atPos.length === 0) return null;
+        return (
+          <div key={pos} className="tier-pos-block">
+            <div className="tier-pos-head">{pos}</div>
+            {TIER_BANDS.map((band, i) => {
+              const max = i === 0 ? Infinity : TIER_BANDS[i - 1]!.min;
+              const inBand = atPos.filter((p) => p.trueValue >= band.min && p.trueValue < max).slice(0, 8);
+              if (inBand.length === 0) return null;
+              return (
+                <div key={band.label} className="tier-band-row">
+                  <span className="tier-band-label">{band.label}</span>
+                  <span className="tier-band-players">
+                    {inBand.map((p) => (
+                      <span key={p.id} className="tier-chip">
+                        {p.name.split(" ").slice(-1)[0]} <b>{Math.round(p.trueValue)}</b>
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Tab: Comparison — selected player vs its positional peers ──────────────────
+function UniverseComparison({ player, players }: { player?: PlayerMarketRecord; players: PlayerMarketRecord[] }) {
+  if (!player) {
+    return <p className="muted-note">Select a player in the Universe tab to compare against positional peers.</p>;
+  }
+  const peers = players
+    .filter((p) => p.position === player.position)
+    .sort((a, b) => b.trueValue - a.trueValue)
+    .slice(0, 6);
+  const rows = peers.some((p) => p.id === player.id) ? peers : [player, ...peers].slice(0, 6);
+  return (
+    <div className="table-wrap" tabIndex={0}>
+      <div className="section-label">COMPARISON — {player.name} vs {player.position} peers</div>
+      <table>
+        <thead>
+          <tr><th>Player</th><th>True</th><th>Market</th><th>Edge</th><th>Trend</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => {
+            const edge = Math.round(p.trueValue - p.perceivedValue);
+            return (
+              <tr key={p.id} className={p.id === player.id ? "cmp-self" : undefined}>
+                <td>{p.name}{p.id === player.id ? " ◂" : ""}</td>
+                <td>{Math.round(p.trueValue)}</td>
+                <td>{Math.round(p.perceivedValue)}</td>
+                <td className={edge >= 0 ? "pos-text" : "neg-text"}>{edge >= 0 ? `+${edge}` : edge}</td>
+                <td>{p.trendingMomentum > 0 ? "↗" : p.trendingMomentum < 0 ? "↘" : "—"}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Tab: Watchlist — biggest risers / fallers by narrative velocity ───────────
+function UniverseWatchlist({ players, trendingUnavailable }: { players: PlayerMarketRecord[]; trendingUnavailable: boolean }) {
+  if (trendingUnavailable) {
+    return (
+      <DataUnavailable
+        title="Watchlist needs a momentum source"
+        description="Risers/fallers rank by trending momentum, which has no integrated source for this envelope yet. Connect a Sleeper league (trending adds/drops) or wait for the news-velocity cron."
+      />
+    );
+  }
+  const byVel = [...players].sort((a, b) => narrativeVelocity(b) - narrativeVelocity(a));
+  const risers = byVel.slice(0, 8);
+  const fallers = byVel.slice(-8).reverse();
+  const col = (title: string, list: PlayerMarketRecord[]) => (
+    <div className="watch-col">
+      <div className="section-label">{title}</div>
+      <ul className="rising-list">
+        {list.map((p) => (
+          <li key={p.id} className="rising-item">
+            <span>{p.name}</span>
+            <span className={narrativeVelocity(p) >= 0 ? "pos-text" : "neg-text"}>
+              {narrativeVelocity(p) >= 0 ? "+" : ""}{Math.round(narrativeVelocity(p))}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  return <div className="watch-cols">{col("TOP RISERS", risers)}{col("TOP FALLERS", fallers)}</div>;
+}
+
+// ── Tab: Projections — weekly pts when the cron has them, else honest empty ────
+function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; players: PlayerMarketRecord[] }) {
+  const proj = envelope?.weeklyProjections ?? null;
+  const meta = envelope?.weeklyProjectionsMeta ?? null;
+  if (!proj || Object.keys(proj).length === 0) {
+    return (
+      <DataUnavailable
+        title="No weekly projections yet"
+        description="Sleeper weekly point projections populate during the regular season (via the projections cron). Off-season or pre-cron, there is nothing real to rank here."
+      />
+    );
+  }
+  const ranked = players
+    .map((p) => ({ p, pts: proj[p.id.replace(/^sleeper:/, "")] ?? null }))
+    .filter((r): r is { p: PlayerMarketRecord; pts: number } => r.pts != null)
+    .sort((a, b) => b.pts - a.pts)
+    .slice(0, 25);
+  return (
+    <div className="table-wrap" tabIndex={0}>
+      <div className="section-label">
+        WEEKLY PROJECTIONS{meta ? ` — week ${meta.week}, ${meta.season}` : ""}
+      </div>
+      {ranked.length === 0 ? (
+        <p className="muted-note">No projected players in this set.</p>
+      ) : (
+        <table>
+          <thead><tr><th>Player</th><th>Pos</th><th>Proj pts</th></tr></thead>
+          <tbody>
+            {ranked.map(({ p, pts }) => (
+              <tr key={p.id}><td>{p.name}</td><td>{p.position}</td><td><b>{pts.toFixed(1)}</b></td></tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }
