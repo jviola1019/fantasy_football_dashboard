@@ -57,9 +57,11 @@ export function PlayerUniverse({ players, envelope }: Props) {
   // The universe can be hundreds of players (whole-league pool). Show the top
   // slice by value when browsing; show all matches when searching — so the grid
   // stays fast and readable instead of dumping 600 cards.
-  const GRID_CAP = 60;
+  const GRID_CAP = 100;
   const sortedByValue = [...players].sort((a, b) => b.trueValue - a.trueValue);
-  const gridPlayers = (searchQuery ? filtered : sortedByValue).slice(0, searchQuery ? 150 : GRID_CAP);
+  // While searching, show EVERY match (a name search rarely exceeds a few dozen);
+  // when browsing, show the top GRID_CAP by value with a "search for any" hint.
+  const gridPlayers = searchQuery ? filtered : sortedByValue.slice(0, GRID_CAP);
 
   // O(1) lookup for per-axis dashed rendering. Empty Set when no envelope
   // provided (legacy callers) → all axes treated as available.
@@ -197,7 +199,7 @@ function GalaxyView({
               type="button"
               className={`player-grid-card${isSelected ? " selected" : ""}`}
               onClick={() => originalIdx !== -1 && onSelect(originalIdx)}
-              aria-pressed={isSelected ? "true" : "false"}
+              aria-pressed={isSelected}
               aria-label={`${p.name}, ${p.position}, ${p.team ?? "unknown team"}`}
             >
               <div className="player-grid-card-header">

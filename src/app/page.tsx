@@ -9,6 +9,7 @@ import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
+import { buildLeagueUniverse } from "@/lib/leagues/buildUniverse";
 import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
@@ -185,10 +186,40 @@ async function resolveHome(): Promise<HomeResolution> {
   // Anonymous / catch-all fallback.
   return {
     kind: "envelope",
-    envelope: RAEEnvelopeSchema.parse(fixtureEnvelope()),
+    envelope: await publicDemoEnvelope(),
     leagueOptions: [],
     activeLeagueId: null
   };
+}
+
+/**
+ * The anonymous/demo envelope. The roster-driven tiles stay the labeled DEMO
+ * fixture, but when the daily crons have cached FantasyPros rankings + the
+ * Sleeper players map we attach the FULL, REAL, searchable player universe so
+ * Player Universe and the draft board let a logged-out visitor explore and
+ * search every player — not just the 8-player showcase. The universe is real FP
+ * data (not synthetic); the DEMO banner still covers the fixture-derived tiles.
+ */
+async function publicDemoEnvelope(): Promise<RAEEnvelope> {
+  const base = RAEEnvelopeSchema.parse(fixtureEnvelope());
+  try {
+    const [rankings, playersSnap] = await Promise.all([
+      getLatestRankingsSnapshot("PPR").catch(() => null),
+      getLatestPlayersSnapshot().catch(() => null)
+    ]);
+    if (rankings?.data && playersSnap) {
+      const src = rankingsSourceFromSnapshot("PPR", rankings.fetchedAt);
+      const universe = buildLeagueUniverse(playersSnap.players, rankings.data, { rankingsSource: src })
+        .sort((a, b) => b.trueValue - a.trueValue)
+        .slice(0, 600);
+      if (universe.length > 0) {
+        return { ...base, leagueUniverse: universe, draftPool: universe };
+      }
+    }
+  } catch {
+    // No cached snapshots (e.g. local dev before a cron) — plain demo fixture.
+  }
+  return base;
 }
 
 export default async function Home() {
