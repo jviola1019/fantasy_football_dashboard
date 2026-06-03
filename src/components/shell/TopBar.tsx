@@ -93,19 +93,19 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               onClick={() => onSelect(system)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "group relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 pb-[18px] pt-1.5 text-[11px] font-medium uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+                "group relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 pt-2 pb-[14px] text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
                 isActive
-                  ? "text-foreground"
-                  : "text-muted-foreground hover:bg-rae-blue/[0.06] hover:text-foreground"
+                  ? "bg-rae-blue/[0.12] text-foreground ring-1 ring-inset ring-rae-blue/30"
+                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
               )}
             >
               <span
                 aria-hidden="true"
                 className={cn(
-                  "grid h-5 min-w-5 place-items-center rounded-md px-1.5 text-[10px] font-bold leading-none tabular-nums transition-colors duration-200",
+                  "grid h-6 min-w-6 place-items-center rounded-md px-1.5 text-[11px] font-bold leading-none tabular-nums transition-colors duration-200",
                   isActive
-                    ? "bg-rae-blue/20 text-rae-blue"
-                    : "bg-muted/60 text-muted-foreground group-hover:text-rae-blue/80"
+                    ? "bg-rae-blue text-background"
+                    : "bg-muted/70 text-muted-foreground group-hover:text-rae-blue/90"
                 )}
               >
                 {index + 1}
@@ -115,7 +115,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
                 <motion.span
                   layoutId={`topbar-underline-${navId}`}
                   aria-hidden="true"
-                  className="topbar-underline absolute inset-x-1.5 -bottom-[1px] h-[2.5px] rounded-full"
+                  className="topbar-underline absolute inset-x-2 -bottom-[1px] h-[3px] rounded-full"
                   transition={
                     reduce
                       ? { duration: 0 }
