@@ -114,11 +114,59 @@ function LiveBoard({
   onRelease: (id: string) => void;
   recommendations: Recommendation[];
 }) {
+  const [query, setQuery] = useState("");
   const topPick = recommendations[0];
+  const recIds = useMemo(() => new Set(recommendations.map((r) => r.player.id)), [recommendations]);
+  const availIds = useMemo(() => new Set(available.map((p) => p.id)), [available]);
+
+  // How many rows the board shows. Searching filters the WHOLE available pool —
+  // every player is findable and draftable, not just the top few by value.
+  const BOARD_CAP = 24;
+  const SEARCH_CAP = 60;
+  const q = query.trim().toLowerCase();
+
+  // When searching, match name / team / position across all available players.
+  const matches = useMemo(() => {
+    if (!q) return null;
+    return available.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.position.toLowerCase().includes(q) ||
+        (p.team ?? "").toLowerCase().includes(q)
+    );
+  }, [q, available]);
+
+  // With no search, the board is the union of EVERY current recommendation plus
+  // the highest-value available players, deduped — so a recommended player is
+  // always on the board even when its composite draft score (edge/opportunity/
+  // need/run) outranks its raw trueValue. This fixes "recommended players that
+  // weren't on the board".
+  const visible = useMemo(() => {
+    if (matches) return matches.slice(0, SEARCH_CAP);
+    const recFirst = recommendations.map((r) => r.player).filter((p) => availIds.has(p.id));
+    const seen = new Set(recFirst.map((p) => p.id));
+    return [...recFirst, ...available.filter((p) => !seen.has(p.id))].slice(0, BOARD_CAP);
+  }, [matches, available, availIds, recommendations]);
+
+  const matchCount = matches?.length ?? available.length;
+
   return (
     <div className="universe-layout">
       <div className="table-wrap" tabIndex={0}>
         <div className="section-label">AVAILABLE — draft to your team or mark taken by an opponent</div>
+        <input
+          className="galaxy-search draft-search"
+          type="search"
+          placeholder="Search all available players (name, team, or position)…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          aria-label="Search available players"
+        />
+        <div className="muted-text draft-board-count">
+          {q
+            ? `${Math.min(matchCount, SEARCH_CAP)} of ${matchCount} match${matchCount === 1 ? "" : "es"}${matchCount > SEARCH_CAP ? " — refine to narrow" : ""}`
+            : `Top ${Math.min(visible.length, BOARD_CAP)} of ${available.length} available · ★ = recommended · search to reach any player`}
+        </div>
         <table>
           <thead>
             <tr>
@@ -136,9 +184,19 @@ function LiveBoard({
                 <td colSpan={6}>No available players (or empty envelope).</td>
               </tr>
             )}
-            {available.slice(0, 16).map((p) => (
-              <tr key={p.id}>
-                <td>{p.name}</td>
+            {available.length > 0 && visible.length === 0 && (
+              <tr>
+                <td colSpan={6}>No available players match “{query}”.</td>
+              </tr>
+            )}
+            {visible.map((p) => (
+              <tr key={p.id} className={recIds.has(p.id) ? "draft-row-rec" : undefined}>
+                <td>
+                  {recIds.has(p.id) && (
+                    <span className="draft-rec-star" aria-label="Recommended" title="Recommended">★</span>
+                  )}
+                  {p.name}
+                </td>
                 <td>{p.position}</td>
                 <td>{p.team ?? "—"}</td>
                 <td>{Math.round(p.trueValue)}</td>

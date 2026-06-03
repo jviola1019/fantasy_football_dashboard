@@ -12,6 +12,23 @@ export function slug(value: string): string {
   return value.toLowerCase().replaceAll(" ", "-");
 }
 
+/** Generational suffixes that should never be shown as a player's "last name". */
+const NAME_SUFFIXES = new Set(["jr", "jr.", "sr", "sr.", "ii", "iii", "iv", "v"]);
+
+/**
+ * The display surname for a full name: the last real name token, skipping
+ * generational suffixes. "Marvin Harrison Jr." → "Harrison", not "Jr.".
+ * Used for compact labels (heatmap cells, league-pulse chips) where the prior
+ * `name.split(" ").slice(-1)` grabbed the suffix instead of the family name.
+ */
+export function surname(fullName: string): string {
+  const tokens = fullName.trim().split(/\s+/).filter(Boolean);
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    if (!NAME_SUFFIXES.has(tokens[i].toLowerCase())) return tokens[i];
+  }
+  return fullName;
+}
+
 export function fmt(n: number, decimals = 1): string {
   return Number.isFinite(n) ? n.toFixed(decimals) : "—";
 }

@@ -78,11 +78,13 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
         </div>
       </div>
 
-      {/* Top-level system nav — a sliding-underline rail that reads as a single
-          premium control. Scrolls horizontally on narrow screens. */}
+      {/* Top-level system nav — a recessed segmented rail. The active system is
+          a solid slate-blue pill that slides between segments (shared-layout
+          `layoutId`); the dark label sitting on the pill makes the current
+          selection unmistakable. Scrolls horizontally on narrow screens. */}
       <nav
         aria-label="Top-level systems"
-        className="topbar-nav -mx-1 flex items-stretch gap-0.5 overflow-x-auto px-1 pb-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="topbar-seg flex max-w-full items-center gap-1 self-start overflow-x-auto rounded-xl border border-border/60 bg-secondary/30 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {systems.map((system, index) => {
           const isActive = active === system;
@@ -93,36 +95,34 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               onClick={() => onSelect(system)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "group relative flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3 pt-2 pb-[14px] text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
-                isActive
-                  ? "bg-rae-blue/[0.12] text-foreground ring-1 ring-inset ring-rae-blue/30"
-                  : "text-muted-foreground hover:bg-white/[0.04] hover:text-foreground"
+                "group relative isolate flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+                isActive ? "text-background" : "text-muted-foreground hover:text-foreground"
               )}
             >
+              {isActive && (
+                <motion.span
+                  layoutId={`topbar-pill-${navId}`}
+                  aria-hidden="true"
+                  className="topbar-pill absolute inset-0 -z-10 rounded-lg"
+                  transition={
+                    reduce
+                      ? { duration: 0 }
+                      : { type: "spring", stiffness: 520, damping: 42, mass: 0.7 }
+                  }
+                />
+              )}
               <span
                 aria-hidden="true"
                 className={cn(
-                  "grid h-6 min-w-6 place-items-center rounded-md px-1.5 text-[11px] font-bold leading-none tabular-nums transition-colors duration-200",
+                  "grid h-5 min-w-5 place-items-center rounded-md text-[10px] font-bold leading-none tabular-nums transition-colors duration-200",
                   isActive
-                    ? "bg-rae-blue text-background"
-                    : "bg-muted/70 text-muted-foreground group-hover:text-rae-blue/90"
+                    ? "text-background/90"
+                    : "bg-muted/70 px-1 text-muted-foreground group-hover:text-rae-blue/90"
                 )}
               >
                 {index + 1}
               </span>
               {system}
-              {isActive && (
-                <motion.span
-                  layoutId={`topbar-underline-${navId}`}
-                  aria-hidden="true"
-                  className="topbar-underline absolute inset-x-2 -bottom-[1px] h-[3px] rounded-full"
-                  transition={
-                    reduce
-                      ? { duration: 0 }
-                      : { type: "spring", stiffness: 520, damping: 40, mass: 0.6 }
-                  }
-                />
-              )}
             </button>
           );
         })}

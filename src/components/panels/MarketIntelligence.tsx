@@ -14,7 +14,7 @@ import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, confidenceInterval } from "@/lib/models";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
-import { fmt } from "@/lib/utils";
+import { fmt, surname } from "@/lib/utils";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -189,7 +189,7 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
   }
   const sorted = [...players].sort((a, b) => b.opportunity - a.opportunity).slice(0, 12);
   const items = sorted.map((p) => ({
-    label: p.name.split(" ").pop() ?? p.name,
+    label: surname(p.name),
     value: Math.round(p.opportunity),
     color: p.opportunity > 70 ? "var(--green)" : p.opportunity > 40 ? "var(--amber)" : "var(--muted)",
   }));
@@ -211,7 +211,10 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
 }
 
 const HEAT_POSITIONS = ["QB", "RB", "WR", "TE"] as const;
-const HEAT_COLS = 6;
+// Players shown per position. The row grid is driven off this via the
+// `--heat-cols` custom property, and the wrap scrolls horizontally on narrow
+// screens, so this can grow without crushing the cells.
+const HEAT_COLS = 8;
 
 function MarketEfficiencyHeatmap({ players }: { players: PlayerMarketRecord[] }) {
   // A readable Value × Usage map. Per position, the top HEAT_COLS players by
@@ -230,7 +233,7 @@ function MarketEfficiencyHeatmap({ players }: { players: PlayerMarketRecord[] })
           .sort((a, b) => b.trueValue - a.trueValue)
           .slice(0, HEAT_COLS);
         return (
-          <div className="heat-row2" key={pos}>
+          <div className="heat-row2" key={pos} style={{ ["--heat-cols" as string]: String(HEAT_COLS) }}>
             <span className="heat-pos">{pos}</span>
             {Array.from({ length: HEAT_COLS }).map((_, i) => {
               const p = group[i];
@@ -239,7 +242,7 @@ function MarketEfficiencyHeatmap({ players }: { players: PlayerMarketRecord[] })
               const frac = v / 100;
               const usage = Math.max(0, Math.min(100, p.opportunity));
               const edge = reputationEdge(p);
-              const last = p.name.split(" ").slice(-1)[0] ?? p.name;
+              const last = surname(p.name);
               return (
                 <span
                   key={p.id}
@@ -392,7 +395,7 @@ function PriceDiscoveryView({ players }: { players: PlayerMarketRecord[] }) {
                 <title>{`${p.name} — market ${p.perceivedValue}, true ${p.trueValue} (${under ? "+" : ""}${p.trueValue - p.perceivedValue})`}</title>
               </circle>
               {big && (
-                <text x={cx + 5} y={cy - 4} fontSize="8" fill="var(--cream)">{p.name.split(" ").pop()}</text>
+                <text x={cx + 5} y={cy - 4} fontSize="8" fill="var(--cream)">{surname(p.name)}</text>
               )}
             </g>
           );

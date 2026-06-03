@@ -16,7 +16,7 @@ import {
   deriveStartSitEdge,
 } from "@/lib/derivedMetrics";
 import { derivePanelState } from "@/lib/panelState";
-import { fmt } from "@/lib/utils";
+import { fmt, surname } from "@/lib/utils";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -422,7 +422,7 @@ function StartSitEdge({ rows, hasData }: { rows: ReturnType<typeof deriveStartSi
           <tbody>
             {rows.map(({ player, proj, repl, edge }) => (
               <tr key={player.id}>
-                <td>{player.name.split(" ").pop()}</td>
+                <td>{surname(player.name)}</td>
                 <td>{proj}</td>
                 <td>{repl}</td>
                 <td className={edge > 0 ? "pos-text" : "neg-text"}>{edge > 0 ? `+${edge}` : edge}</td>

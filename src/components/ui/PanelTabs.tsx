@@ -47,15 +47,15 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: Pane
             aria-selected={isActive}
             onClick={() => onSelect(tab)}
             className={cn(
-              "relative shrink-0 whitespace-nowrap rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-[0.07em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
-              isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              "relative isolate shrink-0 whitespace-nowrap rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-[0.07em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+              isActive ? "text-background" : "text-muted-foreground hover:text-foreground"
             )}
           >
             {isActive && (
               <motion.span
                 layoutId={`panel-tab-pill-${layoutId}`}
                 aria-hidden="true"
-                className="panel-tab-pill absolute inset-0 rounded-[6px]"
+                className="panel-tab-pill absolute inset-0 -z-10 rounded-lg"
                 transition={
                   reduce
                     ? { duration: 0 }
@@ -63,7 +63,7 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: Pane
                 }
               />
             )}
-            <span className="relative z-[1]">{tab}</span>
+            <span className="relative">{tab}</span>
           </button>
         );
       })}

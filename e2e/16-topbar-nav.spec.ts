@@ -2,8 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 
 /**
  * TopBar system-nav behaviour: scroll-spy (the active highlight follows the
- * scroll position), click-to-activate, the sliding blue underline, and the
- * numbered badges being large enough to contain their digit (no text leak).
+ * scroll position), click-to-activate, the sliding solid blue pill that marks
+ * the active system, and the numbered badges being large enough to contain
+ * their digit (no text leak).
  */
 
 const NAV = 'nav[aria-label="Top-level systems"]';
@@ -41,9 +42,20 @@ test.describe("topbar system nav", () => {
     await expect(page.locator(`${NAV} button[aria-current="true"]`)).toContainText(/Nexus Simulator/i);
   });
 
-  test("the active tab renders the sliding blue underline", async ({ page }) => {
+  test("the active tab renders the sliding solid blue pill", async ({ page }) => {
     await load(page);
-    await expect(page.locator(`${NAV} .topbar-underline`)).toBeVisible();
+    const activeBtn = page.locator(`${NAV} button[aria-current="true"]`).first();
+    const pill = activeBtn.locator(".topbar-pill");
+    await expect(pill).toBeVisible();
+    // The pill is the active segment's BACKGROUND, so it should cover essentially
+    // the whole button — not a thin sliver/underline. Assert relative to the
+    // button box rather than hardcoded pixels (robust across viewports).
+    const btnBox = await activeBtn.boundingBox();
+    const pillBox = await pill.boundingBox();
+    expect(btnBox, "active button should have a box").not.toBeNull();
+    expect(pillBox, "active pill should have a box").not.toBeNull();
+    expect(pillBox!.width).toBeGreaterThanOrEqual(btnBox!.width * 0.85);
+    expect(pillBox!.height).toBeGreaterThanOrEqual(btnBox!.height * 0.85);
   });
 
   test("number badges are sized to contain their digit (no leak)", async ({ page }) => {
