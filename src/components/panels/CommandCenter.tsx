@@ -1,6 +1,5 @@
 "use client";
 
-import { Zap } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
 import { DataUnavailable } from "../ui/DataUnavailable";
@@ -42,7 +41,6 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
       titleId="cc-title"
       title="Command Center"
       eyebrow="Real-time intelligence. Smarter decisions."
-      icon={<Zap />}
       controls={
         <>
           {envelope.mode === "live" && <span className="live-badge">● LIVE</span>}

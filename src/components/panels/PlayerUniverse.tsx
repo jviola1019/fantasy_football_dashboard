@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Orbit } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
@@ -76,7 +75,6 @@ export function PlayerUniverse({ players, envelope }: Props) {
       titleId="pu-title"
       title="Player Universe"
       eyebrow="Explore the player ecosystem."
-      icon={<Orbit />}
       controls={
         <input
           className="galaxy-search"

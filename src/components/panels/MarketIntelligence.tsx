@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { LineChart as LineChartIcon } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
@@ -48,7 +47,6 @@ export function MarketIntelligence({ players, marketMetrics, envelope }: Props) 
       titleId="mi-title"
       title="Market Intelligence"
       eyebrow="Find edges. Exploit inefficiencies."
-      icon={<LineChartIcon />}
     >
       <MarketKPIRow metrics={marketMetrics} players={players} />
 
@@ -299,10 +297,10 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
 }
 
 function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
-  // Honest landscape: the season sim's real JOINT (wins × playoff-outcome)
-  // distribution — every cell is a true simulated frequency (grid sums to
-  // 100%). The old version swept five risk-tolerance columns, whose rows came
-  // out dead-flat (Playoff 100/100/100, Chaos 0/0/0) for any non-marginal team.
+  // Honest landscape: P(playoff outcome | regular-season wins) from the season
+  // sim — each win-total column sums to 100% (a real conditional distribution),
+  // so more wins reads as never-worse title odds. The old version swept five
+  // risk-tolerance columns, whose rows came out dead-flat for any real team.
   const heat = useMemo(() => {
     if (players.length === 0) return null;
     const sim = runNexusSimulation(players, {

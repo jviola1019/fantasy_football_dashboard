@@ -1,6 +1,5 @@
 "use client";
 
-import { ListChecks } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import type { LeagueFormat } from "@/lib/trade/format";
 import { derivePositionGrades } from "@/lib/derivedMetrics";
@@ -115,7 +114,6 @@ export function PreDraftAudit({ players, envelope }: Props) {
       titleId="pda-title"
       title="Pre-Draft Audit"
       eyebrow="Read your league config before the clock starts."
-      icon={<ListChecks />}
     >
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0}>

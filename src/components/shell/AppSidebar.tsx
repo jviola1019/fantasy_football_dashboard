@@ -1,18 +1,6 @@
 "use client";
 
 import {
-  Gauge,
-  LineChart,
-  Orbit,
-  Waves,
-  Atom,
-  ClipboardList,
-  ListChecks,
-  ArrowLeftRight,
-  Repeat
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
@@ -25,18 +13,6 @@ import {
   SidebarRail
 } from "@/components/ui/sidebar";
 import { systems } from "../systems";
-
-const SYSTEM_ICONS: Record<string, LucideIcon> = {
-  "Command Center": Gauge,
-  "Market Intelligence": LineChart,
-  "Player Universe": Orbit,
-  "Narrative Engine": Waves,
-  "Nexus Simulator": Atom,
-  "Draft Intelligence": ClipboardList,
-  "Pre-Draft": ListChecks,
-  "Waiver Wire": Repeat,
-  "Trade Center": ArrowLeftRight
-};
 
 interface Props {
   active: string;
@@ -71,21 +47,20 @@ export function AppSidebar({ active, onSelect }: Props) {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {systems.map((system, index) => {
-                const Icon = SYSTEM_ICONS[system] ?? Gauge;
-                return (
-                  <SidebarMenuItem key={system}>
-                    <SidebarMenuButton
-                      isActive={active === system}
-                      tooltip={`${index + 1}. ${system}`}
-                      onClick={() => onSelect(system)}
-                    >
-                      <Icon />
-                      <span>{system}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {systems.map((system, index) => (
+                <SidebarMenuItem key={system}>
+                  <SidebarMenuButton
+                    isActive={active === system}
+                    tooltip={`${index + 1}. ${system}`}
+                    onClick={() => onSelect(system)}
+                  >
+                    <span className="grid size-5 shrink-0 place-items-center rounded text-[11px] font-bold tabular-nums text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <span>{system}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

@@ -8,6 +8,8 @@ export interface LeagueOption {
   id: string;
   label: string;
   platform: "sleeper" | "espn";
+  /** League season year (e.g. 2026). Shown as a prominent badge in the switcher. */
+  season: number;
 }
 
 interface Props {
@@ -44,9 +46,10 @@ export function LeagueSwitcher({ leagues, activeLeagueId }: Props) {
     const only = leagues[0]!;
     return (
       <span
-        title={`${PLATFORM_LABEL[only.platform]} league`}
+        title={`${PLATFORM_LABEL[only.platform]} league · ${only.season} season`}
         style={labelOnlyStyle}
       >
+        <span style={seasonBadgeStyle} aria-label={`${only.season} season`}>{only.season}</span>
         <span style={glyphStyle} aria-hidden="true">
           {PLATFORM_GLYPH[only.platform]}
         </span>
@@ -54,9 +57,12 @@ export function LeagueSwitcher({ leagues, activeLeagueId }: Props) {
       </span>
     );
   }
+  const activeLeague = leagues.find((l) => l.id === active) ?? leagues[0]!;
   return (
     <label style={wrapperStyle}>
       <span style={srOnlyStyle}>Active league</span>
+      {/* Always-visible season badge so the year is obvious when switching. */}
+      <span style={seasonBadgeStyle} aria-label={`${activeLeague.season} season`}>{activeLeague.season}</span>
       <select
         value={active}
         disabled={pending}
@@ -73,13 +79,26 @@ export function LeagueSwitcher({ leagues, activeLeagueId }: Props) {
       >
         {leagues.map((l) => (
           <option key={l.id} value={l.id}>
-            {PLATFORM_GLYPH[l.platform]} · {l.label}
+            {l.season} · {PLATFORM_GLYPH[l.platform]} · {l.label}
           </option>
         ))}
       </select>
     </label>
   );
 }
+
+const seasonBadgeStyle: React.CSSProperties = {
+  fontFamily: "var(--monospace-font, monospace)",
+  fontWeight: 700,
+  fontSize: 11,
+  color: "#0b0e13",
+  background: "var(--amber)",
+  borderRadius: 6,
+  padding: "2px 6px",
+  letterSpacing: 0.4,
+  marginRight: 6,
+  whiteSpace: "nowrap"
+};
 
 const srOnlyStyle: React.CSSProperties = {
   position: "absolute",

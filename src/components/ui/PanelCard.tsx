@@ -8,7 +8,6 @@ interface PanelCardProps {
   titleId: string;
   title: string;
   eyebrow?: string;
-  icon?: ReactNode;
   /** Right-aligned header controls (tab ranges, run buttons, badges…). */
   controls?: ReactNode;
   children: ReactNode;
@@ -26,7 +25,6 @@ export function PanelCard({
   titleId,
   title,
   eyebrow,
-  icon,
   controls,
   children,
   className
@@ -45,23 +43,16 @@ export function PanelCard({
       )}
     >
       <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3.5">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {icon ? (
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-border bg-secondary text-rae-blue [&_svg]:size-4">
-              {icon}
-            </span>
+        <div className="min-w-0">
+          <h2
+            id={titleId}
+            className="truncate text-[15px] font-bold uppercase tracking-[0.04em] text-foreground"
+          >
+            {title}
+          </h2>
+          {eyebrow ? (
+            <p className="truncate text-[10px] text-muted-foreground">{eyebrow}</p>
           ) : null}
-          <div className="min-w-0">
-            <h2
-              id={titleId}
-              className="truncate text-[15px] font-bold uppercase tracking-[0.04em] text-foreground"
-            >
-              {title}
-            </h2>
-            {eyebrow ? (
-              <p className="truncate text-[10px] text-muted-foreground">{eyebrow}</p>
-            ) : null}
-          </div>
         </div>
         {controls ? (
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Waves } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
@@ -42,7 +41,6 @@ export function NarrativeEngine({ players, envelope }: Props) {
       titleId="ne-title"
       title="Narrative Engine"
       eyebrow="Decode stories. Anticipate outcomes."
-      icon={<Waves />}
     >
       {panelState.status === "unavailable" ? (
         <DataUnavailable

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Atom } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { runNexusSimulation, type SimulationResult } from "@/lib/simulation";
@@ -86,7 +85,6 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       titleId="ns-title"
       title="Nexus Simulator"
       eyebrow="Simulate future. Master uncertainty."
-      icon={<Atom />}
       controls={
         <>
           <span className="sim-count">SIMULATIONS {sim.params.iterations.toLocaleString()}</span>
@@ -182,11 +180,11 @@ function OutcomeMultiverse({
     { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: "#d9866f" },
   ];
 
-  // Honest, useful heatmap: the JOINT distribution of regular-season wins ×
-  // playoff outcome straight from the season Monte Carlo. Every cell is a real
-  // simulated frequency (the whole grid sums to 100%), so visual weight matches
-  // true likelihood — unlike the old risk-tolerance sweep, whose rows came out
-  // dead flat (Make-Playoffs 100/100/100, Chaos 0/0/0) for any non-marginal team.
+  // Honest, useful heatmap: P(playoff outcome | regular-season wins) from the
+  // season Monte Carlo — each column (a win total) sums to 100%, so the Champion
+  // share rises left→right with wins. Conditioning on wins (vs. the raw joint)
+  // avoids the trap where a rare 14-0 column looks dim and misreads as "winning
+  // more lowers your title odds". Replaces the old dead-flat risk sweep.
   const heat = useMemo(() => buildOutcomeHeat(sim.distribution), [sim.distribution]);
 
   return (
