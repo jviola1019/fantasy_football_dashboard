@@ -244,6 +244,20 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   gap: 6px;
   margin-bottom: 10px;
 }
+/* Pre-draft carryover notice: clarifies that a not-yet-drafted upcoming season
+   is showing last season's roster as a baseline (resolves "why is my 2026 team
+   last year's players?"). Amber, like other advisory states. */
+.predraft-notice {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--cream);
+  background: rgba(245, 197, 102, 0.08);
+  border: 1px solid rgba(245, 197, 102, 0.28);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.predraft-notice a { color: var(--blue); text-decoration: underline; }
 .kpi-row-sm { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .kpi-card {
   padding: 8px 10px;
@@ -861,6 +875,36 @@ td small { color: var(--muted); }
 .heat-legend-bar2 { width: 14px; height: 3px; border-radius: 2px; background: var(--green); margin-left: 8px; }
 .heat-legend-note2 { color: var(--muted); opacity: 0.85; }
 .chart-wrap { padding: 10px; border: 1px solid var(--line); background: var(--panel-2); min-height: 220px; }
+
+/* Value × Usage Board — the sortable leaderboard that replaced the clustered
+   position-grid heatmap. Clean zebra rows, gradient value/usage bars, edge. */
+.vub-wrap { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); margin-top: 8px; border-radius: 8px; }
+.vub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.vub-sorts { display: inline-flex; gap: 4px; }
+.vub-sort {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.vub-sort:hover { color: var(--cream); border-color: rgba(90, 159, 196, 0.5); }
+.vub-sort.active { color: var(--cream); border-color: var(--blue); background: rgba(90, 159, 196, 0.14); }
+.vub-board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.vub-row {
+  display: grid; grid-template-columns: 20px minmax(0, 1.25fr) 2fr 34px 40px;
+  align-items: center; gap: 8px; padding: 3px 4px; border-radius: 5px;
+}
+.vub-row:nth-child(odd) { background: rgba(255, 255, 255, 0.018); }
+.vub-rank { font-size: 10px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.vub-id { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.vub-name { font-size: 12px; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vub-pos { font-size: 9px; font-weight: 700; letter-spacing: .04em; color: var(--muted); flex-shrink: 0; }
+.vub-bars { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.vub-bar-track { position: relative; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
+.vub-bar { display: block; height: 100%; width: var(--w, 0%); border-radius: 4px; }
+.vub-bar-value { background: linear-gradient(90deg, rgba(90, 159, 196, 0.45), var(--blue)); }
+.vub-bar-usage { background: linear-gradient(90deg, rgba(53, 192, 138, 0.45), var(--green)); }
+.vub-value { font-size: 12px; font-weight: 800; color: var(--cream); text-align: right; font-variant-numeric: tabular-nums; }
+.vub-edge { font-size: 11px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ─── Player Universe ────────────────────────────────────────────────────── */
 .universe-layout { display: grid; grid-template-columns: 1fr 180px; gap: 8px; }

@@ -62,7 +62,7 @@ export function MarketIntelligence({ players, marketMetrics, envelope }: Props) 
           <>
             <TopInefficiencies players={marketMetrics.topInefficiencies} />
             <div className="market-charts-row">
-              <MarketEfficiencyHeatmap players={players} />
+              <ValueUsageBoard players={players} />
             </div>
           </>
         )}
@@ -208,65 +208,96 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
   );
 }
 
-const HEAT_POSITIONS = ["QB", "RB", "WR", "TE"] as const;
-// Players shown per position. The row grid is driven off this via the
-// `--heat-cols` custom property, and the wrap scrolls horizontally on narrow
-// screens, so this can grow without crushing the cells.
-const HEAT_COLS = 8;
+type BoardSort = "value" | "usage" | "edge";
 
-function MarketEfficiencyHeatmap({ players }: { players: PlayerMarketRecord[] }) {
-  // A readable Value × Usage map. Per position, the top HEAT_COLS players by
-  // value; each labelled cell encodes TWO real signals: background intensity =
-  // value (0-100, FantasyPros ECR), and a bottom bar = usage (nflverse snap
-  // share, when the opportunity cron has run). The old version was unlabelled
-  // colour squares — you couldn't tell who or what.
+function ValueUsageBoard({ players }: { players: PlayerMarketRecord[] }) {
+  // Replaces the old clustered position-grid. A clean, sortable leaderboard:
+  // every row carries the player's TRUE value (ECR-derived) bar, a USAGE bar
+  // (nflverse snap share, when cached), and the reputation EDGE — so you can
+  // rank by what matters and read value/usage/mispricing at a glance instead of
+  // squinting at a wall of tinted squares. All three signals are real; usage
+  // bars simply don't render when the snap-share source isn't integrated.
+  const [sort, setSort] = useState<BoardSort>("value");
   const anyUsage = players.some((p) => p.opportunity > 0);
-  return (
-    <div className="heatmap-wrap">
-      <div className="section-label">VALUE × USAGE — top players by position</div>
-      <div className="heat-axis-hint" aria-hidden="true">most valuable →</div>
-      {HEAT_POSITIONS.map((pos) => {
-        const group = players
-          .filter((p) => p.position === pos)
-          .sort((a, b) => b.trueValue - a.trueValue)
-          .slice(0, HEAT_COLS);
-        return (
-          <div className="heat-row2" key={pos} style={{ ["--heat-cols" as string]: String(HEAT_COLS) }}>
-            <span className="heat-pos">{pos}</span>
-            {Array.from({ length: HEAT_COLS }).map((_, i) => {
-              const p = group[i];
-              if (!p) return <span key={i} className="heat-cell2 heat-cell-empty" aria-hidden="true" />;
-              const v = Math.max(0, Math.min(100, p.trueValue));
-              const frac = v / 100;
-              const usage = Math.max(0, Math.min(100, p.opportunity));
-              const edge = reputationEdge(p);
-              const last = surname(p.name);
-              return (
-                <span
-                  key={p.id}
-                  className="heat-cell2"
-                  title={`${p.name} — value ${Math.round(v)}${usage > 0 ? `, usage ${Math.round(usage)}% snaps` : ""}, edge ${edge >= 0 ? "+" : ""}${edge}`}
-                  /* Cap the slate fill so the cream label clears WCAG AA 4.5:1
-                     even on the most-valuable (darkest-text) cell. */
-                  style={{ ["--heat-f" as string]: String(0.12 + frac * 0.4) }}
-                >
-                  <span className="heat-cell-name">{last}</span>
-                  <span className="heat-cell-val">{Math.round(v)}</span>
-                  {usage > 0 && (
-                    <span className="heat-usage" aria-hidden="true">
-                      <span className="heat-usage-fill" style={{ ["--u" as string]: `${usage}%` }} />
-                    </span>
-                  )}
-                </span>
-              );
-            })}
-          </div>
-        );
-      })}
-      <div className="heat-legend2">
-        <span className="heat-legend-swatch" /> value (cell)
-        {anyUsage ? <><span className="heat-legend-bar2" /> usage = snap %</> : <span className="heat-legend-note2">usage bar appears once snap data is cached</span>}
+  const key: BoardSort = sort === "usage" && !anyUsage ? "value" : sort;
+
+  const rows = useMemo(() => {
+    const scored = players.map((p) => ({
+      p,
+      value: Math.max(0, Math.min(100, p.trueValue)),
+      usage: Math.max(0, Math.min(100, p.opportunity)),
+      edge: reputationEdge(p)
+    }));
+    scored.sort((a, b) =>
+      key === "edge" ? b.edge - a.edge : key === "usage" ? b.usage - a.usage : b.value - a.value
+    );
+    return scored.slice(0, 14);
+  }, [players, key]);
+  const maxVal = Math.max(1, ...rows.map((r) => r.value));
+
+  if (players.length === 0) {
+    return (
+      <div className="vub-wrap">
+        <div className="section-label">VALUE × USAGE BOARD</div>
+        <p className="muted-note">No validated market records.</p>
       </div>
+    );
+  }
+
+  const sorters: { k: BoardSort; label: string }[] = [
+    { k: "value", label: "Value" },
+    ...(anyUsage ? [{ k: "usage" as const, label: "Usage" }] : []),
+    { k: "edge", label: "Edge" }
+  ];
+
+  return (
+    <div className="vub-wrap">
+      <div className="vub-head">
+        <div className="section-label">VALUE × USAGE BOARD — top players, sortable</div>
+        <div className="vub-sorts" role="group" aria-label="Sort the board">
+          {sorters.map(({ k, label }) => (
+            <button
+              key={k}
+              type="button"
+              className={`vub-sort${key === k ? " active" : ""}`}
+              onClick={() => setSort(k)}
+              aria-pressed={key === k}
+            >
+              {label}
+              {key === k ? " ↓" : ""}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ol className="vub-board" aria-label={`Players sorted by ${key}`}>
+        {rows.map((r, i) => (
+          <li key={r.p.id} className="vub-row">
+            <span className="vub-rank">{i + 1}</span>
+            <span className="vub-id">
+              <span className="vub-name" title={r.p.name}>{r.p.name}</span>
+              <span className="vub-pos">{r.p.position}</span>
+            </span>
+            <span className="vub-bars">
+              <span className="vub-bar-track" title={`True value ${Math.round(r.value)}`}>
+                <span className="vub-bar vub-bar-value" style={{ ["--w" as string]: `${(r.value / maxVal) * 100}%` }} />
+              </span>
+              {anyUsage && (
+                <span className="vub-bar-track" title={r.usage > 0 ? `Snap usage ${Math.round(r.usage)}%` : "No usage data"}>
+                  <span className="vub-bar vub-bar-usage" style={{ ["--w" as string]: `${r.usage}%` }} />
+                </span>
+              )}
+            </span>
+            <span className="vub-value">{Math.round(r.value)}</span>
+            <span className={`vub-edge ${r.edge >= 0 ? "pos-text" : "neg-text"}`}>
+              {r.edge >= 0 ? `+${r.edge}` : r.edge}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <p className="small-note">
+        True value (ECR-derived) with a snap-share usage bar when available, and reputation edge (true − market, adjusted).
+        {anyUsage ? "" : " Usage bars appear once nflverse snap data is cached."}
+      </p>
     </div>
   );
 }

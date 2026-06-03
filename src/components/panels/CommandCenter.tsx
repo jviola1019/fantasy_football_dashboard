@@ -48,6 +48,14 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
         </>
       }
     >
+      {envelope.draftState === "pre" && players.length > 0 && envelope.season ? (
+        <div className="predraft-notice" role="status">
+          <b>Pre-draft {envelope.season.upcoming}.</b> Your {envelope.season.upcoming} roster isn&apos;t set yet —
+          these are your {envelope.season.completed ?? "prior"}-season players, shown as a carryover baseline.
+          Use <a href="#draft-intelligence">Draft Intelligence</a> or the Mock Draft to plan your {envelope.season.upcoming} team.
+        </div>
+      ) : null}
+
       <MetricStrip metrics={metrics} missingFields={envelope.sourceState.missingFields} />
 
       <div className="pulse-wrapper">
