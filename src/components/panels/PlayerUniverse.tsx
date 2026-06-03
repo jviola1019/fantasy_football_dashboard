@@ -10,7 +10,7 @@ import { DataUnavailable } from "../ui/DataUnavailable";
 import { marketInefficiency, narrativeVelocity, reputationEdge } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
-import { avg, trendingLabel, fmt } from "@/lib/utils";
+import { avg, trendingLabel, fmt, surname } from "@/lib/utils";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
@@ -342,7 +342,7 @@ function UniverseTiers({ players }: { players: PlayerMarketRecord[] }) {
                   <span className="tier-band-players">
                     {inBand.map((p) => (
                       <span key={p.id} className="tier-chip">
-                        {p.name.split(" ").slice(-1)[0]} <b>{Math.round(p.trueValue)}</b>
+                        {surname(p.name)} <b>{Math.round(p.trueValue)}</b>
                       </span>
                     ))}
                   </span>

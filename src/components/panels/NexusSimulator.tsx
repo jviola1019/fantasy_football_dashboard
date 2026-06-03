@@ -12,6 +12,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
+import { surname } from "@/lib/utils";
 import { ReliabilityDiagram } from "@/components/charts/ReliabilityDiagram";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
@@ -382,7 +383,7 @@ function KeyDrivers({ sim, hasData }: { sim: SimulationResult; hasData: boolean 
   // pts/week (not an abstract 0-100), so the bars read as "what each starter
   // actually adds per week."
   const items = sim.keyDrivers.map((d) => ({
-    label: d.name.split(" ").pop() ?? d.name,
+    label: surname(d.name),
     value: Math.round(d.contribution * 10) / 10,
     color: "#77d7b0",
   }));

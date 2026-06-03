@@ -11,6 +11,32 @@ test.describe("draft + lifecycle tabs are reachable from the dashboard", () => {
     await expect(page.getByText(/Recommendations/i).first()).toBeVisible();
   });
 
+  test("Live Board is searchable across all available players and shows recommendations on-board", async ({
+    page
+  }) => {
+    await page.goto("/");
+    const section = page.locator("#draft-intelligence");
+
+    // Full-pool search exists (every player is reachable, not just the top few).
+    const search = section.locator('input[aria-label="Search available players"]');
+    await expect(search).toBeVisible();
+
+    // Recommendations are ALWAYS on the board — the ★ marker proves a recommended
+    // player is present in the AVAILABLE table (not stranded off-board).
+    await expect(section.locator(".draft-rec-star").first()).toBeVisible();
+
+    const baseRows = await section.locator("table tbody tr").count();
+    expect(baseRows).toBeGreaterThan(0);
+
+    // A nonsense query yields the honest empty-state, not a crash or stale rows.
+    await search.fill("zzzz-no-such-player");
+    await expect(section.getByText(/No available players match/i)).toBeVisible();
+
+    // Clearing the search restores the board.
+    await search.fill("");
+    await expect(section.locator("table tbody tr").first()).toBeVisible();
+  });
+
   test("Pre-Draft, Waiver Wire, Trade Center panels are rendered", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator("#pda-title")).toHaveText(/Pre-Draft Audit/i);
