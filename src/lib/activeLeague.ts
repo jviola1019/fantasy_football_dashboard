@@ -41,6 +41,7 @@ export async function setActiveLeagueCookie(leagueId: string): Promise<void> {
     value: leagueId,
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: COOKIE_MAX_AGE_SECONDS
   });

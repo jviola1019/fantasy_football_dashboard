@@ -7,7 +7,7 @@ import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
-import { marketInefficiency, narrativeVelocity } from "@/lib/models";
+import { marketInefficiency, narrativeVelocity, reputationEdge } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { avg, trendingLabel, fmt } from "@/lib/utils";
@@ -248,10 +248,11 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
       </div>
       <div className="profile-metrics">
         {[
-          // These are unitless 0-100 ECR-derived scores, not dollars.
-          ["Reputation Score", player.trueValue],
-          ["Market Value", player.perceivedValue],
-          ["True Value", player.trueValue],
+          // Distinct quantities (unitless 0-100 ECR scores; edge is true−market).
+          // "True Value" here is the SAME number shown across every panel.
+          ["True Value", Math.round(player.trueValue)],
+          ["Market Value", Math.round(player.perceivedValue)],
+          ["Edge", Math.round(reputationEdge(player))],
         ].map(([k, v]) => (
           <div key={String(k)} className="profile-row">
             <span>{k}</span>
@@ -374,7 +375,9 @@ function UniverseComparison({ player, players }: { player?: PlayerMarketRecord; 
         </thead>
         <tbody>
           {rows.map((p) => {
-            const edge = Math.round(p.trueValue - p.perceivedValue);
+            // Same Edge formula as every other panel (reputationEdge), so a
+            // player's Edge is identical here and in Market Intelligence/Waiver.
+            const edge = Math.round(reputationEdge(p));
             return (
               <tr key={p.id} className={p.id === player.id ? "cmp-self" : undefined}>
                 <td>{p.name}{p.id === player.id ? " ◂" : ""}</td>

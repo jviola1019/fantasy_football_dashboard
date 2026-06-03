@@ -12,7 +12,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import { runNexusSimulation } from "@/lib/simulation";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
-import { reputationEdge, marketInefficiency, confidenceInterval } from "@/lib/models";
+import { reputationEdge, confidenceInterval } from "@/lib/models";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
 import { fmt } from "@/lib/utils";
 
@@ -210,44 +210,62 @@ function LiquidityFlow({ players }: { players: PlayerMarketRecord[] }) {
   );
 }
 
+const HEAT_POSITIONS = ["QB", "RB", "WR", "TE"] as const;
+const HEAT_COLS = 6;
+
 function MarketEfficiencyHeatmap({ players }: { players: PlayerMarketRecord[] }) {
-  const positions = ["QB", "RB", "WR", "TE"];
-  // Each cell is a REAL player: the top-10 most mispriced players at the
-  // position, coloured by that player's actual |market inefficiency| (Value
-  // Over Replacement), normalised across all players. Previously the 10 columns
-  // were `baseIneff + columnIndex*2.2` — a fabricated ramp representing nothing.
-  const maxIneff = Math.max(1, ...players.map((p) => Math.abs(marketInefficiency(p))));
-  const CELLS = 10;
+  // A readable Value × Usage map. Per position, the top HEAT_COLS players by
+  // value; each labelled cell encodes TWO real signals: background intensity =
+  // value (0-100, FantasyPros ECR), and a bottom bar = usage (nflverse snap
+  // share, when the opportunity cron has run). The old version was unlabelled
+  // colour squares — you couldn't tell who or what.
+  const anyUsage = players.some((p) => p.opportunity > 0);
   return (
     <div className="heatmap-wrap">
-      <div className="section-label">MARKET EFFICIENCY HEATMAP — Top mispriced by position</div>
-      {positions.map((pos) => {
+      <div className="section-label">VALUE × USAGE — top players by position</div>
+      <div className="heat-axis-hint" aria-hidden="true">most valuable →</div>
+      {HEAT_POSITIONS.map((pos) => {
         const group = players
           .filter((p) => p.position === pos)
-          .sort((a, b) => Math.abs(marketInefficiency(b)) - Math.abs(marketInefficiency(a)))
-          .slice(0, CELLS);
+          .sort((a, b) => b.trueValue - a.trueValue)
+          .slice(0, HEAT_COLS);
         return (
-          <div className="heat-row" key={pos}>
-            <b>{pos}</b>
-            {Array.from({ length: CELLS }).map((_, i) => {
+          <div className="heat-row2" key={pos}>
+            <span className="heat-pos">{pos}</span>
+            {Array.from({ length: HEAT_COLS }).map((_, i) => {
               const p = group[i];
-              if (!p) return <span key={i} className="heat-cell heat-cell-empty" aria-hidden="true" />;
-              const ineff = marketInefficiency(p);
-              const frac = Math.min(1, Math.abs(ineff) / maxIneff);
+              if (!p) return <span key={i} className="heat-cell2 heat-cell-empty" aria-hidden="true" />;
+              const v = Math.max(0, Math.min(100, p.trueValue));
+              const frac = v / 100;
+              const usage = Math.max(0, Math.min(100, p.opportunity));
+              const edge = reputationEdge(p);
+              const last = p.name.split(" ").slice(-1)[0] ?? p.name;
               return (
                 <span
                   key={p.id}
-                  className="heat-cell"
-                  title={`${p.name}: ${ineff >= 0 ? "+" : ""}${ineff.toFixed(1)} VOR`}
-                  style={{
-                    background: `rgba(${Math.round(215 + frac * 40)}, ${Math.round(150 - frac * 80)}, ${Math.round(130 - frac * 60)}, ${0.2 + frac * 0.65})`,
-                  }}
-                />
+                  className="heat-cell2"
+                  title={`${p.name} — value ${Math.round(v)}${usage > 0 ? `, usage ${Math.round(usage)}% snaps` : ""}, edge ${edge >= 0 ? "+" : ""}${edge}`}
+                  /* Cap the slate fill so the cream label clears WCAG AA 4.5:1
+                     even on the most-valuable (darkest-text) cell. */
+                  style={{ ["--heat-f" as string]: String(0.12 + frac * 0.4) }}
+                >
+                  <span className="heat-cell-name">{last}</span>
+                  <span className="heat-cell-val">{Math.round(v)}</span>
+                  {usage > 0 && (
+                    <span className="heat-usage" aria-hidden="true">
+                      <span className="heat-usage-fill" style={{ ["--u" as string]: `${usage}%` }} />
+                    </span>
+                  )}
+                </span>
               );
             })}
           </div>
         );
       })}
+      <div className="heat-legend2">
+        <span className="heat-legend-swatch" /> value (cell)
+        {anyUsage ? <><span className="heat-legend-bar2" /> usage = snap %</> : <span className="heat-legend-note2">usage bar appears once snap data is cached</span>}
+      </div>
     </div>
   );
 }

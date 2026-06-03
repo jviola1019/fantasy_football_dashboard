@@ -20,12 +20,14 @@ Status: **structural** — the simulation engine is deterministic, replayable, a
 | `narrativeVelocity` | `0.54·trendingMomentum + 0.28·volatility − 0.11·fragility` | ≈ ±90 | monotone ↑ in `trendingMomentum` |
 | `chaosExposure` | `0.45·volatility + 0.4·fragility + 0.15·|trendingMomentum|` | ≥ 0 | monotone ↑ in `volatility` |
 | `liquidityScore` | `(0.6·opportunity + 0.4·marketInefficiency)/10` | ≥ 0 | rises with opportunity |
-| `championshipProbability` | fraction of Monte Carlo rosters with mean score > 83 | [0, 100]% | rises with `riskTolerance` and `trueValue` |
-| `playoffProbability` | fraction with mean score > 73 (superset of championship) | [0, 100]% | rises with `riskTolerance` and `trueValue` |
-| `catastrophicRisk` | fraction containing a chaos-exposed starter and score < 69 | [0, 100]% | rises with `chaosExposure`, falls with `riskTolerance` |
-| `regretIndex` | catastrophe rate + 0.35·playoff-miss rate | [0, 100]% | composite of above |
+| `championshipProbability` | fraction of simulated seasons whose **bracket winner** is the user's team | [0, 100]% | rises with roster strength + favorable variance |
+| `playoffProbability` | fraction of simulated seasons the team finishes **top `playoffTeams`** in the standings | [0, 100]% | rises with roster strength |
+| `catastrophicRisk` | fraction of seasons the team finishes in the **bottom third** of the standings | [0, 100]% | falls with roster strength |
+| `regretIndex` | `1 − playoffProbability` (the chance you miss the playoffs) | [0, 100]% | inverse of playoff odds |
 
-The full set is unit-tested in `src/lib/derivedMetrics.stats.test.ts` for determinism, range bounds, and sensitivity. The simulation's response to `riskTolerance` is hypothesis-tested in `src/lib/simulation.calibration.test.ts` with a Welch t-test (p < 0.001) and Cohen's d effect size (|d| ≥ 0.5).
+> These are genuine **season Monte Carlo** frequencies (`src/lib/seasonSim.ts`): a full round-robin schedule, each weekly matchup decided by sampled team scores, standings seeding a single-elimination playoff bracket. They are NOT the old "mean score > 83/73/69" threshold heuristic (that model was removed — see `docs/season-sim.md`).
+
+The derived metrics are unit-tested in `src/lib/derivedMetrics.stats.test.ts` for determinism, range bounds, and sensitivity. The season sim is held to a calibration contract in `src/lib/seasonSim.test.ts` + `src/lib/simulation.calibration.test.ts` (a league-average roster makes the playoffs ≈ `playoffTeams/numTeams`, monotonic in strength, favorite-variance lowers title odds, real projections drive the odds, all probabilities bounded [0,1]).
 
 ## What the simulation consumes today
 
