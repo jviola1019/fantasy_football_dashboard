@@ -413,10 +413,29 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .grade-d { color: var(--red); }
 
 /* ─── Fragility X-Ray ───────────────────────────────────────────────────── */
-.fragility-body { display: flex; gap: 8px; align-items: flex-start; }
-.fragility-list { font-size: 10px; display: flex; flex-direction: column; gap: 3px; }
-.fragility-list li { display: flex; justify-content: space-between; gap: 8px; }
-.frag-score { color: var(--amber); font-weight: 600; }
+/* Roster Fragility X-Ray — a dignified risk-bar list (was a crude stick figure).
+   Each row: player + position + a colour-tiered risk track + label + score. */
+.frag-rows { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+.frag-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 26px 1fr 58px 26px;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+}
+.frag-name { color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.frag-pos { font-size: 9px; color: var(--muted); text-align: center; }
+.frag-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.frag-fill { display: block; height: 100%; width: var(--f, 0%); border-radius: 3px; transition: width 0.3s ease; }
+.frag-row[data-tier="low"] .frag-fill { background: var(--green); }
+.frag-row[data-tier="elev"] .frag-fill { background: var(--amber); }
+.frag-row[data-tier="high"] .frag-fill { background: var(--red); }
+.frag-label { font-size: 9px; text-transform: uppercase; letter-spacing: .04em; text-align: right; }
+.frag-row[data-tier="low"] .frag-label { color: var(--green); }
+.frag-row[data-tier="elev"] .frag-label { color: var(--amber); }
+.frag-row[data-tier="high"] .frag-label { color: var(--red); }
+.frag-score { color: var(--cream); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.frag-note { margin-top: 6px; }
 
 /* ─── PlayerRow & PositionBadge ─────────────────────────────────────────── */
 .player-row {

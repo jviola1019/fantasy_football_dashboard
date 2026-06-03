@@ -372,49 +372,33 @@ function RosterFragilityXRay({
     );
   }
 
-  const topFragile = [...players].sort((a, b) => b.fragility - a.fragility).slice(0, 3);
-  const dotPos = [
-    { cx: 60, cy: 28 },
-    { cx: 46, cy: 52 },
-    { cx: 74, cy: 52 },
-  ];
+  const topFragile = [...players].sort((a, b) => b.fragility - a.fragility).slice(0, 5);
   return (
     <div className="mini-panel">
       <div className="mini-panel-title">Roster Fragility X-Ray</div>
-      <div className="fragility-body">
-        <svg viewBox="0 0 120 120" width="80" height="80" aria-hidden="true">
-          <ellipse cx="60" cy="20" rx="10" ry="12" fill="none" stroke="rgba(214,226,226,0.25)" strokeWidth="1.5" />
-          <line x1="60" y1="32" x2="60" y2="72" stroke="rgba(214,226,226,0.25)" strokeWidth="1.5" />
-          <line x1="60" y1="42" x2="40" y2="58" stroke="rgba(214,226,226,0.25)" strokeWidth="1.5" />
-          <line x1="60" y1="42" x2="80" y2="58" stroke="rgba(214,226,226,0.25)" strokeWidth="1.5" />
-          <line x1="60" y1="72" x2="48" y2="100" stroke="rgba(214,226,226,0.25)" strokeWidth="1.5" />
-          <line x1="60" y1="72" x2="72" y2="100" stroke="rgba(214,226,226,0.25)" strokeWidth="1.5" />
-          {topFragile.map((p, i) => {
-            const pos = dotPos[i];
-            if (!pos) return null;
-            const heat = p.fragility > 60 ? "#d9866f" : p.fragility > 35 ? "#d7a857" : "#77d7b0";
+      {topFragile.length === 0 ? (
+        <p className="muted-note">No data.</p>
+      ) : (
+        <ul className="frag-rows">
+          {topFragile.map((p) => {
+            const f = Math.max(0, Math.min(100, p.fragility));
+            const tier = f > 60 ? "high" : f > 35 ? "elev" : "low";
+            const label = f > 60 ? "High" : f > 35 ? "Elevated" : "Low";
             return (
-              <circle
-                key={p.id}
-                cx={pos.cx}
-                cy={pos.cy}
-                r="5"
-                fill={heat}
-                opacity="0.85"
-              />
+              <li key={p.id} className="frag-row" data-tier={tier}>
+                <span className="frag-name" title={p.name}>{p.name}</span>
+                <span className="frag-pos">{p.position}</span>
+                <span className="frag-track" aria-hidden="true">
+                  <span className="frag-fill" style={{ ["--f" as string]: `${f}%` }} />
+                </span>
+                <span className="frag-label">{label}</span>
+                <span className="frag-score">{Math.round(f)}</span>
+              </li>
             );
           })}
-        </svg>
-        <ul className="fragility-list">
-          {topFragile.map((p) => (
-            <li key={p.id}>
-              <span>{p.name.split(" ").pop()}</span>
-              <span className="frag-score">{p.fragility}</span>
-            </li>
-          ))}
-          {topFragile.length === 0 && <li>No data</li>}
         </ul>
-      </div>
+      )}
+      <p className="small-note frag-note">Relative injury / snap-volatility risk (0–100).</p>
     </div>
   );
 }
