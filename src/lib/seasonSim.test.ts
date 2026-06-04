@@ -56,6 +56,28 @@ describe("runSeasonSimulation", () => {
     expect(r.expectedWins).toBeLessThan(7.7);
   });
 
+  it("CONDITIONAL MONOTONICITY: P(champion | wins) is non-decreasing in win total", () => {
+    // More regular-season wins ⇒ a better seed (+bye odds) ⇒ never-worse title
+    // odds. The Outcome Multiverse shows this CONDITIONAL (not the joint, whose
+    // rare high-win columns look dim and misread as "winning more hurts you").
+    // Assert the real relationship holds — guards a seeding/bracket regression.
+    const strong = { meanWeekly: 116, sigmaWeekly: 26 };
+    const r = runSeasonSimulation(strong, FIELD, { ...CONFIG, iterations: 12000 });
+    const cond: { w: number; p: number }[] = [];
+    for (let w = 0; w < r.winsDistribution.length; w++) {
+      const marginal = r.winsDistribution[w]!;
+      // Only assert where there's enough mass that the conditional isn't noise.
+      if (marginal >= 0.02) cond.push({ w, p: r.winOutcomeJoint[w]![3]! / marginal });
+    }
+    expect(cond.length).toBeGreaterThanOrEqual(3);
+    for (let i = 1; i < cond.length; i++) {
+      // Small epsilon for Monte-Carlo noise between adjacent well-sampled totals.
+      expect(cond[i]!.p).toBeGreaterThanOrEqual(cond[i - 1]!.p - 0.03);
+    }
+    // And the relationship is real, not flat: the top total clearly beats the bottom.
+    expect(cond[cond.length - 1]!.p).toBeGreaterThan(cond[0]!.p + 0.05);
+  });
+
   it("CALIBRATION: an average team wins the title at roughly the fair 1/numTeams rate", () => {
     const team = { meanWeekly: FIELD.meanWeekly, sigmaWeekly: FIELD.withinTeamSigma };
     const r = runSeasonSimulation(team, FIELD, CONFIG);

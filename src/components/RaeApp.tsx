@@ -32,6 +32,8 @@ export interface LeagueOption {
   id: string;
   label: string;
   platform: "sleeper" | "espn";
+  /** League season year (e.g. 2026) — surfaced in the switcher. */
+  season: number;
 }
 
 export interface RaeAppProps {

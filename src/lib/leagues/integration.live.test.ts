@@ -1,0 +1,140 @@
+import { describe, expect, it } from "vitest";
+import {
+  getNflState,
+  getLeague,
+  getRosters,
+  getLeagueUsers,
+  fetchSleeperPlayersMap
+} from "../sleeper";
+import { detectSleeperDraftState, detectEspnDraftState } from "./draftState";
+import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror } from "./mirrorLeague";
+import { resolveSleeperRosterId } from "./fetchLive";
+import type { PlayerMarketRecord } from "../governance";
+
+/**
+ * LIVE integration round-trip against a real Sleeper league. Skipped unless
+ * RAE_LIVE_TESTS=1 (so CI never hits the network). Verifies the exact pieces
+ * the homepage pipeline relies on: league fetch, roster integration, the
+ * draft-state detector, the season mirror, and ID→name continuity — with no
+ * duplication or API-integration errors.
+ *
+ * Defaults to the owner's real completed-2025 league; override with
+ * RAE_LIVE_SLEEPER_LEAGUE_ID / RAE_LIVE_SLEEPER_USERNAME.
+ */
+const RUN = process.env.RAE_LIVE_TESTS === "1";
+const d = RUN ? describe : describe.skip;
+
+// jviola1019's "Creamy Les Coot 4.0" — a completed 2025 league (post-draft).
+const LEAGUE_ID = process.env.RAE_LIVE_SLEEPER_LEAGUE_ID ?? "1265735061127311360";
+const USERNAME = process.env.RAE_LIVE_SLEEPER_USERNAME ?? "jviola1019";
+
+d("Sleeper live integration — completed league (post-draft)", () => {
+  it("fetches league + rosters + users and integrates the owner's roster cleanly", async () => {
+    const [state, league, rosters, users, playersRes] = await Promise.all([
+      getNflState(),
+      getLeague(LEAGUE_ID),
+      getRosters(LEAGUE_ID),
+      getLeagueUsers(LEAGUE_ID),
+      fetchSleeperPlayersMap()
+    ]);
+
+    // ── NFL state is live and self-consistent.
+    expect(state.data?.season).toBeTruthy();
+
+    // ── League fetched with a real status/season.
+    const info = league.data;
+    expect(info?.league_id).toBe(LEAGUE_ID);
+    expect(info?.status).toBeTruthy();
+    const status = info!.status as string;
+    const season = String(info!.season);
+
+    // ── Rosters integrated: a completed league has filled rosters.
+    const rosterRows = rosters.data ?? [];
+    expect(rosterRows.length).toBeGreaterThan(0);
+    expect(rosterRows.some((r) => (r.players ?? []).length > 0)).toBe(true);
+
+    // ── Draft state + season mirror match a completed league.
+    const draftState = detectSleeperDraftState(status, null, true);
+    expect(draftState).toBe("post");
+    const mirror = resolveSleeperSeasonMirror(status, season, info!.previous_league_id ?? null, "2026");
+    expect(mirror.completed).toBe(season); // completed = the league's own season
+    expect(Number(mirror.upcoming)).toBe(Number(season) + 1);
+
+    // ── The owner's roster resolves via username and is non-empty (integrated).
+    const myRosterId = resolveSleeperRosterId(users.data ?? [], rosterRows, USERNAME);
+    expect(myRosterId, "owner roster should resolve by username").not.toBeNull();
+    const mine = rosterRows.find((r) => r.roster_id === myRosterId);
+    const myPlayers = mine?.players ?? [];
+    expect(myPlayers.length).toBeGreaterThan(0);
+
+    // ── No duplication: a roster never lists the same player twice.
+    expect(new Set(myPlayers).size).toBe(myPlayers.length);
+
+    // ── Continuity / API integration: every rostered id resolves to a real
+    //    named player in the live players map (no orphan ids, no fabrication).
+    const playersMap = playersRes.players;
+    expect(playersMap, "players map should load").not.toBeNull();
+    const unresolved = myPlayers.filter((id) => !playersMap![id]?.full_name && !playersMap![id]?.last_name);
+    expect(unresolved, `unresolved player ids: ${unresolved.join(",")}`).toHaveLength(0);
+
+    // ── League-wide: no roster_id collisions across teams.
+    const ids = rosterRows.map((r) => r.roster_id);
+    expect(new Set(ids).size).toBe(ids.length);
+  }, 60_000);
+});
+
+describe("draft-state transition contract (pure — always runs)", () => {
+  it("classifies pre-draft vs post-draft, and clears the season mirror correctly", () => {
+    // Pre-draft: status drives "pre" even if a stray roster has carryover players.
+    expect(detectSleeperDraftState("pre_draft", null, true)).toBe("pre");
+    expect(detectSleeperDraftState("drafting", null, false)).toBe("pre");
+    // Post-draft / in-season / complete → "post".
+    expect(detectSleeperDraftState("in_season", null, true)).toBe("post");
+    expect(detectSleeperDraftState("complete", null, true)).toBe("post");
+    // No status string → infer from roster fill (empty ⇒ undrafted ⇒ pre).
+    expect(detectSleeperDraftState(null, null, false)).toBe("pre");
+    expect(detectSleeperDraftState(null, null, true)).toBe("post");
+
+    // A brand-new pre-draft league (no predecessor) has no completed history.
+    expect(resolveSleeperSeasonMirror("pre_draft", "2026", null, "2026")).toEqual({
+      completed: null,
+      upcoming: "2026"
+    });
+    // A renewed pre-draft league (predecessor chain) → completed = season − 1.
+    expect(resolveSleeperSeasonMirror("pre_draft", "2026", "prev123", "2026")).toEqual({
+      completed: "2025",
+      upcoming: "2026"
+    });
+    // A completed league → completed = its season, upcoming = next.
+    expect(resolveSleeperSeasonMirror("complete", "2025", null, "2026")).toEqual({
+      completed: "2025",
+      upcoming: "2026"
+    });
+  });
+});
+
+describe("ESPN draft-state transition contract (pure — always runs)", () => {
+  // ESPN exposes no draft-status string, so pre/post is inferred from roster
+  // fill. This is the "team clears pre-draft, integrates post-draft" guarantee
+  // for ESPN — the same behaviour the daily refresh relies on once a real ESPN
+  // league drafts. (A live ESPN round-trip needs a public/sample league id.)
+  const team = (n: number): PlayerMarketRecord[] =>
+    Array.from({ length: n }, () => ({}) as PlayerMarketRecord);
+
+  it("clears pre-draft (empty teams) and integrates post-draft (filled teams)", () => {
+    const teams = 10;
+    const expected = 16;
+    const preDraft = Array.from({ length: teams }, () => team(0)); // empty rosters
+    const postDraft = Array.from({ length: teams }, () => team(expected)); // filled
+    expect(detectEspnDraftState(preDraft, expected)).toBe("pre");
+    expect(detectEspnDraftState(postDraft, expected)).toBe("post");
+    // One stray empty team must NOT flip a clearly-drafted league back to pre.
+    const mostlyFilled = [team(0), ...Array.from({ length: teams - 1 }, () => team(expected))];
+    expect(detectEspnDraftState(mostlyFilled, expected)).toBe("post");
+
+    // Season mirror: a drafted (post) season is completed → next is upcoming;
+    // a pre-draft season has no completed history.
+    expect(resolveEspnSeasonMirror(2025, "post")).toEqual({ completed: "2025", upcoming: "2026" });
+    expect(resolveEspnSeasonMirror(2026, "pre")).toEqual({ completed: null, upcoming: "2026" });
+  });
+});

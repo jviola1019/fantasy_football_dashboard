@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeftRight } from "lucide-react";
 import type { PlayerValue } from "@/lib/trade/values";
 import { DEFAULT_FORMAT, type LeagueFormat } from "@/lib/trade/format";
 import type { GradedTrade } from "@/lib/trade/transactions";
@@ -50,7 +49,6 @@ export function TradeCenter() {
       titleId="tc-title"
       title="Trade Center"
       eyebrow="Value trades on real market data."
-      icon={<ArrowLeftRight />}
     >
       <PanelTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} ariaLabel="Trade Center tabs" />
       {state === "loading" && <p className="muted-note">Loading trade values…</p>}

@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Repeat } from "lucide-react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { reputationEdge } from "@/lib/models";
@@ -53,7 +52,6 @@ export function WaiverWire({ players, envelope }: Props) {
           ? "Rank free agents by value, opportunity & scarcity."
           : "Pre-draft / off-season — ranks by value & position scarcity."
       }
-      icon={<Repeat />}
       controls={
         <input
           className="galaxy-search"

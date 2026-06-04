@@ -79,7 +79,8 @@ async function resolveHome(): Promise<HomeResolution> {
       const leagueOptions: LeagueOption[] = leagues.map((l) => ({
         id: l.id,
         label: l.label,
-        platform: l.platform
+        platform: l.platform,
+        season: l.season
       }));
       const live = await fetchLeagueLive(userId, activeLeagueId, db);
       // Proceed when there's a real roster OR a parsed league format — the

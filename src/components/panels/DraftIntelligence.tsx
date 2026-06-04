@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ClipboardList } from "lucide-react";
 import type { PlayerMarketRecord } from "@/lib/governance";
 import { recommend, type Recommendation } from "@/lib/draft/recommend";
 import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
@@ -56,7 +55,6 @@ export function DraftIntelligence({ players }: Props) {
       titleId="dr-title"
       title="Draft Intelligence"
       eyebrow="Read the room. Anticipate the run."
-      icon={<ClipboardList />}
       controls={
         <span className="draft-controls">
           <span className="muted-text">{myRoster.length} mine · {taken.size} taken · {available.length} left</span>
