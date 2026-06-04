@@ -9,7 +9,19 @@ import { expect, test } from "@playwright/test";
 const BLOCKING_IMPACTS = new Set(["serious", "critical"]);
 
 test.describe("axe a11y scan", () => {
-  for (const path of ["/", "/login", "/settings/account", "/settings/leagues", "/mock-draft"]) {
+  for (const path of [
+    "/",
+    "/dashboard",
+    "/players",
+    "/analytics",
+    "/draft",
+    "/waivers",
+    "/trades",
+    "/login",
+    "/settings/account",
+    "/settings/leagues",
+    "/mock-draft"
+  ]) {
     test(`route ${path} has no serious/critical violations`, async ({ page }) => {
       await page.goto(path);
       // Wait for the page to settle before scanning. The 3-D canvas was removed

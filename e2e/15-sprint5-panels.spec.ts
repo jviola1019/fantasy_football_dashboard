@@ -22,9 +22,9 @@ const PANEL_IDS = [
 ];
 
 async function gotoDashboard(page: Page) {
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(page.locator("html#__next_error__")).toHaveCount(0);
-  await expect(page.locator('nav[aria-label="Top-level systems"]')).toBeVisible();
+  await expect(page.locator('header[aria-label="RAE command bar"]')).toBeVisible();
 }
 
 test.describe("sprint 5 — all panels render", () => {

@@ -58,12 +58,12 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-2.5 text-xs text-foreground transition-colors hover:border-ring/50"
+          className="flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-3 text-xs text-foreground transition-colors hover:border-ring/50"
         >
-          <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-rae-blue to-rae-purple text-[11px] font-bold text-background">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-rae-blue to-rae-purple text-xs font-bold text-background">
             {initials || "?"}
           </span>
-          <span className="hidden max-w-[160px] truncate text-muted-foreground sm:inline">
+          <span className="hidden max-w-[170px] truncate text-muted-foreground sm:inline">
             {email}
           </span>
         </button>

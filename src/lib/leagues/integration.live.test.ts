@@ -4,8 +4,10 @@ import {
   getLeague,
   getRosters,
   getLeagueUsers,
-  fetchSleeperPlayersMap
+  fetchSleeperPlayersMap,
+  getTrendingPlayers
 } from "../sleeper";
+import { buildTrendingMap, trendingMomentumFromProxy } from "../sleeper/trendingProxy";
 import { detectSleeperDraftState, detectEspnDraftState } from "./draftState";
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror } from "./mirrorLeague";
 import { resolveSleeperRosterId } from "./fetchLive";
@@ -81,6 +83,44 @@ d("Sleeper live integration — completed league (post-draft)", () => {
     const ids = rosterRows.map((r) => r.roster_id);
     expect(new Set(ids).size).toBe(ids.length);
   }, 60_000);
+
+  it("the hype axis actually MOVES across the market (adds up, drops down)", async () => {
+    // The Narrative Engine's hype comes from Sleeper trending adds/drops applied
+    // to the MARKET pool (universe/free agents) — not the user's set roster,
+    // which never trends. Verify the live signal produces real up AND down
+    // movement so the panel isn't flat.
+    const [addsRes, dropsRes] = await Promise.all([
+      getTrendingPlayers("add", 24, 100),
+      getTrendingPlayers("drop", 24, 100)
+    ]);
+    const adds = buildTrendingMap(addsRes.data ?? []);
+    const drops = buildTrendingMap(dropsRes.data ?? []);
+    expect(adds.size, "live trending adds should be non-empty").toBeGreaterThan(10);
+    expect(drops.size, "live trending drops should be non-empty").toBeGreaterThan(5);
+
+    const addsMax = Math.max(1, ...adds.values());
+    const dropsMax = Math.max(1, ...drops.values());
+
+    // The most-added player is clearly "rising"; the most-dropped clearly "falling".
+    const topAddId = [...adds.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    const topDropId = [...drops.entries()].sort((a, b) => b[1] - a[1])[0]![0];
+    const riser = trendingMomentumFromProxy({ id: `sleeper:${topAddId}` }, adds, drops, addsMax, dropsMax);
+    const faller = trendingMomentumFromProxy({ id: `sleeper:${topDropId}` }, adds, drops, addsMax, dropsMax);
+    expect(riser).toBeGreaterThan(20);
+    expect(faller).toBeLessThan(-20);
+
+    // Across the trending pool there is genuine two-sided movement.
+    const pool = new Set([...adds.keys(), ...drops.keys()]);
+    let up = 0;
+    let down = 0;
+    for (const id of pool) {
+      const m = trendingMomentumFromProxy({ id: `sleeper:${id}` }, adds, drops, addsMax, dropsMax);
+      if (m > 5) up++;
+      else if (m < -5) down++;
+    }
+    expect(up).toBeGreaterThan(5);
+    expect(down).toBeGreaterThan(3);
+  }, 30_000);
 });
 
 describe("draft-state transition contract (pure — always runs)", () => {
