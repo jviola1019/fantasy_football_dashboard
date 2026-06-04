@@ -84,7 +84,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
           selection unmistakable. Scrolls horizontally on narrow screens. */}
       <nav
         aria-label="Top-level systems"
-        className="topbar-seg flex max-w-full items-center gap-1 self-start overflow-x-auto rounded-xl border border-border/60 bg-secondary/30 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="topbar-seg flex max-w-full items-center gap-2 self-start overflow-x-auto rounded-xl border border-border/60 bg-secondary/30 p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {systems.map((system, index) => {
           const isActive = active === system;
@@ -95,7 +95,7 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               onClick={() => onSelect(system)}
               aria-current={isActive ? "true" : undefined}
               className={cn(
-                "group relative isolate flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
+                "group relative isolate flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.06em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue/70",
                 isActive ? "text-background" : "text-muted-foreground hover:text-foreground"
               )}
             >
