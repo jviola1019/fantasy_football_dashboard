@@ -2,7 +2,6 @@
 
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { PanelCard } from "../ui/PanelCard";
-import { DataUnavailable } from "../ui/DataUnavailable";
 import type { SimulationResult } from "@/lib/simulation";
 import { PositionBadge } from "../PlayerRow";
 import { PlayerHeadshot } from "../PlayerHeadshot";
@@ -14,7 +13,6 @@ import {
   derivePositionGrades,
   deriveStartSitEdge,
 } from "@/lib/derivedMetrics";
-import { derivePanelState } from "@/lib/panelState";
 import { fmt, surname } from "@/lib/utils";
 
 type Props = {
@@ -61,7 +59,7 @@ export function CommandCenter({ players, envelope, sim, metrics }: Props) {
         <IntelFeed envelope={envelope} />
         <LineupWinProb sim={sim} />
         <TeamConstructionScore grades={grades} fragilityMissing={fragilityMissing} />
-        <RosterFragilityXRay players={players} envelope={envelope} />
+        <RosterFragilityXRay players={players} />
         <StartSitEdge rows={startSit} hasData={hasData} />
       </div>
     </PanelCard>
@@ -381,57 +379,62 @@ function TeamConstructionScore({ grades, fragilityMissing }: { grades: PositionG
   );
 }
 
-function RosterFragilityXRay({
-  players,
-  envelope
-}: {
-  players: PlayerMarketRecord[];
-  envelope: RAEEnvelope;
-}) {
-  // Honest degradation: without an injury / snap-share adapter, every player's
-  // fragility is 0 (the Sleeper/FantasyPros pipeline declares the field as
-  // missing). Render the DataUnavailable banner rather than a dot-grid where
-  // every dot is the same colour. Same pattern as Sprint-2 NarrativeEngine.
-  const fragilityState = derivePanelState(envelope, ["fragility"]);
-  if (fragilityState.status === "unavailable") {
-    return (
-      <div className="mini-panel">
-        <div className="mini-panel-title">Roster Fragility X-Ray</div>
-        <DataUnavailable
-          title="Injury / snap-share source not integrated"
-          description="Per-player fragility requires a snap-count or injury-trend feed. nflverse / PFR / ESPN don't expose this on a free public endpoint; the fragility column stays neutral pending a paid adapter."
-        />
-      </div>
-    );
-  }
+// Availability risk straight from each player's REAL injury designation
+// (Sleeper injury_status / ESPN injuryStatus → out/ir/questionable/bye). `rank`
+// orders the list (worst first); `score` drives the bar length.
+const STATUS_RISK: Record<
+  PlayerMarketRecord["status"],
+  { score: number; tier: "high" | "elev" | "low"; label: string; rank: number }
+> = {
+  out: { score: 100, tier: "high", label: "Out", rank: 5 },
+  ir: { score: 100, tier: "high", label: "IR", rank: 5 },
+  questionable: { score: 55, tier: "elev", label: "Questionable", rank: 3 },
+  bye: { score: 40, tier: "elev", label: "Bye", rank: 2 },
+  unknown: { score: 15, tier: "low", label: "—", rank: 1 },
+  active: { score: 5, tier: "low", label: "Active", rank: 0 }
+};
 
-  const topFragile = [...players].sort((a, b) => b.fragility - a.fragility).slice(0, 5);
+function RosterFragilityXRay({ players }: { players: PlayerMarketRecord[] }) {
+  // Real, always-present signal — no "not integrated" blank. A clean roster
+  // reads "all clear" rather than a dead banner. out/IR > questionable > bye.
+  const ranked = [...players]
+    .map((p) => ({ p, r: STATUS_RISK[p.status] ?? STATUS_RISK.unknown }))
+    .sort((a, b) => b.r.rank - a.r.rank || b.r.score - a.r.score);
+  const flagged = ranked.filter((x) => x.r.rank >= 2); // out / ir / questionable / bye
+  const shown = flagged.slice(0, 5);
+  const outN = players.filter((p) => p.status === "out" || p.status === "ir").length;
+  const qN = players.filter((p) => p.status === "questionable").length;
+  const byeN = players.filter((p) => p.status === "bye").length;
+
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">Roster Fragility X-Ray</div>
-      {topFragile.length === 0 ? (
-        <p className="muted-note">No data.</p>
+      <div className="mini-panel-title">Roster Availability X-Ray</div>
+      {players.length === 0 ? (
+        <p className="muted-note">No roster to scan.</p>
+      ) : flagged.length === 0 ? (
+        <p className="frag-allclear">✓ Roster healthy — no injury or bye flags.</p>
       ) : (
-        <ul className="frag-rows">
-          {topFragile.map((p) => {
-            const f = Math.max(0, Math.min(100, p.fragility));
-            const tier = f > 60 ? "high" : f > 35 ? "elev" : "low";
-            const label = f > 60 ? "High" : f > 35 ? "Elevated" : "Low";
-            return (
-              <li key={p.id} className="frag-row" data-tier={tier}>
+        <>
+          <div className="frag-summary">
+            {outN > 0 && <span className="frag-chip frag-chip-high">{outN} out / IR</span>}
+            {qN > 0 && <span className="frag-chip frag-chip-elev">{qN} questionable</span>}
+            {byeN > 0 && <span className="frag-chip frag-chip-elev">{byeN} on bye</span>}
+          </div>
+          <ul className="frag-rows">
+            {shown.map(({ p, r }) => (
+              <li key={p.id} className="frag-row" data-tier={r.tier}>
                 <span className="frag-name" title={p.name}>{p.name}</span>
                 <span className="frag-pos">{p.position}</span>
                 <span className="frag-track" aria-hidden="true">
-                  <span className="frag-fill" style={{ ["--f" as string]: `${f}%` }} />
+                  <span className="frag-fill" style={{ ["--f" as string]: `${r.score}%` }} />
                 </span>
-                <span className="frag-label">{label}</span>
-                <span className="frag-score">{Math.round(f)}</span>
+                <span className="frag-label">{r.label}</span>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </>
       )}
-      <p className="small-note frag-note">Relative injury / snap-volatility risk (0–100).</p>
+      <p className="small-note frag-note">Live injury / bye designations from your connected league.</p>
     </div>
   );
 }
