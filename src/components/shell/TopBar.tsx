@@ -114,10 +114,10 @@ export function TopBar({ envelope, active, onSelect, leagueOptions = [], activeL
               <span
                 aria-hidden="true"
                 className={cn(
-                  "grid h-5 min-w-5 place-items-center rounded-md text-[10px] font-bold leading-none tabular-nums transition-colors duration-200",
+                  "grid h-5 min-w-5 place-items-center rounded-md px-1 text-[10px] font-bold leading-none tabular-nums transition-colors duration-200",
                   isActive
-                    ? "text-background/90"
-                    : "bg-muted/70 px-1 text-muted-foreground group-hover:text-rae-blue/90"
+                    ? "bg-background/80 text-rae-blue"
+                    : "bg-muted/70 text-muted-foreground group-hover:text-rae-blue/90"
                 )}
               >
                 {index + 1}

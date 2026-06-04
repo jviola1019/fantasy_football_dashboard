@@ -78,6 +78,45 @@ describe("runSeasonSimulation", () => {
     expect(cond[cond.length - 1]!.p).toBeGreaterThan(cond[0]!.p + 0.05);
   });
 
+  it("CONDITIONAL ODDS: every outcome tier behaves correctly vs. win total", () => {
+    // The Outcome Multiverse shows all four tiers per win column (Missed,
+    // Playoffs, Finalist, Champion) and each column must be a real conditional
+    // distribution. Verify the whole set, not just Champion.
+    const strong = { meanWeekly: 113, sigmaWeekly: 27 };
+    const r = runSeasonSimulation(strong, FIELD, { ...CONFIG, iterations: 16000 });
+    type Row = { w: number; missed: number; playoffs: number; finalist: number; champ: number };
+    const rows: Row[] = [];
+    for (let w = 0; w < r.winsDistribution.length; w++) {
+      const m = r.winsDistribution[w]!;
+      if (m < 0.02) continue; // skip noisy, low-mass win totals
+      const j = r.winOutcomeJoint[w]!;
+      const row = { w, missed: j[0]! / m, playoffs: j[1]! / m, finalist: j[2]! / m, champ: j[3]! / m };
+      // Each column is a proper conditional distribution (sums to ~1).
+      expect(row.missed + row.playoffs + row.finalist + row.champ).toBeCloseTo(1, 5);
+      // No impossible probabilities.
+      for (const v of [row.missed, row.playoffs, row.finalist, row.champ]) {
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThanOrEqual(1);
+      }
+      rows.push(row);
+    }
+    expect(rows.length).toBeGreaterThanOrEqual(4);
+
+    // P(Missed | wins) strictly falls as wins rise; P(made playoffs) = 1−Missed rises.
+    for (let i = 1; i < rows.length; i++) {
+      expect(rows[i]!.missed).toBeLessThanOrEqual(rows[i - 1]!.missed + 0.03);
+    }
+    expect(rows[rows.length - 1]!.missed).toBeLessThan(rows[0]!.missed - 0.05);
+    // At the FEWEST well-sampled wins, Missed dominates; at the MOST, you almost
+    // certainly make the playoffs (Missed is small).
+    expect(rows[0]!.missed).toBeGreaterThan(0.5);
+    expect(rows[rows.length - 1]!.missed).toBeLessThan(0.2);
+    // Deep runs (Finalist+Champion) get likelier with more wins.
+    const deepLow = rows[0]!.finalist + rows[0]!.champ;
+    const deepHigh = rows[rows.length - 1]!.finalist + rows[rows.length - 1]!.champ;
+    expect(deepHigh).toBeGreaterThan(deepLow);
+  });
+
   it("CALIBRATION: an average team wins the title at roughly the fair 1/numTeams rate", () => {
     const team = { meanWeekly: FIELD.meanWeekly, sigmaWeekly: FIELD.withinTeamSigma };
     const r = runSeasonSimulation(team, FIELD, CONFIG);

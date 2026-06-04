@@ -38,8 +38,12 @@ test.describe("topbar system nav", () => {
 
   test("clicking a system tab activates it", async ({ page }) => {
     await load(page);
-    await page.locator(`${NAV} button`, { hasText: "Nexus Simulator" }).click();
-    await expect(page.locator(`${NAV} button[aria-current="true"]`)).toContainText(/Nexus Simulator/i);
+    // Target a panel that is ALONE in its row (Draft Intelligence is full-width),
+    // so click + scroll-spy agree deterministically. A panel sharing a 3-up row
+    // (e.g. Nexus next to Player Universe) can legitimately hand the highlight to
+    // a row-mate once both scroll into view — that's not a click failure.
+    await page.locator(`${NAV} button`, { hasText: "Draft Intelligence" }).click();
+    await expect(page.locator(`${NAV} button[aria-current="true"]`)).toContainText(/Draft Intelligence/i);
   });
 
   test("the active tab renders the sliding solid blue pill", async ({ page }) => {

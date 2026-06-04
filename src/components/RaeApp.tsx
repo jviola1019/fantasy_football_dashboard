@@ -193,7 +193,11 @@ export function RaeApp({ envelope, leagueOptions = [], activeLeagueId = null }: 
 
           <PanelRow cols={3}>
             <PlayerUniverse players={universePool} envelope={envelope} />
-            <NarrativeEngine players={players} envelope={envelope} />
+            {/* Narrative/hype is a MARKET signal: trending measures waiver
+                activity (free agents being added/dropped), so it only moves for
+                the market pool — your set roster never "trends". Feed the same
+                market pool the other market panels use so the hype axis is real. */}
+            <NarrativeEngine players={marketPool} envelope={envelope} />
             <NexusSimulator
               players={players}
               sim={sim}

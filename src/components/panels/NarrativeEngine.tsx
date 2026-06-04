@@ -60,7 +60,7 @@ export function NarrativeEngine({ players, envelope }: Props) {
       <div className="narr-summary">
         {withHype ? (
           <span>
-            {up} trending up · {down} trending down · ranked by how far market hype sits from true value.
+            {up} trending up · {down} trending down across the market · ranked by how far waiver hype sits from true value.
           </span>
         ) : (
           <span>
