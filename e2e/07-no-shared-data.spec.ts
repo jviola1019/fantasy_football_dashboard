@@ -83,7 +83,7 @@ test.describe("per-account isolation", () => {
     const page = await ctx.newPage();
     try {
       await registerUniqueUser(page, "noleague");
-      await page.goto("/");
+      await page.goto("/dashboard");
       // Primary CTA copy + heading from src/components/NoLeagueCTA.tsx
       await expect(page.getByRole("heading", { name: /bring your league/i })).toBeVisible({
         timeout: 15_000

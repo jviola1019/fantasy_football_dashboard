@@ -1,79 +1,43 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 
 /**
- * TopBar system-nav behaviour: scroll-spy (the active highlight follows the
- * scroll position), click-to-activate, the sliding solid blue pill that marks
- * the active system, and the numbered badges being large enough to contain
- * their digit (no text leak).
+ * Multi-route navigation: every top-level route renders its panel(s) inside the
+ * shared app shell, the current route is marked active in the nav, and the nav
+ * links perform real client-side navigation. Replaces the former single-page
+ * scroll-spy nav spec.
  */
+const ROUTES = [
+  { href: "/dashboard", anchor: "#command-center" },
+  { href: "/players", anchor: "#player-universe" },
+  { href: "/analytics", anchor: "#market-intelligence" },
+  { href: "/draft", anchor: "#draft-intelligence" },
+  { href: "/waivers", anchor: "#waiver-wire" },
+  { href: "/trades", anchor: "#trade-center" }
+];
 
-const NAV = 'nav[aria-label="Top-level systems"]';
+test.describe("multi-route navigation", () => {
+  for (const { href, anchor } of ROUTES) {
+    test(`${href} renders its panel inside the app shell`, async ({ page }) => {
+      await page.goto(href);
+      await expect(page.locator("html#__next_error__")).toHaveCount(0);
+      await expect(page.locator('header[aria-label="RAE command bar"]')).toBeVisible();
+      await expect(page.locator(anchor)).toBeVisible({ timeout: 20_000 });
+    });
+  }
 
-async function load(page: Page) {
-  await page.goto("/");
-  await expect(page.locator(NAV)).toBeVisible();
-}
-
-function activeTabText(page: Page) {
-  return page.locator(`${NAV} button[aria-current="true"]`).first().innerText();
-}
-
-test.describe("topbar system nav", () => {
-  test("active highlight follows scroll (scroll-spy)", async ({ page }) => {
-    await load(page);
-    // Drive ABSOLUTE scroll positions (deterministic across headless/desktop —
-    // unlike scrollIntoViewIfNeeded, which aligns variably). At the very bottom
-    // the highlight must leave the top row; back at the top it must return.
-    // We don't assert the exact system (the grid puts 2-3 panels per row, so the
-    // IntersectionObserver's row-lead can be either) — only that it tracks scroll.
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await expect
-      .poll(async () => (await activeTabText(page)).toLowerCase(), { timeout: 12_000 })
-      .not.toMatch(/command center|market intelligence/);
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await expect
-      .poll(async () => (await activeTabText(page)).toLowerCase(), { timeout: 12_000 })
-      .toMatch(/command center|market intelligence/);
+  test("the active route is marked aria-current in the visible nav", async ({ page }) => {
+    // /dashboard is a primary route, so it has a VISIBLE active marker on both
+    // desktop (sidebar) and mobile (bottom nav). The sidebar on mobile is an
+    // unmounted drawer, so only primary routes can be asserted there.
+    await page.goto("/dashboard");
+    await expect(page.locator('a[href="/dashboard"][aria-current="page"]:visible').first()).toBeVisible();
   });
 
-  test("clicking a system tab activates it", async ({ page }) => {
-    await load(page);
-    // Target a panel that is ALONE in its row (Draft Intelligence is full-width),
-    // so click + scroll-spy agree deterministically. A panel sharing a 3-up row
-    // (e.g. Nexus next to Player Universe) can legitimately hand the highlight to
-    // a row-mate once both scroll into view — that's not a click failure.
-    await page.locator(`${NAV} button`, { hasText: "Draft Intelligence" }).click();
-    await expect(page.locator(`${NAV} button[aria-current="true"]`)).toContainText(/Draft Intelligence/i);
-  });
-
-  test("the active tab renders the sliding solid blue pill", async ({ page }) => {
-    await load(page);
-    const activeBtn = page.locator(`${NAV} button[aria-current="true"]`).first();
-    const pill = activeBtn.locator(".topbar-pill");
-    await expect(pill).toBeVisible();
-    // The pill is the active segment's BACKGROUND, so it should cover essentially
-    // the whole button — not a thin sliver/underline. Assert relative to the
-    // button box rather than hardcoded pixels (robust across viewports).
-    const btnBox = await activeBtn.boundingBox();
-    const pillBox = await pill.boundingBox();
-    expect(btnBox, "active button should have a box").not.toBeNull();
-    expect(pillBox, "active pill should have a box").not.toBeNull();
-    expect(pillBox!.width).toBeGreaterThanOrEqual(btnBox!.width * 0.85);
-    expect(pillBox!.height).toBeGreaterThanOrEqual(btnBox!.height * 0.85);
-  });
-
-  test("number badges are sized to contain their digit (no leak)", async ({ page }) => {
-    await load(page);
-    // Each of the 9 system tabs has a numbered badge; assert it is at least a
-    // ~20px box so a digit is never clipped/leaking.
-    const badges = page.locator(`${NAV} button > span[aria-hidden="true"]`).filter({ hasText: /^[1-9]$/ });
-    const count = await badges.count();
-    expect(count).toBeGreaterThanOrEqual(9);
-    for (let i = 0; i < count; i++) {
-      const box = await badges.nth(i).boundingBox();
-      expect(box, `badge ${i} should have a box`).not.toBeNull();
-      expect(box!.width).toBeGreaterThanOrEqual(18);
-      expect(box!.height).toBeGreaterThanOrEqual(18);
-    }
+  test("clicking a nav link performs a client navigation", async ({ page }) => {
+    await page.goto("/dashboard");
+    // The visible nav link (sidebar on desktop, bottom nav on mobile).
+    await page.locator('a[href="/players"]:visible').first().click();
+    await page.waitForURL("**/players", { timeout: 15_000 });
+    await expect(page.locator("#player-universe")).toBeVisible({ timeout: 20_000 });
   });
 });

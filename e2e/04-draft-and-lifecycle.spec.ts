@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("draft + lifecycle tabs are reachable from the dashboard", () => {
   test("Draft Intelligence tab content is present in the rendered DOM", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     // Each panel renders its h2 with a deterministic id. Use the h2 to confirm
     // the panel is on the page rather than depending on tab-click behavior
     // (the current shell renders all panels in stacked sections).
@@ -14,7 +14,7 @@ test.describe("draft + lifecycle tabs are reachable from the dashboard", () => {
   test("Live Board is searchable across all available players and shows recommendations on-board", async ({
     page
   }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     const section = page.locator("#draft-intelligence");
 
     // Full-pool search exists (every player is reachable, not just the top few).
@@ -38,14 +38,14 @@ test.describe("draft + lifecycle tabs are reachable from the dashboard", () => {
   });
 
   test("Pre-Draft, Waiver Wire, Trade Center panels are rendered", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(page.locator("#pda-title")).toHaveText(/Pre-Draft Audit/i);
     await expect(page.locator("#ww-title")).toHaveText(/Waiver Wire/i);
     await expect(page.locator("#tc-title")).toHaveText(/Trade Center/i);
   });
 
   test("Waiver Wire populates a ranked free-agent table from the envelope", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     const section = page.locator("#waiver-wire");
     // The fixture envelope ships 8 players, so the table should have rows beyond the header.
     await expect(section.getByText(/RANKED FREE AGENTS/i)).toBeVisible();
@@ -56,7 +56,7 @@ test.describe("draft + lifecycle tabs are reachable from the dashboard", () => {
   test("Trade Center renders the Trade Builder tab and loads values or shows an honest state", async ({
     page
   }) => {
-    await page.goto("/");
+    await page.goto("/dashboard");
     const section = page.locator("#trade-center");
     // The panel must be present and show the "Trade Builder" tab (role="tab").
     await expect(section.getByRole("tab", { name: /Trade Builder/i })).toBeVisible();

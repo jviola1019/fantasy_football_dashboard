@@ -1,19 +1,18 @@
-import { RaeApp } from "@/components/RaeApp";
-import { loadEnvelope, NoLeagueCTA } from "@/lib/envelope/load";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { Onboarding } from "@/components/Onboarding";
 
-// Force dynamic rendering so we never download the 19 MB Sleeper players catalog
-// during build. With ISR (Vercel default for static pages), `next build` runs the
-// page once and Vercel's data cache rejects items over 2 MB.
+// Force dynamic so the auth() session check runs per-request (no static cache of
+// the signed-in vs anonymous branch).
 export const dynamic = "force-dynamic";
 
+/**
+ * Onboarding-first landing. Anonymous visitors get the marketing/onboarding
+ * surface (Connect league / Explore demo / Mock draft); signed-in users are
+ * sent straight to their dashboard.
+ */
 export default async function Home() {
-  const resolution = await loadEnvelope();
-  if (resolution.kind === "no-league") return <NoLeagueCTA />;
-  return (
-    <RaeApp
-      envelope={resolution.envelope}
-      leagueOptions={resolution.leagueOptions}
-      activeLeagueId={resolution.activeLeagueId}
-    />
-  );
+  const session = await auth().catch(() => null);
+  if (session?.user) redirect("/dashboard");
+  return <Onboarding />;
 }

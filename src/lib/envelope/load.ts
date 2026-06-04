@@ -1,5 +1,5 @@
 import { cache } from "react";
-import { type LeagueOption } from "@/components/RaeApp";
+import { type LeagueOption } from "@/components/topbar/LeagueSwitcher";
 import { NoLeagueCTA } from "@/components/NoLeagueCTA";
 import { fixtureEnvelope } from "@/lib/fixtures";
 import { RAEEnvelopeSchema, type RAEEnvelope } from "@/lib/governance";
