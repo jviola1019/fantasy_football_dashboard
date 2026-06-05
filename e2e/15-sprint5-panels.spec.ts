@@ -1,72 +1,71 @@
 import { test, expect, type Page } from "@playwright/test";
 
 /**
- * Sprint 5 exhaustive panel matrix. Validates every system panel renders, every
- * in-panel tab strip actually switches content, the new interactions work
- * (Draft two-button, Waiver search, Player-Universe tabs, Price-Discovery
- * scatter, League-Pulse bars), no fabricated junk text is shown, and the
- * document never overflows horizontally across viewports — all on the demo
- * (anonymous) dashboard so it runs without auth.
+ * Panel matrix across the multi-route app: every system panel renders on its
+ * route, every in-panel tab strip switches content, the key interactions work,
+ * and no fabricated junk text appears — all on the demo (anonymous) surfaces so
+ * it runs without auth.
  */
 
-const PANEL_IDS = [
-  "command-center",
-  "market-intelligence",
-  "player-universe",
-  "narrative-engine",
-  "nexus-simulator",
-  "draft-intelligence",
-  "pre-draft-audit",
-  "waiver-wire",
-  "trade-center"
+// Each panel and the route that hosts it (the dashboard is now a slim overview).
+const PANELS: Array<{ id: string; route: string }> = [
+  { id: "command-center", route: "/dashboard" },
+  { id: "next-best-actions", route: "/dashboard" },
+  { id: "market-intelligence", route: "/analytics" },
+  { id: "narrative-engine", route: "/analytics" },
+  { id: "nexus-simulator", route: "/analytics" },
+  { id: "player-universe", route: "/players" },
+  { id: "draft-intelligence", route: "/draft" },
+  { id: "pre-draft-audit", route: "/draft" },
+  { id: "waiver-wire", route: "/waivers" },
+  { id: "trade-center", route: "/trades" }
 ];
 
-async function gotoDashboard(page: Page) {
-  await page.goto("/dashboard");
+async function gotoRoute(page: Page, route: string) {
+  await page.goto(route);
   await expect(page.locator("html#__next_error__")).toHaveCount(0);
   await expect(page.locator('header[aria-label="RAE command bar"]')).toBeVisible();
 }
 
-test.describe("sprint 5 — all panels render", () => {
-  test("every one of the 9 system panels is present", async ({ page }) => {
-    await gotoDashboard(page);
-    for (const id of PANEL_IDS) {
+test.describe("panels render on their routes", () => {
+  for (const { id, route } of PANELS) {
+    test(`#${id} renders on ${route}`, async ({ page }) => {
+      await gotoRoute(page, route);
       const panel = page.locator(`#${id}`);
       await panel.scrollIntoViewIfNeeded();
-      await expect(panel, `panel #${id} should render`).toBeVisible({ timeout: 20_000 });
-    }
-  });
+      await expect(panel, `panel #${id} should render on ${route}`).toBeVisible({ timeout: 20_000 });
+    });
+  }
 
   test("no fabricated / broken junk text in the deterministic (fixture) panels", async ({ page }) => {
-    await gotoDashboard(page);
-    // Confirm we're on the fixture (demo) dashboard so this is deterministic.
-    await expect(page.locator(".governance-banner")).toBeVisible();
-    // Scan only the fixture-driven panels (exclude Trade Center, whose content
-    // comes from a live FantasyCalc fetch and varies by environment). Use
-    // WORD-BOUNDARY matches so legitimate substrings (a player whose name
-    // contains "nan", etc.) never false-positive — we only fail on literal
-    // broken tokens like "NaN", "undefined", "[object Object]".
+    // Word-boundary matches so legitimate substrings never false-positive — only
+    // literal broken tokens like "NaN", "undefined", "[object Object]".
     const junk = /(\bNaN\b|\$NaN\b|\bundefined\b|\[object Object\]|\bInfinity\b)/;
-    for (const id of PANEL_IDS) {
-      if (id === "trade-center") continue;
-      const panel = page.locator(`#${id}`);
-      await panel.scrollIntoViewIfNeeded();
-      const text = await panel.innerText();
-      expect(text, `panel #${id} must not render a broken token`).not.toMatch(junk);
+    const routes = [...new Set(PANELS.map((p) => p.route))];
+    for (const route of routes) {
+      await gotoRoute(page, route);
+      await expect(page.locator(".governance-banner")).toBeVisible();
+      for (const { id, route: r } of PANELS) {
+        if (r !== route || id === "trade-center") continue; // trade values are live/env-varying
+        const panel = page.locator(`#${id}`);
+        await panel.scrollIntoViewIfNeeded();
+        const text = await panel.innerText();
+        expect(text, `panel #${id} must not render a broken token`).not.toMatch(junk);
+      }
     }
   });
 });
 
-test.describe("sprint 5 — in-panel tabs switch content", () => {
-  const cases: Array<{ panel: string; tabs: string[] }> = [
-    { panel: "market-intelligence", tabs: ["Market Pulse", "Liquidity Flow", "Sentiment", "Arbitrage", "Trends", "Price Discovery"] },
-    { panel: "player-universe", tabs: ["Universe", "Tiers", "Comparison", "Watchlist", "Projections"] },
-    { panel: "nexus-simulator", tabs: ["Multiverse", "Scenarios", "Risk Analysis"] },
-    { panel: "trade-center", tabs: ["Trade Builder", "Recent League Trades"] }
+test.describe("in-panel tabs switch content", () => {
+  const cases: Array<{ panel: string; route: string; tabs: string[] }> = [
+    { panel: "market-intelligence", route: "/analytics", tabs: ["Market Pulse", "Liquidity Flow", "Sentiment", "Arbitrage", "Trends", "Price Discovery"] },
+    { panel: "player-universe", route: "/players", tabs: ["Universe", "Tiers", "Comparison", "Watchlist", "Projections"] },
+    { panel: "nexus-simulator", route: "/analytics", tabs: ["Multiverse", "Scenarios", "Risk Analysis"] },
+    { panel: "trade-center", route: "/trades", tabs: ["Trade Builder", "Recent League Trades"] }
   ];
-  for (const { panel, tabs } of cases) {
+  for (const { panel, route, tabs } of cases) {
     test(`${panel}: each tab is selectable`, async ({ page }) => {
-      await gotoDashboard(page);
+      await gotoRoute(page, route);
       const root = page.locator(`#${panel}`);
       await root.scrollIntoViewIfNeeded();
       for (const name of tabs) {
@@ -78,9 +77,9 @@ test.describe("sprint 5 — in-panel tabs switch content", () => {
   }
 });
 
-test.describe("sprint 5 — new feature interactions", () => {
+test.describe("feature interactions", () => {
   test("Command Center League Pulse shows ranked bars + values", async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoRoute(page, "/dashboard");
     const board = page.locator("#command-center .lp-board");
     await board.scrollIntoViewIfNeeded();
     await expect(board.locator(".lp-row").first()).toBeVisible();
@@ -89,7 +88,7 @@ test.describe("sprint 5 — new feature interactions", () => {
   });
 
   test("Market Intelligence Price Discovery renders the scatter", async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoRoute(page, "/analytics");
     const mi = page.locator("#market-intelligence");
     await mi.scrollIntoViewIfNeeded();
     await mi.getByRole("tab", { name: "Price Discovery", exact: true }).click();
@@ -97,7 +96,7 @@ test.describe("sprint 5 — new feature interactions", () => {
   });
 
   test("Player Universe Tiers tab shows value bands", async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoRoute(page, "/players");
     const pu = page.locator("#player-universe");
     await pu.scrollIntoViewIfNeeded();
     await pu.getByRole("tab", { name: "Tiers", exact: true }).click();
@@ -106,34 +105,25 @@ test.describe("sprint 5 — new feature interactions", () => {
   });
 
   test("Draft Intelligence: + Mine and Taken buttons update the counts", async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoRoute(page, "/draft");
     const di = page.locator("#draft-intelligence");
     await di.scrollIntoViewIfNeeded();
     await di.getByRole("button", { name: /to my team/i }).first().click();
     await di.getByRole("button", { name: /taken by an opponent/i }).first().click();
     await expect(di).toContainText(/1 mine/);
     await expect(di).toContainText(/1 taken/);
-    // Reset returns to the empty state.
     await di.getByRole("button", { name: /^Reset$/ }).click();
     await expect(di).toContainText(/0 mine/);
   });
 
   test("Waiver Wire search filters the ranked free agents", async ({ page }) => {
-    await gotoDashboard(page);
+    await gotoRoute(page, "/waivers");
     const ww = page.locator("#waiver-wire");
     await ww.scrollIntoViewIfNeeded();
     const rowsBefore = await ww.locator("tbody tr").count();
     await ww.getByRole("searchbox", { name: /search free agents/i }).fill("zzzznotaplayer");
     await expect(ww.locator("tbody")).toContainText(/No free agents match/i);
-    // Clearing restores the list.
     await ww.getByRole("searchbox", { name: /search free agents/i }).fill("");
     await expect(ww.locator("tbody tr")).toHaveCount(rowsBefore);
   });
 });
-
-// NOTE: document-level horizontal-overflow at 1440/1024/768/390 is the canonical
-// gate in e2e/01-dashboard.spec.ts (measured at top-of-page, the position-
-// independent scrollWidth). A duplicate here that additionally scrolled every
-// panel into view tripped a 1-2px Linux-only rendering delta once the live
-// Trade Center builder finished loading — flaky without adding coverage — so the
-// overflow assertion lives only in 01-dashboard.

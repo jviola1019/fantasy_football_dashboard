@@ -13,6 +13,7 @@ import { DraftIntelligence } from "@/components/panels/DraftIntelligence";
 import { PreDraftAudit } from "@/components/panels/PreDraftAudit";
 import { WaiverWire } from "@/components/panels/WaiverWire";
 import { TradeCenter } from "@/components/panels/TradeCenter";
+import { NextBestActionPanel } from "@/components/dashboard/NextBestActionPanel";
 
 export type RouteViewName =
   | "dashboard"
@@ -67,26 +68,15 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
     return <TradeCenter />;
   }
 
-  // dashboard — the full nine-system board (Sprint 1: verbatim; becomes a true
-  // overview in Sprint 2).
+  // dashboard — a focused OVERVIEW (progressive disclosure): your team's command
+  // center + the source-backed next-best-actions, each linking into the deep
+  // routes. The full per-system panels live on /players, /analytics, /draft,
+  // /waivers, /trades.
   return (
     <PanelGrid>
       <PanelRow cols={2}>
         <CommandCenter players={d.players} envelope={envelope} sim={d.sim} metrics={d.commandMetrics} />
-        <MarketIntelligence players={d.marketPool} marketMetrics={d.marketMetrics} envelope={envelope} />
-      </PanelRow>
-      <PanelRow cols={3}>
-        <PlayerUniverse players={d.universePool} envelope={envelope} />
-        <NarrativeEngine players={d.marketPool} envelope={envelope} />
-        <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} envelope={envelope} />
-      </PanelRow>
-      <PanelRow cols={1}>
-        <DraftIntelligence players={d.universePool} />
-      </PanelRow>
-      <PanelRow cols={3}>
-        <PreDraftAudit players={d.players} envelope={envelope} />
-        <WaiverWire players={d.marketPool} envelope={envelope} />
-        <TradeCenter />
+        <NextBestActionPanel roster={d.players} market={d.marketPool} draftState={envelope.draftState} />
       </PanelRow>
     </PanelGrid>
   );

@@ -20,6 +20,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "draft", label: "Draft", href: "/draft", short: "Draft", primary: true },
   { key: "waivers", label: "Waivers", href: "/waivers", short: "Waivers" },
   { key: "trades", label: "Trades", href: "/trades", short: "Trades", primary: true },
+  { key: "reports", label: "Reports", href: "/reports", short: "Reports" },
   { key: "league", label: "League", href: "/settings/leagues", short: "League" },
   { key: "settings", label: "Settings", href: "/settings/account", short: "Settings" }
 ];
