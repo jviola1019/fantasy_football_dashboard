@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("app shell + dashboard", () => {
-  test("/dashboard renders the panels (2-D views) without crashing", async ({ page }) => {
+  test("/dashboard renders the overview without crashing", async ({ page }) => {
     await page.goto("/dashboard");
 
     // The page must NOT fall back to Next.js's global error boundary.
@@ -10,29 +10,25 @@ test.describe("app shell + dashboard", () => {
     // The multi-route shell: a route sidebar + sticky command bar.
     await expect(page.locator('header[aria-label="RAE command bar"]')).toBeVisible();
 
-    // ── Nexus Simulator heatmap SVG.
-    const nexus = page.locator("#nexus-simulator");
-    await nexus.scrollIntoViewIfNeeded();
-    await expect(nexus.locator("svg, .multiverse-wrap").first()).toBeVisible({ timeout: 30_000 });
-
-    // ── Command Center leaderboard.
+    // The overview = Command Center leaderboard + the Next Best Actions panel
+    // (the deep per-system panels live on their own routes — see 15-sprint5).
     const cc = page.locator("#command-center");
     await cc.scrollIntoViewIfNeeded();
     await expect(
       cc.locator('[aria-label="League pulse player leaderboard"], .league-pulse-empty').first()
     ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#next-best-actions")).toBeVisible();
+  });
 
-    // ── Player Universe grid.
-    const pu = page.locator("#player-universe");
-    await pu.scrollIntoViewIfNeeded();
-    await expect(pu.locator('[aria-label="Player grid"], .player-grid-empty').first()).toBeVisible({
-      timeout: 15_000
+  test("a deep route (/analytics) renders its 2-D heatmap without crashing", async ({ page }) => {
+    await page.goto("/analytics");
+    await expect(page.locator("html#__next_error__")).toHaveCount(0);
+    await page.waitForLoadState("networkidle").catch(() => {});
+    // toBeVisible auto-retries + re-resolves, so a brief hydration detach is fine;
+    // Playwright treats below-the-fold elements as visible (no scroll needed).
+    await expect(page.locator("#nexus-simulator svg, #nexus-simulator .multiverse-wrap").first()).toBeVisible({
+      timeout: 30_000
     });
-
-    // ── Narrative Engine.
-    const ne = page.locator("#narrative-engine");
-    await ne.scrollIntoViewIfNeeded();
-    await expect(ne.locator('[aria-label*="Narrative"], .empty-state').first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("onboarding homepage shows the primary CTAs when logged out", async ({ page }) => {

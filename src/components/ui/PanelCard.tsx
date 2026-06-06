@@ -15,10 +15,10 @@ interface PanelCardProps {
 }
 
 /**
- * The standard shell every top-level panel renders inside. One source of
- * truth for panel padding, border, radius, shadow, the header layout, and the
- * scroll-margin offset that clears the sticky TopBar — so all nine panels are
- * spaced identically. Built on the shadcn Card token set (bg-card / border).
+ * The standard shell every route panel renders inside. One source of truth for
+ * panel padding, border, radius, shadow, and the header layout — so every panel
+ * is chromed identically across routes. Built on the shadcn Card token set
+ * (bg-card / border).
  */
 export function PanelCard({
   id,
@@ -34,8 +34,8 @@ export function PanelCard({
       id={id}
       aria-labelledby={titleId}
       className={cn(
-        // scroll-mt clears the 78px sticky TopBar (+ a small breathing gap) so
-        // nav-driven scrollIntoView lands the panel flush, not 30px low.
+        // scroll-mt keeps in-page anchor jumps (deep links to #id) clear of the
+        // sticky command bar.
         "scroll-mt-[88px] overflow-hidden rounded-xl border border-border",
         "bg-gradient-to-br from-card to-[#090d12] shadow-[0_4px_32px_rgba(0,0,0,0.4)]",
         "flex flex-col",

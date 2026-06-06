@@ -29,16 +29,19 @@ export function BackToDashboard({
 
 // Inline styles keep this component dependency-free from Tailwind config and
 // the existing settings-page CSS variables, so it slots in anywhere.
+// SOLID colors (not translucent / token-dependent) so the contrast is
+// unambiguous on any page background — a translucent bg composites over an
+// indeterminate parent and axe scored cream-on-gray at 1.98:1.
 const style: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   gap: 8,
   padding: "6px 12px",
   fontSize: 13,
-  fontWeight: 500,
-  color: "var(--cream, #f5e7c4)",
-  background: "rgba(0,0,0,0.35)",
-  border: "1px solid rgba(255,255,255,0.1)",
+  fontWeight: 600,
+  color: "#f0ece4",
+  background: "#18222f",
+  border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 8,
   textDecoration: "none",
   letterSpacing: 0.2,

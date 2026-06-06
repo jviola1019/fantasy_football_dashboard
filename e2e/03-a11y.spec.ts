@@ -17,6 +17,7 @@ test.describe("axe a11y scan", () => {
     "/draft",
     "/waivers",
     "/trades",
+    "/reports",
     "/login",
     "/settings/account",
     "/settings/leagues",

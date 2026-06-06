@@ -100,9 +100,13 @@ Preferred top-level structure:
 - Reports
 - Settings
 
-Adapt only if existing architecture demands it. (Current app is a single
-scroll-spy dashboard of nine "systems" with a numbered TopBar + collapsible
-sidebar; a multi-route restructure is a planned, separate effort.)
+Adapt only if existing architecture demands it. (Implemented: a multi-route shell
+— route group `src/app/(app)/{dashboard,players,analytics,draft,waivers,trades,reports}`
+plus settings/leagues + settings/account, all under an onboarding `/`. Wrapped by a
+collapsible numbered route sidebar (`RouteSidebar`) + a sticky `TopCommandBar` + a
+mobile bottom nav. The nine "systems" are distributed across these routes; `/dashboard`
+is a slim overview. One request-cached `loadEnvelope()` + `deriveAppData()` feed every
+route via `RouteView`.)
 
 ## Visual System
 
