@@ -14,7 +14,7 @@
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
   <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
-  <img alt="417 tests passing" src="https://img.shields.io/badge/tests-417%20passing-35c08a">
+  <img alt="438 tests passing" src="https://img.shields.io/badge/tests-438%20passing-35c08a">
   <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
 </p>
 
@@ -158,7 +158,7 @@ full methodology and the calibration contract enforced by the test suite.
 
 ## Trade value simulator
 
-The Trade Center (`src/components/panels/TradeCenter.tsx`) is a top-level system backed by real market data through a three-tier source chain: the **FantasyCalc** free API (primary), a cached **KeepTradeCut** snapshot (secondary), and a **DynastyProcess** CSV (tertiary fallback) — no API keys and no paid feeds required. It has two tabs:
+The Trade Center (`src/components/panels/TradeCenter.tsx`) lives on the `/trades` route, backed by real market data through a three-tier source chain: the **FantasyCalc** free API (primary), a cached **KeepTradeCut** snapshot (secondary), and a **DynastyProcess** CSV (tertiary fallback) — no API keys and no paid feeds required. It has two tabs:
 
 - **Trade Builder** — search players by name, build two sides of a trade, and get a live fairness verdict (balanced / slight-edge / lopsided) based on market trade values (which are position-aware at the source).
 - **Recent League Trades** — grades real transactions pulled from a connected **Sleeper or ESPN** league, showing the value each side received and the verdict for each executed trade.
@@ -169,7 +169,7 @@ See `docs/trade-calibration.md` for the full backtest and validation methodology
 
 ## Draft systems
 
-Draft Intelligence is one of the nine top-level systems (`src/components/panels/DraftIntelligence.tsx`). It ships with:
+Draft Intelligence lives on the `/draft` route (`src/components/panels/DraftIntelligence.tsx`, rendered by `RouteView`). It ships with:
 - Live Board — click rows to draft to your roster.
 - Recommendation Queue — categories (`Value`, `Need`, `Stash`, `Run`) with a deterministic scoring function in `src/lib/draft/recommend.ts`.
 - Tier Collapse Forecast — per-position tier breaks and intensity, from `src/lib/draft/tiers.ts`.
@@ -198,12 +198,12 @@ The shell, navigation, panel grid, and shared panel chrome are built on **Tailwi
 
 - **Token bridge** — the legacy `:root` CSS variables (`--bg`, `--panel`, `--cream`, `--muted`, the position-color ramp) remain the single source of truth. The shadcn tokens are defined alongside them in a Tailwind `@theme` block as a separate `--color-*` namespace, so the two systems share colors without collision (notably legacy `--muted` is a text color, shadcn `--color-muted` is a surface).
 - **Coexistence** — `globals.css` prepends `@import "tailwindcss"`, then keeps the legacy rules below it. Tailwind utilities and legacy classes render side by side; Tailwind's Preflight sits in `@layer base` so the unlayered legacy CSS still cascades on top.
-- **shadcn components** — `Sidebar`, `Card`, `Tabs`-style `PanelTabs`, `Button`, `DropdownMenu`, `Tooltip`, `Input`, `Badge`, `Separator` live in `src/components/ui/`. The dashboard shell composes them via `AppSidebar`, `TopBar`, `PanelGrid`, and `PanelCard`.
+- **shadcn components** — `Sidebar`, `Card`, `Tabs`-style `PanelTabs`, `Button`, `DropdownMenu`, `Tooltip`, `Input`, `Badge`, `Separator` live in `src/components/ui/`. The multi-route app shell composes them via `RouteSidebar`, `TopCommandBar`, `MobileBottomNav`, `PanelGrid`, and `PanelCard`.
 - **What stayed on legacy CSS** — `.kpi-row`, `.table-wrap`, `.section-label`, chart primitives, and 2-D visualization keyframe rules. The dead shell/grid/tab rules (`.system-panel`, `.dashboard-grid`, `.tab-row`, etc.) were pruned.
 
 ## Mobile responsiveness
 
-The dashboard grid reflows through Tailwind breakpoints in `PanelGrid` — a responsive 1 → 2 → 3 column layout with one consistent `gap` and `padding` scale, replacing the old ad-hoc pixel gaps. Dense data internals (KPI strips, sub-grids) keep their legacy media queries; tables and the system tab strip scroll horizontally inside their own clipped containers so the document never overflows.
+The per-route panel grid reflows through Tailwind breakpoints in `PanelGrid` — a responsive 1 → 2 → 3 column layout with one consistent `gap` and `padding` scale, replacing the old ad-hoc pixel gaps. On mobile the route sidebar collapses to a drawer and a fixed bottom nav takes over. Dense data internals (KPI strips, sub-grids) keep their legacy media queries; tables and in-panel tab strips scroll horizontally inside their own clipped containers so the document never overflows.
 
 `playwright.config.ts` runs both a `chromium` (Desktop Chrome) and a `mobile-chrome` (Pixel 5) project, and `e2e/01-dashboard.spec.ts` asserts zero horizontal document overflow at 1440 / 1024 / 768 / 390 px. Mobile topology is preserved rather than reduced to generic cards.
 
@@ -236,8 +236,9 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 417 unit/integration tests (4 live-API specs skipped unless `RAE_LIVE_TESTS=1`);
-CI runs typecheck + lint + vitest + Playwright + Lighthouse on every push (`.github/workflows/ci.yml`).
+`vitest` holds 438 passing unit/integration tests (3 live-API specs, 6 tests, skipped unless `RAE_LIVE_TESTS=1`);
+Playwright runs 64 specs × chromium + mobile-chrome. CI runs typecheck + lint + vitest + Playwright + Lighthouse
+on every push (`.github/workflows/ci.yml`).
 
 ## Design philosophy
 

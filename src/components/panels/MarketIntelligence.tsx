@@ -8,7 +8,7 @@ import { PanelTabs } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
 import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { BarChart } from "@/components/charts/BarChart";
-import { runNexusSimulation } from "@/lib/simulation";
+import type { SimulationResult } from "@/lib/simulation";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, confidenceInterval } from "@/lib/models";
@@ -18,12 +18,15 @@ import { fmt, surname } from "@/lib/utils";
 type Props = {
   players: PlayerMarketRecord[];
   marketMetrics: MarketMetrics;
+  /** The SHARED canonical season sim (same one Nexus uses) — so the Trends
+   *  outcome landscape never contradicts the Nexus Multiverse on this route. */
+  sim: SimulationResult;
   envelope?: RAEEnvelope;
 };
 
 const TABS = ["Market Pulse", "Liquidity Flow", "Sentiment", "Arbitrage", "Trends", "Price Discovery"] as const;
 
-export function MarketIntelligence({ players, marketMetrics, envelope }: Props) {
+export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Market Pulse");
 
   // Per-tab data-state gating (Feature B follow-on). The Sentiment tab is
@@ -93,7 +96,7 @@ export function MarketIntelligence({ players, marketMetrics, envelope }: Props) 
           )
         )}
         {activeTab === "Trends" && (
-          <VolatilitySurface players={players} />
+          <VolatilitySurface sim={sim} />
         )}
         {activeTab === "Price Discovery" && (
           <PriceDiscoveryView players={players} />
@@ -327,21 +330,13 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
   );
 }
 
-function VolatilitySurface({ players }: { players: PlayerMarketRecord[] }) {
-  // Honest landscape: P(playoff outcome | regular-season wins) from the season
-  // sim — each win-total column sums to 100% (a real conditional distribution),
-  // so more wins reads as never-worse title odds. The old version swept five
-  // risk-tolerance columns, whose rows came out dead-flat for any real team.
-  const heat = useMemo(() => {
-    if (players.length === 0) return null;
-    const sim = runNexusSimulation(players, {
-      seed: 20260513,
-      iterations: 2500,
-      rosterSlots: 6,
-      riskTolerance: 0.5
-    });
-    return buildOutcomeHeat(sim.distribution);
-  }, [players]);
+function VolatilitySurface({ sim }: { sim: SimulationResult }) {
+  // P(playoff outcome | regular-season wins) from the SHARED canonical season
+  // sim — the SAME `sim` the Nexus "Outcome Multiverse" reads (deriveAppData,
+  // seeded over the user's roster with the real league format). Previously this
+  // re-ran an INDEPENDENT sim over the market pool with hardcoded params, so the
+  // two outcome heatmaps on /analytics could disagree. Now they always match.
+  const heat = useMemo(() => buildOutcomeHeat(sim.distribution), [sim.distribution]);
 
   return (
     <div className="chart-wrap vol-surface-wrap">

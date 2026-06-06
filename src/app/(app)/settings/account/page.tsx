@@ -1,9 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { getDb, schema } from "@/db";
-import { BackToDashboard } from "@/components/ui/BackToDashboard";
 import { ChangePasswordForm, DeleteAccountForm, SignOutButton } from "./AccountForms";
 
 export const dynamic = "force-dynamic";
@@ -22,26 +20,7 @@ export default async function AccountSettingsPage() {
   if (!user) redirect("/login");
 
   return (
-    <main style={{ minHeight: "100vh", background: "var(--bg)", padding: "32px 24px" }}>
-      <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 24 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <BackToDashboard />
-          <Link
-            href="/settings/leagues"
-            style={{
-              color: "var(--muted)",
-              textDecoration: "none",
-              fontSize: 12,
-              letterSpacing: 0.2,
-              border: "1px solid rgba(255,255,255,0.08)",
-              padding: "6px 12px",
-              borderRadius: 8
-            }}
-          >
-            ← Your leagues
-          </Link>
-        </div>
-
+    <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 24 }}>
         <header>
           <h1 style={{ color: "var(--cream)", margin: 0, fontSize: 24 }}>Account</h1>
           <p style={{ color: "var(--muted)", marginTop: 8 }}>
@@ -81,8 +60,7 @@ export default async function AccountSettingsPage() {
           </p>
           <DeleteAccountForm />
         </section>
-      </div>
-    </main>
+    </div>
   );
 }
 

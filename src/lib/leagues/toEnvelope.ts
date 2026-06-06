@@ -32,7 +32,7 @@ function withOpportunity(records: PlayerMarketRecord[], scores: OpportunityMap |
 const UNIVERSE_LIMIT = 600;
 
 // Convert a live league snapshot + FantasyPros rankings into the RAEEnvelope
-// shape that RaeApp + every panel consume. The output envelope has:
+// shape that deriveAppData + every route panel consume. The output envelope has:
 //   - mode: "live" when both snapshot and rankings are present
 //   - records: the user's own roster (15-20 players typically), enriched with
 //     behavioral-market fields from FantasyPros consensus rankings

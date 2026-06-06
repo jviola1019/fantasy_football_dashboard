@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { setActiveLeagueAction } from "@/app/settings/leagues/actions";
+import { setActiveLeagueAction } from "@/app/(app)/settings/leagues/actions";
 
 export interface LeagueOption {
   id: string;

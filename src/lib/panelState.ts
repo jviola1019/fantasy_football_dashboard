@@ -47,7 +47,7 @@ const METRIC_DESCRIPTIONS: Record<PanelMetricKey, string> = {
  * and the panel's declared dependency list. Pure function — no I/O, safe
  * to call during render.
  *
- * @param envelope the envelope passed to RaeApp / panels
+ * @param envelope the envelope passed to deriveAppData / route panels
  * @param dependsOn behavioral metrics this panel requires to render meaningfully
  */
 export function derivePanelState(

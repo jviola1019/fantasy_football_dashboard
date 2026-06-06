@@ -40,7 +40,7 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
     return (
       <PanelGrid>
         <PanelRow cols={1}>
-          <MarketIntelligence players={d.marketPool} marketMetrics={d.marketMetrics} envelope={envelope} />
+          <MarketIntelligence players={d.marketPool} marketMetrics={d.marketMetrics} sim={d.sim} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={2}>
           <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} envelope={envelope} />

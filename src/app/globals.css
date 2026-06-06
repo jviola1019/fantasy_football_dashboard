@@ -1290,18 +1290,15 @@ td small { color: var(--muted); }
   100% { background-position: 0% 50%; }
 }
 
-/* ─── Tab systems (TopBar nav + in-panel PanelTabs) ───────────────────────── */
-/* Both strips share ONE segmented-control language: a recessed track holding a
-   single solid slate-blue pill that slides to the active segment via Framer
-   Motion `layoutId`. The active label is dark text sitting on the pill, so the
-   selection is unmistakable — no faint tints or thin underlines. The visual
-   treatment lives here so the motion component stays a thin wrapper. */
-.panel-tabs,
-.topbar-seg {
+/* ─── In-panel PanelTabs segmented control ────────────────────────────────── */
+/* A recessed track holding a single solid slate-blue pill that slides to the
+   active segment via Framer Motion `layoutId`. The active label is dark text
+   sitting on the pill, so the selection is unmistakable. The visual treatment
+   lives here so the motion component stays a thin wrapper. */
+.panel-tabs {
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.32);
 }
-.panel-tab-pill,
-.topbar-pill {
+.panel-tab-pill {
   background: linear-gradient(180deg, rgba(108, 178, 214, 0.96), rgba(74, 138, 176, 0.97));
   box-shadow:
     0 3px 10px rgba(26, 64, 88, 0.45),
