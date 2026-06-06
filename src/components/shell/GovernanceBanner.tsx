@@ -1,11 +1,11 @@
 import type { RAEEnvelope } from "@/lib/governance";
+import { AssumptionsDrawer } from "@/components/governance/AssumptionsDrawer";
 
 /**
  * The always-visible model-governance strip: league format/season + draft state,
- * data source + freshness + confidence + validation, and any metrics still
- * lacking a data source. Extracted verbatim from the former `RaeApp` so every
- * route surfaces the same data lineage (no governance regression in the
- * multi-route shell).
+ * data source + freshness + confidence + validation, the metrics still lacking a
+ * data source, and a disclosure of the model assumptions. Surfaced on every
+ * route so the data lineage never goes missing in the multi-route shell.
  */
 export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
   const fmt = envelope.leagueFormat;
@@ -37,6 +37,7 @@ export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
           that depend on these render &quot;—&quot; instead of a number.
         </span>
       ) : null}
+      <AssumptionsDrawer sourceState={envelope.sourceState} />
     </div>
   );
 }

@@ -8,6 +8,9 @@ import { reputationEdge } from "@/lib/models";
 import { fmt } from "@/lib/utils";
 import { PanelGrid, PanelRow } from "@/components/shell/PanelGrid";
 import { PanelCard } from "@/components/ui/PanelCard";
+import { GovernancePanel } from "@/components/governance/GovernancePanel";
+import { AuditInfoTooltip } from "@/components/governance/AuditInfoTooltip";
+import { DataLineagePopover } from "@/components/governance/DataLineagePopover";
 
 /**
  * Weekly / governance report: the season outlook (seeded sim), the full model-
@@ -18,7 +21,6 @@ import { PanelCard } from "@/components/ui/PanelCard";
 export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
   const d = useMemo(() => deriveAppData(envelope), [envelope]);
   const dist = useMemo(() => deriveOutcomeDistribution(d.sim), [d.sim]);
-  const ss = envelope.sourceState;
 
   const edges = useMemo(
     () =>
@@ -58,41 +60,35 @@ export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
               </ul>
               <p className="small-note">
                 {d.sim.params.iterations.toLocaleString()} simulations. Outcome odds are conditional on the seeded
-                season; the Nexus Multiverse shows P(outcome | wins) in full.
+                season; the Nexus Multiverse shows P(outcome | wins) in full.{" "}
+                <AuditInfoTooltip label="Season outlook">
+                  Seeded Monte-Carlo (mulberry32) over your roster vs. a league-strength field. Reproducible — same
+                  inputs, same odds. Not a guarantee.
+                </AuditInfoTooltip>
               </p>
             </>
           )}
         </PanelCard>
 
         <PanelCard id="report-governance" titleId="rg-title" title="Model Governance" eyebrow="Source lineage & assumptions.">
-          <dl className="report-gov">
-            <div className="report-gov-row"><dt>Mode</dt><dd>{envelope.mode}</dd></div>
-            <div className="report-gov-row"><dt>Source</dt><dd>{ss.source}</dd></div>
-            <div className="report-gov-row"><dt>Freshness</dt><dd>{ss.freshness}</dd></div>
-            <div className="report-gov-row"><dt>Confidence</dt><dd>{(ss.confidence * 100).toFixed(0)}%</dd></div>
-            <div className="report-gov-row"><dt>Validation</dt><dd>{ss.validation}</dd></div>
-          </dl>
-          {ss.assumptions.length > 0 && (
-            <>
-              <div className="section-label">ASSUMPTIONS</div>
-              <ul className="report-assumptions">
-                {ss.assumptions.map((a, i) => (
-                  <li key={i}>{a}</li>
-                ))}
-              </ul>
-            </>
-          )}
-          <div className="section-label">METRICS WITHOUT A FREE SOURCE</div>
-          {ss.missingFields.length > 0 ? (
-            <p className="report-missing">{ss.missingFields.join(", ")} — rendered as &quot;—&quot;, never invented.</p>
-          ) : (
-            <p className="muted-note">All shown metrics have a data source.</p>
-          )}
+          <GovernancePanel envelope={envelope} />
+          <p className="small-note">
+            Mode, source, freshness, confidence, validation, and assumptions are carried on every envelope and shown
+            on every route — nothing is a black box.
+          </p>
         </PanelCard>
       </PanelRow>
 
       <PanelRow cols={1}>
         <PanelCard id="report-edges" titleId="re-title" title="Reputation Edges" eyebrow="Biggest true-vs-market gaps.">
+          <p className="small-note">
+            Edge = true − market value (adjusted for ownership leverage + fragility).{" "}
+            <DataLineagePopover
+              metric="Reputation edge"
+              source="FantasyPros consensus (true/market) via reputationEdge()"
+              note="Updated by the daily rankings cron; shown as — when rankings are uncached."
+            />
+          </p>
           {edges.length === 0 ? (
             <p className="muted-note">No players to rank.</p>
           ) : (

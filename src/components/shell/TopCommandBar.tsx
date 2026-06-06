@@ -1,11 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/cn";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { UserMenu } from "../topbar/UserMenu";
 import { LeagueSwitcher, type LeagueOption } from "../topbar/LeagueSwitcher";
+import { ModeBanner } from "../governance/ModeBanner";
 
 interface Props {
   mode: "live" | "fixture" | "unavailable";
@@ -21,13 +20,6 @@ interface Props {
  * nav, so this bar stays slim.
  */
 export function TopCommandBar({ mode, freshness, leagueOptions = [], activeLeagueId = null }: Props) {
-  const badgeClass =
-    mode === "live"
-      ? "border-rae-green/40 text-rae-green"
-      : mode === "fixture"
-        ? "border-rae-amber/40 text-rae-amber"
-        : "border-rae-red/40 text-rae-red";
-
   return (
     <header
       aria-label="RAE command bar"
@@ -45,26 +37,7 @@ export function TopCommandBar({ mode, freshness, leagueOptions = [], activeLeagu
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <LeagueSwitcher leagues={leagueOptions} activeLeagueId={activeLeagueId} />
         <UserMenu />
-        <div
-          aria-live="polite"
-          aria-label={`Data mode: ${mode}. Freshness: ${freshness}`}
-          className="flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide"
-        >
-          <Badge
-            variant="outline"
-            className={cn("font-semibold", badgeClass)}
-            aria-label={mode === "live" ? "Live data" : mode === "fixture" ? "Demo fixture data" : "Data unavailable"}
-          >
-            {mode === "live" && (
-              <span
-                aria-hidden="true"
-                className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-rae-green animate-[live-dot_2.5s_ease-in-out_infinite]"
-              />
-            )}
-            {mode}
-          </Badge>
-          <span className="hidden text-muted-foreground lg:inline">{freshness}</span>
-        </div>
+        <ModeBanner mode={mode} freshness={freshness} />
       </div>
     </header>
   );

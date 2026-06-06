@@ -42,12 +42,12 @@ RAE is a fantasy football behavioral-market intelligence operating system. It is
 RAE uses Next.js, TypeScript, Tailwind CSS v4 + shadcn/ui (Radix) for the shell, Zod validation, and deterministic simulation utilities. See **Design system** below for how the Tailwind layer coexists with the legacy CSS-variable theme.
 
 Service boundaries:
-1. **Frontend app** — nine top-level systems: Command Center, Market Intelligence, Player Universe, Narrative Engine, Nexus Simulator, Draft Intelligence, Pre-Draft, Waiver Wire, and Trade Center.
+1. **Frontend app** — a multi-route SaaS shell (Next.js App Router route group `src/app/(app)`): an onboarding home (`/`), an overview `/dashboard` (Command Center + source-backed Next Best Actions), and per-system deep routes `/players`, `/analytics` (Market Intelligence + Nexus Simulator + Narrative Engine), `/draft` (Draft Intelligence + Pre-Draft Audit), `/waivers`, `/trades`, and `/reports`. A collapsible route sidebar + slim command bar + mobile bottom nav wrap every route, with the model-governance banner always visible.
 2. **Data adapter layer** — adapter isolation begins with the Sleeper public players API boundary in `src/lib/sleeper.ts`.
-3. **API abstraction/governance layer** — `src/lib/governance.ts` defines source metadata, freshness, missingness, confidence, validation state, and bounded cache key behavior.
+3. **API abstraction/governance layer** — `src/lib/governance.ts` defines source metadata, freshness, missingness, confidence, validation state, and bounded cache key behavior. See `docs/data-source-map.md` for the per-metric provenance map.
 4. **Simulation engine** — `src/lib/simulation.ts` provides seeded Monte Carlo primitives, parameter logging, replayability, and assumptions.
-5. **Rendering pipeline** — `src/components/RaeApp.tsx` renders all nine systems from validated records only.
-6. **Audit layer** — docs and UI banners expose stale, fixture, missing, unavailable, and validation states.
+5. **Rendering pipeline** — one request-cached resolver `src/lib/envelope/load.ts` (`loadEnvelope()`) feeds every route; `src/lib/envelope/derive.ts` (`deriveAppData`) computes pools/sim/metrics; `src/components/app/RouteView.tsx` renders the panel(s) for each route from validated records only.
+6. **Audit layer** — docs and UI banners expose stale, fixture, missing, unavailable, and validation states; an assumptions disclosure + ⓘ lineage tooltips surface assumptions and provenance at the point of use.
 
 ## Data sources
 

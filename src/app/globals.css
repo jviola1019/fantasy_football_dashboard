@@ -99,6 +99,41 @@
   --pos-rb: #35c08a;
   --pos-wr: #5a9fc4;
   --pos-te: #d7a857;
+
+  /* Spacing scale (4px base) + page width — the controlled rhythm the design
+     system uses; consumed by panel/section gaps and route max-width. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-8: 48px;
+  --page-max: 1320px;
+
+  /* Motion tokens — honored alongside `useReducedMotion`; durations stay short
+     so the UI feels responsive, not animated-for-its-own-sake. */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* State color tokens — one source of truth for the live/fixture/stale/missing/
+   success/warning/risk semantics used by badges, banners, and panel states. */
+:root {
+  --state-live: var(--green);
+  --state-fixture: var(--amber);
+  --state-unavailable: var(--red);
+  --state-stale: var(--amber);
+  --state-success: var(--green);
+  --state-warning: var(--amber);
+  --state-risk: var(--red);
+  --state-info: var(--blue);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
@@ -151,6 +186,26 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
+
+/* Governance components: assumptions disclosure, source/freshness badge, panel,
+   and the ⓘ audit affordance. */
+.gov-assume { margin-top: 6px; }
+.gov-assume-summary { cursor: pointer; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--amber); list-style: none; }
+.gov-assume-summary::-webkit-details-marker { display: none; }
+.gov-assume-summary::before { content: "▸ "; }
+.gov-assume[open] .gov-assume-summary::before { content: "▾ "; }
+.gov-assume-body { margin-top: 6px; }
+.gov-assume-list { display: flex; flex-direction: column; gap: 3px; }
+.gov-assume-list li { font-size: 10px; line-height: 1.5; color: #e8d9b0; padding-left: 10px; position: relative; }
+.gov-assume-list li::before { content: "·"; position: absolute; left: 2px; color: var(--amber); }
+.gov-assume-missing { font-size: 10px; line-height: 1.5; color: #e8d9b0; margin-top: 4px; }
+.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 9px; font-family: "IBM Plex Mono", monospace; color: var(--muted); }
+.src-badge-src { color: var(--cream); }
+.gov-panel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
+.gov-panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
+.gov-panel-failure { font-size: 10px; color: var(--amber); margin: 4px 0; }
+.audit-info { font-size: 11px; line-height: 1; color: var(--muted); cursor: help; padding: 0 2px; }
+.audit-info:hover, .audit-info:focus-visible { color: var(--blue); }
 
 /* Dashboard grid, system-panel shell, and panel headers now live in the
    Tailwind components PanelGrid / PanelCard — their legacy CSS was removed. */
