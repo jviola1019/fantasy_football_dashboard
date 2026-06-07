@@ -67,7 +67,7 @@ export function RouteSidebar() {
 
       <SidebarFooter>
         <span className="px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground group-data-[collapsible=icon]:hidden">
-          {NAV_ITEMS.length} routes · all operational
+          {NAV_ITEMS.length} routes
         </span>
       </SidebarFooter>
 
