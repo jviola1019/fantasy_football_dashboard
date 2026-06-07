@@ -6,5 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function ReportsPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return <ReportsView envelope={r.envelope} />;
+  return (
+    <>
+      <h1 className="sr-only">Reports</h1>
+      <ReportsView envelope={r.envelope} />
+    </>
+  );
 }

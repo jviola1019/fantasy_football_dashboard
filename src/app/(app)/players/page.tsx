@@ -6,5 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function PlayersPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return <RouteView view="players" envelope={r.envelope} />;
+  return (
+    <>
+      <h1 className="sr-only">Players</h1>
+      <RouteView view="players" envelope={r.envelope} />
+    </>
+  );
 }

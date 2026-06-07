@@ -16,9 +16,17 @@ export function BarChart({ items, max, valueSuffix = "%" }: BarChartProps) {
   const W = 280;
   const H = items.length * (barH + gap);
   const barMaxW = W - labelW - valW - 8;
+  // Accessible summary — the per-bar values otherwise live only inside the SVG.
+  const summary = items.map((i) => `${i.label} ${i.value}${valueSuffix}`).join(", ");
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" aria-hidden="true" style={{ display: "block" }}>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      width="100%"
+      role="img"
+      aria-label={`Bar chart. ${summary}`}
+      style={{ display: "block" }}
+    >
       {items.map((item, i) => {
         // A true zero renders an empty track; otherwise floor at 2px so small
         // (but non-zero) bars stay visible.

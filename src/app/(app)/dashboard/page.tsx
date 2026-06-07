@@ -6,5 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return <RouteView view="dashboard" envelope={r.envelope} />;
+  return (
+    <>
+      <h1 className="sr-only">Dashboard</h1>
+      <RouteView view="dashboard" envelope={r.envelope} />
+    </>
+  );
 }

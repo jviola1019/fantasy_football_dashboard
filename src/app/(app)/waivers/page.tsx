@@ -6,5 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function WaiversPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return <RouteView view="waivers" envelope={r.envelope} />;
+  return (
+    <>
+      <h1 className="sr-only">Waivers</h1>
+      <RouteView view="waivers" envelope={r.envelope} />
+    </>
+  );
 }
