@@ -3,8 +3,6 @@ import { reputationEdge, marketInefficiency, narrativeVelocity, chaosExposure, l
 import { runNexusSimulation, deriveSeasonInputs, type SimulationResult } from "./simulation";
 import { avg, clamp, gradeFromScore } from "./utils";
 
-const BASE_PARAMS = { seed: 20260513, iterations: 2500, rosterSlots: 6, riskTolerance: 0.58 } as const;
-
 export type CommandMetrics = {
   reputationEdge: number;
   marketInefficiency: number;
@@ -157,8 +155,13 @@ export function deriveOutcomeDistribution(sim: SimulationResult): OutcomeDistrib
 }
 
 export function deriveScenarioComparison(players: PlayerMarketRecord[], baseline: SimulationResult): ScenarioComparison {
-  const best = runNexusSimulation(players, { ...BASE_PARAMS, riskTolerance: 0.9 });
-  const worst = runNexusSimulation(players, { ...BASE_PARAMS, riskTolerance: 0.15 });
+  // Best/worst share the baseline's REAL league format (numTeams / playoffTeams /
+  // regularSeasonWeeks / weeklyProjections / seed / iterations) and differ ONLY by
+  // riskTolerance — so the three scenario columns are apples-to-apples. (Previously
+  // these used a hardcoded default-league BASE_PARAMS, which silently simulated the
+  // best/worst rows against a different league than the baseline.)
+  const best = runNexusSimulation(players, { ...baseline.params, riskTolerance: 0.9 });
+  const worst = runNexusSimulation(players, { ...baseline.params, riskTolerance: 0.15 });
   // Anchor points to the real weekly model ONCE (from the baseline params) so
   // all three scenarios share the same team/field and differ only by the
   // best/worst scale — not by an incidental difference in starter count.
