@@ -19,7 +19,7 @@ export function MobileBottomNav() {
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-background/95 backdrop-blur-xl md:hidden"
     >
-      {items.map((item) => {
+      {items.map((item, i) => {
         const active = isActiveHref(pathname, item.href);
         return (
           <Link
@@ -38,7 +38,9 @@ export function MobileBottomNav() {
                 active ? "bg-rae-blue/15 text-rae-blue" : "text-muted-foreground"
               )}
             >
-              {NAV_ITEMS.indexOf(item) + 1}
+              {/* Number the VISIBLE bottom-nav items sequentially (1..N) so there's
+                  no gap when a non-primary route (e.g. Waivers) is skipped. */}
+              {i + 1}
             </span>
             {item.short}
           </Link>
