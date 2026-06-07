@@ -40,4 +40,14 @@ test.describe("multi-route navigation", () => {
     await page.waitForURL("**/players", { timeout: 15_000 });
     await expect(page.locator("#player-universe")).toBeVisible({ timeout: 20_000 });
   });
+
+  test("the mobile bottom nav is numbered sequentially with no gap", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/dashboard");
+    // The visible bottom-nav badges must read 1,2,3,4,5 — numbering the SHOWN
+    // (primary) items, not their index in the full route list (which skips the
+    // non-primary Waivers and would render 1,2,3,4,6).
+    const badges = page.locator('nav[aria-label="Primary"] a span[aria-hidden="true"]');
+    await expect(badges).toHaveText(["1", "2", "3", "4", "5"]);
+  });
 });
