@@ -1,5 +1,9 @@
 # RAE Task Board
 
+> _Historical ledger — predates the multi-route refactor (`44e3c08`). Checked-off
+> items referencing the `TopBar` scroll-spy nav / `RaeApp` / `AppSidebar` describe the
+> former single-page app, since replaced by the multi-route shell._
+
 ## Phase 1 — Foundation
 - [x] Inspect repository and detect stack.
 - [x] Scaffold Next.js + TypeScript application.
