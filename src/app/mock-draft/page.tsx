@@ -3,6 +3,7 @@ import { fpDataToRecords } from "@/lib/fantasypros/enrich";
 import { rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { DraftIntelligence } from "@/components/panels/DraftIntelligence";
 import { BackToDashboard } from "@/components/ui/BackToDashboard";
+import { SourceFreshnessBadge } from "@/components/governance/SourceFreshnessBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,12 @@ export default async function MockDraftPage() {
       <Header
         meta={`${snapshot.data.players.length} players · updated ${snapshot.data.last_updated} · ${snapshot.data.total_experts} experts`}
       />
+      <div style={sourceStripStyle} role="status">
+        <SourceFreshnessBadge sourceState={source} />
+        <span style={{ color: "var(--cream)" }}>
+          Consensus rankings — <b>not your league</b>. Recommendations are model-derived from the consensus board.
+        </span>
+      </div>
       <DraftIntelligence players={records} />
     </main>
   );
@@ -91,6 +98,19 @@ const muted: React.CSSProperties = {
   color: "var(--muted)",
   margin: "8px 0 0",
   fontSize: 13
+};
+
+const sourceStripStyle: React.CSSProperties = {
+  display: "flex",
+  flexWrap: "wrap",
+  alignItems: "center",
+  gap: 10,
+  margin: "0 0 16px",
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "1px solid rgba(215,168,87,0.22)",
+  background: "rgba(43,35,18,0.32)",
+  fontSize: 12
 };
 
 const panelStyle: React.CSSProperties = {

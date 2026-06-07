@@ -48,8 +48,19 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
     })
     .join(" ");
 
+  // Accessible summary — the per-axis values otherwise live only inside the SVG.
+  const summary = axes
+    .map((a) => `${a.label} ${a.unavailable ? "no data" : a.value}`)
+    .join(", ");
+
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden="true">
+    <svg
+      viewBox={`0 0 ${size} ${size}`}
+      width={size}
+      height={size}
+      role="img"
+      aria-label={`Metric profile. ${summary}`}
+    >
       {levels.map((level) => (
         <polygon
           key={level}

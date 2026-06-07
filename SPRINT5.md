@@ -1,5 +1,9 @@
 # Sprint 5 — League-Universe Data Model, Model Accuracy & Total QA
 
+> _Historical ledger — predates the multi-route refactor (`44e3c08`). File pointers
+> to `RaeApp.tsx` / `TopBar.tsx` / `AppSidebar.tsx` reflect the single-page app that
+> was since removed; those panels are now distributed across the `(app)` routes._
+
 **Author:** Claude Opus 4.8 (`claude-opus-4-8`)
 **Date opened:** 2026-06-01
 **Status:** ✅ SHIPPED (2026-06-02) — all 14 phases complete; ledger in `reports/audit-sprint5.md`

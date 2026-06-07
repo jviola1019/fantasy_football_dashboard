@@ -1,5 +1,9 @@
 # RAE Final Audit
 
+> _Historical ledger — predates the multi-route refactor (`44e3c08`). References to
+> `RaeApp.tsx` / `TopBar.tsx` / `AppSidebar.tsx` / "nine systems" describe the
+> single-page app that was since decomposed into the `(app)` routes._
+
 Audit date: 2026-05-22 (pro sports-analytics redesign sprint).
 
 ## Pro sports-analytics redesign sprint (2026-05-22)

@@ -41,3 +41,12 @@ test.describe("axe a11y scan", () => {
     });
   }
 });
+
+test.describe("each app route exposes exactly one h1", () => {
+  for (const path of ["/dashboard", "/players", "/analytics", "/draft", "/waivers", "/trades", "/reports"]) {
+    test(`${path} has a single <h1>`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.locator("h1")).toHaveCount(1);
+    });
+  }
+});

@@ -6,5 +6,10 @@ export const dynamic = "force-dynamic";
 export default async function AnalyticsPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return <RouteView view="analytics" envelope={r.envelope} />;
+  return (
+    <>
+      <h1 className="sr-only">Analytics</h1>
+      <RouteView view="analytics" envelope={r.envelope} />
+    </>
+  );
 }

@@ -136,6 +136,20 @@
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
 
+/* Visually-hidden but screen-reader-available — per-route <h1> page titles so the
+   heading outline starts at h1 without changing the visual design. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ─── Reset ──────────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -313,6 +327,17 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   margin-bottom: 10px;
 }
 .predraft-notice a { color: var(--blue); text-decoration: underline; }
+
+/* Top Insights (overview): biggest market mispricings, tone by under/over-valued. */
+.ti-list { display: flex; flex-direction: column; gap: 6px; }
+.ti-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.02); border-left: 3px solid transparent; }
+.ti-row[data-tone="under"] { border-left-color: var(--green); }
+.ti-row[data-tone="over"] { border-left-color: var(--red); }
+.ti-name { font-weight: 600; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ti-pos { font-size: 10px; font-family: "IBM Plex Mono", monospace; color: var(--muted); }
+.ti-edge { font-size: 11px; font-weight: 600; }
+.ti-row[data-tone="under"] .ti-edge { color: var(--green); }
+.ti-row[data-tone="over"] .ti-edge { color: var(--red); }
 
 /* Next Best Actions (overview): source-backed, tone-coloured action rows. */
 .nba-list { display: flex; flex-direction: column; gap: 6px; }

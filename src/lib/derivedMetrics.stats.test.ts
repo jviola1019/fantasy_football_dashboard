@@ -151,6 +151,18 @@ describe("derivedMetrics — statistical properties", () => {
       expect(s.bestCase.pointsAgainst).toBe(s.baseline.pointsAgainst);
     });
 
+    it("deriveScenarioComparison: best/worst inherit the baseline's league format, not a default", () => {
+      // An 8-team league is far easier to WIN than a 16-team league. Best/worst now
+      // run on the baseline's REAL format, so best-case championship odds must differ
+      // between the two. (Under the old hardcoded BASE_PARAMS, both scenarios used a
+      // default 12-team league and these were identical regardless of the baseline.)
+      const smallFmt = { seed: 20260513, iterations: 1500, rosterSlots: 6, riskTolerance: 0.58, numTeams: 8, playoffTeams: 4, regularSeasonWeeks: 13 };
+      const largeFmt = { seed: 20260513, iterations: 1500, rosterSlots: 6, riskTolerance: 0.58, numTeams: 16, playoffTeams: 4, regularSeasonWeeks: 13 };
+      const small = deriveScenarioComparison(fixturePlayers, runNexusSimulation(fixturePlayers, smallFmt));
+      const large = deriveScenarioComparison(fixturePlayers, runNexusSimulation(fixturePlayers, largeFmt));
+      expect(small.bestCase.championship).toBeGreaterThan(large.bestCase.championship);
+    });
+
     it("derivePositionGrades: every position emits a grade letter", () => {
       const g = derivePositionGrades(fixturePlayers);
       const valid = /^[ABCD][+-]?$/;

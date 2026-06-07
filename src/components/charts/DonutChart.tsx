@@ -17,9 +17,17 @@ export function DonutChart({ segments, centerLabel, centerValue }: DonutChartPro
   const cumulativeRotations = fractions.map((_, i) =>
     -90 + fractions.slice(0, i).reduce((s, f) => s + f, 0) * 360
   );
+  // Accessible summary — the segment values otherwise live only inside the SVG.
+  const summary = segments.map((seg) => `${seg.label} ${seg.value}`).join(", ");
 
   return (
-    <svg viewBox="0 0 140 140" width="140" height="140" aria-hidden="true">
+    <svg
+      viewBox="0 0 140 140"
+      width="140"
+      height="140"
+      role="img"
+      aria-label={`${centerLabel}: ${centerValue}. ${summary}`}
+    >
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="14" />
       {segments.map((seg, i) => {
         const dash = fractions[i]! * circumference;
