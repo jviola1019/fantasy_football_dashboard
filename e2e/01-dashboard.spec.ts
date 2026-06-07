@@ -10,13 +10,16 @@ test.describe("app shell + dashboard", () => {
     // The multi-route shell: a route sidebar + sticky command bar.
     await expect(page.locator('header[aria-label="RAE command bar"]')).toBeVisible();
 
-    // The overview = Command Center leaderboard + the Next Best Actions panel
-    // (the deep per-system panels live on their own routes — see 15-sprint5).
-    const cc = page.locator("#command-center");
-    await cc.scrollIntoViewIfNeeded();
+    // The tiled overview = League Health + League Pulse leaderboard + Top Insights
+    // + Next Best Actions (the deep per-system panels live on their own routes,
+    // and the former CommandCenter sections are re-homed — see 15-sprint5).
+    await expect(page.locator("#league-health")).toBeVisible();
+    const pulse = page.locator("#league-pulse");
+    await pulse.scrollIntoViewIfNeeded();
     await expect(
-      cc.locator('[aria-label="League pulse player leaderboard"], .league-pulse-empty').first()
+      pulse.locator('[aria-label="League pulse player leaderboard"], .league-pulse-empty').first()
     ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator("#top-insights")).toBeVisible();
     await expect(page.locator("#next-best-actions")).toBeVisible();
   });
 

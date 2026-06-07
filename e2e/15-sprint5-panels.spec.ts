@@ -9,14 +9,23 @@ import { test, expect, type Page } from "@playwright/test";
 
 // Each panel and the route that hosts it (the dashboard is now a slim overview).
 const PANELS: Array<{ id: string; route: string }> = [
-  { id: "command-center", route: "/dashboard" },
+  // /dashboard tiled overview
+  { id: "league-health", route: "/dashboard" },
+  { id: "league-pulse", route: "/dashboard" },
+  { id: "top-insights", route: "/dashboard" },
   { id: "next-best-actions", route: "/dashboard" },
+  // /analytics (incl. the re-homed Team Signals)
   { id: "market-intelligence", route: "/analytics" },
   { id: "narrative-engine", route: "/analytics" },
   { id: "nexus-simulator", route: "/analytics" },
+  { id: "team-signals", route: "/analytics" },
+  // /players (incl. the re-homed Roster Health)
   { id: "player-universe", route: "/players" },
+  { id: "roster-health", route: "/players" },
+  // /draft (incl. the re-homed Team Construction)
   { id: "draft-intelligence", route: "/draft" },
   { id: "pre-draft-audit", route: "/draft" },
+  { id: "team-construction", route: "/draft" },
   { id: "waiver-wire", route: "/waivers" },
   { id: "trade-center", route: "/trades" }
 ];
@@ -80,9 +89,9 @@ test.describe("in-panel tabs switch content", () => {
 });
 
 test.describe("feature interactions", () => {
-  test("Command Center League Pulse shows ranked bars + values", async ({ page }) => {
+  test("League Pulse shows ranked bars + values", async ({ page }) => {
     await gotoRoute(page, "/dashboard");
-    const board = page.locator("#command-center .lp-board");
+    const board = page.locator("#league-pulse .lp-board");
     // Rows + values are robust visible signals; the bar is a thin element that
     // re-lays-out as headshots load, so assert its presence by count.
     await expect(board.locator(".lp-row")).not.toHaveCount(0);

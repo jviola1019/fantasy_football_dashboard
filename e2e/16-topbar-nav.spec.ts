@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
  * scroll-spy nav spec.
  */
 const ROUTES = [
-  { href: "/dashboard", anchor: "#command-center" },
+  { href: "/dashboard", anchor: "#league-health" },
   { href: "/players", anchor: "#player-universe" },
   { href: "/analytics", anchor: "#market-intelligence" },
   { href: "/draft", anchor: "#draft-intelligence" },

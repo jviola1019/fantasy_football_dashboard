@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import type { RAEEnvelope } from "@/lib/governance";
 import { deriveAppData } from "@/lib/envelope/derive";
 import { PanelGrid, PanelRow } from "@/components/shell/PanelGrid";
-import { CommandCenter } from "@/components/panels/CommandCenter";
 import { MarketIntelligence } from "@/components/panels/MarketIntelligence";
 import { PlayerUniverse } from "@/components/panels/PlayerUniverse";
 import { NarrativeEngine } from "@/components/panels/NarrativeEngine";
@@ -14,6 +13,13 @@ import { PreDraftAudit } from "@/components/panels/PreDraftAudit";
 import { WaiverWire } from "@/components/panels/WaiverWire";
 import { TradeCenter } from "@/components/panels/TradeCenter";
 import { NextBestActionPanel } from "@/components/dashboard/NextBestActionPanel";
+import { SeasonNotice } from "@/components/dashboard/SeasonNotice";
+import { LeagueHealth } from "@/components/dashboard/LeagueHealth";
+import { LeaguePulse } from "@/components/dashboard/LeaguePulse";
+import { TopInsights } from "@/components/dashboard/TopInsights";
+import { TeamSignals } from "@/components/panels/sections/TeamSignals";
+import { RosterHealth } from "@/components/panels/sections/RosterHealth";
+import { TeamConstruction } from "@/components/panels/sections/TeamConstruction";
 
 export type RouteViewName =
   | "dashboard"
@@ -25,16 +31,26 @@ export type RouteViewName =
 
 /**
  * Renders the panel(s) for a given route from one shared `deriveAppData(envelope)`
- * computation (pools / sim / metrics) — the decomposed body of the former
- * single-page `RaeApp`. Each route's server page passes the resolved envelope;
- * panels keep their existing prop contracts and pool selection (Command Center /
- * Nexus = roster; market/narrative/waiver = market pool; draft/players = universe).
+ * computation (pools / sim / metrics). `/dashboard` is a tiled OVERVIEW (League
+ * Health + League Pulse + Top Insights + Next Best Actions); the former
+ * CommandCenter's deep sections are re-homed to where they're analytically at
+ * home — Team Signals on /analytics, Roster Health on /players, Team Construction
+ * on /draft. Pool selection is preserved (roster vs market vs universe).
  */
 export function RouteView({ view, envelope }: { view: RouteViewName; envelope: RAEEnvelope }) {
   const d = useMemo(() => deriveAppData(envelope), [envelope]);
 
   if (view === "players") {
-    return <PlayerUniverse players={d.universePool} envelope={envelope} />;
+    return (
+      <PanelGrid>
+        <PanelRow cols={1}>
+          <PlayerUniverse players={d.universePool} envelope={envelope} />
+        </PanelRow>
+        <PanelRow cols={1}>
+          <RosterHealth players={d.players} />
+        </PanelRow>
+      </PanelGrid>
+    );
   }
   if (view === "analytics") {
     return (
@@ -46,10 +62,14 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
           <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} envelope={envelope} />
           <NarrativeEngine players={d.marketPool} envelope={envelope} />
         </PanelRow>
+        <PanelRow cols={1}>
+          <TeamSignals sim={d.sim} envelope={envelope} players={d.players} />
+        </PanelRow>
       </PanelGrid>
     );
   }
   if (view === "draft") {
+    const fragilityMissing = new Set(envelope.sourceState.missingFields).has("fragility");
     return (
       <PanelGrid>
         <PanelRow cols={1}>
@@ -57,6 +77,9 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
         </PanelRow>
         <PanelRow cols={1}>
           <PreDraftAudit players={d.players} envelope={envelope} />
+        </PanelRow>
+        <PanelRow cols={1}>
+          <TeamConstruction players={d.players} fragilityMissing={fragilityMissing} />
         </PanelRow>
       </PanelGrid>
     );
@@ -68,16 +91,22 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
     return <TradeCenter />;
   }
 
-  // dashboard — a focused OVERVIEW (progressive disclosure): your team's command
-  // center + the source-backed next-best-actions, each linking into the deep
-  // routes. The full per-system panels live on /players, /analytics, /draft,
-  // /waivers, /trades.
+  // dashboard — a tiled OVERVIEW (progressive disclosure): League Health + League
+  // Pulse + Top Insights + Next Best Actions, each linking into the deep routes.
+  const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + d.commandMetrics.reputationEdge * 1.4)));
   return (
-    <PanelGrid>
-      <PanelRow cols={2}>
-        <CommandCenter players={d.players} envelope={envelope} sim={d.sim} metrics={d.commandMetrics} />
-        <NextBestActionPanel roster={d.players} market={d.marketPool} draftState={envelope.draftState} />
-      </PanelRow>
-    </PanelGrid>
+    <>
+      <SeasonNotice envelope={envelope} hasPlayers={d.players.length > 0} />
+      <PanelGrid>
+        <PanelRow cols={2}>
+          <LeagueHealth metrics={d.commandMetrics} missingFields={envelope.sourceState.missingFields} />
+          <LeaguePulse players={d.players} marketEdge={marketEdge} />
+        </PanelRow>
+        <PanelRow cols={2}>
+          <TopInsights market={d.marketPool} />
+          <NextBestActionPanel roster={d.players} market={d.marketPool} draftState={envelope.draftState} />
+        </PanelRow>
+      </PanelGrid>
+    </>
   );
 }
