@@ -46,14 +46,16 @@ export function Heatmap2D({ data, xLabels, yLabels, caption, colorScale = DEFAUL
 
   return (
     <div style={{ width: "100%", maxWidth: svgW }}>
+      {/* height is derived from the viewBox aspect ratio; `auto` lives in CSS
+          (style), never as an SVG presentation attribute — that only accepts a
+          <length>, so `height="auto"` logged an invalid-attribute console error. */}
       <svg
         viewBox={`0 0 ${svgW} ${svgH}`}
         width="100%"
-        height="auto"
         preserveAspectRatio="xMidYMid meet"
         role="img"
         aria-label="Heatmap showing probability distribution across risk and scenario dimensions"
-        style={{ overflow: "visible", display: "block" }}
+        style={{ overflow: "visible", display: "block", height: "auto" }}
       >
         {/* Y-axis labels */}
         {yLabels.map((label, r) => (

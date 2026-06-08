@@ -17,7 +17,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-background/95 backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       {items.map((item, i) => {
         const active = isActiveHref(pathname, item.href);
@@ -27,15 +27,25 @@ export function MobileBottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors",
-              active ? "text-rae-blue" : "text-muted-foreground"
+              "relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 px-1 pb-2 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors",
+              active ? "text-rae-blue" : "text-muted-foreground hover:text-foreground"
             )}
           >
+            {/* Active indicator rail. A <div> (not a span[aria-hidden]) so the
+                bottom-nav badge selector in e2e/16-topbar-nav stays exact. */}
+            {active && (
+              <div
+                aria-hidden="true"
+                className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-rae-blue shadow-[0_0_10px_rgba(90,159,196,0.6)]"
+              />
+            )}
             <span
               aria-hidden="true"
               className={cn(
-                "grid h-5 min-w-5 place-items-center rounded text-[11px] font-bold tabular-nums",
-                active ? "bg-rae-blue/15 text-rae-blue" : "text-muted-foreground"
+                "grid h-6 min-w-6 place-items-center rounded-md text-[11px] font-bold tabular-nums transition-colors",
+                active
+                  ? "bg-rae-blue text-background shadow-[0_2px_8px_rgba(90,159,196,0.45)]"
+                  : "text-muted-foreground"
               )}
             >
               {/* Number the VISIBLE bottom-nav items sequentially (1..N) so there's
