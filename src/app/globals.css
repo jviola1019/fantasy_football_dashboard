@@ -1325,7 +1325,12 @@ td small { color: var(--muted); }
    sitting on the pill, so the selection is unmistakable. The visual treatment
    lives here so the motion component stays a thin wrapper. */
 .panel-tabs {
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.32);
+  /* Recessed instrument track: a subtle top-down gradient + deeper inset
+     shadow with an inner hairline, so the sliding pill reads as raised. */
+  background: linear-gradient(180deg, rgba(9, 14, 26, 0.6), rgba(24, 34, 47, 0.5));
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 .panel-tab-pill {
   background: linear-gradient(180deg, rgba(108, 178, 214, 0.96), rgba(74, 138, 176, 0.97));

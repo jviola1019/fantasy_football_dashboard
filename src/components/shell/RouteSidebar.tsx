@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/cn";
 import {
   Sidebar,
   SidebarContent,
@@ -51,10 +52,17 @@ export function RouteSidebar() {
                   <SidebarMenuItem key={item.key}>
                     <SidebarMenuButton asChild isActive={active} tooltip={`${index + 1}. ${item.label}`}>
                       <Link href={item.href} aria-current={active ? "page" : undefined}>
-                        <span className="grid size-5 shrink-0 place-items-center rounded text-[11px] font-bold tabular-nums text-muted-foreground">
+                        <span
+                          className={cn(
+                            "grid size-5 shrink-0 place-items-center rounded text-[11px] font-bold tabular-nums transition-colors",
+                            active
+                              ? "bg-rae-blue text-background shadow-[0_1px_6px_rgba(90,159,196,0.45)]"
+                              : "text-muted-foreground"
+                          )}
+                        >
                           {index + 1}
                         </span>
-                        <span>{item.label}</span>
+                        <span className={cn(active && "font-semibold text-foreground")}>{item.label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
