@@ -2,8 +2,12 @@
    Bricolage Grotesque: wide geometric grotesque; strong typographic character
    for headings. Avoids generic AI-slop fonts (Inter, Roboto, Arial).
    IBM Plex Sans: rational, legible body font with humanist touches.
-   IBM Plex Mono: matches Plex Sans DNA; used for governance metadata and code. */
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,200..800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap");
+   IBM Plex Mono: matches Plex Sans DNA; used for governance metadata and code.
+
+   Loaded via next/font/google in src/app/layout.tsx (self-hosted at build time,
+   no render-blocking Google Fonts CDN request). The font-family rules below
+   consume the CSS variables next/font exposes: --font-bricolage / --font-plex-sans
+   / --font-plex-mono, with system fallbacks for the pre-swap paint. */
 
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -158,7 +162,7 @@ body {
   background: var(--bg);
   color: var(--cream);
   /* IBM Plex Sans: humanist grotesque, avoids generic AI aesthetic (no Inter/Roboto) */
-  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-plex-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -169,7 +173,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--blue); outline-
 h2, h3, p { margin: 0; }
 /* Bricolage Grotesque for headings: wide, geometric, character-forward */
 h2 {
-  font-family: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
   font-size: 18px;
   letter-spacing: .02em;
   text-transform: uppercase;
@@ -179,7 +183,7 @@ h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: #d
 ul { margin: 0; padding: 0; list-style: none; }
 /* IBM Plex Mono for governance metadata, timestamps, code */
 code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: var(--font-plex-mono), "Courier New", monospace;
 }
 
 /* App shell, sidebar, and topbar are now shadcn/ui components
@@ -213,7 +217,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .gov-assume-list li { font-size: 10px; line-height: 1.5; color: #e8d9b0; padding-left: 10px; position: relative; }
 .gov-assume-list li::before { content: "·"; position: absolute; left: 2px; color: var(--amber); }
 .gov-assume-missing { font-size: 10px; line-height: 1.5; color: #e8d9b0; margin-top: 4px; }
-.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 9px; font-family: "IBM Plex Mono", monospace; color: var(--muted); }
+.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 9px; font-family: var(--font-plex-mono), monospace; color: var(--muted); }
 .src-badge-src { color: var(--cream); }
 .gov-panel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
 .gov-panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
@@ -334,7 +338,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .ti-row[data-tone="under"] { border-left-color: var(--green); }
 .ti-row[data-tone="over"] { border-left-color: var(--red); }
 .ti-name { font-weight: 600; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ti-pos { font-size: 10px; font-family: "IBM Plex Mono", monospace; color: var(--muted); }
+.ti-pos { font-size: 10px; font-family: var(--font-plex-mono), monospace; color: var(--muted); }
 .ti-edge { font-size: 11px; font-weight: 600; }
 .ti-row[data-tone="under"] .ti-edge { color: var(--green); }
 .ti-row[data-tone="over"] .ti-edge { color: var(--red); }
@@ -509,7 +513,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 /* Single real "as of <fetch time>" stamp for the provenance feed (replaces the
    former fabricated per-row "Xm ago" ages). */
 .intel-asof {
-  font-family: "IBM Plex Mono", "Courier New", monospace;
+  font-family: var(--font-plex-mono), "Courier New", monospace;
   font-size: 9px;
   /* Full --blue (#5a9fc4) on --panel-2 (#18222f) clears WCAG AA (~5.1:1).
      An earlier opacity:.85 dimmed it to #508cae (4.35:1) → axe-flagged. */

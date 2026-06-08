@@ -14,7 +14,7 @@
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
   <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
-  <img alt="439 tests passing" src="https://img.shields.io/badge/tests-439%20passing-35c08a">
+  <img alt="442 tests passing" src="https://img.shields.io/badge/tests-442%20passing-35c08a">
   <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
 </p>
 
@@ -236,7 +236,7 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 439 passing unit/integration tests; 6 live-API tests (Sleeper / ESPN / FantasyCalc integration,
+`vitest` holds 442 passing unit/integration tests; 6 live-API tests (Sleeper / ESPN / FantasyCalc integration,
 across 4 `*.live.test.ts` specs) are skipped unless `RAE_LIVE_TESTS=1` and the matching credentials are set.
 Playwright runs both a chromium and a mobile-chrome project. CI runs typecheck + lint + vitest + Playwright +
 Lighthouse on every push (`.github/workflows/ci.yml`).
