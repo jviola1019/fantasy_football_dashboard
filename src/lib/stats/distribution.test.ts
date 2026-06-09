@@ -11,8 +11,41 @@ import {
   quantile,
   reliabilityDiagram,
   stdev,
-  welchTTest
+  welchTTest,
+  wilsonInterval
 } from "./distribution";
+
+describe("wilsonInterval", () => {
+  it("brackets the estimate and is tight for large n", () => {
+    const ci = wilsonInterval(0.5, 10_000, 0.9);
+    expect(ci.lower).toBeLessThan(0.5);
+    expect(ci.upper).toBeGreaterThan(0.5);
+    expect(ci.width).toBeLessThan(0.02); // ~0.016 at n=10k
+    expect(ci.width).toBeGreaterThan(0); // a real, non-degenerate band
+  });
+
+  it("stays inside [0,1] at the extremes (never impossible)", () => {
+    const atOne = wilsonInterval(1, 100, 0.9);
+    expect(atOne.upper).toBeLessThanOrEqual(1);
+    expect(atOne.lower).toBeGreaterThanOrEqual(0);
+    expect(atOne.lower).toBeLessThan(1); // Wilson pulls the bound in from 1
+    const atZero = wilsonInterval(0, 100, 0.9);
+    expect(atZero.lower).toBeGreaterThanOrEqual(0);
+    expect(atZero.upper).toBeGreaterThan(0);
+  });
+
+  it("narrows as n grows (more sims ⇒ less sampling error)", () => {
+    const small = wilsonInterval(0.4, 100, 0.9);
+    const large = wilsonInterval(0.4, 10_000, 0.9);
+    expect(large.width).toBeLessThan(small.width);
+  });
+
+  it("degrades honestly to [0,1] when n is non-positive", () => {
+    const ci = wilsonInterval(0.5, 0, 0.9);
+    expect(ci.lower).toBe(0);
+    expect(ci.upper).toBe(1);
+  });
+});
 
 describe("expectedCalibrationError", () => {
   it("is ~0 for perfectly calibrated forecasts", () => {

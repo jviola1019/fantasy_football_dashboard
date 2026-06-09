@@ -86,6 +86,51 @@ export function bootstrapCI(
   };
 }
 
+/**
+ * Critical z value for a two-sided confidence `level` (e.g. 0.95 → 1.96), found
+ * by bisecting the standard-normal survival function. Dependency-free.
+ */
+function zForLevel(level: number): number {
+  const tail = (1 - Math.min(0.999999, Math.max(0, level))) / 2;
+  let lo = 0;
+  let hi = 8;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    // normalSf is monotically decreasing in z.
+    if (normalSf(mid) > tail) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Wilson score interval for a binomial proportion p̂ = successes / n. Stays inside
+ * [0, 1] and stays sensible near 0 and 1 (unlike the normal approximation), which
+ * matters for playoff/championship probabilities.
+ *
+ * IMPORTANT: this is the SAMPLING-ERROR interval of a Monte Carlo frequency
+ * estimate — it quantifies the noise from running a finite number of simulated
+ * seasons, NOT model/input uncertainty. Label it as such wherever it is displayed.
+ *
+ * @param pHat  observed proportion in [0, 1]
+ * @param n     number of trials (e.g. simulated seasons)
+ * @param level two-sided confidence level, e.g. 0.90
+ */
+export function wilsonInterval(pHat: number, n: number, level = 0.95): ConfidenceInterval {
+  const p = Math.min(1, Math.max(0, pHat));
+  if (!Number.isFinite(n) || n <= 0) {
+    return { estimate: p, lower: 0, upper: 1, width: 1, level };
+  }
+  const z = zForLevel(level);
+  const z2 = z * z;
+  const denom = 1 + z2 / n;
+  const center = (p + z2 / (2 * n)) / denom;
+  const half = (z / denom) * Math.sqrt((p * (1 - p)) / n + z2 / (4 * n * n));
+  const lower = Math.max(0, center - half);
+  const upper = Math.min(1, center + half);
+  return { estimate: p, lower, upper, width: upper - lower, level };
+}
+
 export interface WelchTTestResult {
   /** Welch's t statistic. */
   t: number;

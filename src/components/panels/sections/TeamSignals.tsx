@@ -4,6 +4,7 @@ import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import type { SimulationResult } from "@/lib/simulation";
 import { deriveNarrativeMovers } from "@/lib/derivedMetrics";
 import { narrativeVelocity } from "@/lib/models";
+import { wilsonInterval } from "@/lib/stats/distribution";
 import { PanelCard } from "../../ui/PanelCard";
 
 /**
@@ -35,15 +36,20 @@ export function TeamSignals({
 
 function LineupWinProb({ sim }: { sim: SimulationResult }) {
   const mid = Math.min(100, Math.max(0, sim.playoffProbability));
-  const p10 = Math.round(Math.max(0, mid * 0.68) * 10) / 10;
-  const p90 = Math.round(Math.min(100, mid * 1.32) * 10) / 10;
+  // Honest uncertainty: the Wilson 90% interval for the simulated playoff
+  // FREQUENCY over the actual number of seasons. This is Monte-Carlo SAMPLING
+  // error only — it shrinks as iterations grow and does NOT capture model/input
+  // uncertainty. (Replaces a former fabricated ±32% "P10/P90" band.)
+  const ci = wilsonInterval(mid / 100, sim.params.iterations, 0.9);
+  const lo = Math.round(ci.lower * 1000) / 10;
+  const hi = Math.round(ci.upper * 1000) / 10;
   const tCx = 60;
   const tTop = 10;
   const tBot = 95;
   const halfW = 50;
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">Lineup Win Probability</div>
+      <div className="mini-panel-title">Playoff Probability</div>
       <div className="triangle-wrap">
         <svg viewBox="-14 -6 148 138" width="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
           <polygon
@@ -52,15 +58,18 @@ function LineupWinProb({ sim }: { sim: SimulationResult }) {
             stroke="rgba(119,215,176,0.5)"
             strokeWidth="1.5"
           />
-          <text x={tCx} y={tTop - 2} textAnchor="middle" fontSize="8" fill="var(--muted)">MEDIAN</text>
+          <text x={tCx} y={tTop - 2} textAnchor="middle" fontSize="8" fill="var(--muted)">ESTIMATE</text>
           <text x={tCx} y={(tTop + tBot) / 2 + 4} textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">{mid}%</text>
-          <text x={tCx - halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">P10</text>
-          <text x={tCx - halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--red)">{p10}%</text>
-          <text x={tCx + halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">P90</text>
-          <text x={tCx + halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--green)">{p90}%</text>
+          <text x={tCx - halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">LOW</text>
+          <text x={tCx - halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--red)">{lo}%</text>
+          <text x={tCx + halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">HIGH</text>
+          <text x={tCx + halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--green)">{hi}%</text>
         </svg>
       </div>
-      <div className="small-note">Based on {sim.params.iterations.toLocaleString()} simulations</div>
+      <div className="small-note">
+        90% Monte-Carlo interval over {sim.params.iterations.toLocaleString()} simulated seasons
+        — sampling error only, excludes model uncertainty.
+      </div>
     </div>
   );
 }
