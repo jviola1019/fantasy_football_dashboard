@@ -26,10 +26,17 @@ export interface Leak {
   token: string; // redacted preview, never the full secret
 }
 
+// A real 24+ char random secret draws on ~20-30 distinct characters. Synthetic
+// test dummies are low-entropy: a single repeated char (`AAAA…`) or a short
+// repeating block (`CQkJCQkJ…`, base64 of repeated 0x09 bytes) use very few.
+function isLowEntropy(token: string): boolean {
+  const core = token.replace(/=+$/, "");
+  return new Set(core).size <= 6;
+}
+
 function isAllowed(token: string, lineLower: string): boolean {
   if (ALLOW_SUBSTRINGS.some((a) => lineLower.includes(a))) return true;
-  // all-same-character dummies like AAAA...=
-  if (/^(.)\1+={0,2}$/.test(token)) return true;
+  if (isLowEntropy(token)) return true;
   return false;
 }
 

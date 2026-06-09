@@ -31,6 +31,16 @@ describe("findSecretLeaks", () => {
     const text = "CREDENTIAL_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
     expect(findSecretLeaks(text)).toHaveLength(0);
   });
+
+  it("ignores a low-entropy repeating-block dummy (playwright test key)", () => {
+    const text = '"CREDENTIAL_ENCRYPTION_KEY": "CQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQk="';
+    expect(findSecretLeaks(text)).toHaveLength(0);
+  });
+
+  it("flags a real hyphen-prefixed CRON_SECRET in a markdown note", () => {
+    const text = "| `CRON_SECRET` | set to `m6w-9-wIcoqim8iQYR1k8cPye8dI2FFZ` — rotate |";
+    expect(findSecretLeaks(text)).toHaveLength(1);
+  });
 });
 
 describe("scanFiles", () => {
