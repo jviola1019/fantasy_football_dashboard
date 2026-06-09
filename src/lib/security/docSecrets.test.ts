@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { findSecretLeaks, scanFiles } from "./docSecrets";
+import { findSecretLeaks, scanFiles, isScannableDocPath } from "./docSecrets";
+
+describe("isScannableDocPath", () => {
+  it("scans shippable docs/config/env", () => {
+    expect(isScannableDocPath("DEPLOY_TO_VERCEL.md")).toBe(true);
+    expect(isScannableDocPath("reports/playwright.json")).toBe(true);
+    expect(isScannableDocPath(".env.example")).toBe(true);
+    expect(isScannableDocPath("src/lib/foo.ts")).toBe(false);
+  });
+
+  it("excludes internal planning artifacts under docs/superpowers/", () => {
+    expect(isScannableDocPath("docs/superpowers/plans/2026-06-09-x.md")).toBe(false);
+    expect(isScannableDocPath("docs/superpowers/specs/y.md")).toBe(false);
+  });
+});
 
 // All fixtures below are SYNTHETIC high-entropy strings — never real secrets.
 const FAKE_B64 = "Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0Ab2Cd4Ef6Hj8="; // 44-char base64 shape

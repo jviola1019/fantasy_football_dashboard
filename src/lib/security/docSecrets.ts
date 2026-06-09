@@ -61,6 +61,19 @@ export function findSecretLeaks(text: string): Leak[] {
   return leaks;
 }
 
+/**
+ * Which tracked files the secret guard scans: shippable docs/config/env where a
+ * real production secret could leak (`*.md`, `*.json`, `*.env*`). Internal
+ * planning/spec artifacts under `docs/superpowers/` are excluded — they
+ * legitimately contain illustrative secret-detection examples and are not a
+ * deploy/runtime surface.
+ */
+export function isScannableDocPath(path: string): boolean {
+  const p = path.replace(/\\/g, "/");
+  if (p.startsWith("docs/superpowers/")) return false;
+  return /\.(md|json)$/i.test(p) || /(^|\/)\.env/i.test(p);
+}
+
 export function scanFiles(
   paths: string[],
   read: (p: string) => string
