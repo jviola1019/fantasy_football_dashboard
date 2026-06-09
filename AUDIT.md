@@ -80,10 +80,10 @@ Out of scope for Sprint 3 (Sprint 4 candidates): real NLP sentiment classificati
 | Players snapshot cache | ✅ 12,188 players, 14.6 MB, refreshes daily 08:00 UTC | First successful run: `snapshotId 73306433-…` at 2026-05-24T03:50:44Z |
 | `/api/leagues/[id]/refresh` | ✅ Calls `fetchLeagueLive` → 12 (or 10) rosters with real player names + team identification via Sleeper username | Commit `a03323b` |
 | Vercel deployment protection | ⚙️ **Disabled** (per your decision) | Required for the app to be publicly accessible on hobby plan |
-| `CRON_SECRET` | ⚠️ **Currently set to a value pasted in chat** (`m6w-9-wIcoqim8iQYR1k8cPye8dI2FFZ`) — **rotate** | Used only for cron auth; low blast radius but in chat history |
-| `DB_INIT_TOKEN` | ⚠️ **Currently set to a value pasted in chat** (`O1XPAxA1AHygmy5u63aa8JRZ1oqoa3Q2`) — **rotate** | One-shot use, schema already created |
-| Neon DB password (`DATABASE_URL`) | ⚠️ Original value (`npg_wkamJZAcjQ01`) leaked in chat, rotated once via Vercel/Neon integration; the rotated value is **not** in chat | Already replaced; new value never shared |
-| User account password (`Matthew1019`) | ⚠️ Leaked in chat, **change from the app** | If you ever re-use this password elsewhere, change there too |
+| `CRON_SECRET` | ⚠️ A value was pasted in chat and committed — **rotate** (value redacted 2026-06-09) | Used only for cron auth; low blast radius but was exposed |
+| `DB_INIT_TOKEN` | ⚠️ A value was pasted in chat and committed — **rotate** (value redacted 2026-06-09) | One-shot use, schema already created |
+| Neon DB password (`DATABASE_URL`) | ⚠️ Original value leaked and **already rotated** via Vercel/Neon (old value redacted 2026-06-09); current value never shared | Already replaced |
+| User account password | ⚠️ A test-account password was leaked and committed — **change it from the app** (value redacted 2026-06-09) | If reused elsewhere, change there too |
 
 ### Open infrastructure todos
 
