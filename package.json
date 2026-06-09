@@ -16,6 +16,7 @@
     "lighthouse": "lhci autorun",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
     "smoke": "tsx scripts/smoke-vercel.ts",
+    "calibrate:season": "tsx scripts/brier-season-sim.ts",
     "deploy": "next build"
   },
   "dependencies": {
