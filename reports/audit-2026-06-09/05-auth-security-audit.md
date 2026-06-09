@@ -60,18 +60,28 @@ Evidence of active exposure:
 - Introduced in commit `ec2662b`; present at HEAD; in history regardless of file deletion.
 - Bitter irony: line 39 reads "Treat these like secrets … Don't paste them into any public document," directly above the pasted secrets.
 
-**Root cause:** a human-facing deploy runbook was written with real generated keys inline
-instead of placeholders, and committed. **Blast radius is bounded to these three keys** — a
-full tracked-file sweep found no committed DB connection string and no real ESPN cookies
-(the `espn_s2`/`SWID` hits are code refs + fake test fixtures; only `.env.example` is tracked).
+**Root cause:** human-facing deploy/audit runbooks were written with real generated keys
+inline instead of placeholders, and committed.
+
+> **Correction (2026-06-09):** an earlier draft said the blast radius was "bounded to
+> these three keys." The `check-doc-secrets` guard built during remediation found a
+> **second leak site**, `AUDIT.md:83-86`, exposing additional secrets: a `CRON_SECRET`,
+> a **second, different** `DB_INIT_TOKEN` value, the old Neon `DATABASE_URL` password
+> (per its note already rotated), and a plaintext **test-account password**. Both files
+> are now redacted (commit `f363637`). No committed
+> live DB connection string and no real ESPN cookies were found (the `espn_s2`/`SWID` hits
+> are code refs + fake test fixtures; only `.env.example` is tracked). **Full rotation list
+> below.**
 
 **Remediation (rotation is the only real fix — deletion does not un-leak):**
-1. Rotate all three in Vercel (Prod/Preview/Dev), then redeploy:
+1. Rotate **all of these** in Vercel (Prod/Preview/Dev), then redeploy:
    - `AUTH_SECRET`, `CREDENTIAL_ENCRYPTION_KEY`: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
-   - `DB_INIT_TOKEN`: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`
-   - Side effects: new `AUTH_SECRET` invalidates sessions (re-login); new `CREDENTIAL_ENCRYPTION_KEY` requires clearing `leagueCredentials` (per the doc's own line 57) → affected users re-add ESPN leagues.
-2. Replace the literals in `DEPLOY_TO_VERCEL.md` with placeholders + the generate command.
-3. Add `scripts/check-doc-secrets.ts` to CI to fail the build if a base64/hex secret-shaped literal appears in any tracked `*.md`/`*.json`/`*.env*` (regression guard).
+   - `DB_INIT_TOKEN`, `CRON_SECRET`: `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`
+   - Change the leaked **test-account password** from the app's account settings.
+   - The leaked **Neon `DATABASE_URL` password** is per `AUDIT.md`'s note already rotated — confirm it.
+   - Side effects: new `AUTH_SECRET` invalidates sessions (re-login); new `CREDENTIAL_ENCRYPTION_KEY` requires clearing `leagueCredentials` → affected users re-add ESPN leagues.
+2. ✅ Done (commit `f363637`): redacted literals in `DEPLOY_TO_VERCEL.md` **and** `AUDIT.md`.
+3. ✅ Done: `scripts/check-doc-secrets.ts` (+ tested `src/lib/security/docSecrets.ts`) wired into CI to fail on any secret-shaped literal in tracked `*.md`/`*.json`/`*.env*`.
 4. Optional hygiene: `git filter-repo`/BFG to purge the values from history + force-push (belt-and-suspenders; the values are already public/indexed, so treat them as permanently burned).
 
 ### S3 · M — No `src/middleware.ts`; route protection is page-level

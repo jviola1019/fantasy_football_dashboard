@@ -1,14 +1,19 @@
 import { describe, it, expect } from "vitest";
 import { findSecretLeaks, scanFiles } from "./docSecrets";
 
+// All fixtures below are SYNTHETIC high-entropy strings — never real secrets.
+const FAKE_B64 = "Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0Ab2Cd4Ef6Hj8="; // 44-char base64 shape
+const FAKE_TOKEN = "Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0A"; // 32-char alnum shape
+const FAKE_HYPHEN = "ab1-cd2-Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5"; // hyphen-prefixed shape
+
 describe("findSecretLeaks", () => {
-  it("flags a real base64 secret next to a keyword (markdown table row)", () => {
-    const text = "| `AUTH_SECRET` | `LgWf0D/pjkYINQyijrdCtkpkB0tipxz1eHczmiWA514=` |";
+  it("flags a base64 secret next to a keyword (markdown table row)", () => {
+    const text = `| \`AUTH_SECRET\` | \`${FAKE_B64}\` |`;
     expect(findSecretLeaks(text)).toHaveLength(1);
   });
 
   it("flags a token in a curl header", () => {
-    const text = 'curl -H "x-init-token: KiqQvPMfgcl22U0cpYX5RXoc9znt2NCJ"';
+    const text = `curl -H "x-init-token: ${FAKE_TOKEN}"`;
     expect(findSecretLeaks(text)).toHaveLength(1);
   });
 
@@ -17,8 +22,8 @@ describe("findSecretLeaks", () => {
     expect(findSecretLeaks(text)).toHaveLength(0);
   });
 
-  it("passes redacted prefixes used in audit reports", () => {
-    const text = "AUTH_SECRET (`LgWf0D/pj…`) — NextAuth JWT signing key";
+  it("passes short redacted prefixes used in audit reports", () => {
+    const text = "AUTH_SECRET (`Qp7Lm2Xv…`) — NextAuth JWT signing key";
     expect(findSecretLeaks(text)).toHaveLength(0);
   });
 
@@ -37,8 +42,8 @@ describe("findSecretLeaks", () => {
     expect(findSecretLeaks(text)).toHaveLength(0);
   });
 
-  it("flags a real hyphen-prefixed CRON_SECRET in a markdown note", () => {
-    const text = "| `CRON_SECRET` | set to `m6w-9-wIcoqim8iQYR1k8cPye8dI2FFZ` — rotate |";
+  it("flags a hyphen-prefixed CRON_SECRET in a markdown note", () => {
+    const text = `| \`CRON_SECRET\` | set to \`${FAKE_HYPHEN}\` — rotate |`;
     expect(findSecretLeaks(text)).toHaveLength(1);
   });
 });
@@ -46,9 +51,7 @@ describe("findSecretLeaks", () => {
 describe("scanFiles", () => {
   it("aggregates leaks per file using an injected reader", () => {
     const read = (p: string) =>
-      p === "bad.md"
-        ? "DB_INIT_TOKEN = KiqQvPMfgcl22U0cpYX5RXoc9znt2NCJ"
-        : "nothing secret here";
+      p === "bad.md" ? `DB_INIT_TOKEN = ${FAKE_TOKEN}` : "nothing secret here";
     const res = scanFiles(["bad.md", "good.md"], read);
     expect(Object.keys(res)).toEqual(["bad.md"]);
     expect(res["bad.md"]).toHaveLength(1);

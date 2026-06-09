@@ -143,7 +143,7 @@ flowchart TB
 | "Full universe" truncated | **CONFIRMED** | top-600 cap; FA derived from capped list (`toEnvelope.ts:132-134`) |
 | Trade-value fallback comment/code mismatch | **REFUTED** | FantasyCalc→KTC→DynastyProcess→unavailable matches comments + docs |
 | Public routes expose loading/ambiguous labels | **MOSTLY REFUTED** | strong DEMO/FIXTURE/confidence labeling, 0 console errors; minor loading-class presence only |
-| Deployment docs expose secrets | **CONFIRMED (S0)** | `DEPLOY_TO_VERCEL.md:34-36,52`, public repo, raw 200 |
+| Deployment docs expose secrets | **CONFIRMED (S0) — worse than first thought** | `DEPLOY_TO_VERCEL.md:34-36,52` AND `AUDIT.md:83-86` (found by the new guard): + `CRON_SECRET`, a 2nd `DB_INIT_TOKEN`, old Neon pw, a user password. Public repo, raw 200. Both redacted (`f363637`). |
 | Pre/post continuity under-guarded | **PARTIALLY CONFIRMED** | formulas identical (no break) but no agreement test across live-vs-synthetic scale paths |
 
 ---
@@ -184,7 +184,7 @@ flowchart TB
 
 | ID | Sev·Conf | Finding | Evidence |
 |---|---|---|---|
-| SEC-01 | **S0·H** | **Real prod secrets committed in public repo; rotation required** | `DEPLOY_TO_VERCEL.md:34-36,52`; raw 200; `ec2662b`→HEAD |
+| SEC-01 | **S0·H** | **Real prod secrets committed in public repo; rotation required.** Two leak sites: `DEPLOY_TO_VERCEL.md` (`AUTH_SECRET`/`CREDENTIAL_ENCRYPTION_KEY`/`DB_INIT_TOKEN`) + `AUDIT.md:83-86` (`CRON_SECRET`/2nd `DB_INIT_TOKEN`/old Neon pw/user pw). Redacted `f363637`; **rotation still required**. | `DEPLOY_TO_VERCEL.md:34-36,52`; `AUDIT.md:83-86`; raw 200; `ec2662b`→HEAD |
 | SEC-02 | S3·M | No `middleware.ts`; protection is page-level (defense-in-depth gap) | `/settings/*`→307 works, but no chokepoint |
 | SEC-03 | S3·L | `/api/health` discloses config-presence booleans | live probe |
 | SEC-04 | S3·L | scrypt default cost params (undocumented/untuned) | `passwords.ts` |
