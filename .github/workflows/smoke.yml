@@ -1,0 +1,29 @@
+name: Smoke (production)
+
+# Post-deploy / uptime verification against the live deployment. Runs on a daily
+# schedule and on-demand. Not part of the PR gate (PRs must not depend on prod);
+# to gate a specific deploy, dispatch this with the preview URL after it goes live.
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL to smoke-test
+        required: false
+        default: https://fantasy-football-dashboard-seven.vercel.app
+  schedule:
+    - cron: "17 13 * * *" # daily 13:17 UTC
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx tsx scripts/smoke-vercel.ts
+        env:
+          SMOKE_BASE_URL: ${{ github.event.inputs.base_url || 'https://fantasy-football-dashboard-seven.vercel.app' }}

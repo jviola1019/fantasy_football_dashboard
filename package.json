@@ -15,6 +15,7 @@
     "e2e:install": "playwright install --with-deps chromium",
     "lighthouse": "lhci autorun",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
+    "smoke": "tsx scripts/smoke-vercel.ts",
     "deploy": "next build"
   },
   "dependencies": {
