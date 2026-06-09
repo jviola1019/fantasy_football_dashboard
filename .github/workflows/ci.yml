@@ -22,6 +22,7 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - run: npx tsx scripts/check-doc-secrets.ts
       - run: npx tsc --noEmit
       - run: npx eslint .
       - run: npx vitest run
