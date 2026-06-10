@@ -29,6 +29,7 @@ jobs:
 
   e2e:
     name: playwright + axe
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -53,6 +54,7 @@ jobs:
 
   lighthouse:
     name: lighthouse perf + a11y
+    needs: quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:

@@ -39,6 +39,13 @@ const config: VercelConfig = {
     "src/app/api/cron/lifecycle-check/route.ts": {
       memory: 512,
       maxDuration: 60
+    },
+    // FREE nflverse snap-share fetch + CSV parse can be memory- and time-heavy;
+    // without an explicit cap it inherits Vercel defaults (10s on Hobby) and can
+    // time out silently. Match the other data crons.
+    "src/app/api/cron/opportunity-refresh/route.ts": {
+      memory: 1024,
+      maxDuration: 60
     }
   },
   crons: [
