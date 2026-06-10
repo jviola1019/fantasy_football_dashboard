@@ -1,10 +1,36 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildLeagueModels,
   runSyntheticCalibration,
   scoreForecasts,
   syntheticConfigs,
 } from "./seasonCalibration";
 import type { BrierForecast } from "./distribution";
+
+describe("buildLeagueModels", () => {
+  it("derives per-team strength and a field model from real weekly scores", () => {
+    const weeklyByTeam = [
+      [120, 130, 110], // mean 120
+      [100, 90, 110], // mean 100
+      [140, 150, 160], // mean 150
+    ];
+    const { field, teams } = buildLeagueModels(weeklyByTeam);
+    expect(teams[0]!.meanWeekly).toBeCloseTo(120, 6);
+    expect(teams[2]!.meanWeekly).toBeCloseTo(150, 6);
+    expect(teams[0]!.sigmaWeekly).toBeGreaterThan(0);
+    expect(field.meanWeekly).toBeCloseTo((120 + 100 + 150) / 3, 6);
+    expect(field.betweenTeamSigma).toBeGreaterThan(0);
+    expect(field.withinTeamSigma).toBeGreaterThan(0);
+  });
+
+  it("degrades to positive sigmas on a single team / single week", () => {
+    const { field, teams } = buildLeagueModels([[100]]);
+    expect(teams[0]!.meanWeekly).toBe(100);
+    expect(teams[0]!.sigmaWeekly).toBe(0);
+    expect(field.betweenTeamSigma).toBe(1);
+    expect(field.withinTeamSigma).toBe(1);
+  });
+});
 
 describe("syntheticConfigs", () => {
   it("produces the requested count with monotonically increasing team strength", () => {

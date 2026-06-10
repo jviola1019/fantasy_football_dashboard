@@ -12,11 +12,45 @@ import { runSeasonSimulation, type TeamStrength, type FieldModel } from "../seas
 import {
   brierScore,
   expectedCalibrationError,
+  mean,
   reliabilityDiagram,
+  stdev,
   wilsonInterval,
   type BrierForecast,
   type ReliabilityBin,
 } from "./distribution";
+
+export interface LeagueModels {
+  field: FieldModel;
+  teams: TeamStrength[];
+}
+
+/**
+ * Build a `TeamStrength` per team and a league `FieldModel` from each team's
+ * REAL weekly scores (e.g. a completed Sleeper season). Team mean/sigma are the
+ * mean/sd of that team's weekly points; the field mean is the league average,
+ * its between-team sigma the spread of team season-means, its within-team sigma
+ * the average weekly sd. Used by the real-data season backtest.
+ */
+export function buildLeagueModels(weeklyByTeam: number[][]): LeagueModels {
+  const teams: TeamStrength[] = weeklyByTeam.map((w) => ({
+    meanWeekly: w.length ? mean(w) : 0,
+    sigmaWeekly: w.length > 1 ? stdev(w) : 0,
+  }));
+  const seasonMeans = teams.map((t) => t.meanWeekly);
+  const fieldMean = seasonMeans.length ? mean(seasonMeans) : 0;
+  const betweenTeamSigma = seasonMeans.length > 1 ? stdev(seasonMeans) : 1;
+  const withinVals = teams.map((t) => t.sigmaWeekly).filter((s) => s > 0);
+  const withinTeamSigma = withinVals.length ? mean(withinVals) : 1;
+  return {
+    field: {
+      meanWeekly: fieldMean,
+      betweenTeamSigma: betweenTeamSigma || 1,
+      withinTeamSigma: withinTeamSigma || 1,
+    },
+    teams,
+  };
+}
 
 export interface CalibrationConfig {
   team: TeamStrength;
