@@ -10,7 +10,7 @@ import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
-import { buildLeagueUniverse } from "@/lib/leagues/buildUniverse";
+import { buildLeagueUniverse, UNIVERSE_LIMIT } from "@/lib/leagues/buildUniverse";
 import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
@@ -202,7 +202,7 @@ export async function publicDemoEnvelope(): Promise<RAEEnvelope> {
       const src = rankingsSourceFromSnapshot("PPR", rankings.fetchedAt);
       const universe = buildLeagueUniverse(playersSnap.players, rankings.data, { rankingsSource: src })
         .sort((a, b) => b.trueValue - a.trueValue)
-        .slice(0, 600);
+        .slice(0, UNIVERSE_LIMIT);
       if (universe.length > 0) {
         return { ...base, leagueUniverse: universe, draftPool: universe };
       }

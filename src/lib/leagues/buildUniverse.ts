@@ -7,6 +7,16 @@ import { enrichRoster, buildFpIndex, type EnrichOptions } from "../fantasypros/e
 const FANTASY_POSITIONS = new Set(["QB", "RB", "WR", "TE", "K", "DEF"]);
 
 /**
+ * Display cap for the serialized universe / free-agent lists. The top ~600
+ * players by value cover everything draftable plus deep waiver targets; deeper
+ * 0-value players add payload weight without market relevance. Free agents are
+ * computed from the FULL universe and capped AFTER subtraction (see toEnvelope),
+ * so a genuinely-available deep player is never hidden by this cap. Shared by
+ * toEnvelope (live) and envelope/load (demo) so the bound can't drift.
+ */
+export const UNIVERSE_LIMIT = 600;
+
+/**
  * Build the full draftable player universe for a league: every active,
  * fantasy-relevant player from the Sleeper players snapshot, enriched with
  * FantasyPros consensus value/momentum via the same `enrichRoster` path used

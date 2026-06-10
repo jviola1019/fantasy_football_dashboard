@@ -10,7 +10,7 @@ import {
   type DraftState
 } from "./draftState";
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
-import { buildLeagueUniverse, buildFreeAgents } from "./buildUniverse";
+import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
 
 /**
@@ -25,11 +25,6 @@ function withOpportunity(records: PlayerMarketRecord[], scores: OpportunityMap |
     return s ? { ...r, opportunity: s.score } : r;
   });
 }
-
-// Cap the serialized universe so the SSR props payload stays bounded. The top
-// ~600 players by value cover everything draftable plus deep waiver targets;
-// 0-value deep players add weight without market relevance.
-const UNIVERSE_LIMIT = 600;
 
 // Convert a live league snapshot + FantasyPros rankings into the RAEEnvelope
 // shape that deriveAppData + every route panel consume. The output envelope has:
@@ -122,16 +117,28 @@ export function buildLiveEnvelope({
   // rankings are present. Capped + value-sorted to keep the payload bounded.
   let leagueUniverse: PlayerMarketRecord[] | null = null;
   let freeAgents: PlayerMarketRecord[] | null = null;
+  // Disclosure string when the universe / free-agent lists are capped for payload.
+  let universeNote: string | null = null;
   if (playersSnapshot && rankings) {
-    const full = buildLeagueUniverse(playersSnapshot, rankings, {
-      rankingsSource,
-      trendingAdds,
-      trendingDrops,
-      newsMomentumScores
-    });
-    const sorted = [...full].sort((a, b) => b.trueValue - a.trueValue).slice(0, UNIVERSE_LIMIT);
-    leagueUniverse = withOpportunity(sorted, oppScores);
-    freeAgents = buildFreeAgents(leagueUniverse, allRosters);
+    const full = withOpportunity(
+      buildLeagueUniverse(playersSnapshot, rankings, {
+        rankingsSource,
+        trendingAdds,
+        trendingDrops,
+        newsMomentumScores
+      }),
+      oppScores
+    );
+    const sortedFull = [...full].sort((a, b) => b.trueValue - a.trueValue);
+    leagueUniverse = sortedFull.slice(0, UNIVERSE_LIMIT);
+    // Free agents must come from the FULL universe minus rostered players, THEN
+    // be capped — deriving from the display-capped leagueUniverse would hide a
+    // genuinely-available player ranked past the cap (DAT-01).
+    const allFreeAgents = buildFreeAgents(sortedFull, allRosters);
+    freeAgents = allFreeAgents.slice(0, UNIVERSE_LIMIT);
+    if (sortedFull.length > UNIVERSE_LIMIT || allFreeAgents.length > UNIVERSE_LIMIT) {
+      universeNote = `Universe and free-agent lists show the top ${UNIVERSE_LIMIT} by value (of ${sortedFull.length} active players, ${allFreeAgents.length} unrostered); deeper low-value players are omitted from the payload.`;
+    }
   }
   if (!rankings) {
     // No rankings cached yet — still emit live mode with the identity-only
@@ -210,7 +217,8 @@ export function buildLiveEnvelope({
       assumptions: [
         "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
         trendingAssumption,
-        opportunityAssumption
+        opportunityAssumption,
+        ...(universeNote ? [universeNote] : [])
       ],
       failure: null
     },
