@@ -1,8 +1,45 @@
 import { NextResponse } from "next/server";
 import { getDb, schema } from "@/db";
 import { redact, unwrap } from "@/lib/redact";
+import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
+import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
+import { evaluateFreshness, type FreshnessContract, type FreshnessResult } from "@/lib/ops/freshness";
 
 export const runtime = "nodejs";
+
+const DAY = 24 * 3600;
+// Snapshot freshness contracts for the two sources that drive the envelope.
+// Surfaced (query-gated) for an uptime monitor / scripts/check-cron-freshness.ts;
+// intentionally does NOT flip the top-level `status` (a behind cron during the
+// off-season shouldn't read as "app down").
+const SNAPSHOT_CONTRACTS: Array<{
+  contract: FreshnessContract;
+  load: () => Promise<{ fetchedAt: Date } | null>;
+}> = [
+  {
+    contract: { source: "sleeper-players", warnAfterSeconds: DAY, expireAfterSeconds: 30 * 3600 },
+    load: () => getLatestPlayersSnapshot()
+  },
+  {
+    contract: { source: "fantasypros-ppr", warnAfterSeconds: DAY, expireAfterSeconds: 30 * 3600 },
+    load: () => getLatestRankingsSnapshot("PPR")
+  }
+];
+
+async function snapshotFreshness(now: Date): Promise<FreshnessResult[]> {
+  const results = await Promise.all(
+    SNAPSHOT_CONTRACTS.map(async (s) => {
+      let fetchedAt: Date | null = null;
+      try {
+        fetchedAt = (await s.load())?.fetchedAt ?? null;
+      } catch {
+        fetchedAt = null; // DB/table missing → reported as missing below
+      }
+      return evaluateFreshness(s.contract, fetchedAt, now);
+    })
+  );
+  return results;
+}
 
 type DatabaseStatus = "ok" | "unreachable" | "not-initialized";
 
@@ -21,6 +58,9 @@ interface HealthResponse {
   // DNS, TLS, etc.) instead of a generic "unreachable" bucket. Anything
   // resembling a connection string is scrubbed before being returned.
   databaseError?: string;
+  // Present only when requested with `?snapshots=1`. Cron data-contract
+  // freshness; informational (does not affect `status`).
+  snapshots?: FreshnessResult[];
 }
 
 interface CheckResult {
@@ -60,7 +100,7 @@ async function checkDatabase(): Promise<CheckResult> {
   }
 }
 
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
   const dbCheck = await checkDatabase();
   const checks: HealthChecks = {
     authSecret: Boolean(process.env.AUTH_SECRET?.trim()),
@@ -80,6 +120,9 @@ export async function GET(): Promise<Response> {
   const body: HealthResponse = { status, checks };
   if (dbCheck.error) {
     body.databaseError = dbCheck.error;
+  }
+  if (new URL(request.url).searchParams.get("snapshots") === "1") {
+    body.snapshots = await snapshotFreshness(new Date());
   }
 
   return NextResponse.json(body, { status: 200 });
