@@ -332,6 +332,28 @@ Add:
 | `scripts/check-cron-freshness.ts` | snapshot age + schema per source | data-contract drift |
 | `scripts/audit-branches.ts` | ahead/behind/merged table | branch hygiene CI |
 
+## 17b. Remediation status (implemented 2026-06-09 → 06-10, branch `audit/2026-06-09`)
+
+**Gates after remediation:** typecheck ✓ · lint ✓ · vitest **476 passed / 6 skipped** (+26 new) · check:secrets ✓ · smoke **13/13** vs production.
+
+| Finding | Status | Commit(s) |
+|---|---|---|
+| SEC-01 secret exposure (+ 2nd site `AUDIT.md` found by the new guard) | **Redacted + guarded**; rotation still **user action** | `f363637`,`feebcbe`,`6f50710` |
+| QNT-02/03 calibration theater | **Fixed** — real season-sim calibration harness measures playoff/champ Brier+reliability; unmeasured targets removed | `e6d792b` |
+| UX-01 fabricated P10/P90 band | **Fixed** — real Wilson MC interval, honestly labeled | `3b29604` |
+| CID-02 no prod smoke | **Fixed** — `smoke-vercel` + scheduled workflow (13/13) | `1e91f55` |
+| DAT-01/02 universe truncation + dup limit | **Fixed** — FA from full universe, shared `UNIVERSE_LIMIT`, disclosure | `cebd6a6` |
+| UX-02/03/04/09 a11y + cleanup | **Fixed** — reduced-motion, dead-tab delete, label rename, CSS dedup | `7bcc432` |
+| UX-07 Heatmap aria-label | **Fixed** | `87d9bd3` |
+| CID-04/07/08 cron fn cfg / engines / CI gate | **Fixed** | `e6297b0` |
+| OBS-03/CID-05 cron freshness | **Fixed** — `/api/health?snapshots=1` + `check:freshness` guard | `eb59aeb` |
+| BR-01/03/04 branch hygiene | **Done** — 8 stale remote + 6 local branches pruned (1 archived as `archive/claude/redesign-output-dashboard-Homgq`), local `main` ff'd, 5 semver tags `v0.1.0`–`v0.5.0` pushed | — |
+| BR-02 unmerged Sleeper fix `71925df` | **Resolved** — superseded by the ECR+nflverse pipeline (old `src/lib/sleeper.ts` deleted); archived, safe | — |
+
+**Deferred (documented, not shipped):**
+- **SEC-02 middleware** — next-auth v5 + the Drizzle/better-sqlite3 adapter defaults to the **edge** runtime where the native module won't load; needs a split JWT-only middleware config and a real deploy to verify. Page-level protection works today (`/settings/*`→307). Recommend a follow-up PR.
+- Low-impact S3s: SEC-03 (`/api/health` config-presence), SEC-04 (scrypt cost params), UX-05/06/08/10, DAT-03/04/05/06.
+
 ## 17. Open questions & unknowns (could not verify directly)
 
 - Whether the leaked secrets have already been used (needs Vercel/Neon access logs).
