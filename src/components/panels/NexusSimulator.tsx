@@ -64,7 +64,12 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   // width + add a banner.
   const panelState = envelope
     ? derivePanelState(envelope, ["trending_momentum", "opportunity"])
-    : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
+    : // No envelope ⇒ no provenance; widen the CI and label speculative (UX-05).
+      {
+        status: "unavailable" as const,
+        bannerText: "No data envelope — simulation inputs unverified.",
+        unavailable: new Set<string>(["trending_momentum", "opportunity"])
+      };
   const ciMultiplier = CI_MULTIPLIER[panelState.status];
 
   // When weekly projections are wired, override the CI label to show the
@@ -358,10 +363,12 @@ function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioCo
         <table className="scenario-table">
           <thead>
             <tr>
-              <th></th>
-              <th className="pos-text">Best Case</th>
-              <th>Baseline</th>
-              <th className="neg-text">Worst Case</th>
+              <th scope="col">
+                <span className="sr-only">Metric</span>
+              </th>
+              <th scope="col" className="pos-text">Best Case</th>
+              <th scope="col">Baseline</th>
+              <th scope="col" className="neg-text">Worst Case</th>
             </tr>
           </thead>
           <tbody>

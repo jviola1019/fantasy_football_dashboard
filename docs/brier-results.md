@@ -263,6 +263,6 @@ Mean Brier across positions: **0.2237**. 4/4 positions show positive Resolution 
 
 **Calibration model (out-of-fold logistic, projected pts → P(≥ threshold)).** Mean Brier **0.2108** vs the rank model's 0.2237; mean Expected Calibration Error (10-bin) **0.0270** vs the rank model's 0.0940. Lower ECE means the projected POINTS carry genuine probability information beyond rank order — mapping them through a fitted logistic yields better-calibrated start/sit probabilities and a defensible probability the production model can consume directly. ECE is occupancy-weighted |observed − forecast| over 10 bins — comparable across models, unlike the Murphy reliability term which over-bins the logistic's continuous probabilities.
 
-**Production targets:** playoffProbability Brier ≤ 0.20 · championshipProbability ≤ 0.10
+**Scope:** this backtest measures weekly *start/sit projection discrimination* only. The season simulator's `playoffProbability` / `championshipProbability` calibration (targets Brier ≤ 0.20 / ≤ 0.10) is a different quantity, measured separately by `scripts/brier-season-sim.ts` → `docs/season-calibration.md`.
 
 See `docs/calibration.md` for the full calibration contract.

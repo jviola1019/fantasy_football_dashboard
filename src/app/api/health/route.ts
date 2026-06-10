@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb, schema } from "@/db";
 import { redact, unwrap } from "@/lib/redact";
+import { safeEqual } from "@/lib/timingSafe";
 import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { evaluateFreshness, type FreshnessContract, type FreshnessResult } from "@/lib/ops/freshness";
@@ -52,7 +53,9 @@ interface HealthChecks {
 
 interface HealthResponse {
   status: "ok" | "degraded";
-  checks: HealthChecks;
+  // Present only for callers presenting `Authorization: Bearer CRON_SECRET` —
+  // which env vars are configured is operator detail, not public surface (SEC-03).
+  checks?: HealthChecks;
   // Present only when `database` is not "ok". Includes the postgres-js
   // error code and a redacted message — the actual cause (auth failure,
   // DNS, TLS, etc.) instead of a generic "unreachable" bucket. Anything
@@ -117,9 +120,17 @@ export async function GET(request: Request): Promise<Response> {
       ? "ok"
       : "degraded";
 
-  const body: HealthResponse = { status, checks };
-  if (dbCheck.error) {
-    body.databaseError = dbCheck.error;
+  const body: HealthResponse = { status };
+  // Config-presence detail (which env vars are set) and DB error text are for
+  // operators: require the same bearer the cron routes use (SEC-03). The
+  // top-level status stays public for uptime monitors and the smoke test.
+  const bearer = request.headers.get("authorization") ?? "";
+  const expected = process.env.CRON_SECRET;
+  if (expected && safeEqual(bearer, `Bearer ${expected}`)) {
+    body.checks = checks;
+    if (dbCheck.error) {
+      body.databaseError = dbCheck.error;
+    }
   }
   if (new URL(request.url).searchParams.get("snapshots") === "1") {
     body.snapshots = await snapshotFreshness(new Date());

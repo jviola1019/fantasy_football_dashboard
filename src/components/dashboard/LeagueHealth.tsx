@@ -12,20 +12,28 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
   const missing = new Set(missingFields);
   const trendingUnavailable = missing.has("trending_momentum");
   const chaosUnavailable = missing.has("trending_momentum") || missing.has("opportunity");
+  // Both value tiles derive from market_value/true_value; when those are
+  // missing the metrics compute over zeroed fields and a "0.0" would read as a
+  // real (neutral) edge rather than absent data (UX-10).
+  const valuesUnavailable = missing.has("market_value") || missing.has("true_value");
 
   const cards = [
-    {
-      label: "Reputation Edge",
-      value: fmt(metrics.reputationEdge, 1),
-      sub: "Avg True – Market Value",
-      color: metrics.reputationEdge >= 0 ? "pos" : "neg"
-    },
-    {
-      label: "Market Inefficiency",
-      value: fmt(metrics.marketInefficiency, 1),
-      sub: "Avg Value Over Replacement",
-      color: "neu"
-    },
+    valuesUnavailable
+      ? { label: "Reputation Edge", value: "—", sub: "Value data unavailable", color: "neu" }
+      : {
+          label: "Reputation Edge",
+          value: fmt(metrics.reputationEdge, 1),
+          sub: "Avg True – Market Value",
+          color: metrics.reputationEdge >= 0 ? "pos" : "neg"
+        },
+    valuesUnavailable
+      ? { label: "Market Inefficiency", value: "—", sub: "Value data unavailable", color: "neu" }
+      : {
+          label: "Market Inefficiency",
+          value: fmt(metrics.marketInefficiency, 1),
+          sub: "Avg Value Over Replacement",
+          color: "neu"
+        },
     trendingUnavailable
       ? { label: "Narrative Velocity", value: "—", sub: "Data source not integrated", color: "neu" }
       : {

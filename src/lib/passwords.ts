@@ -1,7 +1,21 @@
-import { randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "node:crypto";
 import { promisify } from "node:util";
 
-const scrypt = promisify(scryptCb) as (password: string | Buffer, salt: Buffer, keylen: number) => Promise<Buffer>;
+const scryptAsync = promisify(scryptCb) as (
+  password: string | Buffer,
+  salt: Buffer,
+  keylen: number,
+  options: ScryptOptions
+) => Promise<Buffer>;
+
+// Explicit cost parameters (SEC-04). These equal Node's defaults, so every
+// existing `scrypt1$…` hash still verifies — pinning them guards against a
+// future Node default change silently altering the KDF, and documents the
+// work factor. If these are ever raised, bump VERSION (e.g. "scrypt2") and
+// branch verifyPassword on the version tag so old hashes migrate gracefully.
+const SCRYPT_PARAMS: ScryptOptions = { N: 16384, r: 8, p: 1 };
+const scrypt = (password: string | Buffer, salt: Buffer, keylen: number) =>
+  scryptAsync(password, salt, keylen, SCRYPT_PARAMS);
 
 const KEY_LEN = 64;
 const SALT_LEN = 16;

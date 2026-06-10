@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { SourceMeta } from "../governance";
-import { unavailableSource } from "../governance";
+import { evaluateFreshness, unavailableSource } from "../governance";
 import type { LeagueFormat } from "./format";
 import { getLatestKtcSnapshot } from "../ktc/snapshot";
 import type { KtcVariant } from "../ktc/types";
@@ -8,6 +8,10 @@ import type { KtcVariant } from "../ktc/types";
 // KTC has both dynasty and redraft variants. For redraft leagues we want
 // the redraft snapshot; for dynasty we want dynasty. Mapping is trivial.
 const KTC_VARIANT: KtcVariant = "redraft";
+
+// KTC snapshots are written by a daily cron (09:00 UTC); within 30h
+// (24h cadence + buffer) the snapshot is the expected state, not stale.
+const KTC_SNAPSHOT_TTL_SECONDS = 30 * 3600;
 
 export interface PlayerValue {
   sleeperId: string | null;
@@ -130,7 +134,7 @@ export async function fetchDynastyProcessValues(format: LeagueFormat): Promise<M
 export async function fetchKtcValues(
   format: LeagueFormat,
   variant: KtcVariant = KTC_VARIANT
-): Promise<Map<string, PlayerValue>> {
+): Promise<{ values: Map<string, PlayerValue>; fetchedAt: string }> {
   const snapshot = await getLatestKtcSnapshot(variant);
   if (!snapshot) throw new Error(`KTC ${variant} snapshot not cached`);
   const map = new Map<string, PlayerValue>();
@@ -157,7 +161,9 @@ export async function fetchKtcValues(
       trend30Day: p.oneQBValues.overall7DayTrend ?? 0
     });
   }
-  return map;
+  // Surface the snapshot's REAL timestamp so the caller can derive freshness
+  // from actual age instead of stamping "now" (DAT-03).
+  return { values: map, fetchedAt: snapshot.fetchedAt.toISOString() };
 }
 
 /** Fetch live trade values, governance-wrapped. */
@@ -184,14 +190,16 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
   } catch (primaryErr) {
     // Secondary: KeepTradeCut cached snapshot. Daily cron at 09:00 UTC.
     try {
-      const values = await fetchKtcValues(format);
+      const { values, fetchedAt } = await fetchKtcValues(format);
       return {
         values,
         source: {
           source: "KeepTradeCut redraft values (secondary)",
-          fetchedAt: new Date().toISOString(),
-          ttlSeconds: FANTASYCALC_TTL_SECONDS,
-          freshness: "stale",
+          // Real snapshot timestamp; freshness derived from actual age against
+          // the daily cron cadence (30h = 24h cadence + buffer), not hardcoded.
+          fetchedAt,
+          ttlSeconds: KTC_SNAPSHOT_TTL_SECONDS,
+          freshness: evaluateFreshness(fetchedAt, KTC_SNAPSHOT_TTL_SECONDS),
           confidence: 0.75,
           validation: "valid",
           missingFields: ["sleeperId"],
@@ -210,9 +218,11 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
           values,
           source: {
             source: "DynastyProcess values (tertiary fallback)",
+            // Live HTTP fetch that just succeeded — "now" is the real timestamp
+            // and "fresh" the honest label; confidence 0.6 conveys lower trust.
             fetchedAt: new Date().toISOString(),
             ttlSeconds: FANTASYCALC_TTL_SECONDS,
-            freshness: "stale",
+            freshness: "fresh",
             confidence: 0.6,
             validation: "valid",
             missingFields: ["sleeperId"],
