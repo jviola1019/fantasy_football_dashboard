@@ -24,7 +24,13 @@ export function TeamSignals({
   const movers = deriveNarrativeMovers(players);
   const trendingMissing = new Set(envelope.sourceState.missingFields).has("trending_momentum");
   return (
-    <PanelCard id="team-signals" titleId="ts-title" title="Team Signals" eyebrow="Win odds, intel, and momentum.">
+    <PanelCard
+      id="team-signals"
+      titleId="ts-title"
+      title="Team Signals"
+      eyebrow="Win odds, intel, and momentum."
+      source={envelope.sourceState}
+    >
       <div className="bottom-row">
         <LineupWinProb sim={sim} />
         <IntelFeed envelope={envelope} />

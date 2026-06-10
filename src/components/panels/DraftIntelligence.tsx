@@ -55,6 +55,7 @@ export function DraftIntelligence({ players }: Props) {
       titleId="dr-title"
       title="Draft Intelligence"
       eyebrow="Read the room. Anticipate the run."
+      source={players[0]?.sources[0]}
       controls={
         <span className="draft-controls">
           <span className="muted-text">{myRoster.length} mine · {taken.size} taken · {available.length} left</span>

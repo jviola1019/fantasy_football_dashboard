@@ -93,6 +93,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       titleId="ns-title"
       title="Nexus Simulator"
       eyebrow="Simulate future. Master uncertainty."
+      source={envelope?.sourceState}
       controls={
         <>
           <span className="sim-count">SIMULATIONS {sim.params.iterations.toLocaleString()}</span>
