@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { runNexusSimulation, type SimulationResult } from "@/lib/simulation";
@@ -45,6 +45,9 @@ const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
 export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
   const [running, setRunning] = useState(false);
+  // Honor OS "reduce motion": the JS-driven Motion path-draw + replay can't be
+  // stopped by the global CSS media query, so gate them here.
+  const reduceMotion = useReducedMotion();
 
   // Build the weekly projections Map from the envelope (plain Record → Map).
   const weeklyProjections = useMemo(() => {
@@ -88,15 +91,17 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       controls={
         <>
           <span className="sim-count">SIMULATIONS {sim.params.iterations.toLocaleString()}</span>
-          <button
-            type="button"
-            className={`run-sim-btn${running ? " running" : ""}`}
-            onClick={handleRun}
-            disabled={running}
-            aria-label="Replay the outcome animation"
-          >
-            {running ? "REPLAYING…" : "REPLAY"}
-          </button>
+          {!reduceMotion && (
+            <button
+              type="button"
+              className={`run-sim-btn${running ? " running" : ""}`}
+              onClick={handleRun}
+              disabled={running}
+              aria-label="Replay the outcome animation"
+            >
+              {running ? "REPLAYING…" : "REPLAY"}
+            </button>
+          )}
         </>
       }
     >
@@ -169,6 +174,8 @@ function OutcomeMultiverse({
   sim: SimulationResult;
   running: boolean;
 }) {
+  // JS-driven Motion path-draw can't be stopped by the global reduced-motion CSS.
+  const reduceMotion = useReducedMotion();
   // Five mutually exclusive final-standing buckets that always sum to 100 and
   // are each ≥ 0 — no impossible >100% or negative percentages.
   const dist = deriveOutcomeDistribution(sim);
@@ -221,9 +228,9 @@ function OutcomeMultiverse({
                 stroke={o.color}
                 strokeWidth="1.5"
                 opacity="0.65"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: running ? 0 : 1 }}
-                transition={{ duration: 1.2 + i * 0.2, ease: "easeOut" }}
+                initial={{ pathLength: reduceMotion ? 1 : 0 }}
+                animate={{ pathLength: reduceMotion ? 1 : running ? 0 : 1 }}
+                transition={{ duration: reduceMotion ? 0 : 1.2 + i * 0.2, ease: "easeOut" }}
               />
               <circle cx="460" cy={o.y} r="8" fill="rgba(9,13,18,0.9)" stroke={o.color} strokeWidth="1.5" filter="url(#multiverseGlow)" />
               <text x="470" y={o.y + 4} fontSize="9" fill={o.color}>{o.pct}%</text>

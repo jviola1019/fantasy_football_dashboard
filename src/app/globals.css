@@ -1352,14 +1352,7 @@ td small { color: var(--muted); }
   to   { opacity: 1; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .001ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: .001ms !important;
-  }
-}
+/* (prefers-reduced-motion reset is defined once near the top of this file) */
 
 /* ─── WebGL scene fallback ───────────────────────────────────────────────── */
 .scene-fallback {
