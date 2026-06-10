@@ -54,7 +54,11 @@ export function Heatmap2D({ data, xLabels, yLabels, caption, colorScale = DEFAUL
         width="100%"
         preserveAspectRatio="xMidYMid meet"
         role="img"
-        aria-label="Heatmap showing probability distribution across risk and scenario dimensions"
+        aria-label={
+          caption
+            ? `Heatmap. ${caption}`
+            : `Heatmap of values across ${xLabels.length} columns (${xLabels.join(", ")}) and ${yLabels.length} rows (${yLabels.join(", ")}).`
+        }
         style={{ overflow: "visible", display: "block", height: "auto" }}
       >
         {/* Y-axis labels */}
