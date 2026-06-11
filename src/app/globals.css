@@ -405,6 +405,16 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   margin-bottom: 6px;
 }
 
+/* Plain-language lead-in for a tab/section — readable body size (not the 9-10px
+   metadata notes), so a first-time reader can orient before the data. */
+.section-intro {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 2px 0 14px;
+  max-width: 64ch;
+}
+
 /* ─── Tab Content ─────────────────────────────────────────────────────────── */
 /* In-panel tab bars now render via the Tailwind PanelTabs component. */
 .tab-content { min-height: 0; }
@@ -1169,20 +1179,6 @@ td small { color: var(--muted); }
 .nexus-side { display: flex; flex-direction: column; gap: 6px; }
 .nexus-full { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 200px; gap: 8px; }
 .sim-count { font-size: 10px; color: var(--muted); white-space: nowrap; }
-.run-sim-btn {
-  padding: 6px 14px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  background: rgba(74, 141, 183, 0.12);
-  border: 1px solid rgba(74, 141, 183, 0.40);
-  color: var(--blue);
-  border-radius: 4px;
-  transition: background 150ms ease, border-color 150ms ease;
-}
-.run-sim-btn:hover { background: rgba(74, 141, 183, 0.22); border-color: rgba(74, 141, 183, 0.55); }
-.run-sim-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.run-sim-btn.running { opacity: 0.6; }
 .multiverse-wrap { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); min-height: 280px; }
 .risk-panel { }
 .risk-layout { display: flex; gap: 8px; align-items: center; }
@@ -1329,25 +1325,12 @@ td small { color: var(--muted); }
   100% { background-position: 0% 50%; }
 }
 
-/* ─── In-panel PanelTabs segmented control ────────────────────────────────── */
-/* A recessed track holding a single solid slate-blue pill that slides to the
-   active segment via Framer Motion `layoutId`. The active label is dark text
-   sitting on the pill, so the selection is unmistakable. The visual treatment
-   lives here so the motion component stays a thin wrapper. */
-.panel-tabs {
-  /* Recessed instrument track: a subtle top-down gradient + deeper inset
-     shadow with an inner hairline, so the sliding pill reads as raised. */
-  background: linear-gradient(180deg, rgba(9, 14, 26, 0.6), rgba(24, 34, 47, 0.5));
-  box-shadow:
-    inset 0 1px 3px rgba(0, 0, 0, 0.45),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-}
-.panel-tab-pill {
-  background: linear-gradient(180deg, rgba(108, 178, 214, 0.96), rgba(74, 138, 176, 0.97));
-  box-shadow:
-    0 3px 10px rgba(26, 64, 88, 0.45),
-    inset 0 1px 0 rgba(216, 238, 250, 0.5);
-}
+/* ─── In-panel PanelTabs underline/rail ───────────────────────────────────── */
+/* A quiet row of text tabs over a hairline baseline; the active tab carries a
+   single accent underline (border applied in the component via Tailwind). No
+   recessed track, no pill, no motion — the control recedes behind the data
+   instead of reading as a SaaS segmented switch. Styling lives in the
+   component; this anchor remains for any consumer that targets `.panel-tabs`. */
 
 /* Panel tab body fade-through. Consumer panels add `data-state="enter"` on
    the active tab body wrapper; the rule animates opacity from 0 -> 1 over
