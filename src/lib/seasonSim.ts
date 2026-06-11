@@ -7,8 +7,11 @@ import { mulberry32 } from "./rng";
  * actual simulated season: every team plays a round-robin schedule, each weekly
  * matchup is decided by sampled weekly scores, standings seed a single-
  * elimination playoff bracket (with byes for the top seeds), and the champion is
- * the bracket winner. Over many simulated seasons this yields genuinely
- * calibrated playoff / championship probabilities for the user's team.
+ * the bracket winner. Over many simulated seasons this yields playoff /
+ * championship probabilities that are INTERNALLY calibrated — they match the
+ * simulator's own season frequencies (docs/season-calibration.md). Real-data
+ * validation is pilot-scale only (docs/season-backtest-2025.md, n=10
+ * team-seasons) — do not present these as externally validated forecasts.
  *
  * Model (two-level / hierarchical):
  *   - The USER team has a fixed weekly-scoring distribution N(meanWeekly, sigma).
