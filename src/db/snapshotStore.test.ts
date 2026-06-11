@@ -72,6 +72,26 @@ describe("makeSnapshotStore", () => {
     await expect(s.insert("src-a", { a: "not-a-number", b: "x" })).rejects.toThrow();
   });
 
+  // Every snapshot table must round-trip against the in-memory test schema —
+  // exercising only playersSnapshots is how the missing opportunity_snapshots
+  // table went unnoticed (its reads are .catch(() => null)'d in envelope/load).
+  it("insert + getLatest round-trips on every snapshot tableKey", async () => {
+    const pairs = [
+      ["players_snapshots", "playersSnapshots"],
+      ["rankings_snapshots", "rankingsSnapshots"],
+      ["ktc_snapshots", "ktcSnapshots"],
+      ["projections_snapshots", "projectionsSnapshots"],
+      ["news_snapshots", "newsSnapshots"],
+      ["opportunity_snapshots", "opportunitySnapshots"]
+    ] as const;
+    for (const [table, tableKey] of pairs) {
+      const s = makeSnapshotStore<Payload>({ table, tableKey, schema: PayloadSchema });
+      await s.insert("src-a", { a: 1, b: table });
+      const read = await s.getLatest("src-a");
+      expect(read?.payload.b, `round-trip failed for ${table}`).toBe(table);
+    }
+  });
+
   it("returns null (does not throw) when a stored payload fails validation", async () => {
     // Insert a row whose payload does not match PayloadSchema using a store with
     // a permissive schema, then read it back through the strict store.

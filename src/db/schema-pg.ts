@@ -154,10 +154,11 @@ export const opportunitySnapshots = pgTable("opportunity_snapshots", {
 });
 
 // ─── Snapshot-table DDL: single source of truth ──────────────────────────────
-// All five snapshot tables share an identical shape. Defining the DDL once here
-// (and composing INIT_SQL + the runtime ensure*Table self-heal from it) removes
-// the hand-kept copies that previously drifted. The snapshot store factory
-// (src/db/snapshotStore.ts) consumes the same two helpers.
+// All snapshot tables (SNAPSHOT_TABLES below) share an identical shape.
+// Defining the DDL once here (and composing INIT_SQL + the runtime
+// ensure*Table self-heal from it) removes the hand-kept copies that previously
+// drifted. The snapshot store factory (src/db/snapshotStore.ts) and the SQLite
+// bootstrap (src/db/index.ts sqliteSnapshotDdl) consume the same source list.
 
 export const SNAPSHOT_TABLES = [
   "players_snapshots",
