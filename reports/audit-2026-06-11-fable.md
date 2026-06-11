@@ -157,3 +157,31 @@ All locally-fixable findings were implemented and verified red→green:
 - **F-11 measurement (new data):** `/dashboard` Lighthouse perf **54** — TTFB 310 ms, FCP 1.1 s, **LCP 4.9 s, TBT 1,320 ms**, CLS 0.001. The dashboard route is main-thread heavy (hydration/JS, not layout). This is the measured basis for the performance phase: bundle/route-size analysis and below-fold `next/dynamic` splitting on `/dashboard` are the indicated next steps. (`/` 92 and `/login` 85 remain green; lighthouserc asserts only those two.)
 
 **Blocked items requiring the owner:** `gh` CLI is not installed/authenticated, so PR creation, branch-protection setup, and observing the first CodeQL/dependency-review/gitleaks runs (they trigger on PR/push-to-main, not on the feature branch) are user actions: open the PR from `audit/2026-06-09` → `main`, watch the four new checks, merge after confirming secret rotation.
+
+---
+
+## Round-3 — final design + model sprint (2026-06-11)
+
+User-directed sprint addressing the first audit's UI/brand items that were diagnosed but not built, plus new directives. Decisions confirmed with the user: redesign BOTH the in-panel tabs and the left sidebar to blend in (underline/rail); spell out cryptic abbreviations with corrected spacing; skip the domain item; underline/rail tab direction.
+
+**Design — tabs blend into the dashboard (the headline "non-AI" ask):**
+- `PanelTabs`: sliding Framer-Motion pill → quiet **underline/rail** (text tabs over a hairline baseline, active = single accent underline). Dropped the `framer-motion` import from the component (less hydration/JS — also helps the `/dashboard` perf finding). Kept the full WAI-ARIA tablist, roving tabindex, keyboard nav, and `pointer-coarse:min-h-11` 44px touch target. Removed the recessed-track/pill CSS.
+- `RouteSidebar`: the bright glowing active number chip → low-contrast tint + accent text (instrument-like; selection now reads via the row's own active background, not a glow).
+
+**Abbreviation sweep (spell out for a general audience, fix spacing):**
+- The literal "Repl" = the Start/Sit Edge replacement-value column (`RosterHealth.tsx`) → "Replacement"; "Proj" → "Projected"; added a plain-English note ("Edge = projected − replacement-level points…").
+- `Pos` → `Position` (Market Intelligence, Draft Intelligence, Reports, Player Universe, Waiver Wire); `Own%` → `Owned %`; `Oppty` → `Opportunity` (radar); `proj pts/week` → `projected points / week`.
+- **Model-continuity bug fixed:** Player Universe stat was labeled "Avg Inefficiency (VOR)" but `marketInefficiency()` computes confidence-weighted **mispricing**, not Value Over Replacement — the `(VOR)` label was factually wrong → "Avg Market Mispricing".
+
+**Nexus Simulator — usefulness/honesty:**
+- Removed the decorative **REPLAY** button + its `running`/`setTimeout` state (the audit flagged the path-draw as decorative chrome); the outcome-fan chart keeps a one-time entrance draw that honors reduced motion. Controls now read "{N} simulations" (sentence case).
+- **Risk Analysis tab** rebuilt: added a plain-language intro, fixed spacing, and replaced the developer instruction shown to end users ("Run scripts/brier-backtest.ts…") with an honest user-facing caption (calibration is measured offline; the panel never fabricates a curve). No chart values hardcoded (CLAUDE.md).
+
+**Account / duplications (TDD):**
+- `createLeague` now rejects a duplicate (same user + platform + externalLeagueId + season) — the source of the "hollow duplicate" league; new `findUserLeagueByExternal` helper powers both the guard and a friendly pre-verify message in the add-league action. Tests watched red → green (leagues.test 11/11). Registration already rejects duplicate emails; deletion already cascades (FK) and requires the password — verified, no change needed.
+
+**Model accuracy re-verification (all three backtests reproduce from live/seeded sources):**
+- Player Brier (live 2025): QB 0.2368 / RB 0.1969 / WR 0.2036 / TE 0.2059, calibrated ECE ≤ 0.034 — matches `docs/brier-results.md` (regenerated, zero diff).
+- Season-sim Sleeper backtest: Brier 0.1657 (reproduced). Season calibration harness: byte-identical docs.
+
+**Round-3 battery:** typecheck ✓ · lint ✓ · vitest **494 passed / 6 skipped** (+4 tests) · build ✓ (no CSS warnings). Screenshots in `reports/audit-2026-06-11-screens/v2-*` (desktop/mobile tabs, Risk Analysis tab, players). e2e + lighthouse: see final commit.
