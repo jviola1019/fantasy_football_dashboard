@@ -1,0 +1,39 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  # Fails a PR that introduces dependencies with known vulnerabilities or
+  # disallowed licenses. PR-only: it diffs the dependency graph of the PR.
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    name: dependency review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  # Full-repo + history secret scan. Complements scripts/check-doc-secrets.ts,
+  # which only scans tracked *.md / *.json / .env* docs — gitleaks covers
+  # source files and the commit history.
+  gitleaks:
+    name: gitleaks secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
