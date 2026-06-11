@@ -10,7 +10,7 @@ import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
-import { buildLeagueUniverse } from "@/lib/leagues/buildUniverse";
+import { buildLeagueUniverse, UNIVERSE_LIMIT } from "@/lib/leagues/buildUniverse";
 import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getTrendingPlayers } from "@/lib/sleeper/players";
@@ -50,6 +50,11 @@ export type HomeResolution =
  *
  * Render priority:
  *   1. RAE_ENABLE_LIVE_HOMEPAGE=true → ops override (skips per-user path).
+ *      WARNING (DAT-04): without RAE_ALLOW_FIXTURES this yields the honest but
+ *      EMPTY identity-only envelope (mode "unavailable", zero records) for every
+ *      visitor — market intelligence is never fabricated from identity data
+ *      alone. It is a kill-switch/ops probe, not a demo mode; leave it unset in
+ *      normal operation.
  *   2. Signed-in user with ≥1 league → real live envelope.
  *   3. Signed-in user with 0 leagues → "no-league".
  *   4. Anonymous → demo fixture envelope (real searchable universe when cached).
@@ -202,7 +207,7 @@ export async function publicDemoEnvelope(): Promise<RAEEnvelope> {
       const src = rankingsSourceFromSnapshot("PPR", rankings.fetchedAt);
       const universe = buildLeagueUniverse(playersSnap.players, rankings.data, { rankingsSource: src })
         .sort((a, b) => b.trueValue - a.trueValue)
-        .slice(0, 600);
+        .slice(0, UNIVERSE_LIMIT);
       if (universe.length > 0) {
         return { ...base, leagueUniverse: universe, draftPool: universe };
       }

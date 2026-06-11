@@ -1,0 +1,18 @@
+[2m[WebServer] [22m
+[2m[WebServer] [22m> rae-reputation-arbitrage-engine@0.1.0 start
+[2m[WebServer] [22m> next start
+[2m[WebServer] [22m
+[2m[WebServer] [22m[1m[38;2;173;127;168m▲ Next.js 16.2.6[39m[22m
+[2m[WebServer] [22m- Local:         http://localhost:3000
+[2m[WebServer] [22m- Network:       http://10.0.4.206:3000
+[2m[WebServer] [22m[32m[1m✓[22m[39m Ready in 584ms
+
+Running 4 tests using 1 worker
+
+  ok 1 [chromium] › e2e\05-auth-flow.spec.ts:9:3 › auth — register → /settings/leagues › register a new user, then reach /settings/leagues (2.3s)
+  ok 2 [chromium] › e2e\05-auth-flow.spec.ts:23:3 › auth — register → /settings/leagues › unauthenticated visit to /settings/leagues redirects to /login (535ms)
+  ok 3 [mobile-chrome] › e2e\05-auth-flow.spec.ts:9:3 › auth — register → /settings/leagues › register a new user, then reach /settings/leagues (1.6s)
+  ok 4 [mobile-chrome] › e2e\05-auth-flow.spec.ts:23:3 › auth — register → /settings/leagues › unauthenticated visit to /settings/leagues redirects to /login (684ms)
+
+  4 passed (16.5s)
+E2E05_EXIT=0

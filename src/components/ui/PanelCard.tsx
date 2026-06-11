@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import type { RAEEnvelope } from "@/lib/governance";
+import { SourceFreshnessBadge } from "@/components/governance/SourceFreshnessBadge";
 
 interface PanelCardProps {
   /** Section id — doubles as the scroll anchor target for the nav. */
@@ -10,6 +12,12 @@ interface PanelCardProps {
   eyebrow?: string;
   /** Right-aligned header controls (tab ranges, run buttons, badges…). */
   controls?: ReactNode;
+  /**
+   * Per-panel provenance (UX-06). When provided, the panel chrome renders the
+   * source · freshness · confidence · validation badge — so multi-source routes
+   * (e.g. /analytics) disclose lineage per panel, not just via the global banner.
+   */
+  source?: RAEEnvelope["sourceState"];
   children: ReactNode;
   className?: string;
 }
@@ -26,6 +34,7 @@ export function PanelCard({
   title,
   eyebrow,
   controls,
+  source,
   children,
   className
 }: PanelCardProps) {
@@ -52,6 +61,11 @@ export function PanelCard({
           </h2>
           {eyebrow ? (
             <p className="truncate text-[10px] text-muted-foreground">{eyebrow}</p>
+          ) : null}
+          {source ? (
+            <div className="mt-1">
+              <SourceFreshnessBadge sourceState={source} />
+            </div>
           ) : null}
         </div>
         {controls ? (

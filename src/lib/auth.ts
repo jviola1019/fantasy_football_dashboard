@@ -2,6 +2,7 @@ import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { z } from "zod";
+import { authConfig } from "./auth.config";
 import { getDb, schema } from "../db";
 import { authenticateUser } from "./users";
 
@@ -12,11 +13,10 @@ const credentialsSchema = z.object({
 
 function buildConfig(): NextAuthConfig {
   return {
-    // Auth.js v5 refuses to issue cookies in production unless it can verify
-    // the request host. On self-hosted Next.js (Vercel auto-detects), we need
-    // to opt-in explicitly. Local dev + Playwright both run against localhost,
-    // which is not on Auth.js's default trust list.
-    trustHost: true,
+    // Shared edge-safe base (trustHost, jwt session, pages, callbacks) — see
+    // auth.config.ts. Here in the Node runtime we add the DB adapter and the
+    // Credentials provider (both of which touch the database).
+    ...authConfig,
     // Adapter still needed so OAuth providers and verificationTokens have a
     // place to live; Credentials provider itself just uses JWT sessions.
     adapter: DrizzleAdapter(getDb(), {
@@ -25,10 +25,6 @@ function buildConfig(): NextAuthConfig {
       sessionsTable: schema.sessions,
       verificationTokensTable: schema.verificationTokens
     }),
-    // Auth.js v5 explicitly requires JWT sessions for the Credentials provider.
-    // The user id is carried in the token via the `jwt` callback and re-exposed
-    // on `session.user.id` via the `session` callback.
-    session: { strategy: "jwt" },
     providers: [
       Credentials({
         name: "Email",
@@ -44,20 +40,7 @@ function buildConfig(): NextAuthConfig {
           return { id: user.id, email: user.email, name: user.name ?? undefined };
         }
       })
-    ],
-    pages: {
-      signIn: "/login"
-    },
-    callbacks: {
-      jwt: ({ token, user }) => {
-        if (user) token.id = user.id;
-        return token;
-      },
-      session: ({ session, token }) => {
-        if (session.user && token.id) session.user.id = token.id as string;
-        return session;
-      }
-    }
+    ]
   };
 }
 

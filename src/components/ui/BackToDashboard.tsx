@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
-// Persistent back-to-dashboard control. Rendered at the top of every non-
-// homepage page so users always have a single-click path out — particularly
-// important from /login (where the topbar isn't visible) and /settings/*
-// (where the dashboard chrome is replaced by a simple settings layout).
+// Persistent back-out control. Rendered at the top of every non-homepage page
+// so users always have a single-click path out — particularly important from
+// /login (where the topbar isn't visible) and /settings/* (where the dashboard
+// chrome is replaced by a simple settings layout). The default points at "/"
+// (onboarding home — reachable anonymously), so the default label says "Home";
+// pass href="/dashboard" label="Dashboard" from authenticated contexts (UX-08).
 export function BackToDashboard({
   href = "/",
-  label = "Dashboard",
+  label = "Home",
   className
 }: {
   href?: string;

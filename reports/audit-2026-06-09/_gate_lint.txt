@@ -1,0 +1,5 @@
+
+> rae-reputation-arbitrage-engine@0.1.0 lint
+> eslint .
+
+LINT_EXIT=0

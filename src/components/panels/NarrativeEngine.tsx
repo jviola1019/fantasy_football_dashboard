@@ -34,7 +34,12 @@ interface NarrRow {
 export function NarrativeEngine({ players, envelope }: Props) {
   const panelState = envelope
     ? derivePanelState(envelope, ["trending_momentum"])
-    : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
+    : // No envelope ⇒ no provenance; claiming "ready" would fabricate trust (UX-05).
+      {
+        status: "unavailable" as const,
+        bannerText: "No data envelope — hype signals unavailable.",
+        unavailable: new Set<string>(["trending_momentum"])
+      };
   const withHype = panelState.status !== "unavailable";
 
   const ranked: NarrRow[] = players.map((p) => {
@@ -56,6 +61,7 @@ export function NarrativeEngine({ players, envelope }: Props) {
       titleId="ne-title"
       title="Narrative Engine"
       eyebrow="Hype vs. value — sell the story, buy the dip."
+      source={envelope?.sourceState}
     >
       <div className="narr-summary">
         {withHype ? (

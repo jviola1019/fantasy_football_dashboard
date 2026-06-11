@@ -29,15 +29,23 @@ Before deploying, attach a database so `DATABASE_URL` is provisioned:
 
 In **Project Settings → Environment Variables**, add the following to all three environments (Production / Preview / Development):
 
-| Variable | Value (paste exactly) |
+| Variable | Value |
 | --- | --- |
-| `AUTH_SECRET` | `LgWf0D/pjkYINQyijrdCtkpkB0tipxz1eHczmiWA514=` |
-| `CREDENTIAL_ENCRYPTION_KEY` | `w5i6GX5ZAkqD7gmOhY59dzp7czsc94nYO8yBxn55CVQ=` |
-| `DB_INIT_TOKEN` | `KiqQvPMfgcl22U0cpYX5RXoc9znt2NCJ` |
+| `AUTH_SECRET` | _Generate (below); set in Vercel only — never commit._ |
+| `CREDENTIAL_ENCRYPTION_KEY` | _Generate (below); set in Vercel only — never commit._ |
+| `DB_INIT_TOKEN` | _Generate (below); set in Vercel only — never commit._ |
 | `DATABASE_URL` | already set by the Neon integration in step 3 |
 
-> Treat these like secrets — they're real keys generated for your project. Don't paste them into any chat or public document. If you do, regenerate by running:
-> `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+Generate each value locally and paste it straight into Vercel (never into a file or chat):
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # AUTH_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # CREDENTIAL_ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"      # DB_INIT_TOKEN
+```
+
+> These are real secrets. If one ever lands in a file or chat, rotate it immediately in
+> Vercel (and clear `leagueCredentials` when rotating `CREDENTIAL_ENCRYPTION_KEY`).
 
 ## 5. Deploy
 
@@ -48,8 +56,9 @@ Click **Deploy**. First build should take ~90s. You'll get a `*.vercel.app` URL.
 The Postgres database is empty until you initialize the schema. Run this once against the deployed URL:
 
 ```bash
+DB_INIT_TOKEN=…   # the value you set in Vercel
 curl -X POST https://<your-project>.vercel.app/api/admin/init-db \
-  -H "x-init-token: KiqQvPMfgcl22U0cpYX5RXoc9znt2NCJ"
+  -H "x-init-token: $DB_INIT_TOKEN"
 ```
 
 Expected response: `{"ok":true,"driver":"postgres","applied":true}`.

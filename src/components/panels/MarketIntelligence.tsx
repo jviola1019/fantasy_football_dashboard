@@ -50,6 +50,7 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
       titleId="mi-title"
       title="Market Intelligence"
       eyebrow="Find edges. Exploit inefficiencies."
+      source={envelope?.sourceState}
     >
       <MarketKPIRow metrics={marketMetrics} players={players} />
 

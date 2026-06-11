@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,6 +17,11 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "lighthouse": "lhci autorun",
+    "check:secrets": "tsx scripts/check-doc-secrets.ts",
+    "smoke": "tsx scripts/smoke-vercel.ts",
+    "calibrate:season": "tsx scripts/brier-season-sim.ts",
+    "backtest:sleeper": "tsx scripts/backtest-sleeper-2025.ts",
+    "check:freshness": "tsx scripts/check-cron-freshness.ts",
     "deploy": "next build"
   },
   "dependencies": {
@@ -53,6 +61,7 @@
     "eslint": "latest",
     "eslint-config-next": "latest",
     "typescript": "latest",
+    "tsx": "^4.19.2",
     "vitest": "latest"
   }
 }

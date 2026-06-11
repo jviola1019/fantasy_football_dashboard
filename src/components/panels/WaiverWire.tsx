@@ -29,7 +29,12 @@ export function WaiverWire({ players, envelope }: Props) {
   const [query, setQuery] = useState("");
   const panelState = envelope
     ? derivePanelState(envelope, ["opportunity"])
-    : { status: "ready" as const, bannerText: null, unavailable: new Set<string>() };
+    : // No envelope ⇒ no provenance; claiming "ready" would fabricate trust (UX-05).
+      {
+        status: "unavailable" as const,
+        bannerText: "No data envelope — opportunity signals unavailable.",
+        unavailable: new Set<string>(["opportunity"])
+      };
   const showEdge = panelState.status === "ready";
 
   const filtered = useMemo(
@@ -47,6 +52,7 @@ export function WaiverWire({ players, envelope }: Props) {
       id="waiver-wire"
       titleId="ww-title"
       title="Waiver Wire"
+      source={envelope?.sourceState}
       eyebrow={
         showEdge
           ? "Rank free agents by value, opportunity & scarcity."

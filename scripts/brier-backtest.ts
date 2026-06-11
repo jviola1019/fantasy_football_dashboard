@@ -659,7 +659,12 @@ async function main() {
     }
   }
   lines.push("");
-  lines.push("**Production targets:** playoffProbability Brier ≤ 0.20 · championshipProbability ≤ 0.10");
+  lines.push(
+    "**Scope:** this backtest measures weekly *start/sit projection discrimination* only. " +
+      "The season simulator's `playoffProbability` / `championshipProbability` calibration " +
+      "(targets Brier ≤ 0.20 / ≤ 0.10) is a different quantity, measured separately by " +
+      "`scripts/brier-season-sim.ts` → `docs/season-calibration.md`."
+  );
   lines.push("");
   lines.push("See `docs/calibration.md` for the full calibration contract.");
 

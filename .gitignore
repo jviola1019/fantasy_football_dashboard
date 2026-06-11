@@ -19,3 +19,7 @@ artifacts/screenshots/*.png
 artifacts/screenshots/*.jpg
 artifacts/screenshots/*.jpeg
 artifacts/screenshots/*.webp
+
+# Lighthouse CI artifacts
+.lighthouseci/
+reports/lighthouse/

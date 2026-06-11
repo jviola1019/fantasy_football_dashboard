@@ -1,6 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { buildLeagueUniverse, buildFreeAgents } from "./buildUniverse";
+import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import type { SourceMeta, PlayerMarketRecord } from "../governance";
+
+describe("free-agent capping order (DAT-01)", () => {
+  const rec = (id: string, trueValue: number) =>
+    ({ id, trueValue }) as unknown as PlayerMarketRecord;
+
+  it("UNIVERSE_LIMIT is the single shared cap", () => {
+    expect(UNIVERSE_LIMIT).toBe(600);
+  });
+
+  it("capping AFTER subtraction keeps a deep unrostered player; capping BEFORE loses it", () => {
+    // Full universe by value desc; the two highest are rostered.
+    const full = [rec("sleeper:1", 100), rec("sleeper:2", 90), rec("sleeper:3", 80), rec("sleeper:4", 70)];
+    const rosters = [[rec("sleeper:1", 100), rec("sleeper:2", 90)]];
+    const CAP = 2;
+
+    // OLD (buggy): cap the universe first, then subtract → both survivors are
+    // rostered, so zero free agents even though 3 and 4 are available.
+    const buggy = buildFreeAgents(full.slice(0, CAP), rosters);
+    expect(buggy).toHaveLength(0);
+
+    // NEW (fixed): subtract from the full universe, THEN cap.
+    const fixed = buildFreeAgents(full, rosters).slice(0, CAP);
+    expect(fixed.map((p) => p.id)).toEqual(["sleeper:3", "sleeper:4"]);
+  });
+});
 import type { SleeperPlayersMap } from "../sleeper/schemas";
 import type { FpEcrData } from "../fantasypros/types";
 

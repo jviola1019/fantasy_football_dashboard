@@ -14,7 +14,7 @@ type Props = {
   players: PlayerMarketRecord[];
 };
 
-const TABS = ["Live Board", "Recommendations", "Tier Collapse", "Multiverse"] as const;
+const TABS = ["Live Board", "Recommendations", "Tier Collapse", "Big Board"] as const;
 
 export function DraftIntelligence({ players }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Live Board");
@@ -55,6 +55,7 @@ export function DraftIntelligence({ players }: Props) {
       titleId="dr-title"
       title="Draft Intelligence"
       eyebrow="Read the room. Anticipate the run."
+      source={players[0]?.sources[0]}
       controls={
         <span className="draft-controls">
           <span className="muted-text">{myRoster.length} mine · {taken.size} taken · {available.length} left</span>
@@ -88,7 +89,7 @@ export function DraftIntelligence({ players }: Props) {
       {activeTab === "Tier Collapse" && (
         <TierCollapseView signals={collapseSignals} grades={grades} />
       )}
-      {activeTab === "Multiverse" && (
+      {activeTab === "Big Board" && (
         <DraftBoardView recommendations={recommendations} />
       )}
     </PanelCard>
