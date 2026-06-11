@@ -132,3 +132,28 @@ All locally-fixable findings were implemented and verified red→green:
 **Full battery on final code (Node 25.8.2):** check:secrets ✓ (44 files) · typecheck ✓ · lint ✓ · vitest **486 passed / 6 skipped** · build ✓ · e2e **155 passed / 1 skipped** (chromium + mobile-chrome, axe included) · lighthouse `/` **92/100/100/100**, `/login` **85/100/100/100** (all assertions pass). Screenshots: `reports/audit-2026-06-11-screens/` (mobile/tablet/desktop).
 
 **Still open (not locally fixable):** F-12 merge + secret rotation (user action); branch protection on `main` (GitHub admin); observing first CodeQL/gitleaks runs; F-09 db typing (deferred, low risk); F-11 force-dynamic/ISR (measure first).
+
+---
+
+## Round-2 verification addendum (2026-06-11, independent agents + live re-runs)
+
+**Independent re-verification performed:** two review agents on the diff (general code review + silent-failure hunt), production smoke, both statistical harnesses re-run, `/dashboard` Lighthouse, truth-in-claiming sweep.
+
+**Agent findings → fixes (same day):**
+
+1. **Code-reviewer found a real regression in the CSS fix itself (critical):** the explanatory comment contained `px-*/py-*/…` — CSS comments don't nest, the embedded `*/` terminated the comment early, and minifier error-recovery consumed the `@layer base { button … }` block (losing `cursor:pointer`/`background:none`; masked in tests because Tailwind preflight independently resets buttons). **Fixed**; compiled CSS now contains the full reset (verified by grepping the built chunk) and the build emits no CSS warnings. Reviewer cleared everything else: DDL generation (identifier-safe, idempotent, additive index OK), version pins (all ≤ lockfile-resolved, majors match), remotePatterns (covers every `next/image` URL), workflow YAML, dead-code deletion.
+2. **Silent-failure hunter: "the diff fixed the table, not the blindfold"** — zero logging existed anywhere in `src/`. Implemented its six minimal fixes (TDD where logic changed, UI behavior unchanged):
+   - `infraNull(key)` log-once helper (`src/lib/envelope/infraNull.ts` + tests) on every snapshot/external `.catch(() => null)` in `load.ts`; rankings now degrades like its siblings instead of aborting the live path;
+   - the two empty catches in `load.ts` (live-path → fixture; demo enrichment) now log the error;
+   - `snapshotStore.getLatest` logs "rows exist but failed payload validation" (tested) — a tightened Zod schema can no longer silently blank panels;
+   - `/api/health?snapshots=1` gains contracts for `nflverse-opportunity` ("nfl") and `espn-news` ("espn-nfl") — the table that caused F-01 is now on the operator surface — and freshness `detail` carries a redacted read error so "missing (no such table)" ≠ "missing (cron not yet run)";
+   - the ALTER TABLE catch swallows only "duplicate column name", rethrows real errors (tested);
+   - the misleading "season key" doc comment on `getLatestOpportunitySnapshot` now documents the fixed `"nfl"` key contract.
+
+**Live re-verification results:**
+- Production smoke: **13/13 PASS** (all routes, auth redirects, health).
+- Sleeper season backtest re-run from live public data: **reproduces exactly** (Brier 0.1657, ECE 0.2583, identical reliability bins); season-sim calibration harness re-run: regenerated docs **byte-identical** (zero git diff).
+- Truth-in-claiming sweep of user-facing strings: clean (honest-absence language only).
+- **F-11 measurement (new data):** `/dashboard` Lighthouse perf **54** — TTFB 310 ms, FCP 1.1 s, **LCP 4.9 s, TBT 1,320 ms**, CLS 0.001. The dashboard route is main-thread heavy (hydration/JS, not layout). This is the measured basis for the performance phase: bundle/route-size analysis and below-fold `next/dynamic` splitting on `/dashboard` are the indicated next steps. (`/` 92 and `/login` 85 remain green; lighthouserc asserts only those two.)
+
+**Blocked items requiring the owner:** `gh` CLI is not installed/authenticated, so PR creation, branch-protection setup, and observing the first CodeQL/dependency-review/gitleaks runs (they trigger on PR/push-to-main, not on the feature branch) are user actions: open the PR from `audit/2026-06-09` → `main`, watch the four new checks, merge after confirming secret rotation.
