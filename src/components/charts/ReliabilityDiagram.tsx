@@ -153,11 +153,12 @@ export function ReliabilityDiagram({ bins, caption }: Props) {
       {caption && (
         <div
           style={{
-            fontSize: 9,
+            fontSize: 11,
+            lineHeight: 1.4,
             color: "var(--muted)",
-            fontFamily: "monospace",
-            marginTop: 4,
-            textAlign: "center"
+            marginTop: 6,
+            maxWidth: W,
+            textAlign: "left"
           }}
         >
           {caption}

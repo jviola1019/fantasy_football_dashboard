@@ -44,10 +44,6 @@ const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
 
 export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
-  const [running, setRunning] = useState(false);
-  // Honor OS "reduce motion": the JS-driven Motion path-draw + replay can't be
-  // stopped by the global CSS media query, so gate them here.
-  const reduceMotion = useReducedMotion();
 
   // Build the weekly projections Map from the envelope (plain Record → Map).
   const weeklyProjections = useMemo(() => {
@@ -80,11 +76,6 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
     ? `Live week-${projMeta.week} projections (${new Date(projMeta.fetchedAt).toLocaleDateString()})`
     : CI_LABEL[panelState.status];
 
-  const handleRun = () => {
-    setRunning(true);
-    setTimeout(() => setRunning(false), 900);
-  };
-
   const hasData = players.length > 0;
 
   return (
@@ -95,20 +86,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
       eyebrow="Simulate future. Master uncertainty."
       source={envelope?.sourceState}
       controls={
-        <>
-          <span className="sim-count">SIMULATIONS {sim.params.iterations.toLocaleString()}</span>
-          {!reduceMotion && (
-            <button
-              type="button"
-              className={`run-sim-btn${running ? " running" : ""}`}
-              onClick={handleRun}
-              disabled={running}
-              aria-label="Replay the outcome animation"
-            >
-              {running ? "REPLAYING…" : "REPLAY"}
-            </button>
-          )}
-        </>
+        <span className="sim-count">{sim.params.iterations.toLocaleString()} simulations</span>
       }
     >
       <PanelTabs
@@ -141,7 +119,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
         {activeTab === "Multiverse" && (
           <>
             <div className="nexus-main">
-              <OutcomeMultiverse players={players} sim={sim} running={running} />
+              <OutcomeMultiverse players={players} sim={sim} />
             </div>
             <div className="nexus-side">
               <ConfidenceBands players={players} sim={sim} ciMultiplier={ciMultiplier} weeklyProjections={weeklyProjections} />
@@ -158,11 +136,16 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
         )}
         {activeTab === "Risk Analysis" && (
           <div className="nexus-full">
+            <p className="section-intro">
+              How much to trust this forecast: the regret index quantifies downside exposure, the
+              reliability diagram shows whether forecast probabilities match real outcomes, and the
+              assumptions list states what the simulation took as given.
+            </p>
             <RiskOfRegret sim={sim} hasData={hasData} />
             <div className="mini-panel">
               <div className="mini-panel-title">Calibration — Reliability Diagram</div>
               <ReliabilityDiagram
-                caption="Run scripts/brier-backtest.ts to populate with real 2025 backtest data."
+                caption="Calibration is measured offline against real 2025 outcomes (model-governance report). This panel draws the live curve only once a backtest feed is wired in — it never fabricates one."
               />
             </div>
             <RiskDetails sim={sim} />
@@ -174,13 +157,14 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
 }
 
 function OutcomeMultiverse({
-  players, sim, running,
+  players, sim,
 }: {
   players: PlayerMarketRecord[];
   sim: SimulationResult;
-  running: boolean;
 }) {
-  // JS-driven Motion path-draw can't be stopped by the global reduced-motion CSS.
+  // One-time entrance draw on mount only (no replay control — the chart's value
+  // is the outcome fan, not the animation). JS-driven Motion path-draw can't be
+  // stopped by the global reduced-motion CSS, so gate it here.
   const reduceMotion = useReducedMotion();
   // Five mutually exclusive final-standing buckets that always sum to 100 and
   // are each ≥ 0 — no impossible >100% or negative percentages.
@@ -235,7 +219,7 @@ function OutcomeMultiverse({
                 strokeWidth="1.5"
                 opacity="0.65"
                 initial={{ pathLength: reduceMotion ? 1 : 0 }}
-                animate={{ pathLength: reduceMotion ? 1 : running ? 0 : 1 }}
+                animate={{ pathLength: 1 }}
                 transition={{ duration: reduceMotion ? 0 : 1.2 + i * 0.2, ease: "easeOut" }}
               />
               <circle cx="460" cy={o.y} r="8" fill="rgba(9,13,18,0.9)" stroke={o.color} strokeWidth="1.5" filter="url(#multiverseGlow)" />
@@ -403,7 +387,7 @@ function KeyDrivers({ sim, hasData }: { sim: SimulationResult; hasData: boolean 
   const maxV = Math.max(...items.map((i) => i.value), 1);
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">Key Drivers — proj pts/week</div>
+      <div className="mini-panel-title">Key Drivers — projected points / week</div>
       <BarChart items={items} max={maxV} valueSuffix="" />
     </div>
   );

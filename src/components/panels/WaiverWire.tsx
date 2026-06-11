@@ -78,7 +78,7 @@ export function WaiverWire({ players, envelope }: Props) {
             <thead>
               <tr>
                 <th>Player</th>
-                <th>Pos</th>
+                <th>Position</th>
                 <th>Team</th>
                 <th>Value</th>
                 {showEdge ? <th>Edge</th> : null}

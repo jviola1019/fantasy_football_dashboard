@@ -170,7 +170,7 @@ function LiveBoard({
           <thead>
             <tr>
               <th>Player</th>
-              <th>Pos</th>
+              <th>Position</th>
               <th>Team</th>
               <th>True</th>
               <th>Edge</th>
@@ -325,7 +325,7 @@ function TierCollapseView({
         <table>
           <thead>
             <tr>
-              <th>Pos</th>
+              <th>Position</th>
               <th>Tier</th>
               <th>Remaining</th>
               <th>Cliff</th>

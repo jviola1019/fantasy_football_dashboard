@@ -96,7 +96,7 @@ export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
               <thead>
                 <tr>
                   <th>Player</th>
-                  <th>Pos</th>
+                  <th>Position</th>
                   <th>True</th>
                   <th>Market</th>
                   <th>Edge</th>
