@@ -148,16 +148,19 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
     ${sqliteSnapshotDdl()}
   `);
   // Additive column migrations for DBs created before these columns existed.
-  // SQLite ADD COLUMN throws if the column is already present (the common case
-  // on a fresh DB where the CREATE above already includes them) — swallow that.
+  // SQLite ADD COLUMN throws "duplicate column name" if the column is already
+  // present (the common case on a fresh DB where the CREATE above already
+  // includes them) — swallow ONLY that; a locked/corrupt DB during ALTER must
+  // surface here, not later as a baffling "no such column" at query time.
   for (const stmt of [
     "ALTER TABLE leagues ADD COLUMN settings TEXT",
     "ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT"
   ]) {
     try {
       sqlite.exec(stmt);
-    } catch {
-      // column already present
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/duplicate column name/i.test(msg)) throw err;
     }
   }
 }

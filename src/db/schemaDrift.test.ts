@@ -69,6 +69,25 @@ describe("SQLite schema drift guard", () => {
     }
   });
 
+  // The additive ALTER TABLE migrations must swallow ONLY "duplicate column"
+  // (the expected case on a fresh DB) — a locked/corrupt DB during ALTER must
+  // surface, not resurface later as a baffling "no such column" at query time.
+  it("ALTER TABLE catch swallows duplicate-column only, rethrows real errors", () => {
+    const duplicateOnly = {
+      exec(sql: string) {
+        if (sql.trimStart().startsWith("ALTER")) throw new Error("duplicate column name: settings");
+      }
+    };
+    expect(() => applySqliteSchemaIfNeeded(duplicateOnly)).not.toThrow();
+
+    const busy = {
+      exec(sql: string) {
+        if (sql.trimStart().startsWith("ALTER")) throw new Error("SQLITE_BUSY: database is locked");
+      }
+    };
+    expect(() => applySqliteSchemaIfNeeded(busy)).toThrow(/SQLITE_BUSY/);
+  });
+
   // SQLite mirror of the Postgres "M4 guard" (schemaPg.test.ts asserts INIT_SQL
   // covers every pgTable). The DDL-vs-DDL comparison above can't catch a table
   // missing from BOTH hand-maintained copies — which is exactly how

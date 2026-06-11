@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { resetDbForTests } from "./index";
 import { makeSnapshotStore } from "./snapshotStore";
@@ -92,15 +92,26 @@ describe("makeSnapshotStore", () => {
     }
   });
 
-  it("returns null (does not throw) when a stored payload fails validation", async () => {
+  it("returns null (does not throw) when a stored payload fails validation — but logs it", async () => {
     // Insert a row whose payload does not match PayloadSchema using a store with
-    // a permissive schema, then read it back through the strict store.
-    const permissive = makeSnapshotStore<unknown>({
-      table: "players_snapshots",
-      tableKey: "playersSnapshots",
-      schema: z.unknown()
-    });
-    await permissive.insert("src-a", { totally: "different" });
-    expect(await store().getLatest("src-a")).toBeNull();
+    // a permissive schema, then read it back through the strict store. The null
+    // keeps the UI honest ("unavailable"); the log keeps the OPERATOR honest —
+    // "rows exist but fail validation" must not read identically to "no data"
+    // (tightening a snapshot Zod schema would otherwise silently blank a panel).
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const permissive = makeSnapshotStore<unknown>({
+        table: "players_snapshots",
+        tableKey: "playersSnapshots",
+        schema: z.unknown()
+      });
+      await permissive.insert("src-a", { totally: "different" });
+      expect(await store().getLatest("src-a")).toBeNull();
+      expect(errSpy).toHaveBeenCalledOnce();
+      expect(String(errSpy.mock.calls[0]![0])).toContain("players_snapshots");
+      expect(String(errSpy.mock.calls[0]![0])).toContain("failed payload validation");
+    } finally {
+      errSpy.mockRestore();
+    }
   });
 });
