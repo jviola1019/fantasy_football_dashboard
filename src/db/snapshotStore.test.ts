@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { resetDbForTests } from "./index";
 import { makeSnapshotStore } from "./snapshotStore";
@@ -72,15 +72,46 @@ describe("makeSnapshotStore", () => {
     await expect(s.insert("src-a", { a: "not-a-number", b: "x" })).rejects.toThrow();
   });
 
-  it("returns null (does not throw) when a stored payload fails validation", async () => {
+  // Every snapshot table must round-trip against the in-memory test schema —
+  // exercising only playersSnapshots is how the missing opportunity_snapshots
+  // table went unnoticed (its reads are .catch(() => null)'d in envelope/load).
+  it("insert + getLatest round-trips on every snapshot tableKey", async () => {
+    const pairs = [
+      ["players_snapshots", "playersSnapshots"],
+      ["rankings_snapshots", "rankingsSnapshots"],
+      ["ktc_snapshots", "ktcSnapshots"],
+      ["projections_snapshots", "projectionsSnapshots"],
+      ["news_snapshots", "newsSnapshots"],
+      ["opportunity_snapshots", "opportunitySnapshots"]
+    ] as const;
+    for (const [table, tableKey] of pairs) {
+      const s = makeSnapshotStore<Payload>({ table, tableKey, schema: PayloadSchema });
+      await s.insert("src-a", { a: 1, b: table });
+      const read = await s.getLatest("src-a");
+      expect(read?.payload.b, `round-trip failed for ${table}`).toBe(table);
+    }
+  });
+
+  it("returns null (does not throw) when a stored payload fails validation — but logs it", async () => {
     // Insert a row whose payload does not match PayloadSchema using a store with
-    // a permissive schema, then read it back through the strict store.
-    const permissive = makeSnapshotStore<unknown>({
-      table: "players_snapshots",
-      tableKey: "playersSnapshots",
-      schema: z.unknown()
-    });
-    await permissive.insert("src-a", { totally: "different" });
-    expect(await store().getLatest("src-a")).toBeNull();
+    // a permissive schema, then read it back through the strict store. The null
+    // keeps the UI honest ("unavailable"); the log keeps the OPERATOR honest —
+    // "rows exist but fail validation" must not read identically to "no data"
+    // (tightening a snapshot Zod schema would otherwise silently blank a panel).
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const permissive = makeSnapshotStore<unknown>({
+        table: "players_snapshots",
+        tableKey: "playersSnapshots",
+        schema: z.unknown()
+      });
+      await permissive.insert("src-a", { totally: "different" });
+      expect(await store().getLatest("src-a")).toBeNull();
+      expect(errSpy).toHaveBeenCalledOnce();
+      expect(String(errSpy.mock.calls[0]![0])).toContain("players_snapshots");
+      expect(String(errSpy.mock.calls[0]![0])).toContain("failed payload validation");
+    } finally {
+      errSpy.mockRestore();
+    }
   });
 });

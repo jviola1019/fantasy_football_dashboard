@@ -15,7 +15,12 @@ export interface OpportunitySnapshot {
   scores: OpportunityMap;
 }
 
-/** Freshest opportunity snapshot for a season key (e.g. "2025"), or null. */
+/**
+ * Freshest opportunity snapshot for a source key, or null. The cron writes
+ * under the FIXED key "nfl" (opportunity-refresh/route.ts OPP_SOURCE) — NOT a
+ * season string — so readers always find the latest snapshot without knowing
+ * which season the cron resolved. Passing a season here returns null forever.
+ */
 export async function getLatestOpportunitySnapshot(source: string): Promise<OpportunitySnapshot | null> {
   const rec = await store.getLatest(source);
   if (!rec) return null;

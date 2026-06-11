@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import Database from "better-sqlite3";
+import { getTableName, is } from "drizzle-orm";
+import { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { applySqliteSchemaIfNeeded, applyTestSchema } from "./index";
+import * as sqliteSchema from "./schema";
 
 /**
  * Drift guard for the three hand-maintained SQLite DDL copies. The prod path
@@ -63,6 +66,53 @@ describe("SQLite schema drift guard", () => {
     } finally {
       prodDb.close();
       testDb.close();
+    }
+  });
+
+  // The additive ALTER TABLE migrations must swallow ONLY "duplicate column"
+  // (the expected case on a fresh DB) — a locked/corrupt DB during ALTER must
+  // surface, not resurface later as a baffling "no such column" at query time.
+  it("ALTER TABLE catch swallows duplicate-column only, rethrows real errors", () => {
+    const duplicateOnly = {
+      exec(sql: string) {
+        if (sql.trimStart().startsWith("ALTER")) throw new Error("duplicate column name: settings");
+      }
+    };
+    expect(() => applySqliteSchemaIfNeeded(duplicateOnly)).not.toThrow();
+
+    const busy = {
+      exec(sql: string) {
+        if (sql.trimStart().startsWith("ALTER")) throw new Error("SQLITE_BUSY: database is locked");
+      }
+    };
+    expect(() => applySqliteSchemaIfNeeded(busy)).toThrow(/SQLITE_BUSY/);
+  });
+
+  // SQLite mirror of the Postgres "M4 guard" (schemaPg.test.ts asserts INIT_SQL
+  // covers every pgTable). The DDL-vs-DDL comparison above can't catch a table
+  // missing from BOTH hand-maintained copies — which is exactly how
+  // opportunity_snapshots shipped in schema.ts but never got created on SQLite.
+  it("prod DDL creates every table declared in the canonical Drizzle schema", () => {
+    const declared = Object.values(sqliteSchema as Record<string, unknown>)
+      .filter((v): v is SQLiteTable => is(v, SQLiteTable))
+      .map((t) => getTableName(t))
+      .sort();
+    expect(declared.length).toBeGreaterThan(0);
+
+    const db = new Database(":memory:");
+    try {
+      applySqliteSchemaIfNeeded(db);
+      const created = new Set(
+        (
+          db
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            .all() as Array<{ name: string }>
+        ).map((r) => r.name)
+      );
+      const missing = declared.filter((t) => !created.has(t));
+      expect(missing, `tables declared in schema.ts but absent from the SQLite DDL: ${missing.join(", ")}`).toEqual([]);
+    } finally {
+      db.close();
     }
   });
 });

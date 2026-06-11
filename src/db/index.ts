@@ -53,6 +53,27 @@ function createSqliteDb(filename: string): Db {
   return drizzle(sqlite, { schema: sqliteSchema }) as Db;
 }
 
+// SQLite flavor of schema-pg's snapshotTableSql: same five-column shape, but
+// ms-integer timestamps and TEXT payload. Generated from SNAPSHOT_TABLES so a
+// snapshot table added to the canonical schema can never be silently missing
+// here again (the opportunity_snapshots gap: both hand-written DDL copies
+// omitted it while schema.ts declared it, and the drift guard only compared
+// the two copies to each other).
+function sqliteSnapshotDdl(): string {
+  return pgSchema.SNAPSHOT_TABLES.map(
+    (table) => `
+    CREATE TABLE IF NOT EXISTS ${table} (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      sizeBytes INTEGER NOT NULL,
+      payload TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS ${table}_source_fetched
+      ON ${table} (source, fetchedAt DESC);`
+  ).join("\n");
+}
+
 // Exported for the schema drift-guard test (db/schemaDrift.test.ts), which
 // asserts this prod DDL and the in-memory test DDL stay structurally identical.
 export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unknown }): void {
@@ -114,13 +135,6 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       ciphertext BLOB NOT NULL,
       rotatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
-    CREATE TABLE IF NOT EXISTS players_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY,
       userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -131,46 +145,22 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       dismissedAt INTEGER
     );
-    CREATE TABLE IF NOT EXISTS rankings_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS ktc_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS projections_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS news_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
+    ${sqliteSnapshotDdl()}
   `);
   // Additive column migrations for DBs created before these columns existed.
-  // SQLite ADD COLUMN throws if the column is already present (the common case
-  // on a fresh DB where the CREATE above already includes them) — swallow that.
+  // SQLite ADD COLUMN throws "duplicate column name" if the column is already
+  // present (the common case on a fresh DB where the CREATE above already
+  // includes them) — swallow ONLY that; a locked/corrupt DB during ALTER must
+  // surface here, not later as a baffling "no such column" at query time.
   for (const stmt of [
     "ALTER TABLE leagues ADD COLUMN settings TEXT",
     "ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT"
   ]) {
     try {
       sqlite.exec(stmt);
-    } catch {
-      // column already present
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!/duplicate column name/i.test(msg)) throw err;
     }
   }
 }
@@ -261,13 +251,6 @@ export function applyTestSchema(sqlite: MinimalSqliteHandle) {
       ciphertext BLOB NOT NULL,
       rotatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
-    CREATE TABLE players_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
     CREATE TABLE notifications (
       id TEXT PRIMARY KEY,
       userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -278,33 +261,6 @@ export function applyTestSchema(sqlite: MinimalSqliteHandle) {
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       dismissedAt INTEGER
     );
-    CREATE TABLE rankings_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
-    CREATE TABLE ktc_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
-    CREATE TABLE projections_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
-    CREATE TABLE news_snapshots (
-      id TEXT PRIMARY KEY,
-      source TEXT NOT NULL,
-      fetchedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
-      sizeBytes INTEGER NOT NULL,
-      payload TEXT NOT NULL
-    );
+    ${sqliteSnapshotDdl()}
   `);
 }

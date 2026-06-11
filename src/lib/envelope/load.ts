@@ -10,6 +10,7 @@ import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
+import { infraNull } from "./infraNull";
 import { buildLeagueUniverse, UNIVERSE_LIMIT } from "@/lib/leagues/buildUniverse";
 import { buildLiveEnvelope, rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
@@ -100,15 +101,21 @@ async function resolveEnvelope(): Promise<HomeResolution> {
       // render a live envelope with the full draftable universe.
       if (live && (live.myRoster.length > 0 || live.format !== null)) {
         const scoring = live.format?.scoringFormat ?? "PPR";
+        // Each read degrades to null (the UI renders "unavailable" honestly)
+        // but logs once via infraNull — the store returns null for legitimate
+        // absence, so a REJECTION here is infrastructure-shaped (the
+        // opportunity_snapshots missing-table bug hid for months behind bare
+        // `.catch(() => null)`s). Rankings degrades like its siblings instead
+        // of aborting the whole live path to fixture.
         const [rankings, trendingAddsResult, trendingDropsResult, nflState, newsSnapshot, playersSnapshot, oppSnapshot] =
           await Promise.all([
-            getLatestRankingsSnapshot(scoring),
-            getTrendingPlayers("add", 24, 100).catch(() => null),
-            getTrendingPlayers("drop", 24, 100).catch(() => null),
-            getNflState().catch(() => null),
-            getLatestNewsSnapshot("espn-nfl").catch(() => null),
-            getLatestPlayersSnapshot().catch(() => null),
-            getLatestOpportunitySnapshot("nfl").catch(() => null)
+            getLatestRankingsSnapshot(scoring).catch(infraNull("rankings")),
+            getTrendingPlayers("add", 24, 100).catch(infraNull("trending-adds")),
+            getTrendingPlayers("drop", 24, 100).catch(infraNull("trending-drops")),
+            getNflState().catch(infraNull("nfl-state")),
+            getLatestNewsSnapshot("espn-nfl").catch(infraNull("news")),
+            getLatestPlayersSnapshot().catch(infraNull("players")),
+            getLatestOpportunitySnapshot("nfl").catch(infraNull("opportunity"))
           ]);
         const trendingAdds = buildTrendingMap(trendingAddsResult?.data ?? null);
         const trendingDrops = buildTrendingMap(trendingDropsResult?.data ?? null);
@@ -138,7 +145,9 @@ async function resolveEnvelope(): Promise<HomeResolution> {
         let weeklyProjectionsMeta: { season: string; week: number; fetchedAt: string } | null = null;
         const nflData = nflState?.data;
         if (nflData?.season_type === "regular" && nflData.week >= 1) {
-          const projSnapshot = await getLatestProjectionsSnapshot(nflData.season, nflData.week).catch(() => null);
+          const projSnapshot = await getLatestProjectionsSnapshot(nflData.season, nflData.week).catch(
+            infraNull("projections")
+          );
           if (projSnapshot) {
             const pts: Record<string, number> = {};
             for (const [id, p] of Object.entries(projSnapshot.data.projections)) {
@@ -176,9 +185,12 @@ async function resolveEnvelope(): Promise<HomeResolution> {
         };
       }
     }
-  } catch {
-    // Live envelope path failed (auth / DB / cron). Fall through to fixture so
-    // the public surface stays up.
+  } catch (err) {
+    // Live envelope path failed (auth / DB / a code bug in the build chain).
+    // Falling through to the labeled fixture keeps the public surface up —
+    // but a signed-in user silently demoted to DEMO data with no log was the
+    // worst failure mode this file had, so say so to the operator.
+    console.error("[envelope] live path failed; serving fixture fallback:", err);
   }
 
   return {
@@ -200,8 +212,8 @@ export async function publicDemoEnvelope(): Promise<RAEEnvelope> {
   const base = RAEEnvelopeSchema.parse(fixtureEnvelope());
   try {
     const [rankings, playersSnap] = await Promise.all([
-      getLatestRankingsSnapshot("PPR").catch(() => null),
-      getLatestPlayersSnapshot().catch(() => null)
+      getLatestRankingsSnapshot("PPR").catch(infraNull("demo-rankings")),
+      getLatestPlayersSnapshot().catch(infraNull("demo-players"))
     ]);
     if (rankings?.data && playersSnap) {
       const src = rankingsSourceFromSnapshot("PPR", rankings.fetchedAt);
@@ -212,8 +224,12 @@ export async function publicDemoEnvelope(): Promise<RAEEnvelope> {
         return { ...base, leagueUniverse: universe, draftPool: universe };
       }
     }
-  } catch {
-    // No cached snapshots (e.g. local dev before a cron) — plain demo fixture.
+  } catch (err) {
+    // The inner infraNull catches make this outer catch unreachable for
+    // snapshot reads — anything landing here is a code bug (e.g. in
+    // buildLeagueUniverse), which is exactly what should be logged. The
+    // plain labeled demo fixture still renders.
+    console.error("[envelope] demo universe enrichment failed; plain fixture:", err);
   }
   return base;
 }

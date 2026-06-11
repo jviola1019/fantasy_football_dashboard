@@ -89,6 +89,9 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, className }: Pane
             onKeyDown={(e) => onKeyDown(e, index)}
             className={cn(
               "relative isolate shrink-0 whitespace-nowrap rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-[0.07em]",
+              // ≥44px touch target on coarse pointers (WCAG 2.2 / audit F-10);
+              // desktop keeps the denser 36px row.
+              "pointer-coarse:min-h-11",
               "transition-[color,background-color,transform] duration-200 active:scale-[0.97]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]",
               isActive

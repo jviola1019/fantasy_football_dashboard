@@ -4,15 +4,19 @@ import { redact, unwrap } from "@/lib/redact";
 import { safeEqual } from "@/lib/timingSafe";
 import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
+import { getLatestNewsSnapshot } from "@/lib/espn/newsSnapshot";
+import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
 import { evaluateFreshness, type FreshnessContract, type FreshnessResult } from "@/lib/ops/freshness";
 
 export const runtime = "nodejs";
 
 const DAY = 24 * 3600;
-// Snapshot freshness contracts for the two sources that drive the envelope.
-// Surfaced (query-gated) for an uptime monitor / scripts/check-cron-freshness.ts;
-// intentionally does NOT flip the top-level `status` (a behind cron during the
-// off-season shouldn't read as "app down").
+// Snapshot freshness contracts for the fixed-source-key sources that drive the
+// envelope. Surfaced (query-gated) for an uptime monitor /
+// scripts/check-cron-freshness.ts; intentionally does NOT flip the top-level
+// `status` (a behind cron during the off-season shouldn't read as "app down").
+// Projections (keyed per season-week) and KTC (per format) have no fixed key
+// to contract against — deferred deliberately, not forgotten.
 const SNAPSHOT_CONTRACTS: Array<{
   contract: FreshnessContract;
   load: () => Promise<{ fetchedAt: Date } | null>;
@@ -24,6 +28,16 @@ const SNAPSHOT_CONTRACTS: Array<{
   {
     contract: { source: "fantasypros-ppr", warnAfterSeconds: DAY, expireAfterSeconds: 30 * 3600 },
     load: () => getLatestRankingsSnapshot("PPR")
+  },
+  {
+    // nflverse opportunity: daily cron, 14-day retention; warn after 2 days
+    // (one missed run), expire when the prune window would empty the table.
+    contract: { source: "nflverse-opportunity", warnAfterSeconds: 2 * DAY, expireAfterSeconds: 15 * DAY },
+    load: () => getLatestOpportunitySnapshot("nfl")
+  },
+  {
+    contract: { source: "espn-news", warnAfterSeconds: DAY, expireAfterSeconds: 3 * DAY },
+    load: () => getLatestNewsSnapshot("espn-nfl")
   }
 ];
 
@@ -31,12 +45,18 @@ async function snapshotFreshness(now: Date): Promise<FreshnessResult[]> {
   const results = await Promise.all(
     SNAPSHOT_CONTRACTS.map(async (s) => {
       let fetchedAt: Date | null = null;
+      let readError: string | null = null;
       try {
         fetchedAt = (await s.load())?.fetchedAt ?? null;
-      } catch {
-        fetchedAt = null; // DB/table missing → reported as missing below
+      } catch (err) {
+        // "missing (no such table: …)" must be distinguishable from
+        // "missing (cron not yet run)" — this endpoint is the operator surface.
+        fetchedAt = null;
+        readError = redact(err instanceof Error ? err.message : String(err));
       }
-      return evaluateFreshness(s.contract, fetchedAt, now);
+      const result = evaluateFreshness(s.contract, fetchedAt, now);
+      if (readError) result.detail = `${result.detail} (read error: ${readError})`;
+      return result;
     })
   );
   return results;

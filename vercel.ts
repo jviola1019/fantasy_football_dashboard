@@ -3,7 +3,9 @@ import type { VercelConfig } from "@vercel/config/v1";
 const config: VercelConfig = {
   framework: "nextjs",
   buildCommand: "next build",
-  installCommand: "npm install --no-audit --no-fund",
+  // npm ci: deploys install exactly what package-lock.json resolves — same as
+  // CI — instead of letting `npm install` re-resolve ranges on every deploy.
+  installCommand: "npm ci --no-audit --no-fund",
   // Per-function overrides. The /api/leagues/[id]/refresh route does live ESPN +
   // Sleeper fetches in parallel and decrypts AES-GCM; give it room and a higher
   // duration cap.
@@ -49,6 +51,15 @@ const config: VercelConfig = {
     }
   },
   crons: [
+    // NOTE on schedule precision: the minute-level stagger below states INTENT
+    // (an ordering that avoids overlapping invocations), not a guarantee. On
+    // the Hobby plan Vercel runs each daily cron once within ±59 minutes of
+    // the scheduled hour, so the stagger — and even the relative order — may
+    // not hold. Every job is independent and idempotent (each writes its own
+    // snapshot table), so out-of-order or overlapping runs are safe; only the
+    // lifecycle-check (09:30) prefers same-day snapshots and degrades to the
+    // previous day's if it fires first.
+    //
     // Daily Sleeper players snapshot. Avoids the 19MB live fetch on every
     // request. The route is gated by the `Authorization: Bearer $CRON_SECRET`
     // header Vercel sends automatically when CRON_SECRET env var is set.

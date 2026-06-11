@@ -113,7 +113,15 @@ export function makeSnapshotStore<T>(config: SnapshotStoreConfig<T>): SnapshotSt
     const row = rows[0];
     if (!row) return null;
     const payload = parsePayload(row.payload);
-    if (payload === null) return null;
+    if (payload === null) {
+      // Rows EXIST but fail validation — e.g. a tightened Zod schema orphaning
+      // previously-written snapshots. Without this log it reads identically to
+      // "cron never ran" and panels silently flip to "unavailable" forever.
+      console.error(
+        `[snapshotStore] ${config.table}: latest row for source="${source}" exists but failed payload validation (id=${row.id})`
+      );
+      return null;
+    }
     return { id: row.id, fetchedAt: toDate(row.fetchedAt), sizeBytes: row.sizeBytes, payload };
   }
 

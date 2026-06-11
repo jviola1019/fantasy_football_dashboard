@@ -217,7 +217,9 @@ Implemented accessibility features:
 - `prefers-reduced-motion` support,
 - high-contrast graphite/cream theme with restrained status colors.
 
-Manual screen-reader and automated axe/Playwright audits should be added before production release.
+Automated axe/Playwright audits run in CI (`e2e/03-a11y.spec.ts` fails the build on any
+`serious`/`critical` violation). Manual screen-reader passes remain ad hoc — rerun one
+before major shell/navigation changes.
 
 ## Testing strategy
 

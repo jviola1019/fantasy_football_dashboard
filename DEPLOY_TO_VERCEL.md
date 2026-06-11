@@ -67,7 +67,7 @@ If you ever rotate `CREDENTIAL_ENCRYPTION_KEY`, you must clear `leagueCredential
 
 ## 7. Verify
 
-- Visit `/` — the dashboard renders the fixture envelope (six WebGL panels).
+- Visit `/` — the onboarding page renders; `/dashboard` serves the envelope-driven panels (SVG/RSC, labeled DEMO until a league is connected).
 - Visit `/login`, register an account.
 - Visit `/settings/leagues`, add a Sleeper or ESPN league.
 - `POST /api/leagues/<id>/refresh` should return a fresh envelope.
@@ -76,13 +76,13 @@ If you ever rotate `CREDENTIAL_ENCRYPTION_KEY`, you must clear `leagueCredential
 
 1. **`src/db/index.ts`** — dual driver. URL starting with `postgres://` selects the `postgres-js` Drizzle adapter; everything else uses local SQLite. `better-sqlite3` is only required at runtime when needed, so Vercel's serverless functions never load the native binary.
 2. **`src/db/schema-pg.ts`** — Postgres mirror of the SQLite schema with the same column names and JS types, plus an `INIT_SQL` string used by the bootstrap route.
-3. **`src/app/api/admin/init-db/route.ts`** — token-protected one-shot endpoint that runs `CREATE TABLE IF NOT EXISTS ...` for all six tables.
+3. **`src/app/api/admin/init-db/route.ts`** — token-protected one-shot endpoint that runs `CREATE TABLE IF NOT EXISTS ...` for every table in `INIT_SQL` (auth + leagues + notifications + all snapshot tables; coverage enforced by `schemaPg.test.ts`).
 4. **`src/app/page.tsx`** — now `dynamic = "force-dynamic"` and serves the fixture envelope by default. The old static build downloaded the 19 MB Sleeper player catalog at build time and triggered Vercel's 2 MB data-cache cap.
 5. **`vercel.ts`** — typed config (`@vercel/config/v1`). Sets framework, install/build commands, per-function memory + maxDuration for the league-refresh and auth routes, and a no-cache header rule for `/api/*`.
 
 ## What is intentionally not wired up
 
-- Cron-driven daily Sleeper players-catalog snapshot to Vercel Blob — planned PR 6.
+- ~~Cron-driven daily Sleeper players-catalog snapshot~~ — superseded: `/api/cron/players-refresh` (plus rankings/ktc/projections/news/opportunity crons) snapshots into Postgres daily; Vercel Blob was never needed.
 - OAuth providers (Google) — Credentials only for now.
 - Email magic-link — would need an SMTP provider; skipped this pass.
 

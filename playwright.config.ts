@@ -5,8 +5,9 @@ const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`;
 
 /**
  * Local + CI Playwright config. `next start` is launched by Playwright when
- * not already running. Cold starts on Windows + 6 WebGL canvases hydrating
- * take real time, so the local default per-test timeout is generous.
+ * not already running. Cold starts on Windows (next-server boot + first-route
+ * render) take real time, so the local default per-test timeout is generous.
+ * (The old "6 WebGL canvases" rationale is gone — current panels are SVG/RSC.)
  */
 export default defineConfig({
   testDir: "./e2e",
