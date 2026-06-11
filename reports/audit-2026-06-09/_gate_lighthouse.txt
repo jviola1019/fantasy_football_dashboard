@@ -1,0 +1,22 @@
+✅  .lighthouseci/ directory writable
+✅  Configuration file found
+✅  Chrome installation found
+⚠️   GitHub token not set
+Healthcheck passed!
+
+Started a web server with "npm run start"...
+Running Lighthouse 1 time(s) on http://localhost:3000/
+Run #1...done.
+Running Lighthouse 1 time(s) on http://localhost:3000/login
+Run #1...done.
+Done running Lighthouse!
+
+Checking assertions against 2 URL(s), 2 total run(s)
+
+All results processed!
+
+Dumping 2 reports to disk at C:\Users\jviol\Downloads\fantasy_football_dashboard\reports\lighthouse...
+Done writing reports to disk.
+
+Done running autorun.
+LH_EXIT=0

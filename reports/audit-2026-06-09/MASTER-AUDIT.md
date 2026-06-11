@@ -332,9 +332,18 @@ Add:
 | `scripts/check-cron-freshness.ts` | snapshot age + schema per source | data-contract drift |
 | `scripts/audit-branches.ts` | ahead/behind/merged table | branch hygiene CI |
 
-## 17b. Remediation status (implemented 2026-06-09 → 06-10, branch `audit/2026-06-09`)
+## 17b. Remediation status (implemented 2026-06-09 → 06-11, branch `audit/2026-06-09`)
 
-**Gates after remediation:** typecheck ✓ · lint ✓ · vitest **476 passed / 6 skipped** (+26 new) · check:secrets ✓ · smoke **13/13** vs production.
+**FULL gate sweep (Node 25 local, the entire original-prompt battery — the native-module blocker is gone):**
+typecheck ✓ · lint ✓ · **vitest 484 passed / 6 skipped** (+34 new tests) · **build ✓** (`next build`) · **e2e ✓ 152 passed** (chromium + mobile-chrome, Playwright + axe) · **lighthouse ✓** (`/` perf 90 / a11y 100 / bp 100 / seo 100; `/login` perf 87 / a11y 100 / bp 100 / seo 100) · check:secrets ✓ · smoke **13/13** vs production.
+
+**Account / size coverage (e2e, both desktop + mobile projects):** registration → reach `/settings/leagues`; **cross-account isolation** (user B sees none of user A's data, `07-no-shared-data`); change-password + delete-account forms (`17-account-flows`); Sleeper + ESPN import forms; wrong-password UX leaks nothing. Real-league sizes exercised by the backtest: 10-team PPR (live). Synthetic-config harness sweeps 8-40 team configurations.
+
+**Security re-verification (no leaks, account security, no public keys):**
+- Tracked-file secret scan: **clean** (44 files); `git grep` for every leaked literal: **none** outside redacted audit-doc previews.
+- Remote raw fetch: `origin/audit/2026-06-09` serves the **redacted** doc; **`origin/main` STILL serves the real secrets** until this branch merges → **rotation + merge both required** (keys regenerated for the owner out-of-band, never committed).
+- `/api/health`: config-presence `checks` + `?snapshots=1` DB reads now **bearer-gated** (functionally verified: no-bearer → `{status}` only; correct bearer → full detail). Independent code-review agent: **no critical issues**; its 2 important findings (snapshot DB-load gating, special-char password detection) **fixed** (`d7874ae`).
+- Edge auth proxy (`src/proxy.ts`): build emits "ƒ Proxy (Middleware)"; isolation test proved the pre-existing local-sqlite `/api/auth/session` 500 is **environmental, not introduced** by the refactor (production postgres returns `200 null`, 0 console errors).
 
 | Finding | Status | Commit(s) |
 |---|---|---|
@@ -350,9 +359,25 @@ Add:
 | BR-01/03/04 branch hygiene | **Done** — 8 stale remote + 6 local branches pruned (1 archived as `archive/claude/redesign-output-dashboard-Homgq`), local `main` ff'd, 5 semver tags `v0.1.0`–`v0.5.0` pushed | — |
 | BR-02 unmerged Sleeper fix `71925df` | **Resolved** — superseded by the ECR+nflverse pipeline (old `src/lib/sleeper.ts` deleted); archived, safe | — |
 
-**Deferred (documented, not shipped):**
-- **SEC-02 middleware** — next-auth v5 + the Drizzle/better-sqlite3 adapter defaults to the **edge** runtime where the native module won't load; needs a split JWT-only middleware config and a real deploy to verify. Page-level protection works today (`/settings/*`→307). Recommend a follow-up PR.
-- Low-impact S3s: SEC-03 (`/api/health` config-presence), SEC-04 (scrypt cost params), UX-05/06/08/10, DAT-03/04/05/06.
+**Deferred items — all cleared 2026-06-10 (phase 2):**
+
+| Item | Status | Evidence |
+|---|---|---|
+| SEC-02 edge auth gate | **Shipped** — adapter-free `auth.config.ts` shared by Node handlers + Next-16 `src/proxy.ts` gating `/settings/*`; build emits "ƒ Proxy (Middleware)"; `authorized`/`jwt`/`session` unit-tested | `4f385d7` |
+| SEC-03 health config disclosure | **Fixed** — `checks`/`databaseError` require the cron bearer; public = `{status}` + snapshot ages | `8ef85d7` |
+| SEC-04 scrypt params | **Fixed** — pinned `N=16384,r=8,p=1` (≡ Node defaults, back-compat) + version-migration note | `8ef85d7` |
+| UX-05 no-envelope "ready" | **Fixed** — Narrative/Waiver/Nexus fall back to `unavailable` + banner | `8ef85d7` |
+| UX-06 per-panel provenance | **Shipped** — `PanelCard` renders `SourceFreshnessBadge`; 6 panels wired | `bc531fe` |
+| UX-08 / UX-10 | **Fixed** — label "Home" matches `/`; value KPIs render "—" when value fields missing (no 0.0 coercion) | `8ef85d7` |
+| DAT-03 | **Fixed** — KTC fallback carries real snapshot `fetchedAt` + age-derived freshness; live DynastyProcess honestly `fresh` | `8ef85d7` |
+| DAT-04 / DAT-06 | **Fixed** — kill-switch behavior documented; doc anchors symbol-based; stale P10/P90 row rewritten | `8ef85d7` |
+| CID-06 lighthouse storage | **Fixed** — `temporary-public-storage` → local `filesystem` (`reports/lighthouse`) | (this commit) |
+
+**Real-data verification (2026-06-10, no synthetic data):**
+- **League dedupe:** jviola1019's two 2025 leagues are the same group; `1257101996586975233` is a hollow duplicate (0 picks, 0 rostered). **`1265735061127311360` "Creamy Les Coot 4.0"** (complete 150-pick draft, 10 teams) is the canonical league and the 2026-preview post-draft baseline. No 2026 Sleeper leagues exist yet (offseason).
+- **Post-draft invariant on real draft:** 3,292 active fantasy players − 150 real draft picks = 3,142 free agents; pick #1 (Ja'Marr Chase) correctly excluded. Validates the DAT-01 fix (FA from full pool, then cap).
+- **Real season backtest** (`npm run backtest:sleeper`): predicted P(playoff) from real weekly scores vs. actual playoff field — pooled **Brier 0.1657 < 0.20 target** (ECE 0.2583, honest n=10 caveat). `docs/season-backtest-2025.md`.
+- **Real player backtest** (`scripts/brier-backtest.ts`): 3,573 startable player-weeks, 2025 weeks 1-17; calibrated Brier QB 0.2368/RB 0.1969/WR 0.2036/TE 0.2059, all calibrated ECE ≤ 0.034. `docs/brier-results.md`.
 
 ## 17. Open questions & unknowns (could not verify directly)
 
