@@ -39,9 +39,49 @@ export interface LeagueRecord {
 
 type Db = ReturnType<typeof import("../db").getDb>;
 
+/**
+ * Find a user's existing league by its external identity (platform +
+ * externalLeagueId + season). Scoped to the user so the same Sleeper/ESPN id
+ * under two accounts is never treated as the same league. Returns null if none.
+ */
+export async function findUserLeagueByExternal(
+  db: Db,
+  userId: string,
+  platform: LeaguePlatform,
+  externalLeagueId: string,
+  season: number
+): Promise<LeagueRecord | null> {
+  const rows = await db
+    .select()
+    .from(schema.leagues)
+    .where(
+      and(
+        eq(schema.leagues.userId, userId),
+        eq(schema.leagues.platform, platform),
+        eq(schema.leagues.externalLeagueId, externalLeagueId),
+        eq(schema.leagues.season, season)
+      )
+    )
+    .limit(1);
+  return rows[0] ? toRecord(rows[0]) : null;
+}
+
 export async function createLeague(db: Db, input: CreateLeagueInput): Promise<LeagueRecord> {
   if (input.platform === "espn" && !input.credentials) {
     throw new Error("ESPN private leagues require espn_s2 + SWID cookies");
+  }
+  // Duplicate guard: a user re-adding the same league for the same season must
+  // not create a second (often hollow) row. Per-user + per-season so the same
+  // league id under another account, or the same id for a new season, is fine.
+  const existing = await findUserLeagueByExternal(
+    db,
+    input.userId,
+    input.platform,
+    input.externalLeagueId,
+    input.season
+  );
+  if (existing) {
+    throw new Error("duplicate league: already added for this user and season");
   }
   const inserted = await db
     .insert(schema.leagues)

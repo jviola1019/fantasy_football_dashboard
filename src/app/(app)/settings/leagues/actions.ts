@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
-import { createLeague, deleteLeagueForUser, getLeagueForUser } from "@/lib/leagues";
+import { createLeague, deleteLeagueForUser, findUserLeagueByExternal, getLeagueForUser } from "@/lib/leagues";
 import { setActiveLeagueCookie } from "@/lib/activeLeague";
 import { verifyLeague } from "@/lib/trade/verify";
 import type { LeagueFormat } from "@/lib/trade/format";
@@ -40,6 +40,13 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
   const { platform, externalLeagueId, season, label, espnS2, swid, sleeperUsername } = parsed.data;
   if (platform === "espn" && (!espnS2 || !swid)) {
     return { ok: false, error: "ESPN leagues require both espn_s2 and SWID cookies" };
+  }
+
+  // Friendly duplicate pre-check — fail fast with a clear message before the
+  // (network) verification, rather than letting createLeague's guard surface
+  // as the generic "could not save" below. createLeague still enforces it.
+  if (await findUserLeagueByExternal(getDb(), userId, platform, externalLeagueId, season)) {
+    return { ok: false, error: "You've already added this league for that season." };
   }
 
   // Both Sleeper and ESPN leagues are verified at add-time. Sleeper uses the
