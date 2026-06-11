@@ -86,6 +86,20 @@ test.describe("in-panel tabs switch content", () => {
       }
     });
   }
+
+  // WCAG 2.2 / mobile-ergonomics: on touch devices every tab must present a
+  // ≥44px-tall target (audit F-10 — text-xs + py-2.5 computes to ~36px without
+  // a coarse-pointer minimum).
+  test("tab targets are at least 44px tall on touch devices", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile-chrome", "touch-target rule applies to coarse pointers");
+    await gotoRoute(page, "/analytics");
+    const root = page.locator("#nexus-simulator");
+    await root.scrollIntoViewIfNeeded();
+    const tab = root.getByRole("tab", { name: "Multiverse", exact: true });
+    const box = await tab.boundingBox();
+    expect(box, "tab must be visible").not.toBeNull();
+    expect(box!.height, `tab height ${box!.height}px must be ≥ 44px on touch`).toBeGreaterThanOrEqual(44);
+  });
 });
 
 test.describe("feature interactions", () => {
