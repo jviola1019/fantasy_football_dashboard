@@ -170,8 +170,11 @@ a { color: inherit; text-decoration: none; }
 /* The button reset MUST live in @layer base: Tailwind v4 emits utilities in
    @layer utilities, and any UNLAYERED rule beats any layered one — an
    unlayered `button { font: inherit; padding: 0 }` silently killed every
-   px-*/py-*/text-*/font-* utility on every <button> in the app (found via
-   audit F-10: tabs measured 19.5px tall with py-2.5 in the DOM). */
+   padding, font-size, and font-weight utility on every button in the app
+   (found via audit F-10: tabs measured 19.5px tall with py-2.5 in the DOM).
+   NOTE: never write a glob like px-(star) followed by a slash inside this
+   comment — CSS comments don't nest, and a stray star-slash terminates the
+   comment early, leaking garbage selectors that eat the next rule. */
 @layer base {
   button { background: none; border: none; cursor: pointer; color: inherit; font: inherit; padding: 0; }
 }
