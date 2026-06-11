@@ -121,19 +121,22 @@ export async function GET(request: Request): Promise<Response> {
       : "degraded";
 
   const body: HealthResponse = { status };
-  // Config-presence detail (which env vars are set) and DB error text are for
-  // operators: require the same bearer the cron routes use (SEC-03). The
-  // top-level status stays public for uptime monitors and the smoke test.
+  // Operator-only detail requires the same bearer the cron routes use (SEC-03):
+  //   - `checks` (which env vars are configured) + DB error text
+  //   - `?snapshots=1` (runs DB reads — gating it prevents unauthenticated,
+  //     unbounded DB I/O from the public internet; reviewer Issue 1)
+  // The top-level `status` stays public for uptime monitors and the smoke test.
   const bearer = request.headers.get("authorization") ?? "";
   const expected = process.env.CRON_SECRET;
-  if (expected && safeEqual(bearer, `Bearer ${expected}`)) {
+  const authorized = Boolean(expected) && safeEqual(bearer, `Bearer ${expected}`);
+  if (authorized) {
     body.checks = checks;
     if (dbCheck.error) {
       body.databaseError = dbCheck.error;
     }
-  }
-  if (new URL(request.url).searchParams.get("snapshots") === "1") {
-    body.snapshots = await snapshotFreshness(new Date());
+    if (new URL(request.url).searchParams.get("snapshots") === "1") {
+      body.snapshots = await snapshotFreshness(new Date());
+    }
   }
 
   return NextResponse.json(body, { status: 200 });

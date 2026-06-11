@@ -25,7 +25,9 @@ test.describe("auth — register → /settings/leagues", () => {
     const context = await browser.newContext();
     const page = await context.newPage();
     await page.goto("/settings/leagues");
-    await page.waitForURL("**/login", { timeout: 10_000 });
+    // The edge proxy (src/proxy.ts) appends ?callbackUrl=<original> so login
+    // returns the user where they were headed — match path, allow the query.
+    await page.waitForURL(/\/login(\?|$)/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: /sign in to rae/i })).toBeVisible();
     await context.close();
   });

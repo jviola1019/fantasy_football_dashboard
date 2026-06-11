@@ -7,8 +7,14 @@ const SECRET_KEYWORDS =
 // base64 of >=24 chars (32 raw bytes => 43-44 chars) OR hex of >=32 chars
 const TOKEN_RE = /[A-Za-z0-9+/]{24,}={0,2}|[a-fA-F0-9]{32,}/g;
 
+// A value assigned after a secret keyword: `KEY = value`, `KEY: value`, or a
+// markdown/JSON `"value"`. Captures special-character secrets (passwords) that
+// the base64/hex TOKEN_RE misses (reviewer Issue 2). Entropy-guarded below.
+const ASSIGN_RE = /[:=]\s*["'`]?([^\s"'`|,}]{12,})["'`]?/g;
+
 const ALLOW_SUBSTRINGS = [
   "your-",
+  "your_",
   "example",
   "placeholder",
   "xxxx",
@@ -18,6 +24,12 @@ const ALLOW_SUBSTRINGS = [
   "do-not-use",
   "generate",
   "openssl",
+  "replace_me",
+  "replace-me",
+  "changeme",
+  "change-me",
+  "rand_base64",
+  "base64url",
 ];
 
 export interface Leak {
@@ -36,8 +48,19 @@ function isLowEntropy(token: string): boolean {
 
 function isAllowed(token: string, lineLower: string): boolean {
   if (ALLOW_SUBSTRINGS.some((a) => lineLower.includes(a))) return true;
+  if (token.startsWith("$") || token.includes("${")) return true; // env-var reference
   if (isLowEntropy(token)) return true;
   return false;
+}
+
+// A non-base64/hex assigned value looks like a real secret (vs. a placeholder
+// word) when it is diverse AND has a digit AND is either special-char or
+// mixed-case. `MyS3cur3P@ss!2024` → true; `replacemewithsomething` → false.
+function looksLikeAssignedSecret(token: string): boolean {
+  if (token.length < 12) return false;
+  if (new Set(token).size < 8) return false;
+  if (!/\d/.test(token)) return false;
+  return /[^A-Za-z0-9]/.test(token) || (/[a-z]/.test(token) && /[A-Z]/.test(token));
 }
 
 export function findSecretLeaks(text: string): Leak[] {
@@ -47,15 +70,18 @@ export function findSecretLeaks(text: string): Leak[] {
     const kw = raw.match(SECRET_KEYWORDS);
     if (!kw) return;
     const lower = raw.toLowerCase();
-    const tokens = raw.match(TOKEN_RE) ?? [];
-    for (const t of tokens) {
-      if (t.length < 24) continue;
-      if (isAllowed(t, lower)) continue;
-      leaks.push({
-        line: i + 1,
-        keyword: kw[0],
-        token: `${t.slice(0, 6)}…(${t.length} chars)`,
-      });
+    const seen = new Set<string>();
+    const push = (t: string) => {
+      if (seen.has(t) || isAllowed(t, lower)) return;
+      seen.add(t);
+      leaks.push({ line: i + 1, keyword: kw![0], token: `${t.slice(0, 6)}…(${t.length} chars)` });
+    };
+    // 1. base64/hex high-entropy tokens (>=24 / >=32).
+    for (const t of raw.match(TOKEN_RE) ?? []) if (t.length >= 24) push(t);
+    // 2. special-character secrets assigned after the keyword (>=12, entropy-guarded).
+    for (const m of raw.matchAll(ASSIGN_RE)) {
+      const v = m[1];
+      if (v && v.length < 24 && looksLikeAssignedSecret(v)) push(v);
     }
   });
   return leaks;

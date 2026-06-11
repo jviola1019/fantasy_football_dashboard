@@ -60,6 +60,19 @@ describe("findSecretLeaks", () => {
     const text = `| \`CRON_SECRET\` | set to \`${FAKE_HYPHEN}\` — rotate |`;
     expect(findSecretLeaks(text)).toHaveLength(1);
   });
+
+  it("flags a special-character password assigned after the keyword (Issue 2)", () => {
+    expect(findSecretLeaks("DB_PASSWORD=MyS3cur3P@ss!2024")).toHaveLength(1);
+    expect(findSecretLeaks('PASSWORD: "Tr0ub4dor3xtraMix"')).toHaveLength(1);
+  });
+
+  it("does NOT flag .env.example placeholders or env-var references", () => {
+    expect(findSecretLeaks("AUTH_SECRET=replace_me_with_openssl_rand_base64_32")).toHaveLength(0);
+    expect(findSecretLeaks("CREDENTIAL_ENCRYPTION_KEY=")).toHaveLength(0);
+    expect(findSecretLeaks("CRON_SECRET=")).toHaveLength(0);
+    expect(findSecretLeaks("# Vercel sets `Authorization: Bearer $CRON_SECRET`")).toHaveLength(0);
+    expect(findSecretLeaks("DB_PASSWORD: ${{ secrets.DB_PASSWORD }}")).toHaveLength(0);
+  });
 });
 
 describe("scanFiles", () => {

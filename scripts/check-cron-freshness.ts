@@ -16,7 +16,12 @@ const base = (process.env.SMOKE_BASE_URL ?? process.argv[2] ?? DEFAULT_BASE).rep
 async function main(): Promise<void> {
   const url = `${base}/api/health?snapshots=1`;
   console.log(`check-cron-freshness → ${url}\n`);
-  const res = await fetch(url);
+  // The snapshots block is operator-gated (it runs DB reads); send the cron
+  // bearer so a scheduled run can read it. Without CRON_SECRET the endpoint
+  // omits snapshots and this guard reports that it could not evaluate.
+  const headers: Record<string, string> = {};
+  if (process.env.CRON_SECRET) headers.authorization = `Bearer ${process.env.CRON_SECRET}`;
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     console.error(`health endpoint returned ${res.status}`);
     process.exitCode = 1;
@@ -25,7 +30,9 @@ async function main(): Promise<void> {
   const body = (await res.json()) as { snapshots?: FreshnessResult[] };
   const snapshots = body.snapshots ?? [];
   if (snapshots.length === 0) {
-    console.error("no snapshot freshness in response (the deployment may predate the freshness endpoint)");
+    console.error(
+      "no snapshot freshness in response — set CRON_SECRET to authorize the snapshots block, or the deployment predates the freshness endpoint"
+    );
     process.exitCode = 1;
     return;
   }
