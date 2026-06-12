@@ -19,17 +19,17 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/hero.png" alt="RAE dashboard — Command Center and Market Intelligence" width="100%">
+  <img src=".github/assets/hero.png" alt="RAE dashboard — League Health, League Pulse, Top Insights, Next Best Actions" width="100%">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src=".github/assets/shot-command.png" alt="Command Center"><br><sub><b>Command Center</b> — league pulse, KPIs, lineup win-probability</sub></td>
-    <td width="50%"><img src=".github/assets/shot-market.png" alt="Market Intelligence"><br><sub><b>Market Intelligence</b> — inefficiencies + real per-player VOR heatmap</sub></td>
+    <td width="50%"><img src=".github/assets/shot-command.png" alt="Dashboard overview"><br><sub><b>Dashboard</b> — League Health KPIs, League Pulse rankings, Top Insights, Next Best Actions</sub></td>
+    <td width="50%"><img src=".github/assets/shot-market.png" alt="Market Intelligence"><br><sub><b>Market Intelligence</b> — mispricing leaderboard + sortable Value × Usage board</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — season Monte Carlo: joint wins × playoff-outcome distribution</sub></td>
-    <td width="50%"><img src=".github/assets/shot-universe.png" alt="Player Universe"><br><sub><b>Player Universe</b> — player grid + metric profile radar</sub></td>
+    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — season Monte Carlo: P(outcome | wins) heatmap + server-computed confidence bands</sub></td>
+    <td width="50%"><img src=".github/assets/shot-universe.png" alt="Player Universe"><br><sub><b>Player Universe</b> — searchable universe, tiers, comparison radar, projections</sub></td>
   </tr>
 </table>
 

@@ -207,3 +207,21 @@ User-directed: complete the F-11 performance phase, ensure every model tab shows
 **Docs:** `data-source-map.md` (server-side band attribution + honesty rule), `README.md` (server-component rendering pipeline + continuity guard) updated.
 
 **Round-4 battery:** typecheck ✓ · lint ✓ · vitest **500 passed / 6 skipped** (+6 continuity tests) · build ✓. e2e + lighthouse re-run for the final commit.
+
+---
+
+## Round-5 — model-accuracy verification + brand/README hardening (2026-06-12)
+
+User-directed final pass: model accuracy above all, every button verified, anything missed in prior sprints found, README screenshots refreshed, full read-before-edit.
+
+**Model accuracy (full read of the engine, math verified):**
+- `seasonSim.ts` verified line-by-line: Box–Muller with `log(0)` guard; circle-method round-robin (odd-team bye handled); single-elimination bracket with play-in to the next-lower power of two + byes for top seeds + re-seeding (the `n === pow2` infinite-loop guard present); seeding by wins desc then points-for; coin-flip ties via the seeded RNG; joint (wins × tier) accounting lands each iteration in exactly one cell; output probabilities are clamped frequencies. **No defects.**
+- `simulation.ts` verified: field anchored to actual starter count (demo-roster fairness), risk scale bounded 0.85–1.15, `pct()` clamps to [0,100]. **No defects.**
+- Dead model code removed: `deriveNarrativeHalfLife` + `deriveViralVelocity` had **zero UI consumers** (only self-tests) — deleted with their tests (derivedMetrics suite 24/24 green).
+- **Missed-in-round-3 mislabel found and fixed:** the dashboard League Health tile and the Market Intelligence stat strip BOTH still sub-labeled `marketInefficiency()` as "Avg Value Over Replacement" / "value-over-replacement index" — same factual error as the PlayerUniverse `(VOR)` fix. Now "Avg Market Mispricing". (Trade backtest's VOR references are legitimate — real realized VOR from nflverse.)
+
+**Buttons/logic:** every interactive control inventoried against e2e: panel tabs (covered), draft + Mine/Taken (covered), login/register/password/delete (covered), league add/remove (covered), topbar nav + league switcher (covered), trade tabs (covered). One gap found — the Value × Usage **sort group** had no behavioral test → new e2e asserts `aria-pressed` flips, the list's `aria-label` changes, and the actual ranking changes.
+
+**Brand/design:** the sidebar's plain-letter "R" block replaced with the exact favicon emblem (ascending bars + amber accent) so the brand is one mark everywhere. Color scheme kept (navy/slate/amber per guardrails — already coherent).
+
+**README:** all 5 screenshots were from the OLD single-page design — regenerated at 2× from the current build (dashboard overview, Market Intelligence, Nexus, Player Universe); captions rewritten ("Command Center" → Dashboard; "VOR heatmap" → mispricing leaderboard; added server-computed bands note).
