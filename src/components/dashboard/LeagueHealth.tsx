@@ -31,7 +31,9 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
       : {
           label: "Market Inefficiency",
           value: fmt(metrics.marketInefficiency, 1),
-          sub: "Avg Value Over Replacement",
+          // marketInefficiency() = confidence-weighted |true − market| mispricing,
+          // NOT value-over-replacement — the old sub-label was factually wrong.
+          sub: "Avg Market Mispricing",
           color: "neu"
         },
     trendingUnavailable

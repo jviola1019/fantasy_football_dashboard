@@ -195,18 +195,6 @@ export function derivePositionGrades(players: PlayerMarketRecord[]): PositionGra
   };
 }
 
-export function deriveNarrativeHalfLife(players: PlayerMarketRecord[]): number {
-  return avg(players.map((p) => Math.max(2, Math.round(80 - Math.abs(p.trendingMomentum)))));
-}
-
-export function deriveViralVelocity(players: PlayerMarketRecord[]): string {
-  const vel = avg(players.map(narrativeVelocity));
-  if (!Number.isFinite(vel)) return "Unknown";
-  if (vel > 15) return "High";
-  if (vel > 5) return "Medium";
-  return "Low";
-}
-
 /**
  * Aggregate roster-value index — the sum of players' perceivedValue (a unitless
  * 0–100 ECR-derived score), NOT a dollar figure. The old version multiplied by

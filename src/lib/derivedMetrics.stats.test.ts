@@ -10,8 +10,6 @@ import {
   deriveStartSitEdge,
   deriveRisingStars,
   deriveStoryCollisions,
-  deriveNarrativeHalfLife,
-  deriveViralVelocity,
   chaosScore
 } from "./derivedMetrics";
 import { runNexusSimulation } from "./simulation";
@@ -195,15 +193,6 @@ describe("derivedMetrics — statistical properties", () => {
     it("deriveStoryCollisions: impact label is one of {Low, Medium, High}", () => {
       const collisions = deriveStoryCollisions(fixturePlayers);
       for (const c of collisions) expect(["Low", "Medium", "High"]).toContain(c.impact);
-    });
-
-    it("deriveNarrativeHalfLife: positive number of days", () => {
-      const hl = deriveNarrativeHalfLife(fixturePlayers);
-      expect(hl).toBeGreaterThanOrEqual(2);
-    });
-
-    it("deriveViralVelocity: emits one of the documented labels", () => {
-      expect(["High", "Medium", "Low", "Unknown"]).toContain(deriveViralVelocity(fixturePlayers));
     });
 
     it("chaosScore: matches the per-player chaosExposure average", () => {
