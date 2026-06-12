@@ -185,3 +185,25 @@ User-directed sprint addressing the first audit's UI/brand items that were diagn
 - Season-sim Sleeper backtest: Brier 0.1657 (reproduced). Season calibration harness: byte-identical docs.
 
 **Round-3 battery:** typecheck ✓ · lint ✓ · vitest **494 passed / 6 skipped** (+4 tests) · build ✓ (no CSS warnings). Screenshots in `reports/audit-2026-06-11-screens/v2-*` (desktop/mobile tabs, Risk Analysis tab, players). e2e + lighthouse: see final commit.
+
+---
+
+## Round-4 — performance + model-continuity sprint (2026-06-11)
+
+User-directed: complete the F-11 performance phase, ensure every model tab shows real/calibrated/continuous data with no synthetic values, reread/update docs, stricter testing.
+
+**Performance — moved the Monte Carlo off the client main thread (the F-11 fix):**
+- `deriveAppData` (a 2,500-iteration season Monte Carlo + metrics) was running in a **client** `useMemo` inside `RouteView`, and `NexusSimulator` ran **20 more** simulations (16,000 iterations) on hydration — the TBT source. `RouteView` and `ReportsView` are now **server components**; the seeded sim + the bootstrap confidence bands (`deriveConfidenceBands`, new) run on the server and stream plain serializable data to the `"use client"` panels. `NexusSimulator` only applies the cheap data-state `widen()` on the client.
+- **Measured (Lighthouse, local prod build, 4× CPU throttle):**
+  - `/analytics`: perf **52 → 68**, TBT **3,650 ms → 500 ms** (−86%)
+  - `/dashboard`: perf **58 → 74**, TBT **1,250 ms → 270 ms** (−78%)
+  - `/players`: perf 80, TBT 210 ms. CLS ≤ 0.014 everywhere. (Residual LCP ~4.6 s is render/transfer under throttle, not main-thread blocking — the flagged TBT/hydration issue is resolved.)
+
+**Model continuity + no-synthetic audit:**
+- Component scan for `Math.random`/mock/fake/synthetic/hardcode: **clean** (all displayed probabilities come from the seeded sim; demo fixtures stay labeled).
+- Every panel reads from one shared `deriveAppData(envelope)`. Confirmed `MarketIntelligence`'s `VolatilitySurface` reuses the shared `sim` (a prior fix, not an independent re-sim).
+- New `src/lib/envelope/continuity.test.ts` (6 tests, all green) locks the cross-model invariants: (1) `deriveAppData` is deterministic — sim + bands reproduce exactly; (2) the Nexus **Scenarios "Baseline"** column equals the Multiverse headline + Reports outlook (`round1(clamp(sim.prob))`); (3) best ≥ baseline ≥ worst with champ⊆top3⊆playoffs; (4) confidence bands are well-formed CIs in `[0,100]`; (5) Multiverse buckets are ≥0 and sum to 100; (6) a player's `trueValue` is identical across pools.
+
+**Docs:** `data-source-map.md` (server-side band attribution + honesty rule), `README.md` (server-component rendering pipeline + continuity guard) updated.
+
+**Round-4 battery:** typecheck ✓ · lint ✓ · vitest **500 passed / 6 skipped** (+6 continuity tests) · build ✓. e2e + lighthouse re-run for the final commit.
