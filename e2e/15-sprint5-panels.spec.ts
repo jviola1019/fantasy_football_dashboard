@@ -87,6 +87,24 @@ test.describe("in-panel tabs switch content", () => {
     });
   }
 
+  test("Value × Usage board: sort buttons re-sort and expose pressed state", async ({ page }) => {
+    await gotoRoute(page, "/analytics");
+    const board = page.locator("#market-intelligence .vub-wrap");
+    await board.scrollIntoViewIfNeeded();
+    const valueSort = board.getByRole("button", { name: /^Value/ });
+    const edgeSort = board.getByRole("button", { name: /^Edge/ });
+    await expect(valueSort).toHaveAttribute("aria-pressed", "true");
+    const firstByValue = await board.locator(".vub-row .vub-name").first().innerText();
+
+    await edgeSort.click();
+    await expect(edgeSort).toHaveAttribute("aria-pressed", "true");
+    await expect(valueSort).toHaveAttribute("aria-pressed", "false");
+    await expect(board.locator(".vub-board")).toHaveAttribute("aria-label", /sorted by edge/i);
+    // The ranking actually changes (fixture data has distinct value/edge orders).
+    const firstByEdge = await board.locator(".vub-row .vub-name").first().innerText();
+    expect(firstByEdge).not.toBe(firstByValue);
+  });
+
   // WCAG 2.2 / mobile-ergonomics: on touch devices every tab must present a
   // ≥44px-tall target (audit F-10 — text-xs + py-2.5 computes to ~36px without
   // a coarse-pointer minimum).

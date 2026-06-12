@@ -114,9 +114,9 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
   const liq = metrics.liquidityScore;
   const regimeKnown = metrics.marketRegime === "Inefficient" || metrics.marketRegime === "Efficient";
   const cards = [
-    // Inefficiency + volatility are unitless VOR/variance INDICES (0-100-ish),
-    // not percentages — show the raw index, no "%".
-    { label: "Market Inefficiency", value: fmt(metrics.inefficiencyPct, 1), sub: "Avg value-over-replacement index", color: "neu" },
+    // Inefficiency + volatility are unitless mispricing/variance INDICES
+    // (0-100-ish), not percentages — show the raw index, no "%".
+    { label: "Market Inefficiency", value: fmt(metrics.inefficiencyPct, 1), sub: "Avg market mispricing index", color: "neu" },
     { label: "Liquidity Score", value: `${fmt(liq, 1)}/10`, sub: liq >= 6.5 ? "High" : liq >= 3.5 ? "Moderate" : "Low", color: liq >= 6.5 ? "pos" : "neu" },
     { label: "Arbitrage Opps", value: String(metrics.arbitrageCount), sub: "High-edge plays", color: metrics.arbitrageCount > 3 ? "pos" : "neu" },
     { label: "Aggregate Value", value: valueIndex, sub: "Roster value index (ECR)", color: "neu" },

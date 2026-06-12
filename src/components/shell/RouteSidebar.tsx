@@ -30,9 +30,21 @@ export function RouteSidebar() {
     <Sidebar collapsible="icon" className="border-sidebar-border">
       <SidebarHeader>
         <Link href="/dashboard" className="flex items-center gap-2 px-1.5 py-1">
-          <div className="grid size-8 shrink-0 place-items-center rounded-md border border-sidebar-border bg-sidebar-accent font-bold tracking-[0.14em] text-rae-blue">
-            R
-          </div>
+          {/* The RAE emblem — identical mark to src/app/icon.svg (favicon), so the
+              brand reads as one mark everywhere: ascending bars + amber edge accent. */}
+          <svg
+            viewBox="0 0 32 32"
+            className="size-8 shrink-0"
+            role="img"
+            aria-label="RAE emblem"
+          >
+            <rect width="32" height="32" rx="7" fill="#0b1120" />
+            <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="6" fill="none" stroke="#5a9fc4" strokeOpacity="0.28" />
+            <rect x="7" y="18" width="4.2" height="7" rx="1.2" fill="#5a9fc4" />
+            <rect x="13.9" y="13" width="4.2" height="12" rx="1.2" fill="#5a9fc4" />
+            <rect x="20.8" y="8" width="4.2" height="17" rx="1.2" fill="#5a9fc4" />
+            <circle cx="22.9" cy="6" r="2.1" fill="#d7a857" />
+          </svg>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-extrabold tracking-[0.14em] text-foreground">RAE</span>
             <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">

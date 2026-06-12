@@ -1,6 +1,8 @@
-"use client";
-
-import { useMemo } from "react";
+// Server component: the per-render derivation (a 2,500-iteration season Monte
+// Carlo + the 20-replicate bootstrap bands + metrics) now runs on the server and
+// streams plain data to the client panels, instead of blocking the client main
+// thread during hydration (the former /analytics TBT hotspot). The panels stay
+// "use client" for their own interactivity and receive serializable props.
 import type { RAEEnvelope } from "@/lib/governance";
 import { deriveAppData } from "@/lib/envelope/derive";
 import { PanelGrid, PanelRow } from "@/components/shell/PanelGrid";
@@ -38,7 +40,7 @@ export type RouteViewName =
  * on /draft. Pool selection is preserved (roster vs market vs universe).
  */
 export function RouteView({ view, envelope }: { view: RouteViewName; envelope: RAEEnvelope }) {
-  const d = useMemo(() => deriveAppData(envelope), [envelope]);
+  const d = deriveAppData(envelope);
 
   if (view === "players") {
     return (
@@ -59,7 +61,7 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
           <MarketIntelligence players={d.marketPool} marketMetrics={d.marketMetrics} sim={d.sim} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={2}>
-          <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} envelope={envelope} />
+          <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} confidenceBands={d.confidenceBands} envelope={envelope} />
           <NarrativeEngine players={d.marketPool} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={1}>

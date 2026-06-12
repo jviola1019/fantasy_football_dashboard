@@ -185,3 +185,43 @@ User-directed sprint addressing the first audit's UI/brand items that were diagn
 - Season-sim Sleeper backtest: Brier 0.1657 (reproduced). Season calibration harness: byte-identical docs.
 
 **Round-3 battery:** typecheck ✓ · lint ✓ · vitest **494 passed / 6 skipped** (+4 tests) · build ✓ (no CSS warnings). Screenshots in `reports/audit-2026-06-11-screens/v2-*` (desktop/mobile tabs, Risk Analysis tab, players). e2e + lighthouse: see final commit.
+
+---
+
+## Round-4 — performance + model-continuity sprint (2026-06-11)
+
+User-directed: complete the F-11 performance phase, ensure every model tab shows real/calibrated/continuous data with no synthetic values, reread/update docs, stricter testing.
+
+**Performance — moved the Monte Carlo off the client main thread (the F-11 fix):**
+- `deriveAppData` (a 2,500-iteration season Monte Carlo + metrics) was running in a **client** `useMemo` inside `RouteView`, and `NexusSimulator` ran **20 more** simulations (16,000 iterations) on hydration — the TBT source. `RouteView` and `ReportsView` are now **server components**; the seeded sim + the bootstrap confidence bands (`deriveConfidenceBands`, new) run on the server and stream plain serializable data to the `"use client"` panels. `NexusSimulator` only applies the cheap data-state `widen()` on the client.
+- **Measured (Lighthouse, local prod build, 4× CPU throttle):**
+  - `/analytics`: perf **52 → 68**, TBT **3,650 ms → 500 ms** (−86%)
+  - `/dashboard`: perf **58 → 74**, TBT **1,250 ms → 270 ms** (−78%)
+  - `/players`: perf 80, TBT 210 ms. CLS ≤ 0.014 everywhere. (Residual LCP ~4.6 s is render/transfer under throttle, not main-thread blocking — the flagged TBT/hydration issue is resolved.)
+
+**Model continuity + no-synthetic audit:**
+- Component scan for `Math.random`/mock/fake/synthetic/hardcode: **clean** (all displayed probabilities come from the seeded sim; demo fixtures stay labeled).
+- Every panel reads from one shared `deriveAppData(envelope)`. Confirmed `MarketIntelligence`'s `VolatilitySurface` reuses the shared `sim` (a prior fix, not an independent re-sim).
+- New `src/lib/envelope/continuity.test.ts` (6 tests, all green) locks the cross-model invariants: (1) `deriveAppData` is deterministic — sim + bands reproduce exactly; (2) the Nexus **Scenarios "Baseline"** column equals the Multiverse headline + Reports outlook (`round1(clamp(sim.prob))`); (3) best ≥ baseline ≥ worst with champ⊆top3⊆playoffs; (4) confidence bands are well-formed CIs in `[0,100]`; (5) Multiverse buckets are ≥0 and sum to 100; (6) a player's `trueValue` is identical across pools.
+
+**Docs:** `data-source-map.md` (server-side band attribution + honesty rule), `README.md` (server-component rendering pipeline + continuity guard) updated.
+
+**Round-4 battery:** typecheck ✓ · lint ✓ · vitest **500 passed / 6 skipped** (+6 continuity tests) · build ✓. e2e + lighthouse re-run for the final commit.
+
+---
+
+## Round-5 — model-accuracy verification + brand/README hardening (2026-06-12)
+
+User-directed final pass: model accuracy above all, every button verified, anything missed in prior sprints found, README screenshots refreshed, full read-before-edit.
+
+**Model accuracy (full read of the engine, math verified):**
+- `seasonSim.ts` verified line-by-line: Box–Muller with `log(0)` guard; circle-method round-robin (odd-team bye handled); single-elimination bracket with play-in to the next-lower power of two + byes for top seeds + re-seeding (the `n === pow2` infinite-loop guard present); seeding by wins desc then points-for; coin-flip ties via the seeded RNG; joint (wins × tier) accounting lands each iteration in exactly one cell; output probabilities are clamped frequencies. **No defects.**
+- `simulation.ts` verified: field anchored to actual starter count (demo-roster fairness), risk scale bounded 0.85–1.15, `pct()` clamps to [0,100]. **No defects.**
+- Dead model code removed: `deriveNarrativeHalfLife` + `deriveViralVelocity` had **zero UI consumers** (only self-tests) — deleted with their tests (derivedMetrics suite 24/24 green).
+- **Missed-in-round-3 mislabel found and fixed:** the dashboard League Health tile and the Market Intelligence stat strip BOTH still sub-labeled `marketInefficiency()` as "Avg Value Over Replacement" / "value-over-replacement index" — same factual error as the PlayerUniverse `(VOR)` fix. Now "Avg Market Mispricing". (Trade backtest's VOR references are legitimate — real realized VOR from nflverse.)
+
+**Buttons/logic:** every interactive control inventoried against e2e: panel tabs (covered), draft + Mine/Taken (covered), login/register/password/delete (covered), league add/remove (covered), topbar nav + league switcher (covered), trade tabs (covered). One gap found — the Value × Usage **sort group** had no behavioral test → new e2e asserts `aria-pressed` flips, the list's `aria-label` changes, and the actual ranking changes.
+
+**Brand/design:** the sidebar's plain-letter "R" block replaced with the exact favicon emblem (ascending bars + amber accent) so the brand is one mark everywhere. Color scheme kept (navy/slate/amber per guardrails — already coherent).
+
+**README:** all 5 screenshots were from the OLD single-page design — regenerated at 2× from the current build (dashboard overview, Market Intelligence, Nexus, Player Universe); captions rewritten ("Command Center" → Dashboard; "VOR heatmap" → mispricing leaderboard; added server-computed bands note).

@@ -50,7 +50,10 @@ shapes in `src/lib/governance.ts`:
   **seeded** Monte Carlo (`mulberry32` + Box–Muller, `src/lib/rng.ts`,
   `src/lib/seasonSim.ts`). `deriveAppData` uses fixed `seed: 20260513`
   (`src/lib/envelope/derive.ts` (`deriveAppData`)); confidence-band replicates use
-  `seed + i` (`NexusSimulator.tsx` (`ConfidenceBands`)).
+  `seed + i` and now run **server-side** in `deriveConfidenceBands`
+  (`src/lib/envelope/derive.ts`) — RouteView/ReportsView are server components,
+  so the seeded sim + bootstrap bands never block the client main thread;
+  NexusSimulator only applies the data-state `widen()` on the client.
 - **Trending = a waiver/news signal applied to the market pool, not sentiment NLP.**
   `trendingMomentum` priority ladder (`src/lib/fantasypros/enrich.ts` (`enrichRoster`)): (1) ESPN
   headline-velocity score, (2) Sleeper 24h trending adds/drops proxy
@@ -199,7 +202,7 @@ CI bands and add a disclosure banner (`CI_MULTIPLIER`/`CI_LABEL`, lines 33–43)
 | CI disclosure banner | `panelState.status`, `weeklyProjectionsMeta` | `derivePanelState` + projections | `CI_MULTIPLIER`/`CI_LABEL` | `weeklyProjectionsMeta.fetchedAt` | — | "Speculative" / "Wide CI" / live-week label | banner widens CI 1.5×/2.5× | `NexusSimulator.tsx:62`,`:110` | `panelState.test.ts` |
 | Outcome Multiverse (5 buckets) | `sim.championship/playoff/catastrophicRisk` | season Monte Carlo | `deriveOutcomeDistribution` (`derivedMetrics.ts:134`) | sim `source` | buckets sum to 100, each ≥0 | "No player data" overlay | normalized to 100% | `NexusSimulator.tsx:165` | `derivedMetrics.stats.test.ts` (outcome %) |
 | Outcome Multiverse heatmap | `sim.distribution` (wins×tier joint, seeded) | season Monte Carlo | `buildOutcomeHeat` (`outcomeHeat.ts:34`) | sim `source` | conditional, each column = 100% | "No simulated seasons to chart" | null heat → note | `NexusSimulator.tsx:188` | `outcomeHeat.test.ts` |
-| 95% Confidence Bands (Championship/Playoffs) | `sim.championshipProbability`,`playoffProbability` | seeded replicate sims (`seed+i`) | `bootstrapCI` (`stats/distribution.ts`) + `widen` | sim `source` | bootstrap N=500, 20×800 iters; clamped `[0,100]` | "No data — confidence intervals unavailable" | empty-state note | `NexusSimulator.tsx:262` | `stats/distribution.test.ts` |
+| 95% Confidence Bands (Championship/Playoffs) | `sim.championshipProbability`,`playoffProbability` | seeded replicate sims (`seed+i`), **server-computed** (`deriveConfidenceBands`) | `bootstrapCI` (`stats/distribution.ts`) + client `widen` | sim `source` | bootstrap N=500, 20×800 iters; clamped `[0,100]` | "No data — confidence intervals unavailable" | empty-state note | `derive.ts` (`deriveConfidenceBands`), `NexusSimulator.tsx` (`ConfidenceBands`) | `continuity.test.ts`, `stats/distribution.test.ts` |
 | Scenario Comparison table (Champ/Top3/Playoffs/PF/PA/Rank) | best/baseline/worst sims; PF/PA from weekly means × weeks | season Monte Carlo | `deriveScenarioComparison` + `simToRow` (`derivedMetrics.ts:159`,`:86`) | sim `source` | clamped + well-ordered tiers | "No data available" | empty-state note | `NexusSimulator.tsx:335` | `derivedMetrics.stats.test.ts`, `simulation.test.ts` |
 | Key Drivers (proj pts/week bars) | `sim.keyDrivers[].contribution` = starter weekly mean | season sim starters | `runNexusSimulation` (`simulation.ts:157`) | sim `source` | real pts/week | "No data." | empty-state | `NexusSimulator.tsx:376` | `simulation.test.ts` |
 | Risk of Regret (donut + assumptions) | `sim.regretIndex` = `1 − playoffProbability` | season Monte Carlo | `runNexusSimulation` (`simulation.ts:169`) | sim `source` | clamped `[0,100]` | "No data." | empty-state | `NexusSimulator.tsx:397` | `simulation.test.ts` |

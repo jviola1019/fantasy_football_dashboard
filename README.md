@@ -19,17 +19,17 @@
 </p>
 
 <p align="center">
-  <img src=".github/assets/hero.png" alt="RAE dashboard — Command Center and Market Intelligence" width="100%">
+  <img src=".github/assets/hero.png" alt="RAE dashboard — League Health, League Pulse, Top Insights, Next Best Actions" width="100%">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src=".github/assets/shot-command.png" alt="Command Center"><br><sub><b>Command Center</b> — league pulse, KPIs, lineup win-probability</sub></td>
-    <td width="50%"><img src=".github/assets/shot-market.png" alt="Market Intelligence"><br><sub><b>Market Intelligence</b> — inefficiencies + real per-player VOR heatmap</sub></td>
+    <td width="50%"><img src=".github/assets/shot-command.png" alt="Dashboard overview"><br><sub><b>Dashboard</b> — League Health KPIs, League Pulse rankings, Top Insights, Next Best Actions</sub></td>
+    <td width="50%"><img src=".github/assets/shot-market.png" alt="Market Intelligence"><br><sub><b>Market Intelligence</b> — mispricing leaderboard + sortable Value × Usage board</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — season Monte Carlo: joint wins × playoff-outcome distribution</sub></td>
-    <td width="50%"><img src=".github/assets/shot-universe.png" alt="Player Universe"><br><sub><b>Player Universe</b> — player grid + metric profile radar</sub></td>
+    <td width="50%"><img src=".github/assets/shot-nexus.png" alt="Nexus Simulator"><br><sub><b>Nexus Simulator</b> — season Monte Carlo: P(outcome | wins) heatmap + server-computed confidence bands</sub></td>
+    <td width="50%"><img src=".github/assets/shot-universe.png" alt="Player Universe"><br><sub><b>Player Universe</b> — searchable universe, tiers, comparison radar, projections</sub></td>
   </tr>
 </table>
 
@@ -46,7 +46,7 @@ Service boundaries:
 2. **Data adapter layer** — adapter isolation begins with the Sleeper public players API boundary in `src/lib/sleeper.ts`.
 3. **API abstraction/governance layer** — `src/lib/governance.ts` defines source metadata, freshness, missingness, confidence, validation state, and bounded cache key behavior. See `docs/data-source-map.md` for the per-metric provenance map.
 4. **Simulation engine** — `src/lib/simulation.ts` provides seeded Monte Carlo primitives, parameter logging, replayability, and assumptions.
-5. **Rendering pipeline** — one request-cached resolver `src/lib/envelope/load.ts` (`loadEnvelope()`) feeds every route; `src/lib/envelope/derive.ts` (`deriveAppData`) computes pools/sim/metrics; `src/components/app/RouteView.tsx` renders the panel(s) for each route from validated records only.
+5. **Rendering pipeline** — one request-cached resolver `src/lib/envelope/load.ts` (`loadEnvelope()`) feeds every route; `src/lib/envelope/derive.ts` (`deriveAppData`) computes pools/sim/metrics; `src/components/app/RouteView.tsx` and `ReportsView.tsx` are **server components** that run the seeded sim + bootstrap confidence bands on the server and stream plain data to the `"use client"` panels — so a ~2,500-iteration season Monte Carlo never blocks the client main thread (the panels only handle interactivity). Every panel reads from this one shared derivation, enforced by `src/lib/envelope/continuity.test.ts`.
 6. **Audit layer** — docs and UI banners expose stale, fixture, missing, unavailable, and validation states; an assumptions disclosure + ⓘ lineage tooltips surface assumptions and provenance at the point of use.
 
 ## Data sources
