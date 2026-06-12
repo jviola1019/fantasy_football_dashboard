@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
-import { runNexusSimulation, type SimulationResult } from "@/lib/simulation";
+import { type SimulationResult } from "@/lib/simulation";
+import { type ConfidenceBands as ConfidenceBandsData } from "@/lib/envelope/derive";
 import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derivedMetrics";
-import { bootstrapCI } from "@/lib/stats/distribution";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
@@ -20,6 +20,8 @@ type Props = {
   players: PlayerMarketRecord[];
   sim: SimulationResult;
   scenarios: ScenarioComparison;
+  /** Server-computed bootstrap CIs (null when no roster). */
+  confidenceBands?: ConfidenceBandsData | null;
   envelope?: RAEEnvelope;
 };
 
@@ -42,7 +44,7 @@ const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
   unavailable: "Speculative — trending-momentum + opportunity unavailable"
 };
 
-export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
+export function NexusSimulator({ players, sim, scenarios, confidenceBands, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
 
   // Build the weekly projections Map from the envelope (plain Record → Map).
@@ -122,7 +124,7 @@ export function NexusSimulator({ players, sim, scenarios, envelope }: Props) {
               <OutcomeMultiverse players={players} sim={sim} />
             </div>
             <div className="nexus-side">
-              <ConfidenceBands players={players} sim={sim} ciMultiplier={ciMultiplier} weeklyProjections={weeklyProjections} />
+              <ConfidenceBands sim={sim} bands={confidenceBands ?? null} ciMultiplier={ciMultiplier} />
               <KeyDrivers sim={sim} hasData={hasData} />
               <RiskOfRegret sim={sim} hasData={hasData} />
             </div>
@@ -257,42 +259,26 @@ function widen(
 }
 
 function ConfidenceBands({
-  players,
   sim,
-  ciMultiplier = 1,
-  weeklyProjections
+  bands,
+  ciMultiplier = 1
 }: {
-  players: PlayerMarketRecord[];
   sim: SimulationResult;
+  /** Server-computed base bootstrap CIs (deriveConfidenceBands). */
+  bands: ConfidenceBandsData | null;
   ciMultiplier?: number;
-  weeklyProjections?: Map<string, number> | null;
 }) {
-  const REPLICATES = 20;
-  const ITER = 800;
-  const bands = useMemo(() => {
-    if (players.length === 0) return null;
-    const champ: number[] = [];
-    const playoff: number[] = [];
-    for (let i = 0; i < REPLICATES; i++) {
-      const r = runNexusSimulation(players, {
-        seed: sim.params.seed + i,
-        iterations: ITER,
-        rosterSlots: sim.params.rosterSlots,
-        riskTolerance: sim.params.riskTolerance,
-        weeklyProjections
-      });
-      champ.push(r.championshipProbability);
-      playoff.push(r.playoffProbability);
-    }
-    const champCI = bootstrapCI(champ, 0.95, 500, 1019);
-    const playoffCI = bootstrapCI(playoff, 0.95, 500, 1019);
-    return {
-      championship: widen(champCI, ciMultiplier),
-      playoff: widen(playoffCI, ciMultiplier)
-    };
-  }, [players, sim.params.seed, sim.params.rosterSlots, sim.params.riskTolerance, ciMultiplier, weeklyProjections]);
+  // The bootstrap replication runs on the SERVER (deriveConfidenceBands); here
+  // we only apply the cheap data-state widen() — no client-side simulation.
+  const widened = useMemo(
+    () =>
+      bands
+        ? { championship: widen(bands.championship, ciMultiplier), playoff: widen(bands.playoff, ciMultiplier) }
+        : null,
+    [bands, ciMultiplier]
+  );
 
-  if (!bands) {
+  if (!widened) {
     return (
       <div className="mini-panel">
         <div className="mini-panel-title">Confidence Bands</div>
@@ -310,7 +296,7 @@ function ConfidenceBands({
           <b>
             {sim.championshipProbability.toFixed(1)}%
             <small className="ci-range">
-              {" "}[{bands.championship.lower.toFixed(1)} – {bands.championship.upper.toFixed(1)}]
+              {" "}[{widened.championship.lower.toFixed(1)} – {widened.championship.upper.toFixed(1)}]
             </small>
           </b>
         </li>
@@ -319,12 +305,12 @@ function ConfidenceBands({
           <b>
             {sim.playoffProbability.toFixed(1)}%
             <small className="ci-range">
-              {" "}[{bands.playoff.lower.toFixed(1)} – {bands.playoff.upper.toFixed(1)}]
+              {" "}[{widened.playoff.lower.toFixed(1)} – {widened.playoff.upper.toFixed(1)}]
             </small>
           </b>
         </li>
       </ul>
-      <p className="small-note">{REPLICATES} replicates × {ITER.toLocaleString()} iterations · bootstrap N=500.</p>
+      <p className="small-note">20 replicate seasons · bootstrap N=500 (computed server-side).</p>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { RAEEnvelope } from "@/lib/governance";
-import { runNexusSimulation, type SimulationResult } from "@/lib/simulation";
+import { runNexusSimulation, type SimulationResult, type SimulationParams } from "@/lib/simulation";
+import { bootstrapCI, type ConfidenceInterval } from "@/lib/stats/distribution";
 import {
   deriveCommandMetrics,
   deriveMarketMetrics,
@@ -10,6 +11,41 @@ import {
 } from "@/lib/derivedMetrics";
 
 export const SIM_BASE = { seed: 20260513, iterations: 2500, riskTolerance: 0.58 } as const;
+
+// Bootstrap-band replication settings (kept here so the work runs ONCE on the
+// server inside deriveAppData rather than 20× on the client during NexusSimulator
+// hydration — the former /analytics TBT hotspot).
+const BAND_REPLICATES = 20;
+const BAND_ITERATIONS = 800;
+
+export interface ConfidenceBands {
+  championship: ConfidenceInterval;
+  playoff: ConfidenceInterval;
+}
+
+/**
+ * Bootstrap 95% CIs for the championship/playoff probabilities by re-running the
+ * season sim across {@link BAND_REPLICATES} seeds. Deterministic (seeded), pure,
+ * and serializable — computed server-side and passed to NexusSimulator, which
+ * only applies the cheap data-state `widen()` client-side.
+ */
+export function deriveConfidenceBands(
+  players: RAEEnvelope["records"],
+  simParams: SimulationParams
+): ConfidenceBands | null {
+  if (players.length === 0) return null;
+  const champ: number[] = [];
+  const playoff: number[] = [];
+  for (let i = 0; i < BAND_REPLICATES; i++) {
+    const r = runNexusSimulation(players, { ...simParams, seed: simParams.seed + i, iterations: BAND_ITERATIONS });
+    champ.push(r.championshipProbability);
+    playoff.push(r.playoffProbability);
+  }
+  return {
+    championship: bootstrapCI(champ, 0.95, 500, 1019),
+    playoff: bootstrapCI(playoff, 0.95, 500, 1019)
+  };
+}
 
 export interface AppData {
   /** The user's own roster (Command Center / Nexus / Narrative all derive from this). */
@@ -24,6 +60,8 @@ export interface AppData {
   commandMetrics: CommandMetrics;
   marketMetrics: MarketMetrics;
   scenarios: ScenarioComparison;
+  /** Server-computed bootstrap CIs for NexusSimulator (null when no roster). */
+  confidenceBands: ConfidenceBands | null;
 }
 
 /**
@@ -73,6 +111,7 @@ export function deriveAppData(envelope: RAEEnvelope): AppData {
   const commandMetrics = deriveCommandMetrics(players);
   const marketMetrics = deriveMarketMetrics(marketPool);
   const scenarios = deriveScenarioComparison(players, sim);
+  const confidenceBands = deriveConfidenceBands(players, simParams);
 
-  return { players, universePool, freeAgentPool, marketPool, sim, commandMetrics, marketMetrics, scenarios };
+  return { players, universePool, freeAgentPool, marketPool, sim, commandMetrics, marketMetrics, scenarios, confidenceBands };
 }

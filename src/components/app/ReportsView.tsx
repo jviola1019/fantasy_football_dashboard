@@ -1,6 +1,6 @@
-"use client";
-
-import { useMemo } from "react";
+// Server component: derivation runs on the server (same pattern as RouteView),
+// so the seeded sim + bootstrap bands never run on the client. The interactive
+// children (tooltips/popovers) stay "use client".
 import type { RAEEnvelope } from "@/lib/governance";
 import { deriveAppData } from "@/lib/envelope/derive";
 import { deriveOutcomeDistribution } from "@/lib/derivedMetrics";
@@ -19,17 +19,13 @@ import { DataLineagePopover } from "@/components/governance/DataLineagePopover";
  * shown as unavailable — no fabricated numbers.
  */
 export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
-  const d = useMemo(() => deriveAppData(envelope), [envelope]);
-  const dist = useMemo(() => deriveOutcomeDistribution(d.sim), [d.sim]);
+  const d = deriveAppData(envelope);
+  const dist = deriveOutcomeDistribution(d.sim);
 
-  const edges = useMemo(
-    () =>
-      [...d.players]
-        .map((p) => ({ p, e: reputationEdge(p) }))
-        .sort((a, b) => Math.abs(b.e) - Math.abs(a.e))
-        .slice(0, 6),
-    [d.players]
-  );
+  const edges = [...d.players]
+    .map((p) => ({ p, e: reputationEdge(p) }))
+    .sort((a, b) => Math.abs(b.e) - Math.abs(a.e))
+    .slice(0, 6);
 
   const outcome = [
     { label: "Championship", v: dist.championship },

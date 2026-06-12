@@ -46,7 +46,7 @@ Service boundaries:
 2. **Data adapter layer** — adapter isolation begins with the Sleeper public players API boundary in `src/lib/sleeper.ts`.
 3. **API abstraction/governance layer** — `src/lib/governance.ts` defines source metadata, freshness, missingness, confidence, validation state, and bounded cache key behavior. See `docs/data-source-map.md` for the per-metric provenance map.
 4. **Simulation engine** — `src/lib/simulation.ts` provides seeded Monte Carlo primitives, parameter logging, replayability, and assumptions.
-5. **Rendering pipeline** — one request-cached resolver `src/lib/envelope/load.ts` (`loadEnvelope()`) feeds every route; `src/lib/envelope/derive.ts` (`deriveAppData`) computes pools/sim/metrics; `src/components/app/RouteView.tsx` renders the panel(s) for each route from validated records only.
+5. **Rendering pipeline** — one request-cached resolver `src/lib/envelope/load.ts` (`loadEnvelope()`) feeds every route; `src/lib/envelope/derive.ts` (`deriveAppData`) computes pools/sim/metrics; `src/components/app/RouteView.tsx` and `ReportsView.tsx` are **server components** that run the seeded sim + bootstrap confidence bands on the server and stream plain data to the `"use client"` panels — so a ~2,500-iteration season Monte Carlo never blocks the client main thread (the panels only handle interactivity). Every panel reads from this one shared derivation, enforced by `src/lib/envelope/continuity.test.ts`.
 6. **Audit layer** — docs and UI banners expose stale, fixture, missing, unavailable, and validation states; an assumptions disclosure + ⓘ lineage tooltips surface assumptions and provenance at the point of use.
 
 ## Data sources
