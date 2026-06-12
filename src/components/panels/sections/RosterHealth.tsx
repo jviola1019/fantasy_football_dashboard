@@ -90,8 +90,8 @@ function StartSitEdge({ rows, hasData }: { rows: ReturnType<typeof deriveStartSi
           <thead>
             <tr>
               <th>Player</th>
-              <th>Proj</th>
-              <th>Repl</th>
+              <th>Projected</th>
+              <th>Replacement</th>
               <th>Edge</th>
             </tr>
           </thead>
@@ -107,6 +107,11 @@ function StartSitEdge({ rows, hasData }: { rows: ReturnType<typeof deriveStartSi
           </tbody>
         </table>
       )}
+      {hasData ? (
+        <p className="small-note">
+          Edge = projected points − replacement-level points at the position (positive favors starting).
+        </p>
+      ) : null}
     </div>
   );
 }

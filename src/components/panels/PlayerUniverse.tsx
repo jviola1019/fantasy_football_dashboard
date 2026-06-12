@@ -26,7 +26,7 @@ const TABS = ["Universe", "Tiers", "Comparison", "Watchlist", "Projections"] as 
 // rank_std via FantasyPros and are always populated, so they have no dep.
 const RADAR_AXIS_DEPS: Array<{ label: string; dep: PanelMetricKey | null }> = [
   { label: "Value", dep: "true_value" },
-  { label: "Oppty", dep: "opportunity" },
+  { label: "Opportunity", dep: "opportunity" },
   { label: "Trending", dep: "trending_momentum" },
   { label: "Confidence", dep: null },
   { label: "Stability", dep: null }
@@ -127,7 +127,7 @@ export function PlayerUniverse({ players, envelope }: Props) {
                       unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
                     },
                     {
-                      label: "Oppty",
+                      label: "Opportunity",
                       value: selected.opportunity,
                       unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
                     },
@@ -292,7 +292,7 @@ function UniverseStats({
         </div>
         <div className="stat-box">
           <strong>{fmt(avgIneff, 1)}</strong>
-          <small>Avg Inefficiency (VOR)</small>
+          <small>Avg Market Mispricing</small>
         </div>
       </div>
       <div className="section-label mt8">RISING STARS</div>
@@ -449,7 +449,7 @@ function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; pl
         <p className="muted-note">No projected players in this set.</p>
       ) : (
         <table>
-          <thead><tr><th>Player</th><th>Pos</th><th>Proj pts</th></tr></thead>
+          <thead><tr><th>Player</th><th>Position</th><th>Projected pts</th></tr></thead>
           <tbody>
             {ranked.map(({ p, pts }) => (
               <tr key={p.id}><td>{p.name}</td><td>{p.position}</td><td><b>{pts.toFixed(1)}</b></td></tr>

@@ -54,10 +54,14 @@ export function RouteSidebar() {
                       <Link href={item.href} aria-current={active ? "page" : undefined}>
                         <span
                           className={cn(
-                            "grid size-5 shrink-0 place-items-center rounded text-[11px] font-bold tabular-nums transition-colors",
+                            "grid size-5 shrink-0 place-items-center rounded text-[11px] font-semibold tabular-nums transition-colors",
+                            // Quiet, instrument-like: the active route reads via
+                            // a low-contrast tint + accent text, not a bright
+                            // glowing chip. Selection emphasis comes from the
+                            // row's own active background + the accent text.
                             active
-                              ? "bg-rae-blue text-background shadow-[0_1px_6px_rgba(90,159,196,0.45)]"
-                              : "text-muted-foreground"
+                              ? "bg-rae-blue/15 text-rae-blue"
+                              : "text-muted-foreground/70"
                           )}
                         >
                           {index + 1}

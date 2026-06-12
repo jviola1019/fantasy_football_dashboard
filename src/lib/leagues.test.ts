@@ -3,6 +3,7 @@ import { resetDbForTests, schema } from "../db";
 import {
   createLeague,
   deleteLeagueForUser,
+  findUserLeagueByExternal,
   getLeagueCredentials,
   getLeagueForUser,
   listLeagues
@@ -100,6 +101,53 @@ describe("league storage and isolation", () => {
     const deletedByA = await deleteLeagueForUser(db, "user-a", league.id);
     expect(deletedByA).toBe(true);
     expect(await getLeagueForUser(db, "user-a", league.id)).toBeNull();
+  });
+
+  it("rejects a duplicate league (same user, platform, externalLeagueId, season)", async () => {
+    await createLeague(db, {
+      userId: "user-a",
+      platform: "sleeper",
+      externalLeagueId: "L1",
+      season: 2026,
+      label: "Alpha"
+    });
+    await expect(
+      createLeague(db, {
+        userId: "user-a",
+        platform: "sleeper",
+        externalLeagueId: "L1",
+        season: 2026,
+        label: "Alpha again"
+      })
+    ).rejects.toThrow(/duplicate/i);
+    // No second (hollow) row was written.
+    expect(await listLeagues(db, "user-a")).toHaveLength(1);
+  });
+
+  it("allows the same externalLeagueId across different seasons", async () => {
+    await createLeague(db, { userId: "user-a", platform: "sleeper", externalLeagueId: "L1", season: 2025, label: "25" });
+    await createLeague(db, { userId: "user-a", platform: "sleeper", externalLeagueId: "L1", season: 2026, label: "26" });
+    expect(await listLeagues(db, "user-a")).toHaveLength(2);
+  });
+
+  it("the duplicate guard is per-user (same league id under two users is not a dup)", async () => {
+    await createLeague(db, { userId: "user-a", platform: "sleeper", externalLeagueId: "L1", season: 2026, label: "A" });
+    await createLeague(db, { userId: "user-b", platform: "sleeper", externalLeagueId: "L1", season: 2026, label: "B" });
+    expect(await listLeagues(db, "user-a")).toHaveLength(1);
+    expect(await listLeagues(db, "user-b")).toHaveLength(1);
+  });
+
+  it("findUserLeagueByExternal finds an existing league and ignores other users", async () => {
+    const a = await createLeague(db, {
+      userId: "user-a",
+      platform: "sleeper",
+      externalLeagueId: "L1",
+      season: 2026,
+      label: "Alpha"
+    });
+    expect((await findUserLeagueByExternal(db, "user-a", "sleeper", "L1", 2026))?.id).toBe(a.id);
+    expect(await findUserLeagueByExternal(db, "user-b", "sleeper", "L1", 2026)).toBeNull();
+    expect(await findUserLeagueByExternal(db, "user-a", "sleeper", "L1", 2025)).toBeNull();
   });
 
   it("ESPN credentials inserted for user A are not retrievable by user B's session", async () => {

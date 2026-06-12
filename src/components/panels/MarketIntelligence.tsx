@@ -144,11 +144,11 @@ function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players:
         <thead>
           <tr>
             <th>Player</th>
-            <th>Pos</th>
+            <th>Position</th>
             <th>Market</th>
             <th>True</th>
             <th>Edge</th>
-            <th>Own%</th>
+            <th>Owned %</th>
             <th>Trend</th>
           </tr>
         </thead>
