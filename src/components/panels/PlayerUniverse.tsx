@@ -75,6 +75,7 @@ export function PlayerUniverse({ players, envelope }: Props) {
       titleId="pu-title"
       title="Player Universe"
       eyebrow="Explore the player ecosystem."
+      source={envelope?.sourceState}
       controls={
         <input
           className="galaxy-search"
@@ -365,7 +366,7 @@ function UniverseComparison({ player, players }: { player?: PlayerMarketRecord; 
     .slice(0, 6);
   const rows = peers.some((p) => p.id === player.id) ? peers : [player, ...peers].slice(0, 6);
   return (
-    <div className="table-wrap" tabIndex={0}>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label="Player comparison table">
       <div className="section-label">COMPARISON — {player.name} vs {player.position} peers</div>
       <table>
         <thead>
@@ -378,7 +379,15 @@ function UniverseComparison({ player, players }: { player?: PlayerMarketRecord; 
             const edge = Math.round(reputationEdge(p));
             return (
               <tr key={p.id} className={p.id === player.id ? "cmp-self" : undefined}>
-                <td>{p.name}{p.id === player.id ? " ◂" : ""}</td>
+                <td>
+                  {p.name}
+                  {p.id === player.id ? (
+                    <>
+                      <span aria-hidden="true"> ◂</span>
+                      <span className="sr-only"> (selected)</span>
+                    </>
+                  ) : null}
+                </td>
                 <td>{Math.round(p.trueValue)}</td>
                 <td>{Math.round(p.perceivedValue)}</td>
                 <td className={edge >= 0 ? "pos-text" : "neg-text"}>{edge >= 0 ? `+${edge}` : edge}</td>
@@ -441,7 +450,7 @@ function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; pl
     .sort((a, b) => b.pts - a.pts)
     .slice(0, 25);
   return (
-    <div className="table-wrap" tabIndex={0}>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label="Weekly projections table">
       <div className="section-label">
         WEEKLY PROJECTIONS{meta ? ` — week ${meta.week}, ${meta.season}` : ""}
       </div>

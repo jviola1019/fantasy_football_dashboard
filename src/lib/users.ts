@@ -30,11 +30,23 @@ export async function createUserWithPassword(db: Db, input: CreateUserInput): Pr
   return { id: row.id, email: row.email!, name: row.name };
 }
 
+// Timing equalizer (audit 2026-07-08 A-05): a valid-format scrypt hash of the
+// arbitrary, NON-secret string "rae-timing-equalizer-not-a-secret". When the
+// email has no row (or no password hash) we still burn one scrypt verification
+// against this constant so "unknown email" costs the same as "wrong password" —
+// otherwise the ~50 ms gap is a user-enumeration oracle on the login form.
+// Nothing can ever authenticate against it: that branch always returns null.
+const TIMING_EQUALIZER_HASH =
+  "scrypt1$1tcMEFHCxpwioDvCyDIWSA==$r+LpW9yI6A7TdZOpyQKUe6wvLq1qZzI4iWV32Jpl5fagBlvGQWcy7Z7RvZ21qD/Z/l7USlsrm0XubOrq+0T60A==";
+
 export async function authenticateUser(db: Db, email: string, password: string): Promise<AuthenticatedUser | null> {
   const normalized = email.trim().toLowerCase();
   const rows = await db.select().from(schema.users).where(eq(schema.users.email, normalized)).limit(1);
   const row = rows[0];
-  if (!row || !row.passwordHash) return null;
+  if (!row || !row.passwordHash) {
+    await verifyPassword(password, TIMING_EQUALIZER_HASH);
+    return null;
+  }
   const ok = await verifyPassword(password, row.passwordHash);
   if (!ok) return null;
   return { id: row.id, email: row.email!, name: row.name };

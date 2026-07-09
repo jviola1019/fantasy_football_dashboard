@@ -8,9 +8,13 @@ import Link from "next/link";
 
 export function NoLeagueCTA() {
   return (
-    <main
+    // <section>, not <main>: this renders INSIDE the app shell's SidebarInset
+    // <main>, and landmark rules forbid nested mains (audit 2026-07-08 F-09).
+    // min-height uses dvh minus the sticky top bar so the shell doesn't get a
+    // second scrollbar.
+    <section
       style={{
-        minHeight: "100vh",
+        minHeight: "calc(100dvh - 96px)",
         background: "var(--bg)",
         color: "var(--cream)",
         display: "grid",
@@ -130,6 +134,6 @@ export function NoLeagueCTA() {
           Account settings · <Link href="/settings/account" style={{ color: "var(--cream)" }}>profile</Link> · <Link href="/login" style={{ color: "var(--cream)" }}>switch accounts</Link>
         </p>
       </div>
-    </main>
+    </section>
   );
 }

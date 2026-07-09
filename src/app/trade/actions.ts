@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { listLeagues, getLeagueCredentials, type LeagueRecord } from "@/lib/leagues";
+import type { SourceMeta } from "@/lib/governance";
 import { fetchTradeValues, type PlayerValue } from "@/lib/trade/values";
 import {
   fetchSleeperLeagueTrades,
@@ -17,6 +18,13 @@ export interface TradeValuesPayload {
   format: LeagueFormat;
   available: boolean;
   note: string;
+  /**
+   * Full lineage of the trade-value source (FantasyCalc/KTC/DynastyProcess) so
+   * the Trade Center can render the same source · freshness · confidence badge
+   * as every other panel — these values come from a DIFFERENT upstream than the
+   * envelope the route banner describes (audit 2026-07-08 F-02).
+   */
+  source: SourceMeta;
 }
 
 /** The logged-in user's first connected league, or null. */
@@ -37,7 +45,8 @@ export async function loadTradeValues(): Promise<TradeValuesPayload> {
     players: [...data.values.values()].sort((a, b) => b.value - a.value),
     format,
     available: data.values.size > 0,
-    note: data.source.failure ?? data.source.source
+    note: data.source.failure ?? data.source.source,
+    source: data.source
   };
 }
 

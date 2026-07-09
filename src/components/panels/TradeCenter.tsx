@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { SourceMeta } from "@/lib/governance";
 import type { PlayerValue } from "@/lib/trade/values";
 import { DEFAULT_FORMAT, type LeagueFormat } from "@/lib/trade/format";
 import type { GradedTrade } from "@/lib/trade/transactions";
@@ -17,6 +18,10 @@ export function TradeCenter() {
   const [pool, setPool] = useState<PlayerValue[]>([]);
   const [format, setFormat] = useState<LeagueFormat>(DEFAULT_FORMAT);
   const [leagueTrades, setLeagueTrades] = useState<GradedTrade[]>([]);
+  // Trade values come from FantasyCalc/KTC/DynastyProcess — a different
+  // upstream than the envelope described by the route-level GovernanceBanner —
+  // so this panel carries its own lineage badge (audit 2026-07-08 F-02).
+  const [source, setSource] = useState<SourceMeta | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "unavailable">("loading");
 
   useEffect(() => {
@@ -26,6 +31,7 @@ export function TradeCenter() {
         if (!active) return;
         setPool(res.players);
         setFormat(res.format);
+        setSource(res.source);
         setState(res.available ? "ready" : "unavailable");
       })
       .catch(() => {
@@ -49,6 +55,7 @@ export function TradeCenter() {
       titleId="tc-title"
       title="Trade Center"
       eyebrow="Value trades on real market data."
+      source={source ?? undefined}
     >
       <PanelTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} ariaLabel="Trade Center tabs" />
       {state === "loading" && <p className="muted-note">Loading trade values…</p>}

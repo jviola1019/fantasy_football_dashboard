@@ -55,8 +55,12 @@ export function TradeBuilder({
             <li key={p.sleeperId}>
               <span>{p.name} · {p.position} · {p.value}</span>
               <span>
-                <button type="button" onClick={() => add("A", p)}>+ A</button>
-                <button type="button" onClick={() => add("B", p)}>+ B</button>
+                <button type="button" onClick={() => add("A", p)} aria-label={`Add ${p.name} to You give`}>
+                  + Give
+                </button>
+                <button type="button" onClick={() => add("B", p)} aria-label={`Add ${p.name} to You get`}>
+                  + Get
+                </button>
               </span>
             </li>
           ))}

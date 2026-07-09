@@ -151,7 +151,7 @@ function LiveBoard({
 
   return (
     <div className="universe-layout">
-      <div className="table-wrap" tabIndex={0}>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Available players table">
         <div className="section-label">AVAILABLE — draft to your team or mark taken by an opponent</div>
         <input
           className="galaxy-search draft-search"
@@ -260,9 +260,19 @@ function LiveBoard({
           <ul className="rising-list">
             {myRoster.length === 0 && <li className="muted-text">No picks yet — use “+ Mine” to draft, “Taken” to mock opponents.</li>}
             {myRoster.map((p) => (
-              <li key={p.id} className="rising-item draft-roster-row" onClick={() => onRelease(p.id)} title="Click to release">
-                <span>{p.name}</span>
-                <span className="muted-text">{p.position}</span>
+              <li key={p.id} className="rising-item">
+                {/* A real button so keyboard/AT users can release a single pick —
+                    the old clickable <li> was mouse-only (audit 2026-07-08 F-04). */}
+                <button
+                  type="button"
+                  className="draft-roster-row"
+                  onClick={() => onRelease(p.id)}
+                  aria-label={`Release ${p.name} (${p.position}) from your roster`}
+                  title="Release this pick"
+                >
+                  <span>{p.name}</span>
+                  <span className="muted-text">{p.position}</span>
+                </button>
               </li>
             ))}
           </ul>
@@ -274,13 +284,13 @@ function LiveBoard({
 
 function RecommendationQueue({ recommendations }: { recommendations: Recommendation[] }) {
   return (
-    <div className="table-wrap" tabIndex={0}>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label="Recommendation queue table">
       <div className="section-label">RECOMMENDATION QUEUE</div>
       <table>
         <thead>
           <tr>
             <th>Player</th>
-            <th>Pos</th>
+            <th>Position</th>
             <th>Category</th>
             <th>Score</th>
             <th>Why</th>
@@ -320,7 +330,7 @@ function TierCollapseView({
 }) {
   return (
     <div className="nexus-full">
-      <div className="table-wrap" tabIndex={0}>
+      <div className="table-wrap" tabIndex={0} role="region" aria-label="Tier collapse forecast table">
         <div className="section-label">TIER COLLAPSE FORECAST</div>
         <table>
           <thead>

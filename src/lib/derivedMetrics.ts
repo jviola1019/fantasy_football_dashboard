@@ -81,6 +81,21 @@ function round1(value: number): number {
   return Math.round(value * 10) / 10;
 }
 
+/**
+ * Estimated P(top-3 finish), shared by the Scenarios table and the Outcome
+ * Multiverse so the same label can never show two different numbers (audit
+ * 2026-07-08 F-07 — they previously used ×3.4 and ×2.0 respectively).
+ *
+ * The bracket sim measures Missed/Playoffs/Finalist/Champion but has no
+ * third-place game, so "top 3" is NOT a simulated frequency: it is a rank-
+ * scaling estimate ≈ 3× the championship frequency, floored at championship
+ * (winning implies top-3) and capped at playoffs (top-3 implies a playoff
+ * berth). Disclosed in the Scenarios UI as an estimate.
+ */
+export function estimateTopThree(championship: number, playoffs: number): number {
+  return clamp(championship * 3.0, championship, playoffs);
+}
+
 function simToRow(
   sim: SimulationResult,
   weeklyFor: number,
@@ -99,7 +114,7 @@ function simToRow(
   // (playoffs < championship) the clamp would return topThree < championship and
   // break the "champ ⊆ top3 ⊆ playoffs" invariant this block exists to guarantee.
   const playoffs = Math.max(championship, clamp(sim.playoffProbability * scale, 0, 100));
-  const topThree = clamp(championship * 3.4, championship, playoffs);
+  const topThree = estimateTopThree(championship, playoffs);
 
   return {
     championship: round1(championship),
@@ -134,9 +149,10 @@ export function deriveOutcomeDistribution(sim: SimulationResult): OutcomeDistrib
   const playoff = clamp(sim.playoffProbability, 0, 100);
   const bottom = clamp(sim.catastrophicRisk, 0, 100);
 
-  // Made playoffs but not 1st, split into "top 3" and "rest of playoffs".
+  // Made playoffs but not 1st, split into "top 3" and "rest of playoffs" using
+  // the same shared estimator as the Scenarios table (audit F-07).
   const aboveChamp = Math.max(0, playoff - champ);
-  const topThree = Math.min(aboveChamp, champ * 2.0);
+  const topThree = Math.min(aboveChamp, Math.max(0, estimateTopThree(champ, playoff) - champ));
   const playoffsRest = Math.max(0, aboveChamp - topThree);
   // Missed playoffs and did not bottom out.
   const middlePack = Math.max(0, 100 - champ - topThree - playoffsRest - bottom);
@@ -207,16 +223,23 @@ export function deriveAggregateValueIndex(players: PlayerMarketRecord[]): string
   return total >= 1000 ? `${(total / 1000).toFixed(1)}k` : String(Math.round(total));
 }
 
-export function deriveStartSitEdge(players: PlayerMarketRecord[]): Array<{ player: PlayerMarketRecord; proj: number; repl: number; edge: number }> {
+/**
+ * Start/sit VALUE comparison. All three numbers are the unitless 0–100
+ * ECR-derived value index (trueValue), NOT projected fantasy points —
+ * `bestAlt` is the best OTHER same-position player on the roster, not a
+ * league replacement level. The UI must label these as value scores
+ * (audit 2026-07-08 F-01: they were headed "Projected points").
+ */
+export function deriveStartSitEdge(players: PlayerMarketRecord[]): Array<{ player: PlayerMarketRecord; value: number; bestAlt: number; edge: number }> {
   const sorted = [...players].sort((a, b) => reputationEdge(b) - reputationEdge(a));
   return sorted.slice(0, 5).map((player) => {
     const samePos = players.filter((p) => p.position === player.position && p.id !== player.id);
-    const repl = samePos.length ? samePos.sort((a, b) => b.trueValue - a.trueValue)[0].trueValue : player.perceivedValue;
+    const bestAlt = samePos.length ? samePos.sort((a, b) => b.trueValue - a.trueValue)[0].trueValue : player.perceivedValue;
     return {
       player,
-      proj: player.trueValue,
-      repl,
-      edge: Math.round((player.trueValue - repl) * 10) / 10,
+      value: player.trueValue,
+      bestAlt,
+      edge: Math.round((player.trueValue - bestAlt) * 10) / 10,
     };
   });
 }

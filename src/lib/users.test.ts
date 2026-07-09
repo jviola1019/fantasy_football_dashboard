@@ -1,12 +1,17 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { resetDbForTests, schema } from "../db";
+import * as passwords from "./passwords";
 import {
   authenticateUser,
   changeUserPassword,
   createUserWithPassword,
   deleteUserWithPassword
 } from "./users";
+
+// Pass-through spies so the timing-equalizer test can observe scrypt work
+// without changing any behavior.
+vi.mock("./passwords", { spy: true });
 
 describe("user accounts (hashed passwords)", () => {
   let db: ReturnType<typeof resetDbForTests>;
@@ -48,6 +53,14 @@ describe("user accounts (hashed passwords)", () => {
 
   it("returns null for unknown email instead of leaking existence", async () => {
     expect(await authenticateUser(db, "ghost@example.com", "anything")).toBeNull();
+  });
+
+  it("performs one scrypt verification even for unknown emails (timing equalizer, audit A-05)", async () => {
+    vi.mocked(passwords.verifyPassword).mockClear();
+    expect(await authenticateUser(db, "ghost@example.com", "anything")).toBeNull();
+    // Without this, "unknown email" returns ~50 ms faster than "wrong
+    // password" — a user-enumeration timing oracle on the login form.
+    expect(passwords.verifyPassword).toHaveBeenCalledTimes(1);
   });
 
   it("normalizes email case", async () => {

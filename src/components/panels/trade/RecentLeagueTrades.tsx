@@ -2,7 +2,7 @@ import type { GradedTrade } from "@/lib/trade/transactions";
 
 export function RecentLeagueTrades({ trades }: { trades: GradedTrade[] }) {
   return (
-    <div className="table-wrap" tabIndex={0}>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label="Recent league trades table">
       <div className="section-label">RECENT LEAGUE TRADES</div>
       {trades.length === 0 ? (
         <p className="muted-note">

@@ -57,7 +57,13 @@ function LineupWinProb({ sim }: { sim: SimulationResult }) {
     <div className="mini-panel">
       <div className="mini-panel-title">Playoff Probability</div>
       <div className="triangle-wrap">
-        <svg viewBox="-14 -6 148 138" width="100%" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+        <svg
+          viewBox="-14 -6 148 138"
+          width="100%"
+          preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label={`Playoff probability estimate ${mid}%, 90% Monte-Carlo interval ${lo}% to ${hi}%`}
+        >
           <polygon
             points={`${tCx},${tTop} ${tCx - halfW},${tBot} ${tCx + halfW},${tBot}`}
             fill="rgba(119,215,176,0.08)"

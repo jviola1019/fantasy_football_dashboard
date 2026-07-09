@@ -1,5 +1,25 @@
 // Detects high-entropy literals that sit on the same line as a secret keyword.
-// Pure, dependency-free, and unit-tested; the CLI lives in scripts/check-doc-secrets.ts.
+// Pure, stdlib-only, and unit-tested; the CLI lives in scripts/check-doc-secrets.ts.
+
+import { createHash } from "node:crypto";
+
+/**
+ * SHA-256 hex digests of the three secrets that leaked into public git history
+ * in May 2026 (redacted at tip in f363637, rotated since — see
+ * reports/audit-2026-07-08-fable.md A-01). The plaintexts are burned forever;
+ * this deny-list stops any tracked file from ever re-introducing them (e.g. by
+ * restoring an old doc revision). Stored as digests so this file never
+ * contains the leaked values themselves.
+ */
+export const BURNED_SECRET_HASHES: ReadonlySet<string> = new Set([
+  "d73464c6bbdba4c0c09838ed22b024af87c1c6d085cb5b85f624afa94aa90ecc", // AUTH_SECRET (2026-05)
+  "4e57df6a02fda9ab2478c2ff23e306455fadc9b3bed3c37128898c3367d85323", // CREDENTIAL_ENCRYPTION_KEY (2026-05)
+  "469eb8d606044d3b6f7ea496412e066222f9ff3cb3b4f236f662126b8a3d2c13" // DB_INIT_TOKEN (2026-05)
+]);
+
+function isBurned(token: string, burned: ReadonlySet<string>): boolean {
+  return burned.has(createHash("sha256").update(token).digest("hex"));
+}
 
 const SECRET_KEYWORDS =
   /(AUTH_SECRET|CREDENTIAL_ENCRYPTION_KEY|DB_INIT_TOKEN|x-init-token|CRON_SECRET|[A-Z][A-Z0-9_]*SECRET|[A-Z][A-Z0-9_]*TOKEN|[A-Z][A-Z0-9_]*API_KEY|PASSWORD|PRIVATE_KEY)/;
@@ -63,10 +83,21 @@ function looksLikeAssignedSecret(token: string): boolean {
   return /[^A-Za-z0-9]/.test(token) || (/[a-z]/.test(token) && /[A-Z]/.test(token));
 }
 
-export function findSecretLeaks(text: string): Leak[] {
+export function findSecretLeaks(
+  text: string,
+  burnedHashes: ReadonlySet<string> = BURNED_SECRET_HASHES
+): Leak[] {
   const leaks: Leak[] = [];
   const lines = text.split(/\r?\n/);
   lines.forEach((raw, i) => {
+    // Burned-literal pass: a known-leaked value is flagged on ANY line —
+    // no keyword required, allow-list bypassed (a burned value is never OK).
+    for (const t of raw.match(TOKEN_RE) ?? []) {
+      if (t.length >= 24 && isBurned(t, burnedHashes)) {
+        leaks.push({ line: i + 1, keyword: "BURNED_SECRET", token: `${t.slice(0, 6)}…(${t.length} chars)` });
+        return;
+      }
+    }
     const kw = raw.match(SECRET_KEYWORDS);
     if (!kw) return;
     const lower = raw.toLowerCase();

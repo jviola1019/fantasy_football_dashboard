@@ -51,7 +51,7 @@ function rowsForFormat(format: LeagueFormat, platform: string): AuditRow[] {
     },
     {
       setting: "Starting QB",
-      expected: String(format.starters.QB + (format.starters.SUPERFLEX > 0 ? `+${format.starters.SUPERFLEX} OP` : "")),
+      expected: String(format.starters.QB + (format.starters.SUPERFLEX > 0 ? `+${format.starters.SUPERFLEX} Superflex` : "")),
       current: String(format.starters.QB),
       status: "ok"
     },
@@ -92,8 +92,8 @@ function rowsForFormat(format: LeagueFormat, platform: string): AuditRow[] {
   if (format.starters.SUPERFLEX > 0) {
     rows.splice(3, 1, {
       setting: "Starting QB (Superflex)",
-      expected: `${format.starters.QB} + ${format.starters.SUPERFLEX} OP`,
-      current: `${format.starters.QB} + ${format.starters.SUPERFLEX} OP`,
+      expected: `${format.starters.QB} + ${format.starters.SUPERFLEX} Superflex`,
+      current: `${format.starters.QB} + ${format.starters.SUPERFLEX} Superflex`,
       status: "ok",
       note: "Superflex / 2QB lineup detected."
     });
@@ -116,7 +116,7 @@ export function PreDraftAudit({ players, envelope }: Props) {
       eyebrow="Read your league config before the clock starts."
     >
       <div className="universe-layout">
-        <div className="table-wrap" tabIndex={0}>
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Detected league settings table">
           <div className="section-label">DETECTED LEAGUE SETTINGS</div>
           {!format ? (
             <p className="small-note" role="status">

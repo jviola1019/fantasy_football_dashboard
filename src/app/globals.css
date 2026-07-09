@@ -227,11 +227,14 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .gov-assume-list li { font-size: 10px; line-height: 1.5; color: #e8d9b0; padding-left: 10px; position: relative; }
 .gov-assume-list li::before { content: "·"; position: absolute; left: 2px; color: var(--amber); }
 .gov-assume-missing { font-size: 10px; line-height: 1.5; color: #e8d9b0; margin-top: 4px; }
-.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 9px; font-family: var(--font-plex-mono), monospace; color: var(--muted); }
+/* Trust-critical text floors at 11px (audit 2026-07-08 F-05): the source /
+   freshness / confidence badge and failure notes answer "can I trust it?"
+   and must stay readable on mobile. */
+.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; font-family: var(--font-plex-mono), monospace; color: var(--muted); }
 .src-badge-src { color: var(--cream); }
 .gov-panel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
 .gov-panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
-.gov-panel-failure { font-size: 10px; color: var(--amber); margin: 4px 0; }
+.gov-panel-failure { font-size: 11px; color: var(--amber); margin: 4px 0; }
 .audit-info { font-size: 11px; line-height: 1; color: var(--muted); cursor: help; padding: 0 2px; }
 .audit-info:hover, .audit-info:focus-visible { color: var(--blue); }
 
@@ -490,7 +493,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .momentum-name { font-size: 10px; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
 .momentum-val { font-size: 10px; font-weight: 600; white-space: nowrap; }
 .momentum-empty { font-size: 10px; color: var(--muted); }
-.view-all-link { font-size: 9px; color: var(--blue); margin-top: 6px; display: block; }
+.view-all-link { font-size: 11px; color: var(--blue); margin-top: 6px; display: block; }
 .mt8 { margin-top: 8px; }
 
 /* ─── Bottom Row Mini Panels ─────────────────────────────────────────────── */
@@ -513,17 +516,17 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   box-shadow: var(--panel-shadow);
 }
 .mini-panel-title {
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: .1em;
   color: #d8dece;
   margin-bottom: 6px;
 }
-.mini-table { width: 100%; border-collapse: collapse; font-size: 10px; }
-.mini-table th { font-size: 8px; text-transform: uppercase; color: var(--muted); padding: 3px 2px; text-align: left; border-bottom: 1px solid var(--line); }
+.mini-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.mini-table th { font-size: 9px; text-transform: uppercase; color: var(--muted); padding: 3px 2px; text-align: left; border-bottom: 1px solid var(--line); }
 .mini-table td { padding: 3px 2px; border-bottom: 1px solid rgba(214,226,226,0.06); }
-.muted-note { font-size: 10px; color: var(--muted); }
-.small-note { font-size: 9px; color: var(--muted); margin-top: 6px; }
+.muted-note { font-size: 11px; color: var(--muted); }
+.small-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
 .triangle-wrap { margin: 4px 0; }
 
 /* ─── Intel Feed ────────────────────────────────────────────────────────── */
@@ -1133,7 +1136,22 @@ td small { color: var(--muted); }
 .draft-btn-mine:hover { background: rgba(53,192,138,0.28); }
 .draft-btn-opp { background: rgba(141,154,160,0.12); color: var(--muted); border-color: rgba(141,154,160,0.3); }
 .draft-btn-opp:hover { background: rgba(141,154,160,0.22); color: var(--cream); }
-.draft-roster-row { cursor: pointer; }
+/* The release control is a real <button> filling its .rising-item row (keyboard
+   + AT reachable — audit 2026-07-08 F-04). Inherits the row typography. */
+.draft-roster-row {
+  cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%; font-size: inherit; text-align: left;
+  background: none; border: none; color: inherit; padding: 2px 0;
+  min-height: 24px;
+}
+.draft-roster-row:hover, .draft-roster-row:focus-visible { color: var(--red); }
+/* WCAG 2.5.8 minimum target size everywhere; 44px touch comfort on coarse
+   pointers, matching the PanelTabs precedent (audit F-04). */
+.draft-btn, .draft-reset-btn, .vub-sort { min-height: 24px; }
+@media (pointer: coarse) {
+  .draft-btn, .draft-reset-btn, .vub-sort, .draft-roster-row { min-height: 44px; }
+}
 /* Live Board search — full-width (overrides the narrow .galaxy-search) so the
    whole available pool is reachable, with a recommended-row marker. */
 .draft-search { width: 100%; margin: 4px 0 6px; }

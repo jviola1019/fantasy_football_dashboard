@@ -168,17 +168,17 @@ describe("derivedMetrics — statistical properties", () => {
       for (const row of g.positions) expect(valid.test(row.grade)).toBe(true);
     });
 
-    it("deriveStartSitEdge: edge = proj - repl is finite and consistent", () => {
+    it("deriveStartSitEdge: edge = value - bestAlt is finite and consistent", () => {
       const rows = deriveStartSitEdge(fixturePlayers);
       expect(rows.length).toBeGreaterThan(0);
       for (const r of rows) {
         // The function ranks by reputationEdge (which can favor a player even
         // when their trueValue is lower than the same-position best), so edge
         // can legitimately be negative. We only assert the value is consistent.
-        expect(Number.isFinite(r.proj)).toBe(true);
-        expect(Number.isFinite(r.repl)).toBe(true);
+        expect(Number.isFinite(r.value)).toBe(true);
+        expect(Number.isFinite(r.bestAlt)).toBe(true);
         expect(Number.isFinite(r.edge)).toBe(true);
-        expect(Math.abs(r.edge - (r.proj - r.repl))).toBeLessThanOrEqual(0.1);
+        expect(Math.abs(r.edge - (r.value - r.bestAlt))).toBeLessThanOrEqual(0.1);
       }
     });
 

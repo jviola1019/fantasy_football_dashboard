@@ -90,17 +90,17 @@ function StartSitEdge({ rows, hasData }: { rows: ReturnType<typeof deriveStartSi
           <thead>
             <tr>
               <th>Player</th>
-              <th>Projected</th>
-              <th>Replacement</th>
-              <th>Edge</th>
+              <th>Value</th>
+              <th>Best Alternative</th>
+              <th>Value Gap</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map(({ player, proj, repl, edge }) => (
+            {rows.map(({ player, value, bestAlt, edge }) => (
               <tr key={player.id}>
                 <td>{surname(player.name)}</td>
-                <td>{proj}</td>
-                <td>{repl}</td>
+                <td>{value}</td>
+                <td>{bestAlt}</td>
                 <td className={edge > 0 ? "pos-text" : "neg-text"}>{edge > 0 ? `+${edge}` : edge}</td>
               </tr>
             ))}
@@ -109,7 +109,9 @@ function StartSitEdge({ rows, hasData }: { rows: ReturnType<typeof deriveStartSi
       )}
       {hasData ? (
         <p className="small-note">
-          Edge = projected points − replacement-level points at the position (positive favors starting).
+          Value gap = the player&apos;s consensus value score minus the best same-position
+          alternative on your roster (unitless 0–100 index from consensus rankings, not
+          projected points; positive favors starting).
         </p>
       ) : null}
     </div>
