@@ -98,6 +98,20 @@ const config: VercelConfig = {
       headers: [
         { key: "Cache-Control", value: "no-store, max-age=0, must-revalidate" }
       ]
+    },
+    {
+      // Baseline browser hardening for an authenticated dashboard (audit A-04).
+      // frame-ancestors must be a header (ignored in <meta>) and is the only CSP
+      // directive shipped for now — a full CSP needs nonce plumbing through
+      // Next's inline scripts and is tracked separately.
+      source: "/(.*)",
+      headers: [
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        { key: "X-Frame-Options", value: "DENY" },
+        { key: "X-Content-Type-Options", value: "nosniff" },
+        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" }
+      ]
     }
   ]
 };

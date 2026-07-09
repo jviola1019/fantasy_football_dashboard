@@ -74,6 +74,10 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
           </div>
         ))}
       </div>
+      <p className="small-note">
+        Composite indexes (edge, velocity, chaos) combine real inputs with fixed
+        hand-tuned weights — not yet fitted to observed outcomes (QNT-01).
+      </p>
     </PanelCard>
   );
 }

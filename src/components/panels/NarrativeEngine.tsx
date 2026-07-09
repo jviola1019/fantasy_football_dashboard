@@ -133,18 +133,28 @@ function NarrBoard({
                 <span className="narr-pos">{r.p.position}</span>
               </span>
               {withHype && (
-                <span className={`narr-stat ${r.hype >= 0 ? "pos-text" : "neg-text"}`} title="trending hype">
+                <span
+                  className={`narr-stat ${r.hype >= 0 ? "pos-text" : "neg-text"}`}
+                  title="trending hype"
+                  aria-label={`trending hype ${r.hype >= 0 ? "+" : ""}${r.hype}`}
+                >
                   {r.hype >= 0 ? "+" : ""}{r.hype}
                 </span>
               )}
-              <span className={`narr-stat ${r.edge >= 0 ? "pos-text" : "neg-text"}`} title="reputation edge (true − market)">
+              <span
+                className={`narr-stat ${r.edge >= 0 ? "pos-text" : "neg-text"}`}
+                title="value edge (true − market)"
+                aria-label={`value edge ${r.edge >= 0 ? "+" : ""}${r.edge}`}
+              >
                 {r.edge >= 0 ? "+" : ""}{r.edge}
               </span>
             </li>
           ))}
         </ol>
       )}
-      <div className="narr-legend">{withHype ? "hype · edge" : "edge"}</div>
+      <div className="narr-legend">
+        {withHype ? "columns: trending hype · value edge (true − market)" : "column: value edge (true − market)"}
+      </div>
     </div>
   );
 }

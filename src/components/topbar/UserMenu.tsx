@@ -58,6 +58,9 @@ export function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          // On mobile the email span is hidden, leaving bare initials as the
+          // accessible name — so name the control explicitly (audit F-11).
+          aria-label={`Account menu for ${email}`}
           className="flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-3 text-xs text-foreground transition-colors hover:border-ring/50"
         >
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-rae-blue to-rae-purple text-xs font-bold text-background">

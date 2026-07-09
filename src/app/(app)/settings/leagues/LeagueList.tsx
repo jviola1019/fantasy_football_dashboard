@@ -38,6 +38,7 @@ export function LeagueList({ leagues }: { leagues: LeagueRecord[] }) {
           <button
             type="button"
             disabled={pending}
+            aria-label={`Remove ${league.label} (${league.platform.toUpperCase()} ${league.season})`}
             onClick={() =>
               startTransition(async () => {
                 await removeLeague(league.id);

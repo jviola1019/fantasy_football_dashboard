@@ -2,6 +2,7 @@ import { loadEnvelope, NoLeagueCTA } from "@/lib/envelope/load";
 import { RouteView } from "@/components/app/RouteView";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
   const r = await loadEnvelope();

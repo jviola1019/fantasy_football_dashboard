@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 
 /**
  * Edge-safe Auth.js config shared by the app handlers (src/lib/auth.ts) and the
- * middleware (src/middleware.ts). It deliberately contains NO database adapter
+ * proxy (src/proxy.ts — Next 16's rename of middleware). It deliberately contains NO database adapter
  * and NO Credentials provider — both pull in `better-sqlite3`/`postgres` and the
  * `authenticateUser` DB read, which cannot run in the Edge middleware runtime.
  * Middleware only needs to VERIFY the JWT and gate routes; sign-in (which hits

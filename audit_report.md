@@ -1,5 +1,7 @@
 # RAE Dashboard — Comprehensive Audit Report
 
+> _Historical ledger — superseded by `reports/audit-*.md` (latest: `reports/audit-2026-07-08-fable.md`). Kept for provenance; do not treat claims below as current._
+
 **Date:** 2026-05-29  
 **Sprint:** 3 (complete)  
 **Implementation:** committed `Co-Authored-By: Claude Sonnet 4.6` (per git trailers)  

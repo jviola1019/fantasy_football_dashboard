@@ -6,7 +6,7 @@ import { ChangePasswordForm, DeleteAccountForm, SignOutButton } from "./AccountF
 
 export const dynamic = "force-dynamic";
 
-export const metadata = { title: "Account — RAE" };
+export const metadata = { title: "Account" };
 
 export default async function AccountSettingsPage() {
   const session = await auth();

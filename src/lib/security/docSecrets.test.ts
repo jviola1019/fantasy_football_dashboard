@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { describe, it, expect } from "vitest";
-import { findSecretLeaks, scanFiles, isScannableDocPath } from "./docSecrets";
+import { BURNED_SECRET_HASHES, findSecretLeaks, scanFiles, isScannableDocPath } from "./docSecrets";
 
 describe("isScannableDocPath", () => {
   it("scans shippable docs/config/env", () => {
@@ -72,6 +73,31 @@ describe("findSecretLeaks", () => {
     expect(findSecretLeaks("CRON_SECRET=")).toHaveLength(0);
     expect(findSecretLeaks("# Vercel sets `Authorization: Bearer $CRON_SECRET`")).toHaveLength(0);
     expect(findSecretLeaks("DB_PASSWORD: ${{ secrets.DB_PASSWORD }}")).toHaveLength(0);
+  });
+});
+
+describe("burned-secret deny-list (audit 2026-07-08 A-01)", () => {
+  // Synthetic stand-in for a leaked value; the real deny-list stores only
+  // SHA-256 digests so no test or source file ever contains a burned plaintext.
+  const FAKE_BURNED = "Zz9Yx8Wv7Ut6Sr5Qp4On3Ml2Kj1Ih0Gf9Ee8Dd7Cc6B=";
+  const fakeHash = createHash("sha256").update(FAKE_BURNED).digest("hex");
+
+  it("flags a burned literal even with NO secret keyword on the line", () => {
+    const leaks = findSecretLeaks(`random note: ${FAKE_BURNED}`, new Set([fakeHash]));
+    expect(leaks).toHaveLength(1);
+    expect(leaks[0]!.keyword).toBe("BURNED_SECRET");
+    expect(leaks[0]!.token).not.toContain(FAKE_BURNED);
+  });
+
+  it("flags a burned literal even when the line matches the allow-list", () => {
+    // "example" is on ALLOW_SUBSTRINGS — a burned value must still be caught.
+    const leaks = findSecretLeaks(`example config: ${FAKE_BURNED}`, new Set([fakeHash]));
+    expect(leaks).toHaveLength(1);
+  });
+
+  it("ships the three 2026-05 history-leak digests by default", () => {
+    expect(BURNED_SECRET_HASHES.size).toBe(3);
+    for (const h of BURNED_SECRET_HASHES) expect(h).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 

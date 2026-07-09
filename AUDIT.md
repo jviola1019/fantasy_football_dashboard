@@ -1,5 +1,7 @@
 # RAE Dashboard — Production State Audit
 
+> _Historical ledger — superseded by `reports/audit-*.md` (latest: `reports/audit-2026-07-08-fable.md`). Kept for provenance; do not treat claims below as current._
+
 > Captures the state of the deployed app on `fantasy-football-dashboard-seven.vercel.app` after the May 2026 infrastructure stand-up (auth, DB bootstrap, JSONB fixes, players-catalog cron, refresh-endpoint rewire). Identifies which features actually work today, which are demo-only, which are blocked on data sources, and the recommended order of work to make the dashboard honestly useful pre-draft for the 2026 season.
 
 ---

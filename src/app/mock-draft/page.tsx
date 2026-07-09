@@ -6,6 +6,7 @@ import { BackToDashboard } from "@/components/ui/BackToDashboard";
 import { SourceFreshnessBadge } from "@/components/governance/SourceFreshnessBadge";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "Mock Draft" };
 
 // Standalone pre-draft mock-draft tool. Uses FantasyPros consensus rankings
 // directly — no Sleeper league required, no auth required. Lets anyone open

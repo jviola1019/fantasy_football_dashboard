@@ -113,7 +113,7 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
             letterSpacing: 0.2
           }}
         >
-          {ciLabel} — CI bands widened {ciMultiplier.toFixed(1)}× from the seeded simulation.
+          {ciLabel} — confidence-interval bands widened {ciMultiplier.toFixed(1)}× from the seeded simulation.
         </div>
       ) : null}
 
@@ -200,7 +200,16 @@ function OutcomeMultiverse({
       ) : (
         <p className="muted-note">No simulated seasons to chart yet.</p>
       )}
-      <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
+      <svg
+        viewBox="0 0 560 300"
+        width="100%"
+        role="img"
+        aria-label={
+          players.length === 0
+            ? "Outcome fan chart: no player data"
+            : `Season outcome probabilities: ${outcomes.map((o) => `${o.label} ${o.pct}%`).join(", ")}`
+        }
+      >
         <defs>
           <filter id="multiverseGlow">
             <feGaussianBlur stdDeviation="2" result="blur" />
@@ -326,7 +335,7 @@ function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioCo
   ];
 
   return (
-    <div className="table-wrap" tabIndex={0}>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label="Scenario comparison table">
       <div className="section-label">SCENARIO COMPARISON</div>
       {!hasData ? (
         <p className="muted-note">No data available.</p>
@@ -354,6 +363,14 @@ function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioCo
           </tbody>
         </table>
       )}
+      {hasData ? (
+        <p className="small-note">
+          Best/Worst re-run the same seeded simulation at risk tolerance 0.9 / 0.15, then apply
+          a +12% / −13% outcome-shaping factor — directional stress bounds, not simulated
+          frequencies. Top 3 Finish is an estimate (≈3× championship, capped at playoffs); the
+          bracket simulation itself tracks champion, finalist, playoffs, and missed.
+        </p>
+      ) : null}
     </div>
   );
 }

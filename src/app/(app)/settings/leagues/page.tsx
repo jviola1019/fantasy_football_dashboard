@@ -6,6 +6,7 @@ import { AddLeagueForm } from "./AddLeagueForm";
 import { LeagueList } from "./LeagueList";
 
 export const dynamic = "force-dynamic";
+export const metadata = { title: "League Settings" };
 
 // Rendered inside the (app) shell — the route sidebar + command bar provide
 // navigation, so this is just the settings content (no standalone page chrome).

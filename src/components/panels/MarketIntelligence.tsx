@@ -124,21 +124,27 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
     { label: "Market Regime", value: regimeKnown ? metrics.marketRegime : "—", sub: !regimeKnown ? "No market data" : metrics.marketRegime === "Inefficient" ? "Favorable for exploitation" : "Efficiently priced", color: !regimeKnown ? "neu" : metrics.marketRegime === "Inefficient" ? "neg" : "pos" },
   ];
   return (
-    <div className="kpi-row kpi-row-sm">
-      {cards.map((c) => (
-        <div key={c.label} className={`kpi-card kpi-${c.color}`}>
-          <small>{c.label}</small>
-          <strong>{c.value}</strong>
-          <span>{c.sub}</span>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="kpi-row kpi-row-sm">
+        {cards.map((c) => (
+          <div key={c.label} className={`kpi-card kpi-${c.color}`}>
+            <small>{c.label}</small>
+            <strong>{c.value}</strong>
+            <span>{c.sub}</span>
+          </div>
+        ))}
+      </div>
+      <p className="small-note">
+        Indexes combine real market inputs with fixed hand-tuned weights — not yet
+        fitted to observed outcomes (QNT-01).
+      </p>
+    </>
   );
 }
 
 function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players: PlayerMarketRecord[]; label?: string }) {
   return (
-    <div className="table-wrap" tabIndex={0}>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={label}>
       <div className="section-label">{label}</div>
       <table>
         <thead>

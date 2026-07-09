@@ -70,7 +70,7 @@ export function WaiverWire({ players, envelope }: Props) {
       }
     >
       <div className="universe-layout">
-        <div className="table-wrap" tabIndex={0}>
+        <div className="table-wrap" tabIndex={0} role="region" aria-label="Ranked free agents table">
           <div className="section-label">
             RANKED FREE AGENTS{!query && players.length > ranked.length ? ` — top ${ranked.length} of ${players.length}` : ""}
           </div>
@@ -122,10 +122,10 @@ export function WaiverWire({ players, envelope }: Props) {
         </div>
         <div className="universe-sidebar">
           <div className="player-profile-card">
-            <div className="momentum-header">FAAB BUDGET</div>
+            <div className="momentum-header">FAAB (FREE-AGENT BUDGET)</div>
             <DataUnavailable
-              title="FAAB budgets not connected"
-              description="Real waiver-budget bars need your league's waiver type and remaining-budget fields, surfaced via /api/leagues/[id]/refresh. No real FAAB data is integrated yet, so no placeholder bars are shown."
+              title="Free-agent acquisition budgets not connected"
+              description="Real waiver-budget bars need your league's waiver type and remaining-budget fields, surfaced via /api/leagues/[id]/refresh. No real budget data is integrated yet, so no placeholder bars are shown."
             />
           </div>
         </div>
