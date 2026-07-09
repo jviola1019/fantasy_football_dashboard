@@ -161,3 +161,8 @@ Every locally-fixable finding from all four lanes was implemented and verified. 
 2. **Authorize the `main` ruleset** (A-02): require PR + status checks (`typecheck + lint + vitest`, `playwright + axe`, `lighthouse perf + a11y`, `gitleaks secret scan`, `dependency review`, `codeql (javascript-typescript)`), block force-pushes/deletion, 0 required approvals (solo repo). One `gh api -X POST …/rulesets` call or Settings → Rules.
 3. **Open the PR** from `audit/2026-06-09` → `main` and watch the dependency-review job go green now that the dependency graph is enabled (its first-ever effective run).
 4. Optional follow-ups: e2e gaps (console-error assertion, keyboard-nav coverage, authenticated axe scan), full CSP with nonces, Q-03 per-source confidence.
+
+**Dependabot first-light triage (alerts appeared the moment A-03 enabled them — 14 open: 5 high/6 moderate/3 low).** `npm audit --omit=dev` narrows the production path to two chains, neither an actionable runtime risk:
+- `path-to-regexp` ReDoS (high) via `@vercel/config → @vercel/routing-utils` — build/config-time only (typed `vercel.ts`), route patterns are static, and the only offered fix is a breaking downgrade to `@vercel/config@0.0.32`. Wait for upstream bump.
+- `postcss` <8.5.10 XSS-in-stringify (moderate) — a copy nested inside `next` itself; build-time; npm's "fix" is next@9.3.3 (nonsense). Resolves when Next bumps its pin.
+- Everything else (`ws`, `tmp`, `vite`, `esbuild`, `js-yaml`, `uuid`, `@babel/core`) sits under dev toolchains (vitest/playwright/lhci). Revisit on the next routine dependency refresh; none ship to production.
