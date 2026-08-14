@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { safeEqual } from "@/lib/timingSafe";
 import { getDb, schema } from "@/db";
-import { evaluateLifecycleRules, insertNotification } from "@/lib/lifecycle/notifications";
+import { evaluateLifecycleRules, upsertNotification } from "@/lib/lifecycle/notifications";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { getCurrentNflSeason } from "@/lib/schedule/season";
 import {
@@ -105,7 +105,7 @@ export async function GET(request: Request): Promise<Response> {
     });
 
     for (const n of drafted) {
-      await insertNotification(n, db);
+      await upsertNotification(n, db);
       writtenCount += 1;
       ruleCounts[n.rule] = (ruleCounts[n.rule] ?? 0) + 1;
     }

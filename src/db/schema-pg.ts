@@ -1,4 +1,14 @@
-import { pgTable, text, integer, timestamp, primaryKey, customType, jsonb } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  integer,
+  timestamp,
+  primaryKey,
+  customType,
+  jsonb,
+  uniqueIndex,
+  index
+} from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Buffer; default: false }>({
   dataType() {
@@ -78,18 +88,43 @@ export const leagueCredentials = pgTable("leagueCredentials", {
   rotatedAt: timestamp("rotatedAt", { mode: "date" }).notNull().defaultNow()
 });
 
-export const notifications = pgTable("notifications", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
-  severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
-  rule: text("rule").notNull(),
-  message: text("message").notNull(),
-  createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
-  dismissedAt: timestamp("dismissedAt", { mode: "date" })
-});
+/** Mirrors NOTIFICATION_STATUSES in schema.ts — keep the two in lockstep. */
+export const NOTIFICATION_STATUSES = [
+  "new",
+  "active",
+  "dismissed",
+  "resolved",
+  "expired",
+  "reopened"
+] as const;
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
+    severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
+    rule: text("rule").notNull(),
+    message: text("message").notNull(),
+    /** See schema.ts — persisted dedup identity (audit F-003). */
+    dedupKey: text("dedupKey").notNull(),
+    status: text("status", { enum: NOTIFICATION_STATUSES }).notNull().default("new"),
+    occurrences: integer("occurrences").notNull().default(1),
+    season: integer("season"),
+    week: integer("week"),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolvedAt", { mode: "date" }),
+    dismissedAt: timestamp("dismissedAt", { mode: "date" })
+  },
+  (table) => [
+    uniqueIndex("notifications_user_dedup").on(table.userId, table.dedupKey),
+    index("notifications_user_created").on(table.userId, table.createdAt)
+  ]
+);
 
 export const playersSnapshots = pgTable("players_snapshots", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -256,9 +291,28 @@ export const INIT_SQL = `
     severity TEXT NOT NULL,
     rule TEXT NOT NULL,
     message TEXT NOT NULL,
+    "dedupKey" TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'new',
+    occurrences INTEGER NOT NULL DEFAULT 1,
+    season INTEGER,
+    week INTEGER,
     "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+    "resolvedAt" TIMESTAMP,
     "dismissedAt" TIMESTAMP
   );
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "dedupKey" TEXT NOT NULL DEFAULT '';
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'new';
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS occurrences INTEGER NOT NULL DEFAULT 1;
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS season INTEGER;
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS week INTEGER;
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP NOT NULL DEFAULT now();
+  ALTER TABLE notifications ADD COLUMN IF NOT EXISTS "resolvedAt" TIMESTAMP;
+  UPDATE notifications SET "dedupKey" = 'legacy:' || id WHERE "dedupKey" IS NULL OR "dedupKey" = '';
+  UPDATE notifications SET status = CASE WHEN "dismissedAt" IS NOT NULL THEN 'dismissed' ELSE 'active' END
+    WHERE status IS NULL OR status = 'new';
+  CREATE UNIQUE INDEX IF NOT EXISTS notifications_user_dedup
+    ON notifications ("userId", "dedupKey");
   CREATE INDEX IF NOT EXISTS notifications_user_created
     ON notifications ("userId", "createdAt" DESC);
 ${SNAPSHOT_DDL}

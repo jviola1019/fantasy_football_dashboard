@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as sqliteSchema from "./schema";
 import * as pgSchema from "./schema-pg";
@@ -8,6 +9,39 @@ export type Db = BetterSQLite3Database<typeof sqliteSchema>;
 
 let cached: Db | undefined;
 let activeDriver: "sqlite" | "postgres" = "sqlite";
+
+/**
+ * Which driver each Db instance was built with.
+ *
+ * Tracked per instance rather than only in `activeDriver` because tests (and the
+ * Postgres integration suite) construct a Db directly without going through
+ * getDb(), and a timestamp written with the wrong dialect's expression is a
+ * runtime failure — see nowSql().
+ */
+const driverByDb = new WeakMap<object, "sqlite" | "postgres">();
+
+export function driverFor(db: Db): "sqlite" | "postgres" {
+  return driverByDb.get(db as unknown as object) ?? activeDriver;
+}
+
+/**
+ * A "current timestamp" expression valid for the driver behind `db`.
+ *
+ * Audit 2026-08-06 F-003: the app deliberately uses the SQLite schema objects
+ * for every query, even on Postgres (see the note on `schema` below). That works
+ * for text and integer columns, but NOT for timestamps: the SQLite column is
+ * `timestamp_ms`, so Drizzle maps a JS `Date` to epoch-milliseconds, and
+ * postgres.js then rejects that number for a `TIMESTAMP` parameter with
+ * "The string argument must be of type string ... Received type number".
+ *
+ * Verified against a real PostgreSQL 17 instance. Passing a Date is therefore
+ * unsafe on the production driver; emit dialect-appropriate SQL instead. There
+ * is no portable literal — SQLite's CURRENT_TIMESTAMP yields TEXT, which would
+ * not round-trip through an INTEGER ms column.
+ */
+export function nowSql(db: Db) {
+  return driverFor(db) === "postgres" ? sql`now()` : sql`(unixepoch() * 1000)`;
+}
 
 const url = process.env.DATABASE_URL ?? "file:.data/rae.sqlite";
 const isPostgres = url.startsWith("postgres://") || url.startsWith("postgresql://");
@@ -50,7 +84,9 @@ function createSqliteDb(filename: string): Db {
   // fixture) don't require a separate migration step. Postgres uses
   // /api/admin/init-db instead — see DEPLOY_TO_VERCEL.md.
   applySqliteSchemaIfNeeded(sqlite);
-  return drizzle(sqlite, { schema: sqliteSchema }) as Db;
+  const db = drizzle(sqlite, { schema: sqliteSchema }) as Db;
+  driverByDb.set(db as unknown as object, "sqlite");
+  return db;
 }
 
 // SQLite flavor of schema-pg's snapshotTableSql: same five-column shape, but
@@ -142,7 +178,14 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       severity TEXT NOT NULL,
       rule TEXT NOT NULL,
       message TEXT NOT NULL,
+      dedupKey TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'new',
+      occurrences INTEGER NOT NULL DEFAULT 1,
+      season INTEGER,
+      week INTEGER,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      updatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      resolvedAt INTEGER,
       dismissedAt INTEGER
     );
     ${sqliteSnapshotDdl()}
@@ -154,7 +197,15 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
   // surface here, not later as a baffling "no such column" at query time.
   for (const stmt of [
     "ALTER TABLE leagues ADD COLUMN settings TEXT",
-    "ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT"
+    "ALTER TABLE leagues ADD COLUMN sleeperUsername TEXT",
+    // audit 2026-08-06 F-003 — notification dedup + lifecycle state.
+    "ALTER TABLE notifications ADD COLUMN dedupKey TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE notifications ADD COLUMN status TEXT NOT NULL DEFAULT 'new'",
+    "ALTER TABLE notifications ADD COLUMN occurrences INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE notifications ADD COLUMN season INTEGER",
+    "ALTER TABLE notifications ADD COLUMN week INTEGER",
+    "ALTER TABLE notifications ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)",
+    "ALTER TABLE notifications ADD COLUMN resolvedAt INTEGER"
   ]) {
     try {
       sqlite.exec(stmt);
@@ -163,15 +214,39 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       if (!/duplicate column name/i.test(msg)) throw err;
     }
   }
+
+  // Backfill BEFORE creating the unique index. Pre-migration rows all carry the
+  // '' default, which would collide; keying them by their own id preserves the
+  // existing history verbatim while guaranteeing uniqueness. Legacy rows are
+  // marked so they can never be mistaken for a live dedup key.
+  sqlite.exec(`
+    UPDATE notifications
+       SET dedupKey = 'legacy:' || id
+     WHERE dedupKey IS NULL OR dedupKey = '';
+    UPDATE notifications
+       SET status = CASE WHEN dismissedAt IS NOT NULL THEN 'dismissed' ELSE 'active' END
+     WHERE status IS NULL OR status = 'new';
+    CREATE UNIQUE INDEX IF NOT EXISTS notifications_user_dedup
+      ON notifications (userId, dedupKey);
+    CREATE INDEX IF NOT EXISTS notifications_user_created
+      ON notifications (userId, createdAt);
+  `);
 }
 
-function createPostgresDb(connectionUrl: string): Db {
+/**
+ * Exported so the Postgres integration test can build a client against an
+ * isolated throwaway database and exercise the REAL factory (same driver
+ * options, same schema binding) rather than a lookalike.
+ */
+export function createPostgresDb(connectionUrl: string): Db {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const postgres = require("postgres");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { drizzle } = require("drizzle-orm/postgres-js");
   const client = postgres(connectionUrl, { prepare: false, max: 1 });
-  return drizzle(client, { schema: pgSchema }) as unknown as Db;
+  const db = drizzle(client, { schema: pgSchema }) as unknown as Db;
+  driverByDb.set(db as unknown as object, "postgres");
+  return db;
 }
 
 export function getDriver(): "sqlite" | "postgres" {
@@ -190,6 +265,7 @@ export function resetDbForTests(): Db {
   sqlite.pragma("foreign_keys = ON");
   applyTestSchema(sqlite);
   const db = drizzle(sqlite, { schema: sqliteSchema }) as Db;
+  driverByDb.set(db as unknown as object, "sqlite");
   cached = db;
   return db;
 }
@@ -258,9 +334,18 @@ export function applyTestSchema(sqlite: MinimalSqliteHandle) {
       severity TEXT NOT NULL,
       rule TEXT NOT NULL,
       message TEXT NOT NULL,
+      dedupKey TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'new',
+      occurrences INTEGER NOT NULL DEFAULT 1,
+      season INTEGER,
+      week INTEGER,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      updatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+      resolvedAt INTEGER,
       dismissedAt INTEGER
     );
+    CREATE UNIQUE INDEX notifications_user_dedup ON notifications (userId, dedupKey);
+    CREATE INDEX notifications_user_created ON notifications (userId, createdAt);
     ${sqliteSnapshotDdl()}
   `);
 }

@@ -1,4 +1,12 @@
-import { sqliteTable, text, integer, blob, primaryKey } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  blob,
+  primaryKey,
+  uniqueIndex,
+  index
+} from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -77,20 +85,64 @@ export const leagueCredentials = sqliteTable("leagueCredentials", {
     .default(sql`(unixepoch() * 1000)`)
 });
 
-export const notifications = sqliteTable("notifications", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
-  severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
-  rule: text("rule").notNull(),
-  message: text("message").notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  dismissedAt: integer("dismissedAt", { mode: "timestamp_ms" })
-});
+/**
+ * Lifecycle states for a notification (audit 2026-08-06 F-003).
+ *   new      — just created, never listed to the user
+ *   active   — surfaced and still true
+ *   dismissed— user dismissed it; the same condition must NOT nag again
+ *   resolved — the condition stopped being true
+ *   expired  — aged out (e.g. the week it referred to has passed)
+ *   reopened — a previously resolved condition recurred (a genuinely new event)
+ */
+export const NOTIFICATION_STATUSES = [
+  "new",
+  "active",
+  "dismissed",
+  "resolved",
+  "expired",
+  "reopened"
+] as const;
+
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
+    severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
+    rule: text("rule").notNull(),
+    message: text("message").notNull(),
+    /**
+     * Deterministic identity for the underlying condition. F-003: this was
+     * computed by the rules engine and then silently DROPPED by
+     * insertNotification, so the daily cron re-inserted an identical row every
+     * run forever. It is now persisted and uniquely indexed with userId.
+     */
+    dedupKey: text("dedupKey").notNull(),
+    status: text("status", { enum: NOTIFICATION_STATUSES }).notNull().default("new"),
+    /** How many times the condition has been observed. */
+    occurrences: integer("occurrences").notNull().default(1),
+    /** Season/week the condition refers to, when it is time-bound. */
+    season: integer("season"),
+    week: integer("week"),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    resolvedAt: integer("resolvedAt", { mode: "timestamp_ms" }),
+    dismissedAt: integer("dismissedAt", { mode: "timestamp_ms" })
+  },
+  (table) => [
+    // The uniqueness gate that makes the cron idempotent. Scoped by user so two
+    // users in the same league each keep their own copy.
+    uniqueIndex("notifications_user_dedup").on(table.userId, table.dedupKey),
+    index("notifications_user_created").on(table.userId, table.createdAt)
+  ]
+);
 
 export const playersSnapshots = sqliteTable("players_snapshots", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

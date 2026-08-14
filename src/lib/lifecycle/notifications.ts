@@ -1,10 +1,13 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
-import { getDb, schema, type Db } from "../../db";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { getDb, nowSql, schema, type Db } from "../../db";
+import { NOTIFICATION_STATUSES } from "../../db/schema";
 import type { PlayerMarketRecord } from "../governance";
 import { detectByeWeekRisks } from "./byes";
 import type { ByeSchedule } from "../schedule/byeSchedule";
 
 export type Severity = "info" | "warn" | "alert";
+
+export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 
 export interface NotificationInput {
   userId: string;
@@ -12,6 +15,13 @@ export interface NotificationInput {
   severity: Severity;
   rule: string;
   message: string;
+  /**
+   * Deterministic identity of the underlying condition. Required (audit F-003):
+   * without it the daily cron re-inserted an identical row on every run.
+   */
+  dedupKey: string;
+  season?: number | null;
+  week?: number | null;
 }
 
 export interface NotificationRow {
@@ -21,12 +31,44 @@ export interface NotificationRow {
   severity: Severity;
   rule: string;
   message: string;
+  dedupKey: string;
+  status: NotificationStatus;
+  occurrences: number;
+  season: number | null;
+  week: number | null;
   createdAt: Date;
+  updatedAt: Date;
+  resolvedAt: Date | null;
   dismissedAt: Date | null;
 }
 
-export async function insertNotification(input: NotificationInput, db: Db = getDb()): Promise<NotificationRow> {
-  const inserted = await db
+/**
+ * Idempotently record a notification.
+ *
+ * Audit 2026-08-06 F-003: `insertNotification` used to accept an input type with
+ * no dedupKey field and write an unconditional row with a fresh UUID, so the
+ * daily lifecycle cron accumulated a duplicate of every still-true condition
+ * forever, and dismissing one simply meant tomorrow's run resurrected it.
+ *
+ * This is a single atomic INSERT ... ON CONFLICT DO UPDATE — not a read-then-
+ * write — so concurrent cron executions cannot race into duplicates.
+ *
+ * Re-fire semantics, chosen deliberately:
+ *   dismissed → stays dismissed. The user said "don't tell me"; a still-true
+ *               condition must not nag daily.
+ *   resolved  → becomes `reopened` and resolvedAt is cleared. The condition went
+ *               away and came back, which is a genuinely new event.
+ *   otherwise → stays active, occurrences increments, message/severity refresh.
+ */
+export async function upsertNotification(
+  input: NotificationInput,
+  db: Db = getDb()
+): Promise<NotificationRow> {
+  // Never pass a JS Date: the SQLite schema objects are used on both drivers and
+  // Drizzle would serialize it to epoch-ms, which postgres.js rejects for a
+  // TIMESTAMP parameter. See nowSql() in db/index.ts.
+  const now = nowSql(db);
+  const rows = await db
     .insert(schema.notifications)
     .values({
       userId: input.userId,
@@ -34,17 +76,67 @@ export async function insertNotification(input: NotificationInput, db: Db = getD
       severity: input.severity,
       rule: input.rule,
       message: input.message,
-      createdAt: new Date()
+      dedupKey: input.dedupKey,
+      status: "active",
+      occurrences: 1,
+      season: input.season ?? null,
+      week: input.week ?? null,
+      createdAt: now,
+      updatedAt: now
+    })
+    .onConflictDoUpdate({
+      target: [schema.notifications.userId, schema.notifications.dedupKey],
+      set: {
+        message: sql`excluded.message`,
+        severity: sql`excluded.severity`,
+        season: sql`excluded.season`,
+        week: sql`excluded.week`,
+        updatedAt: now,
+        occurrences: sql`notifications.occurrences + 1`,
+        status: sql`CASE
+          WHEN notifications.status = 'dismissed' THEN 'dismissed'
+          WHEN notifications.status = 'resolved' THEN 'reopened'
+          ELSE 'active' END`,
+        resolvedAt: sql`CASE
+          WHEN notifications.status = 'resolved' THEN NULL
+          ELSE notifications."resolvedAt" END`
+      }
     })
     .returning();
-  return toRow(inserted[0]!);
+  return toRow(rows[0]!);
 }
+
+/**
+ * Mark a condition resolved so a later recurrence is treated as a new event
+ * rather than silently folded into the old row.
+ */
+export async function resolveNotification(
+  userId: string,
+  dedupKey: string,
+  db: Db = getDb()
+): Promise<boolean> {
+  const now = nowSql(db);
+  const updated = await db
+    .update(schema.notifications)
+    .set({ status: "resolved", resolvedAt: now, updatedAt: now })
+    .where(
+      and(eq(schema.notifications.userId, userId), eq(schema.notifications.dedupKey, dedupKey))
+    )
+    .returning({ id: schema.notifications.id });
+  return updated.length > 0;
+}
+
+/** Hard ceiling so a long-lived account cannot return an unbounded history. */
+export const NOTIFICATION_LIST_MAX = 200;
 
 export async function listNotificationsForUser(
   userId: string,
-  opts: { includeDismissed?: boolean } = {},
+  opts: { includeDismissed?: boolean; limit?: number } = {},
   db: Db = getDb()
 ): Promise<NotificationRow[]> {
+  // F-003: this query previously had no LIMIT, so it returned every row a user
+  // had ever accumulated — which the duplicate-insert bug made unbounded.
+  const limit = Math.min(Math.max(1, opts.limit ?? NOTIFICATION_LIST_MAX), NOTIFICATION_LIST_MAX);
   const rows = await db
     .select()
     .from(schema.notifications)
@@ -53,7 +145,8 @@ export async function listNotificationsForUser(
         ? eq(schema.notifications.userId, userId)
         : and(eq(schema.notifications.userId, userId), isNull(schema.notifications.dismissedAt))
     )
-    .orderBy(desc(schema.notifications.createdAt));
+    .orderBy(desc(schema.notifications.createdAt))
+    .limit(limit);
   return rows.map(toRow);
 }
 
@@ -62,9 +155,10 @@ export async function dismissNotificationForUser(
   notificationId: string,
   db: Db = getDb()
 ): Promise<boolean> {
+  const now = nowSql(db);
   const updated = await db
     .update(schema.notifications)
-    .set({ dismissedAt: new Date() })
+    .set({ dismissedAt: now, status: "dismissed", updatedAt: now })
     .where(and(eq(schema.notifications.userId, userId), eq(schema.notifications.id, notificationId)))
     .returning({ id: schema.notifications.id });
   return updated.length > 0;
@@ -121,6 +215,8 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotif
         leagueId: input.leagueId,
         severity: "warn",
         rule: "stacked-bye-week",
+        season: bye.season,
+        week: alert.week,
         message:
           `Week ${alert.week}: ${alert.affectedPlayers.length} ${alert.position}s on bye ` +
           `(${alert.affectedPlayers.map((p) => p.name).join(", ")}). Plan waiver bids now. ` +
@@ -156,6 +252,15 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotif
   return out;
 }
 
+/** Both drivers are in play, so a timestamp arrives as a Date or as epoch ms. */
+function toDate(value: unknown): Date {
+  return value instanceof Date ? value : new Date(value as number);
+}
+
+function toDateOrNull(value: unknown): Date | null {
+  return value == null ? null : toDate(value);
+}
+
 function toRow(row: typeof schema.notifications.$inferSelect): NotificationRow {
   return {
     id: row.id,
@@ -164,12 +269,14 @@ function toRow(row: typeof schema.notifications.$inferSelect): NotificationRow {
     severity: row.severity as Severity,
     rule: row.rule,
     message: row.message,
-    createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt as unknown as number),
-    dismissedAt:
-      row.dismissedAt == null
-        ? null
-        : row.dismissedAt instanceof Date
-        ? row.dismissedAt
-        : new Date(row.dismissedAt as unknown as number)
+    dedupKey: row.dedupKey,
+    status: row.status as NotificationStatus,
+    occurrences: Number(row.occurrences),
+    season: row.season == null ? null : Number(row.season),
+    week: row.week == null ? null : Number(row.week),
+    createdAt: toDate(row.createdAt),
+    updatedAt: toDate(row.updatedAt),
+    resolvedAt: toDateOrNull(row.resolvedAt),
+    dismissedAt: toDateOrNull(row.dismissedAt)
   };
 }
