@@ -54,7 +54,11 @@ export function Onboarding() {
           </Link>
           <Link
             href="/mock-draft"
-            className="text-sm font-semibold text-rae-blue underline-offset-4 hover:underline"
+            // inline-flex + py-3 gives this tertiary CTA the same 24px+ target
+            // height as the two buttons beside it (WCAG 2.2 AA SC 2.5.8); it
+            // measured 171x20 before. Kept visually text-only — only the hit
+            // area changes, not the emphasis hierarchy.
+            className="inline-flex items-center px-1 py-3 text-sm font-semibold text-rae-blue underline-offset-4 hover:underline"
           >
             Mock draft (no account) →
           </Link>
