@@ -1,6 +1,8 @@
 import type { PlayerMarketRecord } from "../governance";
+import type { LeagueFormat } from "../trade/format";
 import { reputationEdge } from "../models";
 import { tiersByPosition } from "./tiers";
+import { targetsFromFormat } from "./rosterTargets";
 
 export type RecommendationCategory = "Value" | "Need" | "Stash" | "Run";
 
@@ -18,8 +20,21 @@ export interface RecommendInput {
   picksRemaining?: number;
   /** Roster slot targets, e.g. { QB: 1, RB: 2, WR: 3, TE: 1 }. */
   targets?: Partial<Record<PlayerMarketRecord["position"], number>>;
+  /**
+   * The connected league's format. When present, targets are DERIVED from its
+   * real starting lineup (audit F-010) — superflex raises the QB target, a 2-TE
+   * league raises TE, and roster size sizes the bench. An explicit `targets`
+   * still wins, and with neither we fall back to the documented default below.
+   */
+  format?: LeagueFormat | null;
 }
 
+/**
+ * Fallback ONLY for when no league is connected (the fixture/demo pool). It
+ * describes a 12-team, 1QB, PPR league and must never be treated as universal:
+ * it was previously the unconditional value for every league, which is exactly
+ * what audit F-010 flagged.
+ */
 const DEFAULT_TARGETS: Record<PlayerMarketRecord["position"], number> = {
   QB: 1,
   RB: 4,
@@ -36,7 +51,8 @@ const LATE_ONLY = new Set<PlayerMarketRecord["position"]>(["K", "DEF"]);
 const CORE_POSITIONS: ReadonlyArray<PlayerMarketRecord["position"]> = ["QB", "RB", "WR", "TE"];
 
 export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
-  const targets = { ...DEFAULT_TARGETS, ...(input.targets ?? {}) };
+  const base = input.format ? targetsFromFormat(input.format) : DEFAULT_TARGETS;
+  const targets = { ...base, ...(input.targets ?? {}) };
   const myCounts = countByPosition(input.myRoster);
   const tiers = tiersByPosition(input.available);
   const lastInTier = new Map<string, PlayerMarketRecord>();

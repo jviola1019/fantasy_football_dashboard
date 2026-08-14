@@ -62,6 +62,12 @@ export interface AppData {
   scenarios: ScenarioComparison;
   /** Server-computed bootstrap CIs for NexusSimulator (null when no roster). */
   confidenceBands: ConfidenceBands | null;
+  /**
+   * The connected league's format, or null when no league is connected.
+   * Exposed (audit F-010) so panels can derive format-correct targets instead
+   * of assuming a 12-team 1QB PPR league.
+   */
+  leagueFormat: RAEEnvelope["leagueFormat"] | null;
 }
 
 /**
@@ -113,5 +119,16 @@ export function deriveAppData(envelope: RAEEnvelope): AppData {
   const scenarios = deriveScenarioComparison(players, sim);
   const confidenceBands = deriveConfidenceBands(players, simParams);
 
-  return { players, universePool, freeAgentPool, marketPool, sim, commandMetrics, marketMetrics, scenarios, confidenceBands };
+  return {
+    players,
+    universePool,
+    freeAgentPool,
+    marketPool,
+    sim,
+    commandMetrics,
+    marketMetrics,
+    scenarios,
+    confidenceBands,
+    leagueFormat: fmt ?? null
+  };
 }

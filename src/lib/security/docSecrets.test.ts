@@ -7,7 +7,34 @@ describe("isScannableDocPath", () => {
     expect(isScannableDocPath("DEPLOY_TO_VERCEL.md")).toBe(true);
     expect(isScannableDocPath("reports/playwright.json")).toBe(true);
     expect(isScannableDocPath(".env.example")).toBe(true);
-    expect(isScannableDocPath("src/lib/foo.ts")).toBe(false);
+  });
+
+  it("also scans source and workflows (audit F-009 widened the scope)", () => {
+    // Previously only *.md / *.json / .env* were scanned, so a credential
+    // pasted into a source file or a CI workflow was never checked — which is
+    // the likeliest place for one to actually land.
+    expect(isScannableDocPath("src/lib/foo.ts")).toBe(true);
+    expect(isScannableDocPath("src/app/api/health/route.ts")).toBe(true);
+    expect(isScannableDocPath("scripts/smoke-vercel.ts")).toBe(true);
+    expect(isScannableDocPath(".github/workflows/ci.yml")).toBe(true);
+  });
+
+  it("excludes the security modules and tests, which hold secret-SHAPED fixtures", () => {
+    expect(isScannableDocPath("src/lib/security/docSecrets.ts")).toBe(false);
+    expect(isScannableDocPath("src/lib/users.test.ts")).toBe(false);
+  });
+
+  it("does not flag a file path as a secret", () => {
+    // Regression: `src/lib/security/docSecrets` is 27 chars and matches the
+    // base64 token pattern, so any line mentioning a *SECRET identifier
+    // alongside a path used to fail the scan.
+    const leaks = findSecretLeaks("see BURNED_SECRET_HASHES in src/lib/security/docSecrets for detail");
+    expect(leaks).toEqual([]);
+  });
+
+  it("still flags a real base64 secret on a keyworded line", () => {
+    const leaks = findSecretLeaks("AUTH_SECRET=Zk3rP9vQ2mX7bN4wL6tY8cA1sD5fG0hJ2kL4mN6pQ8s=");
+    expect(leaks.length).toBeGreaterThan(0);
   });
 
   it("excludes internal planning artifacts under docs/superpowers/", () => {
@@ -96,7 +123,7 @@ describe("burned-secret deny-list (audit 2026-07-08 A-01)", () => {
   });
 
   it("ships the three 2026-05 history-leak digests by default", () => {
-    expect(BURNED_SECRET_HASHES.size).toBe(3);
+    expect(BURNED_SECRET_HASHES.size).toBe(6);
     for (const h of BURNED_SECRET_HASHES) expect(h).toMatch(/^[0-9a-f]{64}$/);
   });
 });

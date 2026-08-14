@@ -75,13 +75,13 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
     return (
       <PanelGrid>
         <PanelRow cols={1}>
-          <DraftIntelligence players={d.universePool} />
+          <DraftIntelligence players={d.universePool} format={d.leagueFormat} />
         </PanelRow>
         <PanelRow cols={1}>
           <PreDraftAudit players={d.players} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={1}>
-          <TeamConstruction players={d.players} fragilityMissing={fragilityMissing} />
+          <TeamConstruction players={d.players} fragilityMissing={fragilityMissing} format={d.leagueFormat} />
         </PanelRow>
       </PanelGrid>
     );

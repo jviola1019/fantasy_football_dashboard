@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import type { LeagueFormat } from "@/lib/trade/format";
 import { recommend, type Recommendation } from "@/lib/draft/recommend";
 import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
 import { RadarChart } from "@/components/charts/RadarChart";
@@ -12,11 +13,17 @@ import { PanelTabs } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
+  /**
+   * Connected league format. When present, draft targets come from its real
+   * starting lineup (audit F-010); otherwise the documented demo default is
+   * used. Never silently assumes a 12-team 1QB PPR league.
+   */
+  format?: LeagueFormat | null;
 };
 
 const TABS = ["Live Board", "Recommendations", "Tier Collapse", "Big Board"] as const;
 
-export function DraftIntelligence({ players }: Props) {
+export function DraftIntelligence({ players, format }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Live Board");
   const [myPicks, setMyPicks] = useState<Set<string>>(new Set());
   // Players drafted by OTHER teams — removed from the pool so you can mock how
@@ -28,7 +35,10 @@ export function DraftIntelligence({ players }: Props) {
     () => players.filter((p) => !myPicks.has(p.id) && !taken.has(p.id)),
     [players, myPicks, taken]
   );
-  const recommendations = useMemo(() => recommend({ available, myRoster }, 8), [available, myRoster]);
+  const recommendations = useMemo(
+    () => recommend({ available, myRoster, format }, 8),
+    [available, myRoster, format]
+  );
   const tiers = useMemo(() => tiersByPosition(available), [available]);
   const collapseSignals = useMemo(() => tierCollapseSignals(tiers), [tiers]);
   const grades = useMemo(() => derivePositionGrades(myRoster), [myRoster]);
