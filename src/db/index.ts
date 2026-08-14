@@ -126,7 +126,8 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       email TEXT UNIQUE,
       emailVerified INTEGER,
       image TEXT,
-      passwordHash TEXT
+      passwordHash TEXT,
+      sessionVersion INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE IF NOT EXISTS accounts (
       userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -205,7 +206,9 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
     "ALTER TABLE notifications ADD COLUMN season INTEGER",
     "ALTER TABLE notifications ADD COLUMN week INTEGER",
     "ALTER TABLE notifications ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)",
-    "ALTER TABLE notifications ADD COLUMN resolvedAt INTEGER"
+    "ALTER TABLE notifications ADD COLUMN resolvedAt INTEGER",
+    // audit 2026-08-06 F-004 — server-side session revocation.
+    "ALTER TABLE users ADD COLUMN sessionVersion INTEGER NOT NULL DEFAULT 1"
   ]) {
     try {
       sqlite.exec(stmt);
@@ -282,7 +285,8 @@ export function applyTestSchema(sqlite: MinimalSqliteHandle) {
       email TEXT UNIQUE,
       emailVerified INTEGER,
       image TEXT,
-      passwordHash TEXT
+      passwordHash TEXT,
+      sessionVersion INTEGER NOT NULL DEFAULT 1
     );
     CREATE TABLE accounts (
       userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,

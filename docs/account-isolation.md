@@ -6,9 +6,19 @@ RAE stores per-user data (leagues, encrypted credentials, notifications) in the 
 
 1. **No user can list another user's leagues.** Every read path goes through `listLeagues(db, userId)` in `src/lib/leagues.ts:60`. There is no "global" league query in the codebase.
 2. **No user can refresh, decrypt, or delete another user's league.** `getLeagueForUser(db, userId, leagueId)` returns null for non-owned ids; `deleteLeagueForUser` only matches when both the league id *and* the user id match. The refresh route in `src/app/api/leagues/[id]/refresh/route.ts` returns 404 when `getLeagueForUser` returns null.
-3. **No user can list, dismiss, or write another user's notifications.** `listNotificationsForUser`, `dismissNotificationForUser` (`src/lib/lifecycle/notifications.ts:42`+`67`) both scope by `userId`. `GET /api/notifications` reads `session.user.id` from `auth()`.
+3. **No user can list, dismiss, or write another user's notifications.** `listNotificationsForUser`, `dismissNotificationForUser` (`src/lib/lifecycle/notifications.ts:42`+`67`) both scope by `userId`. `GET /api/notifications` resolves the caller through `requireUser()`, which re-validates the session against the database (see 5).
 4. **ESPN cookies and other encrypted payloads are stored AES-256-GCM-encrypted in the `leagueCredentials` table.** They are never returned to the client after creation. Decryption happens only inside `getLeagueCredentials(db, leagueId)`, and only after the same league has passed the per-user ownership check above.
-5. **Sessions are stateless JWTs signed with `AUTH_SECRET`** (`session: { strategy: "jwt" }` in `src/lib/auth.ts`). The Drizzle adapter persists users + accounts + verificationTokens; the session itself lives in the cookie, so revoking a user requires deleting / disabling their `users` row.
+5. **Sessions are stateless JWTs signed with `AUTH_SECRET`, but revocation is enforced server-side** (audit 2026-08-06 F-004).
+
+   Each token carries the user's `sessionVersion` claim, stamped at sign-in. `requireUser()` (`src/lib/auth/requireUser.ts`) re-reads the `users` row on every protected request and rejects the token when the user is gone or the stored generation no longer matches. `changeUserPassword` bumps the generation **in the same UPDATE as the password hash**, so a password change invalidates every outstanding token on every device — not just the cookie in the browser that made the change. Deleting an account has the same effect, because the row disappears.
+
+   Previously this was NOT true: `changeUserPassword` updated only the hash, its docblock delegated invalidation to "the caller", and no caller did it, so a stolen token survived a password change.
+
+   **Why not database sessions**, which would be the conventional answer? Auth.js refuses them for this app. From the installed source, `@auth/core/lib/utils/assert.js:114-119`, `strategy: "database"` returns `UnsupportedStrategy` when every configured provider is a Credentials provider — which is exactly RAE's setup. Reaching DB sessions would require adding a non-credentials provider or overriding `jwt.encode`/`decode` to store opaque tokens. The `sessionVersion` design delivers the same security property (real server-side revocation) without that.
+
+   **Cutover note:** tokens issued before this shipped carry no version claim and are rejected rather than grandfathered, so everyone signs in once more. That is deliberate — grandfathering would leave a window of unrevokable tokens.
+
+   The Edge proxy (`src/proxy.ts`) still cannot reach the database and remains defense-in-depth only; authorization is enforced at each Node-runtime call site via `requireUser()`. Proxy-only enforcement is precisely the mistake `GHSA-6gpp-xcg3-4w24` punishes.
 
 ## Regression gates
 

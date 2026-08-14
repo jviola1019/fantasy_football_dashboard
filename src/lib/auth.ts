@@ -40,7 +40,14 @@ function buildConfig(): NextAuthConfig {
           if (!parsed.success) return null;
           const user = await authenticateUser(getDb(), parsed.data.email, parsed.data.password);
           if (!user) return null;
-          return { id: user.id, email: user.email, name: user.name ?? undefined };
+          // sessionVersion rides along so the jwt callback can stamp it without
+          // a second query (audit F-004).
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name ?? undefined,
+            sessionVersion: user.sessionVersion
+          };
         }
       })
     ]

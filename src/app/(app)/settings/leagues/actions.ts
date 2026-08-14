@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { createLeague, deleteLeagueForUser, findUserLeagueByExternal, getLeagueForUser } from "@/lib/leagues";
 import { setActiveLeagueCookie } from "@/lib/activeLeague";
@@ -22,9 +22,9 @@ const addLeagueSchema = z.object({
 export type AddLeagueResult = { ok: true; leagueId: string } | { ok: false; error: string };
 
 export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
 
   const parsed = addLeagueSchema.safeParse({
     platform: formData.get("platform"),
@@ -86,9 +86,9 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
 }
 
 export async function removeLeague(leagueId: string): Promise<AddLeagueResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
   const deleted = await deleteLeagueForUser(getDb(), userId, leagueId);
   if (!deleted) return { ok: false, error: "not found" };
   revalidatePath("/settings/leagues");
@@ -101,9 +101,9 @@ export async function removeLeague(leagueId: string): Promise<AddLeagueResult> {
  * even though getActiveLeagueId re-validates on every read.
  */
 export async function setActiveLeagueAction(leagueId: string): Promise<AddLeagueResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
   const league = await getLeagueForUser(getDb(), userId, leagueId);
   if (!league) return { ok: false, error: "not found" };
   await setActiveLeagueCookie(leagueId);

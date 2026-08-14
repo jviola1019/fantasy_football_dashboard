@@ -15,7 +15,14 @@ export const users = sqliteTable("users", {
   email: text("email").unique(),
   emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
   image: text("image"),
-  passwordHash: text("passwordHash")
+  passwordHash: text("passwordHash"),
+  /**
+   * Monotonic session generation (audit 2026-08-06 F-004). Stamped into every
+   * issued token; a mismatch on the server invalidates the token. Bumping this
+   * revokes EVERY outstanding session for the user, on every device, which
+   * clearing one browser cookie cannot do.
+   */
+  sessionVersion: integer("sessionVersion").notNull().default(1)
 });
 
 export const accounts = sqliteTable(

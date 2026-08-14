@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { auth, signOut } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 import { changeUserPassword, deleteUserWithPassword } from "@/lib/users";
@@ -17,9 +18,9 @@ const changePasswordSchema = z.object({
 });
 
 export async function changePasswordAction(formData: FormData): Promise<AccountActionResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
 
   const parsed = changePasswordSchema.safeParse({
     currentPassword: formData.get("currentPassword"),
@@ -59,9 +60,9 @@ const deleteAccountSchema = z.object({
 });
 
 export async function deleteAccountAction(formData: FormData): Promise<AccountActionResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
 
   const parsed = deleteAccountSchema.safeParse({
     currentPassword: formData.get("currentPassword"),

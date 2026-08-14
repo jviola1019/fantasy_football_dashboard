@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { AddLeagueForm } from "./AddLeagueForm";
@@ -11,9 +11,9 @@ export const metadata = { title: "League Settings" };
 // Rendered inside the (app) shell — the route sidebar + command bar provide
 // navigation, so this is just the settings content (no standalone page chrome).
 export default async function LeaguesSettingsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const leagues = await listLeagues(getDb(), session.user.id);
+  const user = await requireUser();
+  if (!user) redirect("/login");
+  const leagues = await listLeagues(getDb(), user.id);
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 20 }}>

@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { listLeagues, getLeagueCredentials, type LeagueRecord } from "@/lib/leagues";
 import type { SourceMeta } from "@/lib/governance";
@@ -29,9 +29,9 @@ export interface TradeValuesPayload {
 
 /** The logged-in user's first connected league, or null. */
 async function firstLeague(): Promise<LeagueRecord | null> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return null;
+  const user = await requireUser();
+  if (!user) return null;
+  const userId = user.id;
   const leagues = await listLeagues(getDb(), userId);
   return leagues[0] ?? null;
 }

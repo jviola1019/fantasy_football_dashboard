@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { getLeagueCredentials, getLeagueForUser } from "@/lib/leagues";
@@ -7,6 +6,7 @@ import { EspnClient } from "@/lib/espn/client";
 import { getLeague as getEspnLeague } from "@/lib/espn/league";
 import { normalizeEspnTrades, indexByEspnId } from "@/lib/trade/transactions";
 import type { EspnTransaction } from "@/lib/espn/schemas";
+import { requireUser } from "@/lib/auth/requireUser";
 
 export const runtime = "nodejs";
 
@@ -19,9 +19,10 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  // F-004: re-validate the session generation against the DB, not just the JWT.
+  const user = await requireUser();
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  const userId = user.id;
 
   const { id } = await params;
   const db = getDb();

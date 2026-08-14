@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { auth } from "@/lib/auth";
-import { getDb, schema } from "@/db";
+import { requireUser } from "@/lib/auth/requireUser";
 import { ChangePasswordForm, DeleteAccountForm, SignOutButton } from "./AccountForms";
 
 export const dynamic = "force-dynamic";
@@ -9,22 +7,21 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Account" };
 
 export default async function AccountSettingsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-
-  // Read the canonical user row so we display the persisted email/name rather
-  // than whatever the JWT happens to carry, in case those drift later.
-  const db = getDb();
-  const rows = await db.select().from(schema.users).where(eq(schema.users.id, session.user.id)).limit(1);
-  const user = rows[0];
+  const user = await requireUser();
   if (!user) redirect("/login");
+
+  // requireUser() already returns the persisted email/name straight from the
+  // users row (it has to read it to validate the session generation), so the
+  // separate canonical-row query this page used to run is redundant — and it
+  // no longer needs its own existence check, because a deleted user cannot get
+  // past requireUser() at all.
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 24 }}>
         <header>
           <h1 style={{ color: "var(--cream)", margin: 0, fontSize: 24 }}>Account</h1>
           <p style={{ color: "var(--muted)", marginTop: 8 }}>
-            Manage how you sign in. Passwords are hashed with scrypt; sessions use JWT cookies.
+            Manage how you sign in. Passwords are hashed with scrypt. Changing your password signs you out everywhere, on every device.
           </p>
         </header>
 

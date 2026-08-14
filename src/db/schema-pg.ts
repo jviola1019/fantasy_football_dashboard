@@ -22,7 +22,9 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
-  passwordHash: text("passwordHash")
+  passwordHash: text("passwordHash"),
+  /** See schema.ts — session generation for server-side revocation (F-004). */
+  sessionVersion: integer("sessionVersion").notNull().default(1)
 });
 
 export const accounts = pgTable(
@@ -275,6 +277,7 @@ export const INIT_SQL = `
     settings JSONB,
     "createdAt" TIMESTAMP NOT NULL DEFAULT now()
   );
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 1;
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS settings JSONB;
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS "sleeperUsername" TEXT;
   CREATE TABLE IF NOT EXISTS "leagueCredentials" (

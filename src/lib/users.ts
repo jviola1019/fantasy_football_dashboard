@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { schema } from "../db";
 import { hashPassword, needsRehash, verifyPassword, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from "./passwords";
 
@@ -14,6 +14,8 @@ export interface AuthenticatedUser {
   id: string;
   email: string;
   name: string | null;
+  /** Session generation stamped into the issued token (audit F-004). */
+  sessionVersion: number;
 }
 
 export async function createUserWithPassword(db: Db, input: CreateUserInput): Promise<AuthenticatedUser> {
@@ -27,7 +29,7 @@ export async function createUserWithPassword(db: Db, input: CreateUserInput): Pr
     .values({ email, name: input.name ?? null, passwordHash })
     .returning();
   const row = inserted[0]!;
-  return { id: row.id, email: row.email!, name: row.name };
+  return { id: row.id, email: row.email!, name: row.name, sessionVersion: row.sessionVersion };
 }
 
 // Timing equalizer (audit 2026-07-08 A-05): a valid-format scrypt hash of the
@@ -72,7 +74,7 @@ export async function authenticateUser(db: Db, email: string, password: string):
     }
   }
 
-  return { id: row.id, email: row.email!, name: row.name };
+  return { id: row.id, email: row.email!, name: row.name, sessionVersion: row.sessionVersion };
 }
 
 export type ChangePasswordResult =
@@ -80,11 +82,15 @@ export type ChangePasswordResult =
   | { ok: false; error: "user-not-found" | "wrong-current-password" | "invalid-new-password" };
 
 /**
- * Verify the user's current password, then replace passwordHash. Re-uses the
- * scrypt verifier + hasher in lib/passwords so the storage format stays
- * consistent. Caller is responsible for invalidating sessions if needed —
- * we don't touch the sessions table because the Credentials provider issues
- * JWT sessions that aren't DB-backed.
+ * Verify the user's current password, then replace passwordHash AND revoke every
+ * outstanding session.
+ *
+ * Audit 2026-08-06 F-004: this previously updated only the hash, and its own
+ * docblock delegated session invalidation to "the caller" — which no caller ever
+ * did. A stolen token stayed valid after the victim changed their password.
+ * Revocation now happens in the SAME UPDATE as the hash, so the two can never
+ * diverge and there is no window where the password is new but old tokens still
+ * work.
  */
 export async function changeUserPassword(
   db: Db,
@@ -105,7 +111,10 @@ export async function changeUserPassword(
   const ok = await verifyPassword(currentPassword, row.passwordHash);
   if (!ok) return { ok: false, error: "wrong-current-password" };
   const passwordHash = await hashPassword(newPassword);
-  await db.update(schema.users).set({ passwordHash }).where(eq(schema.users.id, userId));
+  await db
+    .update(schema.users)
+    .set({ passwordHash, sessionVersion: sql`${schema.users.sessionVersion} + 1` })
+    .where(eq(schema.users.id, userId));
   return { ok: true };
 }
 
