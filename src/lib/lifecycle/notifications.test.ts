@@ -7,6 +7,29 @@ import {
   listNotificationsForUser
 } from "./notifications";
 import type { PlayerMarketRecord } from "../governance";
+import type { ByeSchedule, VerifiedByeSchedule } from "../schedule/byeSchedule";
+
+/** Verified schedule fixture — never a real season table (audit F-002). */
+const VERIFIED_BYES: VerifiedByeSchedule = {
+  status: "verified",
+  season: 2026,
+  byes: { ATL: 5, GB: 5, BUF: 7, DAL: 10 },
+  regularSeasonWeeks: 18,
+  provenance: {
+    source: "test fixture",
+    sourceUrl: "https://example.invalid/games.csv",
+    retrievedAt: "2026-08-13T00:00:00.000Z",
+    derivation: "test"
+  }
+};
+
+const UNAVAILABLE_BYES: ByeSchedule = {
+  status: "unavailable",
+  season: 2026,
+  reason: "source-unavailable",
+  detail: "nflverse unreachable",
+  provenance: {}
+};
 
 function p(id: string, position: PlayerMarketRecord["position"], team: string, overrides: Partial<PlayerMarketRecord> = {}): PlayerMarketRecord {
   return {
@@ -48,12 +71,55 @@ describe("lifecycle notifications", () => {
 
   describe("evaluateLifecycleRules (pure)", () => {
     it("emits a stacked-bye notification when 2+ starters share a bye week", () => {
-      const roster = [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")]; // both ATL/GB bye wk5
-      const out = evaluateLifecycleRules({ userId: "user-a", leagueId: "L1", roster });
+      const roster = [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")]; // both bye wk5 in fixture
+      const out = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster,
+        byeSchedule: VERIFIED_BYES
+      });
       expect(out).toHaveLength(1);
       expect(out[0]!.rule).toBe("stacked-bye-week");
       expect(out[0]!.severity).toBe("warn");
-      expect(out[0]!.dedupKey).toBe("bye:L1:RB:5");
+      // Season is in the key so next year's identical alert is not suppressed.
+      expect(out[0]!.dedupKey).toBe("bye:L1:RB:2026:5");
+    });
+
+    it("records the schedule season and source in the message", () => {
+      const out = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
+        byeSchedule: VERIFIED_BYES
+      });
+      expect(out[0]!.message).toContain("2026 schedule");
+      expect(out[0]!.message).toContain("test fixture");
+    });
+
+    it("FAILS CLOSED: emits no bye advice when the schedule is unverified", () => {
+      // The core F-002 regression. Previously this produced confident advice
+      // from a hardcoded 2025 table regardless of the real season.
+      const out = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
+        byeSchedule: UNAVAILABLE_BYES
+      });
+      expect(out.filter((n) => n.rule === "stacked-bye-week")).toHaveLength(0);
+    });
+
+    it("still evaluates the other rules when the bye schedule is unavailable", () => {
+      // Fail-closed must be scoped to the bye rule, not silently disable the cron.
+      const out = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
+        byeSchedule: UNAVAILABLE_BYES,
+        faabRemainingRatio: 0.05,
+        injuredStarters: [p("wr1", "WR", "BUF", { status: "out" })]
+      });
+      expect(out.some((n) => n.rule === "faab-depleted")).toBe(true);
+      expect(out.some((n) => n.rule === "injured-starter")).toBe(true);
     });
 
     it("emits a faab-depleted alert when ratio < 0.1", () => {
@@ -61,6 +127,7 @@ describe("lifecycle notifications", () => {
         userId: "user-a",
         leagueId: "L1",
         roster: [],
+        byeSchedule: VERIFIED_BYES,
         faabRemainingRatio: 0.05
       });
       expect(out.some((n) => n.rule === "faab-depleted" && n.severity === "alert")).toBe(true);
@@ -71,6 +138,7 @@ describe("lifecycle notifications", () => {
         userId: "user-a",
         leagueId: "L1",
         roster: [],
+        byeSchedule: VERIFIED_BYES,
         faabRemainingRatio: 0.5
       });
       expect(out.some((n) => n.rule === "faab-depleted")).toBe(false);
@@ -78,7 +146,13 @@ describe("lifecycle notifications", () => {
 
     it("emits an injured-starter alert per injured player", () => {
       const injured = [p("rb1", "RB", "ATL", { status: "ir" }), p("wr1", "WR", "BUF", { status: "out" })];
-      const out = evaluateLifecycleRules({ userId: "user-a", leagueId: "L1", roster: [], injuredStarters: injured });
+      const out = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [],
+        byeSchedule: VERIFIED_BYES,
+        injuredStarters: injured
+      });
       expect(out.filter((n) => n.rule === "injured-starter")).toHaveLength(2);
     });
   });

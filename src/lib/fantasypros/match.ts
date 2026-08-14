@@ -30,7 +30,10 @@ const TEAM_ALIASES: Record<string, string> = {
   WSH: "WAS",
   SD: "LAC",
   STL: "LAR",
-  JAC: "JAX"
+  JAC: "JAX",
+  // nflverse abbreviates the Rams "LA" (Sleeper/ESPN/FantasyPros all say "LAR").
+  // Unambiguous: the Chargers are always "LAC", so no other franchise claims "LA".
+  LA: "LAR"
 };
 
 const SUFFIX_RE = /\s+(jr|sr|ii|iii|iv|v)\.?$/i;

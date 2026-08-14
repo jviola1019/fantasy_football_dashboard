@@ -3,6 +3,12 @@ import { safeEqual } from "@/lib/timingSafe";
 import { getDb, schema } from "@/db";
 import { evaluateLifecycleRules, insertNotification } from "@/lib/lifecycle/notifications";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
+import { getCurrentNflSeason } from "@/lib/schedule/season";
+import {
+  describeByeUnavailability,
+  fetchByeSchedule,
+  type ByeSchedule
+} from "@/lib/schedule/byeSchedule";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -18,6 +24,11 @@ export const maxDuration = 60;
  * Vercel's Hobby plan caps each cron at one run per day; Pro can tighten this.
  *
  * Authenticated by the Bearer token Vercel sends when CRON_SECRET is set.
+ *
+ * Audit 2026-08-06 F-002: the season and bye schedule are resolved ONCE per run,
+ * before the league loop, and both are reported in the response. If the schedule
+ * cannot be verified for the current season, bye notifications are suppressed for
+ * the whole run rather than falling back to stale data.
  */
 export async function GET(request: Request): Promise<Response> {
   const auth = request.headers.get("authorization");
@@ -30,6 +41,33 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const db = getDb();
+
+  // Resolve season + bye schedule once for the run. Both are network calls; doing
+  // them per league would multiply cost and could produce an inconsistent view
+  // across leagues within a single run.
+  const seasonState = await getCurrentNflSeason();
+  const byeSchedule: ByeSchedule = seasonState
+    ? await fetchByeSchedule(seasonState.season)
+    : {
+        status: "unavailable",
+        season: null,
+        reason: "season-unresolved",
+        detail: "Sleeper /v1/state/nfl did not return a usable season",
+        provenance: {}
+      };
+
+  if (byeSchedule.status !== "verified") {
+    // Non-secret operational event: bye advice is suppressed this run.
+    console.warn(
+      JSON.stringify({
+        event: "bye-schedule-unverified",
+        season: byeSchedule.season,
+        reason: byeSchedule.reason,
+        detail: byeSchedule.detail
+      })
+    );
+  }
+
   const leagues = await db.select().from(schema.leagues);
 
   let writtenCount = 0;
@@ -61,6 +99,7 @@ export async function GET(request: Request): Promise<Response> {
       userId: league.userId,
       leagueId: league.id,
       roster: snapshot.myRoster,
+      byeSchedule,
       faabRemainingRatio: snapshot.myFaabRemainingRatio,
       injuredStarters
     });
@@ -74,6 +113,24 @@ export async function GET(request: Request): Promise<Response> {
 
   return NextResponse.json({
     ok: true,
+    season: seasonState
+      ? { season: seasonState.season, phase: seasonState.phase, week: seasonState.week }
+      : null,
+    byeSchedule:
+      byeSchedule.status === "verified"
+        ? {
+            status: "verified" as const,
+            season: byeSchedule.season,
+            teams: Object.keys(byeSchedule.byes).length,
+            source: byeSchedule.provenance.source,
+            retrievedAt: byeSchedule.provenance.retrievedAt
+          }
+        : {
+            status: "unavailable" as const,
+            season: byeSchedule.season,
+            reason: byeSchedule.reason,
+            explanation: describeByeUnavailability(byeSchedule)
+          },
     leaguesScanned: leagues.length,
     notificationsWritten: writtenCount,
     leaguesSkipped: skippedCount,

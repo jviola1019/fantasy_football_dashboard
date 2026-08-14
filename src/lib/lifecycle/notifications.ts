@@ -1,7 +1,8 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getDb, schema, type Db } from "../../db";
 import type { PlayerMarketRecord } from "../governance";
-import { detectByeWeekRisks, BYE_SCHEDULE, BYE_SCHEDULE_DISCLOSURE } from "./byes";
+import { detectByeWeekRisks } from "./byes";
+import type { ByeSchedule } from "../schedule/byeSchedule";
 
 export type Severity = "info" | "warn" | "alert";
 
@@ -75,9 +76,22 @@ export interface LifecycleRulesInput {
   userId: string;
   leagueId: string;
   roster: PlayerMarketRecord[];
+  /**
+   * Verified bye schedule for the CURRENT season, or a structured unavailable
+   * result. Required (audit 2026-08-06 F-002): this used to be an implicit
+   * hardcoded 2025 table, so bye alerts fired against the wrong season with no
+   * way for a caller to know. When this is `unavailable`, no bye notification is
+   * emitted at all — the rule fails closed rather than guessing.
+   */
+  byeSchedule: ByeSchedule;
   /** FAAB remaining / starting FAAB. Pass null when not applicable. */
   faabRemainingRatio?: number | null;
-  /** Players with current injury_status === "out" or "ir". */
+  /**
+   * Players the caller considers injury risks. The lifecycle cron passes
+   * status "ir", "out", AND "questionable" — the doc previously claimed only
+   * out/ir, which understated how noisy this rule is. Behavior is unchanged;
+   * the contract now matches the caller.
+   */
   injuredStarters?: PlayerMarketRecord[];
 }
 
@@ -94,21 +108,25 @@ export interface DraftedNotification extends NotificationInput {
 export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotification[] {
   const out: DraftedNotification[] = [];
 
-  // Rule 1: stacked bye weeks
-  const byeAlerts = detectByeWeekRisks(input.roster);
-  for (const alert of byeAlerts.filter((a) => a.stacked)) {
-    out.push({
-      dedupKey: `bye:${input.leagueId}:${alert.position}:${alert.week}`,
-      userId: input.userId,
-      leagueId: input.leagueId,
-      severity: "warn",
-      rule: "stacked-bye-week",
-      message:
-        `Week ${alert.week}: ${alert.affectedPlayers.length} ${alert.position}s on bye ` +
-        `(${alert.affectedPlayers.map((p) => p.name).join(", ")}). Plan waiver bids now.` +
-        // Never present an unverified schedule as confirmed (see byes.ts).
-        (BYE_SCHEDULE.verified ? "" : ` (${BYE_SCHEDULE_DISCLOSURE})`)
-    });
+  // Rule 1: stacked bye weeks. Fails closed — an unverified or wrong-season
+  // schedule produces NO advice rather than confident advice from stale data.
+  const bye = input.byeSchedule;
+  if (bye.status === "verified") {
+    for (const alert of detectByeWeekRisks(input.roster, bye).filter((a) => a.stacked)) {
+      out.push({
+        // Season is part of the key: the same position/week recurs every year and
+        // must not be suppressed as a duplicate of last season's alert.
+        dedupKey: `bye:${input.leagueId}:${alert.position}:${bye.season}:${alert.week}`,
+        userId: input.userId,
+        leagueId: input.leagueId,
+        severity: "warn",
+        rule: "stacked-bye-week",
+        message:
+          `Week ${alert.week}: ${alert.affectedPlayers.length} ${alert.position}s on bye ` +
+          `(${alert.affectedPlayers.map((p) => p.name).join(", ")}). Plan waiver bids now. ` +
+          `(${bye.season} schedule, ${bye.provenance.source})`
+      });
+    }
   }
 
   // Rule 2: FAAB drained
