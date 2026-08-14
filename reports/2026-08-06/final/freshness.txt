@@ -1,0 +1,7 @@
+
+> rae-reputation-arbitrage-engine@0.1.0 check:freshness
+> tsx scripts/check-cron-freshness.ts
+
+check-cron-freshness → https://fantasy-football-dashboard-seven.vercel.app/api/health?snapshots=1
+
+no snapshot freshness in response — set CRON_SECRET to authorize the snapshots block, or the deployment predates the freshness endpoint
