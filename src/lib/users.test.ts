@@ -31,7 +31,7 @@ describe("user accounts (hashed passwords)", () => {
     const passwordHash = rows[0]?.passwordHash ?? "";
     expect(passwordHash).toBeTruthy();
     expect(passwordHash).not.toContain("correct horse");
-    expect(passwordHash.startsWith("scrypt1$")).toBe(true);
+    expect(passwordHash.startsWith("scrypt2$")).toBe(true);
   });
 
   it("authenticates a user with correct password", async () => {
@@ -109,7 +109,7 @@ describe("changeUserPassword", () => {
       await db.select().from(schema.users).where(eq(schema.users.id, user.id))
     )[0]!.passwordHash;
     expect(afterHash).not.toBe(beforeHash);
-    expect(afterHash?.startsWith("scrypt1$")).toBe(true);
+    expect(afterHash?.startsWith("scrypt2$")).toBe(true);
   });
 
   it("rejects with wrong-current-password when the current password is incorrect", async () => {

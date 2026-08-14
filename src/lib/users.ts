@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { schema } from "../db";
-import { hashPassword, verifyPassword } from "./passwords";
+import { hashPassword, needsRehash, verifyPassword, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from "./passwords";
 
 type Db = ReturnType<typeof import("../db").getDb>;
 
@@ -34,10 +34,19 @@ export async function createUserWithPassword(db: Db, input: CreateUserInput): Pr
 // arbitrary, NON-secret string "rae-timing-equalizer-not-a-secret". When the
 // email has no row (or no password hash) we still burn one scrypt verification
 // against this constant so "unknown email" costs the same as "wrong password" —
-// otherwise the ~50 ms gap is a user-enumeration oracle on the login form.
+// otherwise the gap is a user-enumeration oracle on the login form.
 // Nothing can ever authenticate against it: that branch always returns null.
+//
+// Audit 2026-08-06 F-005: this MUST track CURRENT_PROFILE. It was a scrypt1
+// hash; once new hashes became scrypt2 (~574 ms vs ~124 ms) an unknown account
+// would have returned ~450 ms faster than a real one, re-opening the very
+// oracle the equalizer exists to close. Regenerated under scrypt2. A test
+// asserts the version matches CURRENT_PROFILE so this cannot drift again.
 const TIMING_EQUALIZER_HASH =
-  "scrypt1$1tcMEFHCxpwioDvCyDIWSA==$r+LpW9yI6A7TdZOpyQKUe6wvLq1qZzI4iWV32Jpl5fagBlvGQWcy7Z7RvZ21qD/Z/l7USlsrm0XubOrq+0T60A==";
+  "scrypt2$twHJaThBUefI3oQBQVoAoQ==$iT0mTi20jaAgC8iEA4bwCFdsust8WTWjOVUqYpxEdEzYK68C1b+TxxPRQSoJ75VFx5tijUyFBnQLI8u+wcoBiw==";
+
+/** Exported for the equalizer-parity test only. */
+export const TIMING_EQUALIZER_HASH_FOR_TESTS = TIMING_EQUALIZER_HASH;
 
 export async function authenticateUser(db: Db, email: string, password: string): Promise<AuthenticatedUser | null> {
   const normalized = email.trim().toLowerCase();
@@ -49,6 +58,20 @@ export async function authenticateUser(db: Db, email: string, password: string):
   }
   const ok = await verifyPassword(password, row.passwordHash);
   if (!ok) return null;
+
+  // Migrate legacy hashes opportunistically, and ONLY after a correct password:
+  // rehashing on failure would let an attacker drive expensive work with wrong
+  // guesses. A failure here must not break a valid login, so it is swallowed —
+  // the user simply stays on the old profile until next time.
+  if (needsRehash(row.passwordHash)) {
+    try {
+      const upgraded = await hashPassword(password);
+      await db.update(schema.users).set({ passwordHash: upgraded }).where(eq(schema.users.id, row.id));
+    } catch {
+      // keep the successful login
+    }
+  }
+
   return { id: row.id, email: row.email!, name: row.name };
 }
 
@@ -69,7 +92,11 @@ export async function changeUserPassword(
   currentPassword: string,
   newPassword: string
 ): Promise<ChangePasswordResult> {
-  if (typeof newPassword !== "string" || newPassword.length < 8) {
+  if (
+    typeof newPassword !== "string" ||
+    newPassword.length < MIN_PASSWORD_LENGTH ||
+    newPassword.length > MAX_PASSWORD_LENGTH
+  ) {
     return { ok: false, error: "invalid-new-password" };
   }
   const rows = await db.select().from(schema.users).where(eq(schema.users.id, userId)).limit(1);

@@ -5,14 +5,15 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth, signOut } from "@/lib/auth";
 import { getDb } from "@/db";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@/lib/passwords";
 import { changeUserPassword, deleteUserWithPassword } from "@/lib/users";
 
 export type AccountActionResult = { ok: true } | { ok: false; error: string };
 
 const changePasswordSchema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
-  confirmPassword: z.string().min(8)
+  currentPassword: z.string().min(1).max(MAX_PASSWORD_LENGTH),
+  newPassword: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH),
+  confirmPassword: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH)
 });
 
 export async function changePasswordAction(formData: FormData): Promise<AccountActionResult> {
@@ -53,8 +54,8 @@ export async function changePasswordAction(formData: FormData): Promise<AccountA
 }
 
 const deleteAccountSchema = z.object({
-  currentPassword: z.string().min(1),
-  confirm: z.string()
+  currentPassword: z.string().min(1).max(MAX_PASSWORD_LENGTH),
+  confirm: z.string().max(64)
 });
 
 export async function deleteAccountAction(formData: FormData): Promise<AccountActionResult> {

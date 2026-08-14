@@ -5,10 +5,13 @@ import { z } from "zod";
 import { authConfig } from "./auth.config";
 import { getDb, schema } from "../db";
 import { authenticateUser } from "./users";
+import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./passwords";
 
+// Mirrors the bounds in app/login/actions.ts — the provider is reachable
+// directly via the Auth.js route, so it must enforce them independently.
 const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8)
+  email: z.string().email().max(320),
+  password: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH)
 });
 
 function buildConfig(): NextAuthConfig {
