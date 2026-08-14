@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: no job here needs write access to anything (audit F-006).
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -23,6 +27,8 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npx tsx scripts/check-doc-secrets.ts
+      - run: npx tsx scripts/check-vuln-exceptions.ts
+      - run: npx tsx scripts/check-lockfile-advisories.ts
       - run: npx tsc --noEmit
       - run: npx eslint .
       - run: npx vitest run
