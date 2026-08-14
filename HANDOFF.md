@@ -19,11 +19,11 @@ This branch is **partially complete** — see the ledger. Do not treat it as a f
 | F-011 | *(new)* Latent Postgres timestamp write failure | **PASS** | `9ed7f17` |
 | F-005 | Auth abuse + password hashing | **PARTIAL** — hashing/bounds/migration done (`21ec0f3`); **durable throttle and registration-enumeration response NOT done** |
 | F-006 | Dependency scanning not continuous | **PASS** | `186c596` |
+| F-009 | *(user-added)* Credential leak sweep | **PASS** — `671989b` |
+| F-010 | *(user-added)* League-format propagation | **PARTIAL** — draft targets + lineup mesh done (`671989b`); **trade dynasty, VOR replacement level and sim scoring anchor NOT done** |
+| F-012 | *(user-added)* UI/UX, design and news review | **PARTIAL** — review + a11y fixes done (`ec07bce`); landing-page grid, dashboard dead space, news age visibility recorded OPEN |
 | F-004 | Password change does not revoke JWT sessions | **NOT STARTED** |
 | F-007 | CSP hardening | **NOT STARTED** |
-| F-009 | *(user-added)* Credential leak sweep | **NOT STARTED** |
-| F-010 | *(user-added)* League-format propagation + draft/FA correctness | **NOT STARTED** (fully scoped below) |
-| F-012 | *(user-added)* Per-page efficiency/marketability + news immediacy | **NOT STARTED** |
 
 ## Corrections to the audit (verified by execution, not assumed)
 
@@ -44,13 +44,13 @@ This branch is **partially complete** — see the ledger. Do not treat it as a f
 |---|---|---|---|
 | typecheck | 0 | 0 | PASS |
 | lint | 0 | 0 | PASS |
-| vitest | 502 passed / 6 skipped | **591 passed / 19 skipped** | PASS |
+| vitest | 502 passed / 6 skipped | **611 passed / 19 skipped** | PASS |
 | build | 0 | 0 | PASS |
-| e2e (Playwright + axe) | 157 passed / 1 skipped | **157 passed / 1 skipped** | PASS — no regression |
+| e2e (Playwright + axe) | 157 passed / 1 skipped | **171 passed / 1 skipped** | PASS — +14 target-size |
 | axe a11y | — | 12/12 routes clean | PASS |
 | `npm audit --omit=dev` | 10 vulns (7 high, 3 critical) | **0** | PASS |
 | Postgres integration | did not exist | 11 passed on real PG 17.11 | PASS |
-| `check:secrets` | — | 49 files, clean | PASS |
+| `check:secrets` | 49 files | **252 files**, clean | PASS — scope widened to src/scripts/.github |
 | `check:advisories` / `check:exceptions` | did not exist | pass | PASS |
 | `calibrate:season` | — | playoff Brier 0.0770 / ECE 0.0096; champ Brier 0.0855 | PASS (targets 0.2 / 0.1) |
 | `backtest:sleeper` | — | 10 team-seasons, Brier 0.1657, ECE 0.2583 | PASS (ran); n=10, ECE high — pre-existing |
@@ -117,8 +117,10 @@ self-hosted via `next/font/google`, no `dangerouslySetInnerHTML`/`eval`/`next/sc
 blocker is **77 `style={{…}}` attributes** across ~12 files → keep `style-src-attr 'unsafe-inline'`
 as a documented residual rather than a 77-file rewrite. Report-only first, then enforce.
 
-### 4. F-010 — league-format propagation (highest user-facing value)
-Confirmed defects, with evidence:
+### 4. F-010 remainder — trade values, VOR, simulation anchor
+The DRAFT half is done (`671989b`): targets now derive from `format.starters`, superflex raises the
+QB target 1 -> 4, and `lineupMeshScore()` grades roster fit with an explicit hoarding penalty.
+These three remain, and they are the deeper ones because they contaminate `trueValue`:
 - **Dynasty is hardcoded off in all three value sources.** `KTC_VARIANT = "redraft"` is a module
   constant ([values.ts:10](src/lib/trade/values.ts#L10)), `isDynasty=false` is a string literal in the
   FantasyCalc URL (`:54`), and `:71` prefers `redraftValue`. The dynasty KTC snapshot is scraped daily
@@ -141,9 +143,19 @@ Confirmed defects, with evidence:
   active-league cookie every other surface uses ([trade/actions.ts:31-37](src/app/trade/actions.ts#L31-L37)).
 - `leagues.settings` is written once at add-time and never updated.
 
-### 5. F-009, F-012, docs/hygiene
-- Extend `check:secrets` beyond `*.md`/`*.json`/`.env*`; add the transcript-exposed ESPN cookie
-  digests to `BURNED_SECRET_HASHES` ([docSecrets.ts:14](src/lib/security/docSecrets.ts#L14)).
+### 5. F-012 remainder + docs/hygiene
+Done (`ec07bce`): WCAG 2.2 target-size fixes + e2e guard, full measured UI/UX review in
+[reports/2026-08-06/ui-ux-design-review.md](reports/2026-08-06/ui-ux-design-review.md), news audit.
+Recorded OPEN there, deliberately not changed unilaterally:
+- **Landing page 6-card 3x2 grid** is the exact "Claude-generated card grid" CLAUDE.md forbids, and
+  the page shows no product visual. Recommendation written; it is a marketing redesign, not a defect.
+- **/dashboard dead space**: LEAGUE HEALTH 140px unused (38% of body), NEXT BEST ACTIONS 110px (42%);
+  CHAOS EXPOSURE is orphaned alone on row 2 of a 4-column KPI grid.
+- **News article age is never surfaced** (captured and used for weighting, zero UI references), so a
+  user cannot tell if a trending signal is 2h or 20h old. Snapshot is daily — a Vercel Hobby cron cap.
+- **LEAGUE PULSE bars are coloured by position while red is the risk colour**, so a 2nd-ranked player
+  renders a full red bar.
+- **derivedMetrics position grades** use a hardcoded slot list — no SUPERFLEX, no K.
 - Docs are the least trustworthy artifact: `FINAL_AUDIT.md` cites a `lifecycle/trades` lib that
   **does not exist**; [docs/account-isolation.md:11](docs/account-isolation.md#L11) and
   [settings/account/page.tsx:27](src/app/(app)/settings/account/page.tsx#L27) both describe JWT
