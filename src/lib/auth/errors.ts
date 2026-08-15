@@ -21,7 +21,17 @@ export function mapAuthError(error: unknown): string {
     case "OAuthCallbackError":
       return "Sign-in failed. Try again in a moment.";
     case "DuplicateEmail":
-      return "An account with that email already exists.";
+      // Audit 2026-08-06 F-005: this used to say "An account with that email
+      // already exists", which is an unauthenticated account-existence oracle —
+      // anyone could probe any address. The wording is now identical to the
+      // generic failure and gives the legitimate user the right next step.
+      //
+      // RESIDUAL, stated plainly: without email verification this cannot be
+      // fully closed. Registration inherently either creates an account or does
+      // not, so a determined attacker can still distinguish the two outcomes.
+      // Throttling (lib/auth/throttle) is what makes probing impractical; the
+      // complete fix is verification-on-signup.
+      return "Could not create that account. If you already have one, sign in instead.";
     case "PasswordTooShort":
       return "Password must be at least 8 characters.";
     case "InvalidEmail":
@@ -31,7 +41,10 @@ export function mapAuthError(error: unknown): string {
     case "ConfigurationError":
       return "We're having trouble signing you in. Try again.";
     case "DatabaseNotInitialized":
-      return "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db).";
+      // F-009: the previous copy named the admin init endpoint to every
+      // unauthenticated visitor. Operators find this in the logs and the deploy
+      // guide; end users only need to know it is not their fault.
+      return "The service is temporarily unavailable. Please try again shortly.";
     default:
       return "Something went wrong. Try again.";
   }

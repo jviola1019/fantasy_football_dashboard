@@ -10,10 +10,10 @@ describe("mapAuthError", () => {
 
   it("treats the Drizzle UNIQUE-constraint surface as DuplicateEmail", () => {
     expect(mapAuthError(new Error("UNIQUE constraint failed: users.email"))).toBe(
-      "An account with that email already exists."
+      "Could not create that account. If you already have one, sign in instead."
     );
     expect(mapAuthError(new Error("user already exists"))).toBe(
-      "An account with that email already exists."
+      "Could not create that account. If you already have one, sign in instead."
     );
   });
 
@@ -55,19 +55,19 @@ describe("mapAuthError", () => {
     expect(
       mapAuthError(new Error('relation "users" does not exist'))
     ).toBe(
-      "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db)."
+      "The service is temporarily unavailable. Please try again shortly."
     );
   });
 
   it("maps a missing database table (SQLite) to the operator init message", () => {
     expect(mapAuthError(new Error("no such table: users"))).toBe(
-      "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db)."
+      "The service is temporarily unavailable. Please try again shortly."
     );
   });
 
   it("maps the generic SQLite no-such-table variant to the operator init message", () => {
     expect(mapAuthError(new Error("no such table"))).toBe(
-      "The app's database isn't set up yet. If you're the operator, run the one-time database init (POST /api/admin/init-db)."
+      "The service is temporarily unavailable. Please try again shortly."
     );
   });
 
@@ -95,6 +95,19 @@ describe("mapAuthError", () => {
         expect(out).not.toContain(c.message);
       }
     }
+  });
+});
+
+describe("does not disclose account existence or operational detail (F-005/F-009)", () => {
+  it("the duplicate-email response never confirms that the account exists", () => {
+    const msg = mapAuthError(new Error("user already exists"));
+    expect(msg).not.toMatch(/already exists/i);
+    expect(msg).not.toMatch(/registered|taken|in use/i);
+  });
+
+  it("the database-not-initialised response never names the admin endpoint", () => {
+    const msg = mapAuthError(new Error('relation "users" does not exist'));
+    expect(msg).not.toMatch(/init-db|operator|admin/i);
   });
 });
 

@@ -189,6 +189,12 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       resolvedAt INTEGER,
       dismissedAt INTEGER
     );
+    CREATE TABLE IF NOT EXISTS auth_attempts (
+      key TEXT PRIMARY KEY,
+      windowStart INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      lockedUntil INTEGER
+    );
     ${sqliteSnapshotDdl()}
   `);
   // Additive column migrations for DBs created before these columns existed.
@@ -350,6 +356,12 @@ export function applyTestSchema(sqlite: MinimalSqliteHandle) {
     );
     CREATE UNIQUE INDEX notifications_user_dedup ON notifications (userId, dedupKey);
     CREATE INDEX notifications_user_created ON notifications (userId, createdAt);
+    CREATE TABLE auth_attempts (
+      key TEXT PRIMARY KEY,
+      windowStart INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      lockedUntil INTEGER
+    );
     ${sqliteSnapshotDdl()}
   `);
 }

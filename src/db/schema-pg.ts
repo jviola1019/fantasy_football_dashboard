@@ -6,6 +6,7 @@ import {
   primaryKey,
   customType,
   jsonb,
+  bigint,
   uniqueIndex,
   index
 } from "drizzle-orm/pg-core";
@@ -127,6 +128,15 @@ export const notifications = pgTable(
     index("notifications_user_created").on(table.userId, table.createdAt)
   ]
 );
+
+/** See schema.ts — durable auth throttle, hashed keys only (audit F-005). */
+export const authAttempts = pgTable("auth_attempts", {
+  key: text("key").primaryKey(),
+  /** Epoch milliseconds — see schema.ts for why this is not a timestamp. */
+  windowStart: bigint("windowStart", { mode: "number" }).notNull().default(0),
+  attempts: integer("attempts").notNull().default(0),
+  lockedUntil: bigint("lockedUntil", { mode: "number" })
+});
 
 export const playersSnapshots = pgTable("players_snapshots", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -278,6 +288,12 @@ export const INIT_SQL = `
     "createdAt" TIMESTAMP NOT NULL DEFAULT now()
   );
   ALTER TABLE users ADD COLUMN IF NOT EXISTS "sessionVersion" INTEGER NOT NULL DEFAULT 1;
+  CREATE TABLE IF NOT EXISTS auth_attempts (
+    key TEXT PRIMARY KEY,
+    "windowStart" BIGINT NOT NULL DEFAULT 0,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    "lockedUntil" BIGINT
+  );
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS settings JSONB;
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS "sleeperUsername" TEXT;
   CREATE TABLE IF NOT EXISTS "leagueCredentials" (

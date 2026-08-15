@@ -151,6 +151,30 @@ export const notifications = sqliteTable(
   ]
 );
 
+/**
+ * Durable authentication throttle (audit 2026-08-06 F-005).
+ *
+ * Login and registration had NO rate limiting of any kind, and the timing
+ * equalizer means every attempt — including for accounts that do not exist —
+ * pays a full scrypt derivation. That made the login form an unauthenticated
+ * CPU/memory amplifier. Process-local memory is useless on Vercel (per-invocation
+ * isolation), so the counter has to be durable; the SQL database is the only
+ * durable store this app has.
+ *
+ * `key` is a HASHED identifier ("acct:<sha256>" / "ip:<sha256>" / "global"), so
+ * this table never stores an email address or an IP in the clear.
+ */
+export const authAttempts = sqliteTable("auth_attempts", {
+  key: text("key").primaryKey(),
+  // Plain epoch-milliseconds INTEGERs, not timestamp columns. The app uses the
+  // SQLite schema objects on Postgres too, and that seam mishandles Date values
+  // (see nowSql() in db/index.ts, audit F-011). A counter table has no need for
+  // native timestamp semantics, so integers remove the hazard entirely.
+  windowStart: integer("windowStart").notNull().default(0),
+  attempts: integer("attempts").notNull().default(0),
+  lockedUntil: integer("lockedUntil")
+});
+
 export const playersSnapshots = sqliteTable("players_snapshots", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   source: text("source").notNull(), // e.g. "sleeper-nfl"
