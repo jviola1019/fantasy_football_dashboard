@@ -27,6 +27,41 @@ export type LeagueStarters = z.infer<typeof LeagueStartersSchema>;
 export const LeagueTypeSchema = z.enum(["redraft", "keeper", "dynasty"]);
 export type LeagueType = z.infer<typeof LeagueTypeSchema>;
 
+/**
+ * What keeping a player costs you.
+ *
+ * Verified against the operator's real ESPN keeper league (1546190) on
+ * 2026-08-15: the FULL `draftSettings` payload is
+ *   { auctionBudget, availableDate, date, isTradingEnabled, keeperCount,
+ *     keeperCountFuture, keeperDeadlineDate, keeperOrderType: "MANUAL",
+ *     leagueSubType, orderType, pickOrder, timePerSelection, type: "SNAKE" }
+ * — there is NO field describing the cost. `keeperOrderType` is the ordering of
+ * keeper selections, not their price. Sleeper does not publish one either.
+ *
+ * The cost is a league convention agreed between managers, so it CANNOT be
+ * detected and must never be guessed. `unknown` is the honest default and the
+ * app fails closed on it: no keeper recommendation is produced until an owner
+ * confirms the rule. Guessing here would be worse than silence, because a
+ * keeper decision is irreversible for the season.
+ */
+export const KeeperCostRuleSchema = z.enum([
+  /** Not applicable — redraft, or dynasty where the whole roster carries over. */
+  "none",
+  /** Costs a fixed round every year, e.g. "your first-round pick". */
+  "fixed-round",
+  /** Costs the round the player was drafted in last season. */
+  "draft-round",
+  /** Costs the round they were kept at, minus one each year. */
+  "escalating-round",
+  /** Auction leagues: costs last year's salary plus an increment. */
+  "auction-salary",
+  /** Free — no pick is forfeited. */
+  "free",
+  /** Not yet confirmed by an owner. Fails closed: no recommendation. */
+  "unknown"
+]);
+export type KeeperCostRule = z.infer<typeof KeeperCostRuleSchema>;
+
 export const LeagueFormatSchema = z.object({
   ppr: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
   numQbs: z.union([z.literal(1), z.literal(2)]),
@@ -34,6 +69,13 @@ export const LeagueFormatSchema = z.object({
   leagueType: LeagueTypeSchema,
   /** How many players may be kept. 0 for redraft and for dynasty (all are kept). */
   keeperCount: z.number().int().nonnegative(),
+  /**
+   * How a keeper is paid for. Neither platform publishes this, so it is
+   * `unknown` until an owner confirms it at league-add time.
+   */
+  keeperCostRule: KeeperCostRuleSchema,
+  /** For `fixed-round`: which round. Null until confirmed. */
+  keeperCostRound: z.number().int().positive().nullable(),
   numTeams: z.number().int().positive(),
   scoringFormat: z.enum(["STD", "HALF", "PPR"]),
   rosterSize: z.number().int().positive(),
@@ -61,6 +103,8 @@ export const DEFAULT_FORMAT: LeagueFormat = {
   numQbs: 1,
   leagueType: "redraft",
   keeperCount: 0,
+  keeperCostRule: "none",
+  keeperCostRound: null,
   numTeams: 12,
   scoringFormat: "PPR",
   rosterSize: 16,
@@ -181,6 +225,9 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
     numQbs,
     leagueType: sleeperLeagueType(settings),
     keeperCount: sleeperKeeperCount(settings),
+    // Unconfirmed by definition — Sleeper publishes no cost rule.
+    keeperCostRule: sleeperKeeperCount(settings) > 0 ? "unknown" : "none",
+    keeperCostRound: null,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: positions.length || DEFAULT_FORMAT.rosterSize,
@@ -283,6 +330,9 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
     numQbs,
     leagueType,
     keeperCount,
+    // ESPN publishes keeperCount but never a cost — see KeeperCostRuleSchema.
+    keeperCostRule: keeperCount > 0 ? "unknown" : "none",
+    keeperCostRound: null,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: rosterSize || DEFAULT_FORMAT.rosterSize,
