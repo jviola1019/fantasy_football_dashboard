@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { decrypt, encrypt, getCredentialKey } from "./crypto";
 import { schema } from "../db";
-import type { LeagueFormat } from "./trade/format";
+import { DEFAULT_FORMAT, type LeagueFormat } from "./trade/format";
 
 export type LeaguePlatform = "sleeper" | "espn";
 
@@ -121,6 +121,35 @@ export async function getLeagueForUser(db: Db, userId: string, leagueId: string)
     .where(and(eq(schema.leagues.userId, userId), eq(schema.leagues.id, leagueId)))
     .limit(1);
   return rows[0] ? toRecord(rows[0]) : null;
+}
+
+/**
+ * Merge owner-confirmed settings into a league's stored format.
+ *
+ * Scoped by userId as well as leagueId so one account can never edit another's
+ * league — the same ownership rule every other league mutation follows.
+ *
+ * Only the fields an owner can legitimately confirm are accepted. Everything
+ * else (scoring, roster slots, team count) is DETECTED from the platform and
+ * must not be hand-editable, or the app would start reporting settings that
+ * disagree with the league itself.
+ */
+export async function updateLeagueSettingsForUser(
+  db: Db,
+  userId: string,
+  leagueId: string,
+  patch: Partial<Pick<LeagueFormat, "keeperCostRule" | "keeperCostRound" | "draftSlot">>
+): Promise<LeagueRecord | null> {
+  const existing = await getLeagueForUser(db, userId, leagueId);
+  if (!existing) return null;
+  const merged: LeagueFormat = { ...(existing.settings ?? DEFAULT_FORMAT), ...patch };
+  const updated = await db
+    .update(schema.leagues)
+    .set({ settings: JSON.stringify(merged) })
+    .where(and(eq(schema.leagues.id, leagueId), eq(schema.leagues.userId, userId)))
+    .returning();
+  const row = updated[0];
+  return row ? toRecord(row) : null;
 }
 
 export async function deleteLeagueForUser(db: Db, userId: string, leagueId: string): Promise<boolean> {

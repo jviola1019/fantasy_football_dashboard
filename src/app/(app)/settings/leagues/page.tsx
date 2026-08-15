@@ -4,6 +4,7 @@ import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { AddLeagueForm } from "./AddLeagueForm";
 import { LeagueList } from "./LeagueList";
+import { LeagueSettingsForm } from "./LeagueSettingsForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "League Settings" };
@@ -32,6 +33,13 @@ export default async function LeaguesSettingsPage() {
         <h2 style={h2}>Connected ({leagues.length})</h2>
         <LeagueList leagues={leagues} />
       </section>
+
+      {leagues.map((league) => (
+        <section key={league.id} style={panel}>
+          <h2 style={h2}>{league.label} — settings</h2>
+          <LeagueSettingsForm leagueId={league.id} label={league.label} format={league.settings} />
+        </section>
+      ))}
     </div>
   );
 }

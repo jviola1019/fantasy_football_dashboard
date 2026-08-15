@@ -76,6 +76,12 @@ export const LeagueFormatSchema = z.object({
   keeperCostRule: KeeperCostRuleSchema,
   /** For `fixed-round`: which round. Null until confirmed. */
   keeperCostRound: z.number().int().positive().nullable(),
+  /**
+   * This manager's slot in round 1 (1-indexed). Neither platform reliably
+   * exposes which pickOrder entry is "you", so it is confirmed by the owner.
+   * Null means keeper pricing falls back to the middle of the round and says so.
+   */
+  draftSlot: z.number().int().positive().nullable(),
   numTeams: z.number().int().positive(),
   scoringFormat: z.enum(["STD", "HALF", "PPR"]),
   rosterSize: z.number().int().positive(),
@@ -105,6 +111,7 @@ export const DEFAULT_FORMAT: LeagueFormat = {
   keeperCount: 0,
   keeperCostRule: "none",
   keeperCostRound: null,
+  draftSlot: null,
   numTeams: 12,
   scoringFormat: "PPR",
   rosterSize: 16,
@@ -228,6 +235,7 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
     // Unconfirmed by definition — Sleeper publishes no cost rule.
     keeperCostRule: sleeperKeeperCount(settings) > 0 ? "unknown" : "none",
     keeperCostRound: null,
+    draftSlot: null,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: positions.length || DEFAULT_FORMAT.rosterSize,
@@ -333,6 +341,7 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
     // ESPN publishes keeperCount but never a cost — see KeeperCostRuleSchema.
     keeperCostRule: keeperCount > 0 ? "unknown" : "none",
     keeperCostRound: null,
+    draftSlot: null,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: rosterSize || DEFAULT_FORMAT.rosterSize,

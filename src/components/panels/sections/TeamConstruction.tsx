@@ -4,6 +4,7 @@ import type { PlayerMarketRecord } from "@/lib/governance";
 import type { LeagueFormat } from "@/lib/trade/format";
 import { derivePositionGrades, type PositionGrades } from "@/lib/derivedMetrics";
 import { lineupMeshScore, targetsFromFormat } from "@/lib/draft/rosterTargets";
+import { evaluateKeepers } from "@/lib/draft/keepers";
 import { PanelCard } from "../../ui/PanelCard";
 
 /**
@@ -22,11 +23,14 @@ import { PanelCard } from "../../ui/PanelCard";
 export function TeamConstruction({
   players,
   fragilityMissing,
-  format
+  format,
+  board
 }: {
   players: PlayerMarketRecord[];
   fragilityMissing: boolean;
   format?: LeagueFormat | null;
+  /** Draftable pool, best-first — used to price what a keeper costs. */
+  board?: PlayerMarketRecord[];
 }) {
   const grades = derivePositionGrades(players);
   return (
@@ -40,6 +44,7 @@ export function TeamConstruction({
         <TeamConstructionScore grades={grades} fragilityMissing={fragilityMissing} />
         <LineupFit players={players} format={format ?? null} />
       </div>
+      <KeeperBoard players={players} board={board ?? []} format={format ?? null} />
     </PanelCard>
   );
 }
@@ -136,6 +141,93 @@ function LineupFit({ players, format }: { players: PlayerMarketRecord[]; format:
         {format.starters.SUPERFLEX > 0 ? `/${format.starters.SUPERFLEX}SFLEX` : ""}) and a{" "}
         {format.rosterSize}-man roster — not a fixed assumption.
       </p>
+    </div>
+  );
+}
+
+/**
+ * Keeper decisions, priced as surplus over the pick they cost.
+ *
+ * Renders an explicit unavailable state — including WHY and what to do — rather
+ * than a recommendation, whenever the league rule is unconfirmed. A keeper
+ * choice is irreversible for the season, so a guess is worse than silence.
+ */
+function KeeperBoard({
+  players,
+  board,
+  format
+}: {
+  players: PlayerMarketRecord[];
+  board: PlayerMarketRecord[];
+  format: LeagueFormat | null;
+}) {
+  if (!format || format.leagueType !== "keeper" || format.keeperCount <= 0) return null;
+
+  const analysis = evaluateKeepers({
+    roster: players,
+    board,
+    format,
+    draftSlot: format.draftSlot ?? null
+  });
+
+  return (
+    <div className="mini-panel" style={{ marginTop: 12 }}>
+      <div className="mini-panel-title">
+        Keeper decision — {format.keeperCount} allowed
+      </div>
+
+      {analysis.status === "unavailable" ? (
+        <p className="muted" style={{ marginTop: 8 }}>
+          {analysis.detail}
+          {analysis.reason === "cost-rule-unconfirmed" && (
+            <>
+              {" "}
+              <a className="demo-banner-cta" href="/settings/leagues">
+                Set it in league settings →
+              </a>
+            </>
+          )}
+        </p>
+      ) : (
+        <>
+          {analysis.keepNobody && (
+            <p className="muted" style={{ marginTop: 8 }}>
+              <strong style={{ color: "var(--amber)" }}>Keep nobody.</strong> No player on this roster is
+              worth more than the pick you would give up. Filling the slot anyway hands value back.
+            </p>
+          )}
+          <table style={{ marginTop: 8 }}>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Cost</th>
+                <th>Pick worth</th>
+                <th>Surplus</th>
+                <th>Verdict</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analysis.candidates.slice(0, 8).map((c) => (
+                <tr key={c.player.id}>
+                  <td>{c.player.name}</td>
+                  <td>{c.costRound ? `R${c.costRound}` : "free"}</td>
+                  <td>{c.pickValue.toFixed(0)}</td>
+                  <td className={c.surplus > 0 ? "pos-text" : "neg-text"}>
+                    {c.surplus > 0 ? "+" : ""}
+                    {c.surplus.toFixed(0)}
+                  </td>
+                  <td>{c.verdict}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <ul className="muted" style={{ marginTop: 8, paddingLeft: 16, listStyle: "disc" }}>
+            {analysis.assumptions.map((a) => (
+              <li key={a}>{a}</li>
+            ))}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
