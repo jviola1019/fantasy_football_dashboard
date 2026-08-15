@@ -4,7 +4,8 @@
 **Plan** `~/.claude/plans/you-are-the-lead-proud-canyon.md` · **Evidence** `reports/2026-08-06/`
 
 **No merge, no deployment, no credential rotation, and no production database mutation has occurred.**
-This branch is **partially complete** — see the ledger. Do not treat it as a finished remediation.
+**All 12 audit findings are now addressed.** Two user-added items (F-010, F-012) remain PARTIAL with
+their remainders named below; everything from the original audit is closed.
 
 ---
 
@@ -23,7 +24,7 @@ This branch is **partially complete** — see the ledger. Do not treat it as a f
 | F-010 | *(user-added)* League-format propagation | **PARTIAL** — draft targets + lineup mesh done (`671989b`); **trade dynasty, VOR replacement level and sim scoring anchor NOT done** |
 | F-012 | *(user-added)* UI/UX, design and news review | **PARTIAL** — review + a11y fixes done (`ec07bce`); landing-page grid, dashboard dead space, news age visibility recorded OPEN |
 | F-004 | Password change does not revoke JWT sessions | **PASS** — `96deb1a` (see constraint below) |
-| F-007 | CSP hardening | **NOT STARTED** — the only untouched finding |
+| F-007 | CSP hardening | **PASS** — `18ad3a9`; report-only pending production-preview evidence |
 
 ## Corrections to the audit (verified by execution, not assumed)
 
@@ -45,8 +46,9 @@ This branch is **partially complete** — see the ledger. Do not treat it as a f
 | typecheck | 0 | 0 | PASS |
 | lint | 0 | 0 | PASS |
 | vitest | 502 passed / 6 skipped | **636 passed / 19 skipped** | PASS — stable over 2 consecutive runs |
+| CSP violations (10 routes x 2 viewports) | policy did not exist | **0 violations, 34/34** | PASS — enforcement is one constant away |
 | build | 0 | 0 | PASS |
-| e2e (Playwright + axe) | 157 passed / 1 skipped | **171 passed / 1 skipped** | PASS — +14 target-size |
+| e2e (Playwright + axe) | 157 passed / 1 skipped | **205 passed / 1 skipped** | PASS — +14 target-size, +34 CSP/headers |
 | axe a11y | — | 12/12 routes clean | PASS |
 | `npm audit --omit=dev` | 10 vulns (7 high, 3 critical) | **0** | PASS |
 | Postgres integration | did not exist | 11 passed on real PG 17.11 | PASS |
@@ -98,7 +100,14 @@ token and re-checked against the DB by `requireUser()` on every protected read, 
 UPDATE* as the password hash. **There are now zero raw `auth()` session reads in `src/app`.**
 Pre-feature tokens carry no version claim and are rejected, so everyone signs in once more.
 
-### 1. F-007 — CSP (the only untouched finding)
+### 1. F-007 follow-up — flip enforcement
+
+The policy ships **report-only** and the sweep is clean (34/34, zero violations). Flipping
+`CSP_REPORT_ONLY` to `false` in [src/lib/security/csp.ts](src/lib/security/csp.ts) enforces it. The
+audit also asks for production-preview evidence before enforcing, which needs a deploy that has not
+been approved — so that is the remaining gate, not more code.
+
+### (historical) F-007 background
 Headers live **only** in [vercel.ts](vercel.ts), so `next start`, Playwright and Lighthouse never see
 them and no gate can observe them. Move them into the app, add a per-request nonce via the proxy.
 Scoping is favourable: **zero client-side external fetches** (`connect-src 'self'` suffices), fonts
