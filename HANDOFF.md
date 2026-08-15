@@ -17,13 +17,13 @@ This branch is **partially complete** — see the ledger. Do not treat it as a f
 | F-002 | 2025 bye data drives 2026 alerts | **PASS** | `8dc4e05` |
 | F-003 | Notification dedup nonfunctional | **PASS** | `9ed7f17` |
 | F-011 | *(new)* Latent Postgres timestamp write failure | **PASS** | `9ed7f17` |
-| F-005 | Auth abuse + password hashing | **PARTIAL** — hashing/bounds/migration done (`21ec0f3`); **durable throttle and registration-enumeration response NOT done** |
+| F-005 | Auth abuse + password hashing | **PASS** — scrypt2 + bounds (`21ec0f3`), durable throttle + enumeration (`ba64260`) |
 | F-006 | Dependency scanning not continuous | **PASS** | `186c596` |
 | F-009 | *(user-added)* Credential leak sweep | **PASS** — `671989b` |
 | F-010 | *(user-added)* League-format propagation | **PARTIAL** — draft targets + lineup mesh done (`671989b`); **trade dynasty, VOR replacement level and sim scoring anchor NOT done** |
 | F-012 | *(user-added)* UI/UX, design and news review | **PARTIAL** — review + a11y fixes done (`ec07bce`); landing-page grid, dashboard dead space, news age visibility recorded OPEN |
-| F-004 | Password change does not revoke JWT sessions | **NOT STARTED** |
-| F-007 | CSP hardening | **NOT STARTED** |
+| F-004 | Password change does not revoke JWT sessions | **PASS** — `96deb1a` (see constraint below) |
+| F-007 | CSP hardening | **NOT STARTED** — the only untouched finding |
 
 ## Corrections to the audit (verified by execution, not assumed)
 
@@ -44,13 +44,13 @@ This branch is **partially complete** — see the ledger. Do not treat it as a f
 |---|---|---|---|
 | typecheck | 0 | 0 | PASS |
 | lint | 0 | 0 | PASS |
-| vitest | 502 passed / 6 skipped | **611 passed / 19 skipped** | PASS |
+| vitest | 502 passed / 6 skipped | **636 passed / 19 skipped** | PASS — stable over 2 consecutive runs |
 | build | 0 | 0 | PASS |
 | e2e (Playwright + axe) | 157 passed / 1 skipped | **171 passed / 1 skipped** | PASS — +14 target-size |
 | axe a11y | — | 12/12 routes clean | PASS |
 | `npm audit --omit=dev` | 10 vulns (7 high, 3 critical) | **0** | PASS |
 | Postgres integration | did not exist | 11 passed on real PG 17.11 | PASS |
-| `check:secrets` | 49 files | **252 files**, clean | PASS — scope widened to src/scripts/.github |
+| `check:secrets` | 49 files | **255 files**, clean | PASS — scope widened to src/scripts/.github |
 | `check:advisories` / `check:exceptions` | did not exist | pass | PASS |
 | `calibrate:season` | — | playoff Brier 0.0770 / ECE 0.0096; champ Brier 0.0855 | PASS (targets 0.2 / 0.1) |
 | `backtest:sleeper` | — | 10 team-seasons, Brier 0.1657, ECE 0.2583 | PASS (ran); n=10, ECE high — pre-existing |
@@ -85,31 +85,20 @@ formats need fixtures, and any claim of coverage for them must say so.
 
 ## Next steps, in priority order
 
-### 1. F-004 — session revocation (decided: DB sessions **and** a `sessionVersion` stamp)
-Auth.js is `strategy: "jwt"`; `changeUserPassword` updates only the hash and
-[users.ts](src/lib/users.ts) even says *"Caller is responsible for invalidating sessions"* — no caller
-does. Deleting an account only clears the requesting browser's cookie.
-- Move to `strategy: "database"` (the `sessions` table + DrizzleAdapter are already wired and
-  correctly shaped in both drivers). Add `users.sessionVersion` — it is what kills still-valid legacy
-  JWT cookies at cutover, which DB sessions alone cannot do.
-- Add a `requireUser()` choke point; there are ~16 Node-runtime session reads and no single gate today.
-- **Next 16.3 deprecates the Edge runtime and middleware**, so migrating [src/proxy.ts](src/proxy.ts)
-  to the Node runtime lets it reach the DB and removes the constraint that forced session checks out
-  of it. Keep `requireUser()` authoritative regardless — proxy-only enforcement is exactly what
-  `GHSA-6gpp-xcg3-4w24` punishes. The proxy matcher covers only `/settings/*` today.
-- Document that the JWT→DB cutover signs everyone out once. Intended.
+### DONE, with one design constraint worth knowing (F-004)
 
-### 2. F-005 remainder
-- `auth_attempts` table (per-account, per-IP, global ceiling, progressive delay, bounded lockout that
-  cannot be weaponised against a victim). Follow the five-copy DDL rule in [docs/migrations.md](docs/migrations.md).
-- Registration enumeration oracle: `"An account with that email already exists."`
-  ([errors.ts:24](src/lib/auth/errors.ts#L24), thrown from [users.ts:23](src/lib/users.ts#L23)) confirms
-  account existence, unauthenticated and unthrottled. **Note honestly:** without email verification
-  this cannot be fully closed — registration inherently succeeds or fails. Generic messaging plus
-  throttling is the achievable mitigation; state the residual.
-- `errors.ts:34` leaks operational detail to unauthenticated users ("run the one-time database init…").
+**Database sessions are not reachable in this app**, and this was verified in the installed source
+rather than assumed. `@auth/core/lib/utils/assert.js:114-119` returns `UnsupportedStrategy` when
+`strategy: "database"` is combined with a provider set that is *only* Credentials — which is exactly
+RAE. Auth.js refuses to boot. Reaching DB sessions would require adding a non-credentials provider or
+overriding `jwt.encode`/`decode` to store opaque tokens.
 
-### 3. F-007 — CSP
+What shipped instead delivers the same security property: `users.sessionVersion` stamped into every
+token and re-checked against the DB by `requireUser()` on every protected read, bumped in the *same
+UPDATE* as the password hash. **There are now zero raw `auth()` session reads in `src/app`.**
+Pre-feature tokens carry no version claim and are rejected, so everyone signs in once more.
+
+### 1. F-007 — CSP (the only untouched finding)
 Headers live **only** in [vercel.ts](vercel.ts), so `next start`, Playwright and Lighthouse never see
 them and no gate can observe them. Move them into the app, add a per-request nonce via the proxy.
 Scoping is favourable: **zero client-side external fetches** (`connect-src 'self'` suffices), fonts
@@ -159,7 +148,8 @@ Recorded OPEN there, deliberately not changed unilaterally:
 - Docs are the least trustworthy artifact: `FINAL_AUDIT.md` cites a `lifecycle/trades` lib that
   **does not exist**; [docs/account-isolation.md:11](docs/account-isolation.md#L11) and
   [settings/account/page.tsx:27](src/app/(app)/settings/account/page.tsx#L27) both describe JWT
-  sessions that F-004 will replace. Consolidate 6 overlapping audit docs into one dated report.
+  sessions — both were corrected in `96deb1a`. Remaining doc debt: consolidate 6 overlapping audit
+  docs into one dated report, and `FINAL_AUDIT.md` still cites a `lifecycle/trades` lib that does not exist.
 - `reports/` is 13.2 MB tracked, incl. 4.1 MB of PNGs and a 0-byte `tsc.txt`.
 
 ## Known gaps / honest caveats

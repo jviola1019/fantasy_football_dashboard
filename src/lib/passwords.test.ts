@@ -98,11 +98,20 @@ describe("oversized input (unauthenticated CPU/memory amplifier)", () => {
 
   it("rejects an oversize password at verify time WITHOUT deriving", async () => {
     const hash = await hashPassword("correct horse battery staple");
-    const started = Date.now();
+
+    // Self-calibrating rather than a fixed millisecond bound: measure a REAL
+    // derivation on this machine, then require the oversize path to be an order
+    // of magnitude faster. A hardcoded threshold flakes on a loaded CI box,
+    // which is how this test first went red.
+    const realStart = Date.now();
+    await verifyPassword("correct horse battery staple", hash);
+    const realMs = Date.now() - realStart;
+
+    const guardStart = Date.now();
     expect(await verifyPassword(huge, hash)).toBe(false);
-    // A real scrypt2 derivation is ~570ms here; the guard must short-circuit
-    // long before that, proving no work was done on the oversize input.
-    expect(Date.now() - started).toBeLessThan(100);
+    const guardMs = Date.now() - guardStart;
+
+    expect(guardMs).toBeLessThan(Math.max(50, realMs / 10));
   });
 
   it("accepts a password exactly at the limit", async () => {

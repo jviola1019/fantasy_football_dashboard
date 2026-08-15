@@ -101,11 +101,11 @@ describe("oversized credentials are rejected before hashing", () => {
 
   it("login with an oversize password fails fast and does not authenticate", async () => {
     await createUserWithPassword(db, { email: "ok@example.com", password: "a-good-password" });
-    const started = Date.now();
     const result = await authenticateUser(db, "ok@example.com", "z".repeat(MAX_PASSWORD_LENGTH + 1));
+    // Behavioural assertion only. The earlier wall-clock bound here was
+    // meaningless (the equalizer derivation dominates the timing either way)
+    // and it flaked under load; verifyPassword's own oversize guard is covered
+    // directly, and self-calibrated, in passwords.test.ts.
     expect(result).toBeNull();
-    // Still pays the equalizer derivation (so it cannot be used as an
-    // existence oracle) but must not hash the oversize input itself.
-    expect(Date.now() - started).toBeLessThan(5000);
   });
 });
