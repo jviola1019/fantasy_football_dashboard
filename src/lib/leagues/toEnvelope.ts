@@ -125,7 +125,11 @@ export function buildLiveEnvelope({
         rankingsSource,
         trendingAdds,
         trendingDrops,
-        newsMomentumScores
+        newsMomentumScores,
+        // The draftable universe must use the SAME replacement level as the
+        // roster, or the draft board and the roster would be priced on
+        // different baselines (audit F-010).
+        format: snapshot.format ?? undefined
       }),
       oppScores
     );
@@ -166,7 +170,11 @@ export function buildLiveEnvelope({
     rankingsSource,
     trendingAdds,
     trendingDrops,
-    newsMomentumScores
+    newsMomentumScores,
+    // Replacement level (and therefore trueValue) is derived from the league's
+    // real starters — audit F-010. Without this the roster would be valued
+    // against a 12-team 1QB baseline no matter what league it belongs to.
+    format: snapshot.format ?? undefined
   });
 
   // Composite source metadata. Freshness = the worse of the two upstream
