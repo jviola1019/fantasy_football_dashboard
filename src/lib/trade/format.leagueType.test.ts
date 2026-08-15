@@ -122,3 +122,40 @@ describe("Sleeper league type", () => {
     expect(sleeper({}).leagueType).toBe("redraft");
   });
 });
+
+describe("trade values follow league type (F-010)", () => {
+  it("selects the dynasty KTC scale only for dynasty leagues", async () => {
+    const { ktcVariantForLeague, buildFantasyCalcUrl } = await import("./values");
+    const { DEFAULT_FORMAT } = await import("./format");
+    const fmt = (leagueType: "redraft" | "keeper" | "dynasty") => ({ ...DEFAULT_FORMAT, leagueType });
+
+    // The daily cron scrapes and prunes the dynasty snapshot; before this fix
+    // nothing ever read it.
+    expect(ktcVariantForLeague(fmt("dynasty"))).toBe("dynasty");
+    expect(ktcVariantForLeague(fmt("redraft"))).toBe("redraft");
+    // Keeper leagues price for THIS season — only a few players carry over.
+    expect(ktcVariantForLeague(fmt("keeper"))).toBe("redraft");
+
+    expect(buildFantasyCalcUrl(fmt("dynasty"))).toContain("isDynasty=true");
+    expect(buildFantasyCalcUrl(fmt("redraft"))).toContain("isDynasty=false");
+    expect(buildFantasyCalcUrl(fmt("keeper"))).toContain("isDynasty=false");
+  });
+
+  it("reads the dynasty value column for dynasty leagues", async () => {
+    const { parseFantasyCalc } = await import("./values");
+    const payload = [
+      {
+        player: { id: 1, name: "A Player", position: "RB", sleeperId: 4034, espnId: 3, maybeTeam: "KC" },
+        value: 9000,
+        redraftValue: 100,
+        overallRank: 1,
+        positionRank: 1,
+        trend30Day: 0
+      }
+    ];
+    expect(parseFantasyCalc(payload, "dynasty").get("4034")!.value).toBe(9000);
+    expect(parseFantasyCalc(payload, "redraft").get("4034")!.value).toBe(100);
+    // Default stays redraft so existing callers are unchanged.
+    expect(parseFantasyCalc(payload).get("4034")!.value).toBe(100);
+  });
+});

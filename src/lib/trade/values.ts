@@ -4,10 +4,24 @@ import { evaluateFreshness, unavailableSource } from "../governance";
 import type { LeagueFormat } from "./format";
 import { getLatestKtcSnapshot } from "../ktc/snapshot";
 import type { KtcVariant } from "../ktc/types";
+import type { LeagueType } from "./format";
 
-// KTC has both dynasty and redraft variants. For redraft leagues we want
-// the redraft snapshot; for dynasty we want dynasty. Mapping is trivial.
-const KTC_VARIANT: KtcVariant = "redraft";
+/**
+ * Which KTC value scale a league should use (audit 2026-08-06 F-010).
+ *
+ * This was a module CONSTANT pinned to "redraft" — the old comment even said
+ * "for dynasty we want dynasty, mapping is trivial" and then never did it. The
+ * cost was real: the ktc-refresh cron scrapes, stores and prunes the DYNASTY
+ * snapshot every single day, and nothing ever read it (getLatestKtcSnapshot
+ * ("dynasty") had zero call sites). Dynasty leagues were priced with redraft
+ * values while their correct data sat unused in the database.
+ *
+ * Keeper leagues intentionally use redraft values: only a small number of
+ * players carry over, so the marginal player is valued for THIS season.
+ */
+export function ktcVariantForLeague(format: LeagueFormat): KtcVariant {
+  return format.leagueType === "dynasty" ? "dynasty" : "redraft";
+}
 
 // KTC snapshots are written by a daily cron (09:00 UTC); within 30h
 // (24h cadence + buffer) the snapshot is the expected state, not stale.
@@ -49,14 +63,27 @@ const FantasyCalcResponseSchema = z.array(FantasyCalcEntrySchema);
 const FANTASYCALC_TTL_SECONDS = 43_200; // 12h
 
 export function buildFantasyCalcUrl(format: LeagueFormat): string {
+  // isDynasty was a hardcoded literal `false` (F-010), so a dynasty league was
+  // handed redraft values by the API itself, not just by our variant choice.
+  const isDynasty = format.leagueType === "dynasty";
   return (
     "https://api.fantasycalc.com/values/current" +
-    `?isDynasty=false&numQbs=${format.numQbs}&numTeams=${format.numTeams}&ppr=${format.ppr}`
+    `?isDynasty=${isDynasty}&numQbs=${format.numQbs}&numTeams=${format.numTeams}&ppr=${format.ppr}`
   );
 }
 
-/** Map a validated FantasyCalc payload into a sleeperId-keyed PlayerValue map. */
-export function parseFantasyCalc(raw: unknown): Map<string, PlayerValue> {
+/**
+ * Map a validated FantasyCalc payload into a sleeperId-keyed PlayerValue map.
+ *
+ * `leagueType` decides which column to read: `redraftValue` prices a player for
+ * this season, `value` is the dynasty (long-term) figure. Previously this always
+ * preferred `redraftValue`, which silently discarded the dynasty pricing even
+ * when the dynasty endpoint had been queried.
+ */
+export function parseFantasyCalc(
+  raw: unknown,
+  leagueType: LeagueType = "redraft"
+): Map<string, PlayerValue> {
   const entries = FantasyCalcResponseSchema.parse(raw);
   const map = new Map<string, PlayerValue>();
   for (const e of entries) {
@@ -68,7 +95,7 @@ export function parseFantasyCalc(raw: unknown): Map<string, PlayerValue> {
       name: e.player.name,
       position: e.player.position,
       team: e.player.maybeTeam ?? null,
-      value: e.redraftValue ?? e.value,
+      value: leagueType === "dynasty" ? (e.value ?? e.redraftValue) : (e.redraftValue ?? e.value),
       overallRank: e.overallRank,
       positionRank: e.positionRank,
       trend30Day: e.trend30Day ?? 0
@@ -133,7 +160,7 @@ export async function fetchDynastyProcessValues(format: LeagueFormat): Promise<M
 // behavior — Trade Builder (search-based) still works.
 export async function fetchKtcValues(
   format: LeagueFormat,
-  variant: KtcVariant = KTC_VARIANT
+  variant: KtcVariant = ktcVariantForLeague(format)
 ): Promise<{ values: Map<string, PlayerValue>; fetchedAt: string }> {
   const snapshot = await getLatestKtcSnapshot(variant);
   if (!snapshot) throw new Error(`KTC ${variant} snapshot not cached`);
