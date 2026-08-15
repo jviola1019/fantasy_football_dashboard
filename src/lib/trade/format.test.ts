@@ -85,7 +85,10 @@ describe("parseEspnFormat", () => {
     const fmt = parseEspnFormat({
       size: 12,
       scoringSettings: { scoringItems: [{ statId: 53, points: 1 }] },
-      rosterSettings: { lineupSlotCounts: { "0": 1, "23": 0, "2": 2, "4": 2, "6": 1, "7": 1, "16": 1, "17": 1, "20": 6 } }
+      // Slot 23 is the ordinary RB/WR/TE flex; slot 7 (OP) would make this a
+      // superflex league. The fixture previously used slot 7 to mean "flex",
+      // which only worked because the parser had the two swapped (F-010).
+      rosterSettings: { lineupSlotCounts: { "0": 1, "23": 1, "2": 2, "4": 2, "6": 1, "7": 0, "16": 1, "17": 1, "20": 6 } }
     });
     expect(fmt.ppr).toBe(1);
     expect(fmt.numQbs).toBe(1);
@@ -119,15 +122,29 @@ describe("parseEspnFormat", () => {
     expect(fmt.scoringFormat).toBe("STD");
   });
 
-  it("detects superflex via lineup slot 23", () => {
-    const fmt = parseEspnFormat({
+  it("detects superflex via lineup slot 7 (OP), not slot 23", () => {
+    // CORRECTED (audit 2026-08-06 F-010). This test previously asserted that
+    // slot 23 meant superflex, which enshrined the bug: ESPN's slot 23 is the
+    // ordinary RB/WR/TE flex and slot 7 is OP (QB/RB/WR/TE). Because the parser
+    // keyed superflex off 23, every ordinary-flex league — including all four of
+    // the operator's real ESPN leagues — was reported as superflex.
+    const superflex = parseEspnFormat({
+      size: 10,
+      scoringSettings: { scoringItems: [{ statId: 53, points: 0.5 }] },
+      rosterSettings: { lineupSlotCounts: { "0": 1, "7": 1, "20": 5 } }
+    });
+    expect(superflex.numQbs).toBe(2);
+    expect(superflex.starters.SUPERFLEX).toBe(1);
+    expect(superflex.scoringFormat).toBe("HALF");
+
+    const ordinaryFlex = parseEspnFormat({
       size: 10,
       scoringSettings: { scoringItems: [{ statId: 53, points: 0.5 }] },
       rosterSettings: { lineupSlotCounts: { "0": 1, "23": 1, "20": 5 } }
     });
-    expect(fmt.numQbs).toBe(2);
-    expect(fmt.starters.SUPERFLEX).toBe(1);
-    expect(fmt.scoringFormat).toBe("HALF");
+    expect(ordinaryFlex.numQbs).toBe(1);
+    expect(ordinaryFlex.starters.FLEX).toBe(1);
+    expect(ordinaryFlex.starters.SUPERFLEX).toBe(0);
   });
 
   it("returns null audit fields when tradeSettings/scheduleSettings absent", () => {

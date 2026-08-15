@@ -18,9 +18,22 @@ export const LeagueStartersSchema = z.object({
 
 export type LeagueStarters = z.infer<typeof LeagueStartersSchema>;
 
+/**
+ * Redraft vs keeper vs dynasty. Audit 2026-08-06 F-010: this dimension did not
+ * exist, so every league was valued as redraft — dynasty trade values were
+ * hardcoded off and keeper decisions had nowhere to live. Both platforms
+ * publish it and neither was being read.
+ */
+export const LeagueTypeSchema = z.enum(["redraft", "keeper", "dynasty"]);
+export type LeagueType = z.infer<typeof LeagueTypeSchema>;
+
 export const LeagueFormatSchema = z.object({
   ppr: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
   numQbs: z.union([z.literal(1), z.literal(2)]),
+  /** redraft | keeper | dynasty, read from the platform — never assumed. */
+  leagueType: LeagueTypeSchema,
+  /** How many players may be kept. 0 for redraft and for dynasty (all are kept). */
+  keeperCount: z.number().int().nonnegative(),
   numTeams: z.number().int().positive(),
   scoringFormat: z.enum(["STD", "HALF", "PPR"]),
   rosterSize: z.number().int().positive(),
@@ -46,6 +59,8 @@ const DEFAULT_STARTERS: LeagueStarters = {
 export const DEFAULT_FORMAT: LeagueFormat = {
   ppr: 1,
   numQbs: 1,
+  leagueType: "redraft",
+  keeperCount: 0,
   numTeams: 12,
   scoringFormat: "PPR",
   rosterSize: 16,
@@ -101,6 +116,48 @@ function startersFromSleeperPositions(positions: string[]): LeagueStarters {
   return result;
 }
 
+/**
+ * Sleeper publishes the league type as `settings.type`: 0 redraft, 1 keeper,
+ * 2 dynasty. It was parsed into the schema and then never read.
+ */
+function sleeperLeagueType(settings: Record<string, unknown>): LeagueType {
+  const raw = settings.type;
+  if (raw === 2) return "dynasty";
+  if (raw === 1) return "keeper";
+  return "redraft";
+}
+
+function sleeperKeeperCount(settings: Record<string, unknown>): number {
+  // Dynasty keeps the whole roster, so a keeper COUNT is meaningless there.
+  if (settings.type === 2) return 0;
+  const n = settings.max_keepers;
+  return typeof n === "number" && n > 0 ? n : 0;
+}
+
+/**
+ * ESPN has no "dynasty" flag — it models continuity purely as keepers. A league
+ * that keeps (nearly) the whole roster is a dynasty in all but name, so treat a
+ * keeper count at or above the starting-lineup size as dynasty; otherwise it is
+ * a keeper league. `keeperCount` of 0 means redraft.
+ */
+function espnLeagueType(s: Record<string, unknown>): { leagueType: LeagueType; keeperCount: number } {
+  const draft = (s.draftSettings ?? {}) as Record<string, unknown>;
+  const raw = typeof draft.keeperCount === "number" ? draft.keeperCount : 0;
+  const future = typeof draft.keeperCountFuture === "number" ? draft.keeperCountFuture : 0;
+  const keeperCount = Math.max(raw, future);
+  if (keeperCount <= 0) return { leagueType: "redraft", keeperCount: 0 };
+  const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
+  const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
+  const bench = counts["20"] ?? 0;
+  const starting = Object.entries(counts)
+    .filter(([slot]) => slot !== "20" && slot !== "21")
+    .reduce((a, [, n]) => a + n, 0);
+  if (starting > 0 && keeperCount >= starting + bench) {
+    return { leagueType: "dynasty", keeperCount: 0 };
+  }
+  return { leagueType: "keeper", keeperCount };
+}
+
 /** Parse a Sleeper `getLeague` payload into a LeagueFormat. */
 export function parseSleeperFormat(league: unknown): LeagueFormat {
   if (!league || typeof league !== "object") return DEFAULT_FORMAT;
@@ -122,6 +179,8 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
   return {
     ppr,
     numQbs,
+    leagueType: sleeperLeagueType(settings),
+    keeperCount: sleeperKeeperCount(settings),
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: positions.length || DEFAULT_FORMAT.rosterSize,
@@ -140,10 +199,18 @@ const ESPN_LINEUP_SLOT_MAP: Record<string, keyof LeagueStarters | null> = {
   "2": "RB",
   "4": "WR",
   "6": "TE",
-  "7": "FLEX", // OP / RB-WR-TE
+  // Audit 2026-08-06 F-010: slots 7 and 23 were SWAPPED here, contradicting the
+  // authoritative map in espn/positions.ts. ESPN's IDs are 7 = OP (Offensive
+  // Player, i.e. superflex — QB/RB/WR/TE eligible) and 23 = RB/WR/TE (the
+  // ordinary flex). Because the check below keyed superflex off slot 23, EVERY
+  // league with a normal flex was reported as superflex: verified against all
+  // four of the operator's real ESPN leagues, each returning numQbs=2 for what
+  // is a standard 1QB league. That fed superflex QB targets into the draft
+  // board, a 2QB FantasyCalc URL, and the KTC superflex value scale.
+  "7": "SUPERFLEX", // OP — QB/RB/WR/TE
   "16": "DEF", // D/ST
   "17": "K",
-  "23": "SUPERFLEX" // OP / QB-RB-WR-TE
+  "23": "FLEX" // RB/WR/TE
   // 20 = BN (bench), 21 = IR — excluded from starter counts
 };
 const ESPN_BENCH_SLOTS = new Set(["20", "21"]);
@@ -207,12 +274,15 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
   const ppr = normalizePpr(typeof recItem?.points === "number" ? recItem.points : 0);
   const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
   const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
-  const numQbs: 1 | 2 = (counts["23"] ?? 0) > 0 ? 2 : 1;
+  const numQbs: 1 | 2 = (counts["7"] ?? 0) > 0 ? 2 : 1;
   const starters = startersFromEspnCounts(counts);
   const rosterSize = Object.values(counts).reduce((a, b) => a + b, 0);
+  const { leagueType, keeperCount } = espnLeagueType(s);
   return {
     ppr,
     numQbs,
+    leagueType,
+    keeperCount,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: rosterSize || DEFAULT_FORMAT.rosterSize,
