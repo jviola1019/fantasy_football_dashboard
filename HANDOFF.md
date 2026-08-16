@@ -21,7 +21,7 @@ their remainders named below; everything from the original audit is closed.
 | F-005 | Auth abuse + password hashing | **PASS** — scrypt2 + bounds (`21ec0f3`), durable throttle + enumeration (`ba64260`) |
 | F-006 | Dependency scanning not continuous | **PASS** | `186c596` |
 | F-009 | *(user-added)* Credential leak sweep | **PASS** — `671989b` |
-| F-010 | *(user-added)* League-format propagation | **PARTIAL** — draft targets + lineup mesh done (`671989b`); **trade dynasty, VOR replacement level and sim scoring anchor NOT done** |
+| F-010 | *(user-added)* League-format propagation | **PASS** — draft targets + lineup mesh (`671989b`), ESPN slot 7/23 fix + league type/keepers (`91a03e7`), keeper model (`bc09796`), settings confirmation UI (`ae9f072`), dynasty values (`ef56abf`), replacement level (`c156652`), sim anchor (`b1674cf`) |
 | F-012 | *(user-added)* UI/UX, design and news review | **PARTIAL** — review + a11y fixes done (`ec07bce`); landing-page grid, dashboard dead space, news age visibility recorded OPEN |
 | F-004 | Password change does not revoke JWT sessions | **PASS** — `96deb1a` (see constraint below) |
 | F-007 | CSP hardening | **PASS** — `18ad3a9`; report-only pending production-preview evidence |
@@ -85,7 +85,31 @@ formats need fixtures, and any claim of coverage for them must say so.
 
 ---
 
-## Next steps, in priority order
+## Open work (as of `b1674cf`)
+
+### A. Model validation harness — DESIGNED, NOT BUILT
+See [docs/model-validation-plan.md](docs/model-validation-plan.md). The finding that drives it:
+both existing harnesses returned **bit-identical** numbers across four runs spanning two model
+changes, because neither touches the shipped path. `calibrate:season` is synthetic;
+`backtest:sleeper` uses `runSeasonSimulation` fed real weekly scores. The dashboard uses
+`runNexusSimulation` (trueValue -> points), which has **no out-of-sample validation at all**.
+
+Feasibility CONFIRMED — Sleeper exposes what is needed, leak-free:
+`GET /v1/league/{id}/drafts` -> `GET /v1/draft/{draft_id}/picks` returns 150 picks for the 2025
+league, 10 rosters x 15, each with `pick_no` (overall draft position = pre-season market
+consensus), `roster_id`, `player_id`, `is_keeper` and position metadata.
+
+Design: reconstruct week-1 rosters from those picks; derive the value signal from `pick_no`
+(pre-season ADP is the leak-free stand-in for a historical ECR snapshot, which is NOT retrievable
+— rankings snapshots prune after 7 days); run the real `runNexusSimulation` with each league's
+actual `LeagueFormat`; score `playoffProbability` against actual qualification with the existing
+`scoreForecasts`. Report **n** beside every metric.
+
+### B. Demo-league settings toggles — NOT BUILT
+Schema now supports everything needed (`leagueType`, `keeperCount`, `keeperCostRule`,
+`draftSlot`); this is a UI surface over the demo envelope.
+
+### C. Original next-steps list (mostly superseded)
 
 ### DONE, with one design constraint worth knowing (F-004)
 
