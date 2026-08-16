@@ -73,7 +73,7 @@ describe("lifecycle notifications", () => {
   describe("evaluateLifecycleRules (pure)", () => {
     it("emits a stacked-bye notification when 2+ starters share a bye week", () => {
       const roster = [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")]; // both bye wk5 in fixture
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster,
@@ -87,7 +87,7 @@ describe("lifecycle notifications", () => {
     });
 
     it("records the schedule season and source in the message", () => {
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
@@ -100,7 +100,7 @@ describe("lifecycle notifications", () => {
     it("FAILS CLOSED: emits no bye advice when the schedule is unverified", () => {
       // The core F-002 regression. Previously this produced confident advice
       // from a hardcoded 2025 table regardless of the real season.
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
@@ -111,7 +111,7 @@ describe("lifecycle notifications", () => {
 
     it("still evaluates the other rules when the bye schedule is unavailable", () => {
       // Fail-closed must be scoped to the bye rule, not silently disable the cron.
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
@@ -124,7 +124,7 @@ describe("lifecycle notifications", () => {
     });
 
     it("emits a faab-depleted alert when ratio < 0.1", () => {
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [],
@@ -135,7 +135,7 @@ describe("lifecycle notifications", () => {
     });
 
     it("does not emit faab alert when budget is healthy", () => {
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [],
@@ -147,7 +147,7 @@ describe("lifecycle notifications", () => {
 
     it("emits an injured-starter alert per injured player", () => {
       const injured = [p("rb1", "RB", "ATL", { status: "ir" }), p("wr1", "WR", "BUF", { status: "out" })];
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [],

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { getDb, nowSql, schema, type Db } from "../../db";
 import { NOTIFICATION_STATUSES } from "../../db/schema";
 import type { PlayerMarketRecord } from "../governance";
@@ -99,7 +99,19 @@ export async function upsertNotification(
           ELSE 'active' END`,
         resolvedAt: sql`CASE
           WHEN notifications.status = 'resolved' THEN NULL
-          ELSE notifications."resolvedAt" END`
+          ELSE notifications."resolvedAt" END`,
+        /**
+         * Reopening also clears the dismissal.
+         *
+         * Without this, a dismissed condition that resolves and later RECURS
+         * stays invisible forever: `listNotificationsForUser` filters on
+         * `dismissedAt IS NULL`, so the reopened row would never be shown. The
+         * user dismissed one occurrence of a condition that had since gone
+         * away; its return is a new event and they are entitled to see it.
+         */
+        dismissedAt: sql`CASE
+          WHEN notifications.status = 'resolved' THEN NULL
+          ELSE notifications."dismissedAt" END`
       }
     })
     .returning();
@@ -195,17 +207,63 @@ export interface DraftedNotification extends NotificationInput {
 }
 
 /**
- * Pure rules engine — returns the notifications that *should* be persisted,
- * leaving the actual DB write to the caller. Lets the cron route batch them
- * and lets tests assert behavior without a DB.
+ * The rule families that can be reconciled independently (audit P1 §6).
+ *
+ * Reconciliation is per-family because each depends on a DIFFERENT upstream. A
+ * failed bye-schedule fetch says nothing about whether a FAAB alert is still
+ * true, so resolving both together would invent information.
  */
-export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotification[] {
+export const RULE_FAMILIES = ["stacked-bye-week", "faab-depleted", "injured-starter"] as const;
+export type RuleFamily = (typeof RULE_FAMILIES)[number];
+
+/** Statuses that represent a live, unresolved condition. */
+const OPEN_STATUSES = ["active", "reopened", "dismissed"] as const;
+
+export interface LifecycleEvaluation {
+  /** Conditions that are TRUE right now. */
+  drafted: DraftedNotification[];
+  /**
+   * Families whose upstream data was sufficient to reach a verdict.
+   *
+   * This is the heart of the fix. A family missing from `drafted` means one of
+   * two completely different things — "the condition went away" or "we could
+   * not tell" — and only the first may resolve anything. A family absent from
+   * this list is UNKNOWN and is left strictly alone.
+   */
+  evaluated: RuleFamily[];
+}
+
+/**
+ * Pure rules engine — returns the notifications that *should* be persisted plus
+ * the families it was actually able to judge, leaving the DB write to the
+ * caller. Lets the cron route batch them and lets tests assert behavior
+ * without a DB.
+ */
+export function evaluateLifecycleRules(input: LifecycleRulesInput): LifecycleEvaluation {
   const out: DraftedNotification[] = [];
+  const evaluated: RuleFamily[] = [];
+
+  /**
+   * An EMPTY roster is treated as unknown, not as "nothing wrong".
+   *
+   * A platform that returns 200 with an empty roster — a mid-season league
+   * wipe, a permissions change, a silently-expired ESPN cookie — is
+   * indistinguishable from a genuinely clean team. Believing it would resolve
+   * every injury and bye alert the user has, in one run, on bad data. The
+   * cron's `snapshot.failure` check cannot catch this because there is no
+   * failure to report.
+   */
+  const rosterKnown = input.roster.length > 0;
 
   // Rule 1: stacked bye weeks. Fails closed — an unverified or wrong-season
   // schedule produces NO advice rather than confident advice from stale data.
   const bye = input.byeSchedule;
   if (bye.status === "verified") {
+    // Emission is unchanged; only RECONCILABILITY depends on the roster being
+    // known. An empty roster produces no alerts either way, so gating emission
+    // would change nothing real while breaking callers that supply derived
+    // inputs directly.
+    if (rosterKnown) evaluated.push("stacked-bye-week");
     for (const alert of detectByeWeekRisks(input.roster, bye).filter((a) => a.stacked)) {
       out.push({
         // Season is part of the key: the same position/week recurs every year and
@@ -225,19 +283,24 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotif
     }
   }
 
-  // Rule 2: FAAB drained
-  if (typeof input.faabRemainingRatio === "number" && input.faabRemainingRatio < 0.1) {
-    out.push({
-      dedupKey: `faab:${input.leagueId}:low`,
-      userId: input.userId,
-      leagueId: input.leagueId,
-      severity: "alert",
-      rule: "faab-depleted",
-      message: `FAAB at ${(input.faabRemainingRatio * 100).toFixed(0)}% — fewer than 10% of your bidding budget remains.`
-    });
+  // Rule 2: FAAB drained. A null ratio means the league does not report FAAB or
+  // the fetch did not carry it — either way the rule cannot be judged.
+  if (typeof input.faabRemainingRatio === "number") {
+    evaluated.push("faab-depleted");
+    if (input.faabRemainingRatio < 0.1) {
+      out.push({
+        dedupKey: `faab:${input.leagueId}:low`,
+        userId: input.userId,
+        leagueId: input.leagueId,
+        severity: "alert",
+        rule: "faab-depleted",
+        message: `FAAB at ${(input.faabRemainingRatio * 100).toFixed(0)}% — fewer than 10% of your bidding budget remains.`
+      });
+    }
   }
 
   // Rule 3: injured starter
+  if (rosterKnown) evaluated.push("injured-starter");
   for (const injured of input.injuredStarters ?? []) {
     out.push({
       dedupKey: `injury:${input.leagueId}:${injured.id}`,
@@ -249,7 +312,73 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): DraftedNotif
     });
   }
 
-  return out;
+  return { drafted: out, evaluated };
+}
+
+export interface ReconcileResult {
+  upserted: number;
+  resolved: number;
+  /** Families deliberately left untouched because their upstream was unusable. */
+  skipped: RuleFamily[];
+}
+
+/**
+ * Reconcile one league's notifications against what is true RIGHT NOW
+ * (audit P1 §6).
+ *
+ * Before this, the cron only ever upserted currently-true conditions and
+ * `resolveNotification` had zero production callers, so a bye alert for a week
+ * that had already passed, or an injury alert for a player who had recovered or
+ * been dropped, stayed `active` forever. The notification list only grew.
+ *
+ * The ordering is deliberate: resolve stale keys FIRST, then upsert current
+ * ones. The two sets are disjoint by construction, so the order cannot lose a
+ * write, but resolving first means a crash between the steps leaves stale rows
+ * closed rather than leaving fresh rows missing.
+ *
+ * Scoping is per (user, league, family) and enforced in SQL, so one user's run
+ * can never touch another's rows, and a league whose data failed cannot
+ * resolve a sibling league's alerts.
+ */
+export async function reconcileLifecycleNotifications(
+  params: { userId: string; leagueId: string; evaluation: LifecycleEvaluation },
+  db: Db = getDb()
+): Promise<ReconcileResult> {
+  const { userId, leagueId, evaluation } = params;
+  const now = nowSql(db);
+  const skipped = RULE_FAMILIES.filter((f) => !evaluation.evaluated.includes(f));
+  let resolved = 0;
+
+  for (const family of evaluation.evaluated) {
+    const currentKeys = evaluation.drafted
+      .filter((d) => d.rule === family)
+      .map((d) => d.dedupKey);
+
+    // One atomic UPDATE per family rather than read-then-write, so a concurrent
+    // cron run cannot resolve a row this run is about to re-assert.
+    const scope = and(
+      eq(schema.notifications.userId, userId),
+      eq(schema.notifications.leagueId, leagueId),
+      eq(schema.notifications.rule, family),
+      inArray(schema.notifications.status, [...OPEN_STATUSES]),
+      // `notInArray` with an empty list is not valid SQL; an empty current set
+      // legitimately means "every open row in this family is now stale".
+      ...(currentKeys.length > 0 ? [notInArray(schema.notifications.dedupKey, currentKeys)] : [])
+    );
+
+    const closed = await db
+      .update(schema.notifications)
+      .set({ status: "resolved", resolvedAt: now, updatedAt: now })
+      .where(scope)
+      .returning({ id: schema.notifications.id });
+    resolved += closed.length;
+  }
+
+  for (const n of evaluation.drafted) {
+    await upsertNotification(n, db);
+  }
+
+  return { upserted: evaluation.drafted.length, resolved, skipped };
 }
 
 /** Both drivers are in play, so a timestamp arrives as a Date or as epoch ms. */

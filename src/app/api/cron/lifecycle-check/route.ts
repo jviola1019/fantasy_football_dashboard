@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { safeEqual } from "@/lib/timingSafe";
 import { getDb, schema } from "@/db";
-import { evaluateLifecycleRules, upsertNotification } from "@/lib/lifecycle/notifications";
+import {
+  evaluateLifecycleRules,
+  reconcileLifecycleNotifications
+} from "@/lib/lifecycle/notifications";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { getCurrentNflSeason } from "@/lib/schedule/season";
 import {
@@ -72,7 +75,10 @@ export async function GET(request: Request): Promise<Response> {
 
   let writtenCount = 0;
   let skippedCount = 0;
+  let resolvedCount = 0;
   const ruleCounts: Record<string, number> = {};
+  /** Rule families left UNKNOWN this run because their upstream was unusable. */
+  const unknownFamilies: Record<string, number> = {};
   const failures: Array<{ leagueId: string; reason: string }> = [];
 
   for (const league of leagues) {
@@ -95,7 +101,7 @@ export async function GET(request: Request): Promise<Response> {
       (p) => p.status === "ir" || p.status === "out" || p.status === "questionable"
     );
 
-    const drafted = evaluateLifecycleRules({
+    const evaluation = evaluateLifecycleRules({
       userId: league.userId,
       leagueId: league.id,
       roster: snapshot.myRoster,
@@ -104,9 +110,21 @@ export async function GET(request: Request): Promise<Response> {
       injuredStarters
     });
 
-    for (const n of drafted) {
-      await upsertNotification(n, db);
-      writtenCount += 1;
+    // Audit P1 §6: upserting alone left conditions that had STOPPED being true
+    // marked active forever. Reconciliation closes them — but only for the rule
+    // families this run could actually judge. A family whose upstream failed is
+    // unknown, and unknown must never be written down as resolved.
+    const outcome = await reconcileLifecycleNotifications(
+      { userId: league.userId, leagueId: league.id, evaluation },
+      db
+    );
+
+    writtenCount += outcome.upserted;
+    resolvedCount += outcome.resolved;
+    for (const family of outcome.skipped) {
+      unknownFamilies[family] = (unknownFamilies[family] ?? 0) + 1;
+    }
+    for (const n of evaluation.drafted) {
       ruleCounts[n.rule] = (ruleCounts[n.rule] ?? 0) + 1;
     }
   }
@@ -133,8 +151,12 @@ export async function GET(request: Request): Promise<Response> {
           },
     leaguesScanned: leagues.length,
     notificationsWritten: writtenCount,
+    notificationsResolved: resolvedCount,
     leaguesSkipped: skippedCount,
     byRule: ruleCounts,
+    // Surfaced rather than silent: a family that stays here run after run means
+    // an upstream is persistently broken and those alerts are frozen, not clean.
+    unknownRuleFamilies: unknownFamilies,
     failures,
     ranAt: new Date().toISOString()
   });
