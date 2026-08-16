@@ -141,7 +141,22 @@ describe("trade values follow league type (F-010)", () => {
     expect(buildFantasyCalcUrl(fmt("keeper"))).toContain("isDynasty=false");
   });
 
-  it("reads the dynasty value column for dynasty leagues", async () => {
+  it("reads the format-scaled column for whichever endpoint was queried", async () => {
+    // CORRECTED 2026-08-16. This test used to assert that `redraftValue` was
+    // the redraft column and that an omitted argument defaulted to redraft.
+    // Live evidence disproves both halves:
+    //
+    //   * `redraftValue` is FORMAT-INDEPENDENT — Jahmyr Gibbs returns 10017 at
+    //     numTeams 8/12/14 and at ppr 0/0.5/1, identical every time — so
+    //     reading it discarded the numTeams/numQbs/ppr scaling that
+    //     buildFantasyCalcUrl had just requested.
+    //   * The horizon is chosen by `isDynasty` in the URL, and the answer comes
+    //     back in `value`. So `value` is correct for BOTH bases.
+    //
+    // The silent `= "redraft"` default was the actual defect: it let the
+    // production caller omit the argument entirely. `basis` is now required,
+    // and dynasty-vs-redraft is asserted end-to-end in values.integration.test.ts
+    // against a URL-aware mock, which is the only level that can catch it.
     const { parseFantasyCalc } = await import("./values");
     const payload = [
       {
@@ -154,8 +169,6 @@ describe("trade values follow league type (F-010)", () => {
       }
     ];
     expect(parseFantasyCalc(payload, "dynasty").get("4034")!.value).toBe(9000);
-    expect(parseFantasyCalc(payload, "redraft").get("4034")!.value).toBe(100);
-    // Default stays redraft so existing callers are unchanged.
-    expect(parseFantasyCalc(payload).get("4034")!.value).toBe(100);
+    expect(parseFantasyCalc(payload, "redraft").get("4034")!.value).toBe(9000);
   });
 });

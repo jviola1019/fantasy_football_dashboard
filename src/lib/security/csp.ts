@@ -81,23 +81,15 @@ export function buildCsp({ nonce, isDev = false, reportOnly = false }: CspOption
 /**
  * Security headers that do NOT vary per request.
  *
- * Kept beside the CSP so the whole header story lives in one reviewable place,
- * and applied from `next.config.mjs` so local runs and CI see exactly what
- * production sees.
+ * Re-exported, not defined here. The values live in `securityHeaders.mjs`
+ * because `next.config.mjs` — which applies them — is loaded by a bare Node
+ * ESM loader that cannot read TypeScript. Importing them from this file built
+ * fine on Node >= 22.18 (native type stripping) and failed CI's Node 20 with
+ * `ERR_UNKNOWN_FILE_EXTENSION`, taking down `next build` and every gate behind
+ * it. Re-exporting keeps exactly one definition while letting each consumer
+ * load it through a loader that can actually parse it.
  */
-export const STATIC_SECURITY_HEADERS: ReadonlyArray<{ key: string; value: string }> = [
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-  // HSTS was absent entirely. Two years, subdomains included. No `preload`:
-  // that is a one-way submission to a browser-baked list and is the owner's
-  // call, not a side effect of a security patch.
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
-  // Isolate the browsing context so cross-origin windows cannot reach ours.
-  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-  { key: "Cross-Origin-Resource-Policy", value: "same-origin" }
-];
+export { STATIC_SECURITY_HEADERS } from "./securityHeaders.mjs";
 
 /**
  * Report-only during rollout.

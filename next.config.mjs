@@ -1,4 +1,9 @@
-import { STATIC_SECURITY_HEADERS } from "./src/lib/security/csp.ts";
+// Plain ESM JavaScript, NOT TypeScript. Node loads this config directly, with
+// no transpilation — importing a `.ts` module here throws
+// ERR_UNKNOWN_FILE_EXTENSION on Node 20 (CI) even though Node >= 22.18 strips
+// types natively and hides the fault locally. `csp.ts` re-exports this same
+// array, so there is still exactly one definition.
+import { STATIC_SECURITY_HEADERS } from "./src/lib/security/securityHeaders.mjs";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
