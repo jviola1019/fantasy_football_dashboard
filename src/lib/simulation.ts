@@ -17,6 +17,13 @@ export type SimulationParams = {
   riskTolerance: number;
   /** Real weekly pts_ppr per player id, when the projections cron has fired. */
   weeklyProjections?: Map<string, number> | null;
+  /**
+   * League scoring format. The OPPONENT FIELD baseline is derived from it
+   * (audit F-010) so the field and the user's own starters are measured on the
+   * same scale. Defaults to PPR, which is the value the model was originally
+   * calibrated against.
+   */
+  scoringFormat?: "STD" | "HALF" | "PPR";
   /** League size for the simulated season. Default 12. */
   numTeams?: number;
   /** Teams that make the playoffs. Default 6. */
@@ -50,11 +57,35 @@ export type SimulationResult = {
 };
 
 // ── Player → weekly-points model ────────────────────────────────────────────
-// All quantities are in WEEKLY FANTASY POINTS (PPR). A league-average startable
-// player scores ~AVG_STARTER_PTS; value above/below the median trueValue scales
+// Quantities are WEEKLY FANTASY POINTS. A league-average startable player
+// scores ~avgStarterPts; value above/below the median trueValue scales
 // linearly. These anchors make a median roster land at the field mean, which is
 // the calibration anchor (median roster ≈ playoffTeams/numTeams playoff odds).
-const AVG_STARTER_PTS = 11.5;
+//
+// Audit 2026-08-06 F-010: this was a single PPR-calibrated constant (11.5) used
+// for the OPPONENT FIELD, while the user's own starters were scored with
+// `pickProjectionPoints` in the league's ACTUAL format. In a standard league the
+// team was therefore measured in STD points against a PPR-sized field, biasing
+// playoff and championship odds DOWN; a TE-premium or high-scoring league biased
+// them up. The two sides of the comparison have to share a scale.
+const AVG_STARTER_PTS_PPR = 11.5;
+
+/**
+ * Field baseline per scoring format.
+ *
+ * An average starting-lineup player catches roughly two passes a game, which is
+ * worth 2 points in full PPR, 1 in half and 0 in standard — so the baseline
+ * moves by ~1 point per half-point of reception scoring. PPR is left at exactly
+ * 11.5 so the calibration that already exists for PPR leagues is unchanged, and
+ * only the previously-wrong formats move.
+ */
+export function avgStarterPtsFor(scoringFormat: "STD" | "HALF" | "PPR"): number {
+  if (scoringFormat === "PPR") return AVG_STARTER_PTS_PPR;
+  if (scoringFormat === "HALF") return AVG_STARTER_PTS_PPR - 1;
+  return AVG_STARTER_PTS_PPR - 2;
+}
+
+const AVG_STARTER_PTS = AVG_STARTER_PTS_PPR;
 const TV_SLOPE = 0.18; // weekly pts per trueValue point away from the median
 const MEDIAN_TV = 50;
 const PLAYER_SIGMA_BASE = 4;
@@ -112,7 +143,7 @@ export function deriveSeasonInputs(players: PlayerMarketRecord[], params: Simula
   // Otherwise a roster with fewer players than rosterSlots (e.g. the 8-player
   // demo fixture) is scored against a larger field and looks artificially weak.
   const usedStarters = Math.max(1, starters.length);
-  const fieldMean = usedStarters * AVG_STARTER_PTS;
+  const fieldMean = usedStarters * avgStarterPtsFor(params.scoringFormat ?? "PPR");
   const field: FieldModel = {
     meanWeekly: fieldMean,
     betweenTeamSigma: fieldMean * 0.13,

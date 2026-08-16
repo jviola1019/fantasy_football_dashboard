@@ -110,6 +110,9 @@ export function deriveAppData(envelope: RAEEnvelope): AppData {
     numTeams: fmt?.numTeams ?? 12,
     playoffTeams: fmt?.playoffTeams ?? 6,
     regularSeasonWeeks: fmt?.playoffWeekStart ? Math.max(1, fmt.playoffWeekStart - 1) : 14,
+    // The opponent field must be scored on the league's scale, not always PPR
+    // (audit F-010) — otherwise a standard league's odds are biased down.
+    scoringFormat: fmt?.scoringFormat ?? "PPR",
     weeklyProjections
   };
 
