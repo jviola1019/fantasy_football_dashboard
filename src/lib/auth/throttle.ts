@@ -72,6 +72,24 @@ export interface ThrottleDecision {
 
 const ALLOWED: ThrottleDecision = { allowed: false, blockedBy: null, retryAfterMs: 0 };
 
+export interface ThrottleState {
+  attempts: number;
+  windowStart: number;
+  lockedUntil: number | null;
+}
+
+/**
+ * Read the persisted counter for a key.
+ *
+ * Exported so tests can assert the FINAL PERSISTED STATE rather than the
+ * decision string `checkThrottle` returns. A throttle that reports "blocked"
+ * while having silently dropped increments still looks correct from the
+ * outside; only the stored row shows whether counting actually worked.
+ */
+export async function readThrottleState(key: string, db: Db = getDb()): Promise<ThrottleState | null> {
+  return readState(key, db);
+}
+
 /**
  * Is this key currently locked? Read-only — call before doing expensive work.
  */
@@ -124,6 +142,59 @@ export async function checkThrottle(
   return { ...ALLOWED, allowed: true };
 }
 
+const TABLE = "auth_attempts";
+/** Column references to the ALREADY-STORED row inside an ON CONFLICT DO UPDATE. */
+const storedAttempts = sql.raw(`${TABLE}.attempts`);
+const storedWindowStart = sql.raw(`${TABLE}."windowStart"`);
+const storedLockedUntil = sql.raw(`${TABLE}."lockedUntil"`);
+
+/**
+ * The whole state transition, expressed as SQL the DATABASE evaluates against
+ * the stored row (audit P1 §5).
+ *
+ * The previous implementation read the row, computed the next counter in
+ * JavaScript, then wrote that precomputed number back. Two concurrent failures
+ * both read `attempts = 5`, both computed `6`, and both wrote `6` — two
+ * failures counted as one. For a control whose entire job is counting failures,
+ * a lost update is a silent hole, and it widens exactly when it matters most:
+ * under the parallel traffic of an actual credential-stuffing run.
+ *
+ * There is no read here at all. `attempts + 1` is evaluated by the engine while
+ * it holds the row, so concurrent statements serialise on the row and every
+ * increment lands. This is one statement rather than a transaction because
+ * a single UPSERT is atomic on BOTH drivers without any isolation-level
+ * assumptions — an in-process mutex would be worthless across Vercel's isolated
+ * invocations, and SERIALIZABLE retries would need bespoke handling per driver.
+ *
+ * The SQL is dialect-neutral: SQLite and Postgres share
+ * `INSERT … ON CONFLICT (key) DO UPDATE SET`, and both resolve a
+ * table-qualified column on the right-hand side to the pre-update value.
+ */
+function atomicFailureTransition(rule: ThrottleRule, nowMs: number) {
+  // A fresh row, an expired window, or an expired lock all restart counting.
+  const restart = sql`(${storedWindowStart} <= ${nowMs - rule.windowMs} OR (${storedLockedUntil} IS NOT NULL AND ${storedLockedUntil} <= ${nowMs}))`;
+  const nextAttempts = sql`(CASE WHEN ${restart} THEN 1 ELSE ${storedAttempts} + 1 END)`;
+
+  return {
+    attempts: nextAttempts,
+    windowStart: sql`(CASE WHEN ${restart} THEN ${nowMs} ELSE ${storedWindowStart} END)`,
+    /**
+     * An ALREADY-ACTIVE lock is preserved, never pushed further out.
+     *
+     * Extending it on each new failure would make the lockout slide forward
+     * indefinitely, so anyone who knows a victim's email could keep them locked
+     * out for as long as they cared to keep failing — the precise weapon this
+     * module's design notes say the short lockout exists to avoid. In practice
+     * `checkThrottle` rejects before `recordFailure` is reached, so this is
+     * defence in depth for the racing request that slips between the two.
+     */
+    lockedUntil: sql`(CASE
+      WHEN ${storedLockedUntil} IS NOT NULL AND ${storedLockedUntil} > ${nowMs} THEN ${storedLockedUntil}
+      WHEN ${nextAttempts} >= ${rule.max} THEN ${nowMs + rule.lockMs}
+      ELSE NULL END)`
+  };
+}
+
 /**
  * Record ONE failed attempt against every dimension, rolling the window and
  * locking any dimension that trips its limit.
@@ -140,28 +211,23 @@ export async function recordFailure(
   if (identifiers.account) targets.push(["account", throttleKey("account", identifiers.account)]);
   if (identifiers.ip) targets.push(["ip", throttleKey("ip", identifiers.ip)]);
 
+  const nowMs = now.getTime();
   for (const [dimension, key] of targets) {
     const rule = THROTTLE_RULES[dimension];
-    const state = await readState(key, db);
-    const nowMs = now.getTime();
-
-    // A fresh row, an expired window, or an expired lock all restart counting.
-    const windowExpired = !state || nowMs - state.windowStart >= rule.windowMs;
-    const lockExpired = state?.lockedUntil != null && state.lockedUntil <= nowMs;
-    const attempts = windowExpired || lockExpired ? 1 : state.attempts + 1;
-    const windowStart = windowExpired || lockExpired ? nowMs : state.windowStart;
-    const lockedUntil = attempts >= rule.max ? nowMs + rule.lockMs : null;
-
     await db
       .insert(schema.authAttempts)
-      .values({ key, attempts, windowStart, lockedUntil })
+      // The INSERT branch is the "no row yet" case: first failure in a fresh
+      // window. `max` of 1 would have to lock immediately, so honour that here
+      // too rather than assuming the threshold is always above one.
+      .values({
+        key,
+        attempts: 1,
+        windowStart: nowMs,
+        lockedUntil: rule.max <= 1 ? nowMs + rule.lockMs : null
+      })
       .onConflictDoUpdate({
         target: schema.authAttempts.key,
-        set: {
-          attempts: sql`excluded.attempts`,
-          windowStart: sql`excluded."windowStart"`,
-          lockedUntil: sql`excluded."lockedUntil"`
-        }
+        set: atomicFailureTransition(rule, nowMs)
       });
   }
 }
