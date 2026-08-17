@@ -5,7 +5,11 @@ import type { SourceMeta } from "@/lib/governance";
 import type { PlayerValue } from "@/lib/trade/values";
 import { DEFAULT_FORMAT, type LeagueFormat } from "@/lib/trade/format";
 import type { GradedTrade } from "@/lib/trade/transactions";
-import { loadTradeValues, loadLeagueTrades } from "@/app/trade/actions";
+import {
+  loadTradeValues,
+  loadLeagueTrades,
+  type TradeLeagueIdentity
+} from "@/app/trade/actions";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 import { TradeBuilder } from "./trade/TradeBuilder";
@@ -22,6 +26,9 @@ export function TradeCenter() {
   // upstream than the envelope described by the route-level GovernanceBanner —
   // so this panel carries its own lineage badge (audit 2026-07-08 F-02).
   const [source, setSource] = useState<SourceMeta | null>(null);
+  // Which league produced these numbers (audit P2 §8). A value pool is only
+  // meaningful beside the league whose size, scoring and horizon priced it.
+  const [league, setLeague] = useState<TradeLeagueIdentity | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "unavailable">("loading");
 
   useEffect(() => {
@@ -32,6 +39,7 @@ export function TradeCenter() {
         setPool(res.players);
         setFormat(res.format);
         setSource(res.source);
+        setLeague(res.league);
         setState(res.available ? "ready" : "unavailable");
       })
       .catch(() => {
@@ -58,6 +66,7 @@ export function TradeCenter() {
       source={source ?? undefined}
     >
       <PanelTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} ariaLabel="Trade Center tabs" />
+      <TradeLeagueLine league={league} format={format} state={state} />
       {state === "loading" && <p className="muted-note">Loading trade values…</p>}
       {state === "unavailable" && (
         <p className="muted-note">
@@ -72,5 +81,57 @@ export function TradeCenter() {
         <RecentLeagueTrades trades={leagueTrades} />
       )}
     </PanelCard>
+  );
+}
+
+/**
+ * Name the league the numbers belong to (audit P2 §8).
+ *
+ * Trade Center previously priced against `leagues[0]` while the header showed
+ * whichever league the user had actually selected — so the wrong values could
+ * appear beneath the right league name with nothing to give it away. Stating
+ * the league and its shape here makes that class of mismatch self-evident.
+ */
+function TradeLeagueLine({
+  league,
+  format,
+  state
+}: {
+  league: TradeLeagueIdentity | null;
+  format: LeagueFormat;
+  state: "loading" | "ready" | "unavailable";
+}) {
+  if (state === "loading") return null;
+
+  const shape =
+    `${format.numTeams}-team · ${format.scoringFormat}` +
+    `${format.numQbs === 2 ? " · superflex" : ""} · ${format.leagueType}`;
+
+  if (!league) {
+    return (
+      <p className="muted-note">
+        No league connected — values use the default {shape} shape.{" "}
+        <a className="demo-banner-cta" href="/settings/leagues">
+          Connect a league →
+        </a>
+      </p>
+    );
+  }
+
+  return (
+    <p className="muted-note">
+      Priced for <strong>{league.label}</strong> ({league.platform.toUpperCase()} {league.season}) ·{" "}
+      {shape}
+      {league.reason === "selection-unavailable" && (
+        <>
+          {" "}
+          — your previously selected league is no longer available, so this is your first league
+          instead.
+        </>
+      )}
+      {league.reason === "no-selection" && league.leagueCount > 1 && (
+        <> — showing your first of {league.leagueCount} leagues; switch in the header.</>
+      )}
+    </p>
   );
 }
