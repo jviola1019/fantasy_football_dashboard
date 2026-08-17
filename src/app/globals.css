@@ -530,6 +530,16 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .mini-table th { font-size: 9px; text-transform: uppercase; color: var(--muted); padding: 3px 2px; text-align: left; border-bottom: 1px solid var(--line); }
 .mini-table td { padding: 3px 2px; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .muted-note { font-size: 11px; color: var(--muted); }
+/*
+ * Trade Center's league-identity line (audit P2 §8).
+ *
+ * Deliberately NOT .muted-note. The e2e suite treats `.muted-note` inside
+ * #trade-center as the sentinel for "values unavailable, honest empty state",
+ * so reusing it made this always-present provenance line collide with that
+ * assertion whenever values DID load — two matching elements, strict-mode
+ * violation. Same appearance, distinct meaning, distinct class.
+ */
+.trade-league-line { font-size: 11px; color: var(--muted); margin: 6px 0 0; }
 .small-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
 .triangle-wrap { margin: 4px 0; }
 

@@ -91,6 +91,11 @@ export function TradeCenter() {
  * whichever league the user had actually selected — so the wrong values could
  * appear beneath the right league name with nothing to give it away. Stating
  * the league and its shape here makes that class of mismatch self-evident.
+ *
+ * Uses `.trade-league-line`, NOT `.muted-note`: e2e treats a `.muted-note`
+ * inside #trade-center as the "values unavailable" sentinel, and this line is
+ * always present, so sharing the class broke that assertion whenever values
+ * loaded successfully.
  */
 function TradeLeagueLine({
   league,
@@ -109,7 +114,7 @@ function TradeLeagueLine({
 
   if (!league) {
     return (
-      <p className="muted-note">
+      <p className="trade-league-line">
         No league connected — values use the default {shape} shape.{" "}
         <a className="demo-banner-cta" href="/settings/leagues">
           Connect a league →
@@ -119,7 +124,7 @@ function TradeLeagueLine({
   }
 
   return (
-    <p className="muted-note">
+    <p className="trade-league-line">
       Priced for <strong>{league.label}</strong> ({league.platform.toUpperCase()} {league.season}) ·{" "}
       {shape}
       {league.reason === "selection-unavailable" && (
