@@ -43,27 +43,64 @@ const PPR_BEHAVIORAL_FIELDS = [
  *   TE     18        14
  *   K/DEF  12        12
  *
- * RB lands almost exactly on the old value, which is the evidence that the 1.2
- * cushion is calibrated sensibly. QB/WR/TE come in shallower because the old
- * table conflated ROSTERED depth with STARTABLE depth: a 12-team PPR league
- * rosters ~44 WRs but only starts ~30, and VBD's baseline is the worst player
- * you are forced to START. The derived value is the more defensible definition,
- * and it is now consistent across positions instead of hand-tuned per position.
+ * RB lands close to the old value. That is AGREEMENT WITH THE PREVIOUS GUESS,
+ * not calibration — one position, one league shape, no observed outcome — and
+ * an earlier version of this comment overclaimed it as evidence the cushion was
+ * "calibrated sensibly" (corrected per audit P2 §9). QB/WR/TE come in shallower
+ * because the old table conflated ROSTERED depth with STARTABLE depth: a
+ * 12-team PPR league rosters ~44 WRs but only starts ~30, and VBD's baseline is
+ * the worst player you are forced to START. The derived value is the more
+ * defensible definition, and it is now consistent across positions instead of
+ * hand-tuned per position.
  *
  * The cushion is 1.2 because practical replacement sits slightly deeper than the
  * last starter — managers stream from waivers. K/DEF get no cushion, being
- * fully fungible.
+ * fully fungible. Measured influence, swept across 48 league shapes: moving the
+ * cushion ±0.2 disturbs at most 4.2% of cross-position pairs and moves at most
+ * ONE player in the top 24 (reports/2026-08-06/replacement-sensitivity.md).
  *
  * Where the old table was simply WRONG, the change is large and obviously right:
  * a 12-team superflex goes QB 14 -> 29, a 2-TE league goes TE 14 -> 31, and an
  * 8-team league scales down across the board (RB 35 -> 23) instead of using
  * 12-team baselines.
  */
-const DEPTH_CUSHION = 1.2;
+/**
+ * The two free parameters, named so they can be swept rather than trusted.
+ *
+ * Audit P2 §9/§10 correction: an earlier revision of this comment called the
+ * 1.2 cushion "calibrated" because the RB figure it produced landed near the
+ * retired hand-tuned RB constant. That is not calibration — it is agreement
+ * with the previous guess, on one position, in one league shape. There is no
+ * observed-outcome target behind either number, so both are labelled MODEL
+ * ASSUMPTIONS and their influence is measured instead of asserted.
+ *
+ * See reports/2026-08-06/replacement-sensitivity.md for the executed sweep and
+ * scripts/replacement-sensitivity.ts to reproduce it.
+ */
+export interface ReplacementModel {
+  /**
+   * MODEL ASSUMPTION. Practical replacement sits slightly deeper than the last
+   * forced starter, because managers stream from waivers. 1.2 is a judgement
+   * about manager behaviour, not a fitted value.
+   */
+  depthCushion: number;
+  /**
+   * MODEL ASSUMPTION. Probability a SUPERFLEX slot is filled by a quarterback.
+   * 1.0 says "always", which is directionally right in most superflex leagues
+   * but cannot be universally true — a manager short at QB starts a flex body.
+   */
+  superflexQbOccupancy: number;
+}
+
+export const DEFAULT_REPLACEMENT_MODEL: ReplacementModel = {
+  depthCushion: 1.2,
+  superflexQbOccupancy: 1.0
+};
 
 export function positionReplacementRank(
   position: PlayerMarketRecord["position"],
-  format: LeagueFormat
+  format: LeagueFormat,
+  model: ReplacementModel = DEFAULT_REPLACEMENT_MODEL
 ): number {
   const s = format.starters;
 
@@ -77,18 +114,27 @@ export function positionReplacementRank(
   const flexShare = (pos: PlayerMarketRecord["position"]): number =>
     weightSum > 0 && flexWeights[pos] ? (s.FLEX * flexWeights[pos]!) / weightSum : 0;
 
+  // A SUPERFLEX slot not filled by a QB is filled by a flex body, so the
+  // leftover occupancy is redistributed on the same flex weights rather than
+  // vanishing — otherwise lowering the coefficient would quietly shrink total
+  // startable demand instead of moving it between positions.
+  const sflexToQb = s.SUPERFLEX * model.superflexQbOccupancy;
+  const sflexToFlex = s.SUPERFLEX - sflexToQb;
+  const sflexShare = (pos: PlayerMarketRecord["position"]): number =>
+    weightSum > 0 && flexWeights[pos] ? (sflexToFlex * flexWeights[pos]!) / weightSum : 0;
+
   const perTeam: Record<PlayerMarketRecord["position"], number> = {
     // SUPERFLEX is started with a quarterback far more often than not, which is
     // exactly why a fixed QB baseline was wrong for those leagues.
-    QB: s.QB + s.SUPERFLEX,
-    RB: s.RB + flexShare("RB"),
-    WR: s.WR + flexShare("WR"),
-    TE: s.TE + flexShare("TE"),
+    QB: s.QB + sflexToQb,
+    RB: s.RB + flexShare("RB") + sflexShare("RB"),
+    WR: s.WR + flexShare("WR") + sflexShare("WR"),
+    TE: s.TE + flexShare("TE") + sflexShare("TE"),
     K: s.K,
     DEF: s.DEF
   };
 
-  const cushion = position === "K" || position === "DEF" ? 1 : DEPTH_CUSHION;
+  const cushion = position === "K" || position === "DEF" ? 1 : model.depthCushion;
   return Math.max(1, Math.round(format.numTeams * perTeam[position] * cushion));
 }
 

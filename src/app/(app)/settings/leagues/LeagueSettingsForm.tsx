@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { LeagueFormat } from "@/lib/trade/format";
+import type { LeagueFormat, Provenance } from "@/lib/trade/format";
 import { confirmLeagueSettings } from "./actions";
 
 /**
@@ -69,10 +69,17 @@ export function LeagueSettingsForm({
   return (
     <div style={{ display: "grid", gap: 14 }}>
       <div>
-        <div className="section-label">DETECTED FROM {format.leagueType === "dynasty" ? "PLATFORM" : "PLATFORM"}</div>
+        <div className="section-label">DETECTED FROM PLATFORM</div>
         <dl style={dl}>
           <Row k="Scoring" v={`${format.scoringFormat} (${format.ppr} pt/reception)`} />
-          <Row k="League type" v={format.leagueType} />
+          <Row
+            k="League type"
+            v={format.leagueType}
+            // Audit P2 §11: ESPN publishes no league-type field, so its verdict
+            // is our heuristic. Showing it identically to Sleeper's declared
+            // value invited the owner to trust an inference.
+            provenance={format.provenance?.leagueType}
+          />
           <Row k="Teams" v={String(format.numTeams)} />
           <Row
             k="Starters"
@@ -81,11 +88,27 @@ export function LeagueSettingsForm({
               (format.starters.SUPERFLEX ? ` ${format.starters.SUPERFLEX}SFLEX` : "")}
           />
           <Row k="Roster size" v={String(format.rosterSize)} />
-          {isKeeper && <Row k="Keepers allowed" v={String(format.keeperCount)} />}
+          {isKeeper && (
+            <Row
+              k="Keepers allowed"
+              v={String(format.keeperCount)}
+              provenance={format.provenance?.keeperCount}
+            />
+          )}
         </dl>
+        {format.provenance?.note && (
+          <p
+            className="muted"
+            style={{ marginTop: 8, fontSize: 11, color: "var(--amber)" }}
+            role="note"
+          >
+            {format.provenance.note}
+          </p>
+        )}
         <p className="muted" style={{ marginTop: 6, fontSize: 11 }}>
-          Read from the platform on every refresh. If any of this looks wrong, the league was misread —
-          report it rather than working around it.
+          Read from the platform on every refresh. Items marked{" "}
+          <strong>derived</strong> are inferred by RAE, not stated by the platform — check those
+          first if something looks wrong.
         </p>
       </div>
 
@@ -169,11 +192,42 @@ export function LeagueSettingsForm({
   );
 }
 
-function Row({ k, v }: { k: string; v: string }) {
+/**
+ * A detected setting, tagged with how it was established.
+ *
+ * `platform-declared` is left unlabelled — that is the expected case, and
+ * badging it everywhere would just add noise that trains people to ignore the
+ * badge. Only the weaker verdicts get called out.
+ */
+function Row({
+  k,
+  v,
+  provenance
+}: {
+  k: string;
+  v: string;
+  provenance?: Provenance;
+}) {
+  const badge =
+    provenance === "derived"
+      ? { text: "derived", color: "var(--amber)" }
+      : provenance === "defaulted"
+        ? { text: "assumed", color: "var(--amber)" }
+        : provenance === "owner-confirmed"
+          ? { text: "you confirmed", color: "var(--green)" }
+          : provenance === "unavailable"
+            ? { text: "not published", color: "var(--muted)" }
+            : null;
+
   return (
     <>
       <dt style={dt}>{k}</dt>
-      <dd style={dd}>{v}</dd>
+      <dd style={dd}>
+        {v}
+        {badge && (
+          <span style={{ marginLeft: 6, fontSize: 10, color: badge.color }}>({badge.text})</span>
+        )}
+      </dd>
     </>
   );
 }

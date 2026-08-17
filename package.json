@@ -24,7 +24,8 @@
     "calibrate:season": "tsx scripts/brier-season-sim.ts",
     "backtest:sleeper": "tsx scripts/backtest-sleeper-2025.ts",
     "check:freshness": "tsx scripts/check-cron-freshness.ts",
-    "deploy": "next build"
+    "deploy": "next build",
+    "sensitivity:replacement": "tsx scripts/replacement-sensitivity.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

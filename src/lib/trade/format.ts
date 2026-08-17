@@ -62,6 +62,39 @@ export const KeeperCostRuleSchema = z.enum([
 ]);
 export type KeeperCostRule = z.infer<typeof KeeperCostRuleSchema>;
 
+/**
+ * How confident we are allowed to be about a classification (audit P2 §11).
+ *
+ * Not every field in a LeagueFormat is known the same way, and collapsing that
+ * distinction is how a heuristic starts being reported as a fact. Sleeper
+ * PUBLISHES league type as `settings.type`; ESPN does not publish one at all
+ * and it is INFERRED from keeper count against roster size. Both previously
+ * arrived as a bare `leagueType: "dynasty"` with nothing to tell them apart.
+ *
+ *   platform-declared  the platform states it outright
+ *   owner-confirmed    a human confirmed it in league settings
+ *   derived            inferred by our heuristic from other fields
+ *   defaulted          the platform omitted it; we fell back to a safe default
+ *   unavailable        not known, and not guessed
+ */
+export const ProvenanceSchema = z.enum([
+  "platform-declared",
+  "owner-confirmed",
+  "derived",
+  "defaulted",
+  "unavailable"
+]);
+export type Provenance = z.infer<typeof ProvenanceSchema>;
+
+export const FormatProvenanceSchema = z.object({
+  leagueType: ProvenanceSchema,
+  keeperCount: ProvenanceSchema,
+  keeperCostRule: ProvenanceSchema,
+  /** Free-text explanation of a `derived` verdict, for the settings screen. */
+  note: z.string().nullable()
+});
+export type FormatProvenance = z.infer<typeof FormatProvenanceSchema>;
+
 export const LeagueFormatSchema = z.object({
   ppr: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
   numQbs: z.union([z.literal(1), z.literal(2)]),
@@ -88,7 +121,13 @@ export const LeagueFormatSchema = z.object({
   starters: LeagueStartersSchema,
   tradeDeadlineWeek: z.number().int().positive().nullable(),
   playoffWeekStart: z.number().int().positive().nullable(),
-  playoffTeams: z.number().int().positive().nullable()
+  playoffTeams: z.number().int().positive().nullable(),
+  /**
+   * How each classification above was arrived at. Optional so previously
+   * stored league rows keep parsing; absent means "not recorded", which the UI
+   * renders as unknown rather than inventing a confidence.
+   */
+  provenance: FormatProvenanceSchema.optional()
 });
 
 export type LeagueFormat = z.infer<typeof LeagueFormatSchema>;
@@ -190,23 +229,76 @@ function sleeperKeeperCount(settings: Record<string, unknown>): number {
  * that keeps (nearly) the whole roster is a dynasty in all but name, so treat a
  * keeper count at or above the starting-lineup size as dynasty; otherwise it is
  * a keeper league. `keeperCount` of 0 means redraft.
+ *
+ * Audit P2 §11: every verdict here is a HEURISTIC, and it now says so. Sleeper
+ * publishes `settings.type` and is `platform-declared`; nothing ESPN returns
+ * declares a league type, so even the confident-looking "redraft" is `derived`
+ * — from the ABSENCE of keepers, which is an inference, not a statement.
  */
-function espnLeagueType(s: Record<string, unknown>): { leagueType: LeagueType; keeperCount: number } {
+function espnLeagueType(s: Record<string, unknown>): {
+  leagueType: LeagueType;
+  keeperCount: number;
+  provenance: FormatProvenance;
+} {
   const draft = (s.draftSettings ?? {}) as Record<string, unknown>;
   const raw = typeof draft.keeperCount === "number" ? draft.keeperCount : 0;
   const future = typeof draft.keeperCountFuture === "number" ? draft.keeperCountFuture : 0;
   const keeperCount = Math.max(raw, future);
-  if (keeperCount <= 0) return { leagueType: "redraft", keeperCount: 0 };
+  const declaresKeepers =
+    typeof draft.keeperCount === "number" || typeof draft.keeperCountFuture === "number";
+
+  const prov = (leagueType: Provenance, note: string | null): FormatProvenance => ({
+    leagueType,
+    // The COUNT itself is a real published number when ESPN sends one.
+    keeperCount: declaresKeepers ? "platform-declared" : "defaulted",
+    // Never published by either platform — see KeeperCostRuleSchema.
+    keeperCostRule: "unavailable",
+    note
+  });
+
+  if (keeperCount <= 0) {
+    return {
+      leagueType: "redraft",
+      keeperCount: 0,
+      provenance: prov(
+        "derived",
+        declaresKeepers
+          ? "ESPN publishes no league type. Inferred redraft because keeperCount is 0."
+          : "ESPN publishes no league type and sent no keeper fields. Assumed redraft."
+      )
+    };
+  }
+
   const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
   const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
   const bench = counts["20"] ?? 0;
   const starting = Object.entries(counts)
     .filter(([slot]) => slot !== "20" && slot !== "21")
     .reduce((a, [, n]) => a + n, 0);
+
   if (starting > 0 && keeperCount >= starting + bench) {
-    return { leagueType: "dynasty", keeperCount: 0 };
+    return {
+      leagueType: "dynasty",
+      keeperCount: 0,
+      provenance: prov(
+        "derived",
+        `ESPN publishes no league type. Inferred dynasty because keeperCount ${keeperCount} ` +
+          `covers the whole ${starting + bench}-man roster. If this is really a deep keeper ` +
+          `league, correct it in league settings — dynasty switches trade values to the ` +
+          `long-term scale.`
+      )
+    };
   }
-  return { leagueType: "keeper", keeperCount };
+
+  return {
+    leagueType: "keeper",
+    keeperCount,
+    provenance: prov(
+      "derived",
+      `ESPN publishes no league type. Inferred keeper from keeperCount ${keeperCount} ` +
+        `against a ${starting + bench}-man roster.`
+    )
+  };
 }
 
 /** Parse a Sleeper `getLeague` payload into a LeagueFormat. */
@@ -242,7 +334,20 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
     starters,
     tradeDeadlineWeek: typeof settings.trade_deadline === "number" ? settings.trade_deadline : null,
     playoffWeekStart: typeof settings.playoff_week_start === "number" ? settings.playoff_week_start : null,
-    playoffTeams: typeof settings.playoff_teams === "number" ? settings.playoff_teams : null
+    playoffTeams: typeof settings.playoff_teams === "number" ? settings.playoff_teams : null,
+    // Audit P2 §11: Sleeper genuinely DECLARES the league type in settings.type,
+    // so unlike ESPN this is not an inference and must not be labelled as one.
+    provenance: {
+      leagueType: typeof settings.type === "number" ? "platform-declared" : "defaulted",
+      keeperCount:
+        typeof settings.max_keepers === "number" ? "platform-declared" : "defaulted",
+      // Neither platform publishes a cost rule — see KeeperCostRuleSchema.
+      keeperCostRule: "unavailable",
+      note:
+        typeof settings.type === "number"
+          ? null
+          : "Sleeper omitted settings.type; assumed redraft."
+    }
   };
 }
 
@@ -332,7 +437,7 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
   const numQbs: 1 | 2 = (counts["7"] ?? 0) > 0 ? 2 : 1;
   const starters = startersFromEspnCounts(counts);
   const rosterSize = Object.values(counts).reduce((a, b) => a + b, 0);
-  const { leagueType, keeperCount } = espnLeagueType(s);
+  const { leagueType, keeperCount, provenance } = espnLeagueType(s);
   return {
     ppr,
     numQbs,
@@ -348,6 +453,7 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
     starters,
     tradeDeadlineWeek: espnTradeDeadlineWeek(s),
     playoffWeekStart: espnPlayoffWeekStart(s),
-    playoffTeams: espnPlayoffTeams(s)
+    playoffTeams: espnPlayoffTeams(s),
+    provenance
   };
 }
