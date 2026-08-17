@@ -63,12 +63,12 @@ import { findSecretLeaks, scanFiles } from "./check-doc-secrets";
 
 describe("findSecretLeaks", () => {
   it("flags a real base64 secret next to a keyword (markdown table row)", () => {
-    const text = "| `AUTH_SECRET` | `Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0Ab2Cd4Ef6Hj8=` |";
+    const text = "| `AUTH_SECRET` | `<synthetic-fixture-redacted>b2Cd4Ef6Hj8=` |";
     expect(findSecretLeaks(text)).toHaveLength(1);
   });
 
   it("flags a token in a curl header", () => {
-    const text = 'curl -H "x-init-token: Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0A"';
+    const text = 'curl -H "x-init-token: <synthetic-fixture-redacted>"';
     expect(findSecretLeaks(text)).toHaveLength(1);
   });
 
@@ -97,7 +97,7 @@ describe("scanFiles", () => {
   it("aggregates leaks per file using an injected reader", () => {
     const read = (p: string) =>
       p === "bad.md"
-        ? "DB_INIT_TOKEN = Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0A"
+        ? "DB_INIT_TOKEN = <synthetic-fixture-redacted>"
         : "nothing secret here";
     const res = scanFiles(["bad.md", "good.md"], read);
     expect(Object.keys(res)).toEqual(["bad.md"]);

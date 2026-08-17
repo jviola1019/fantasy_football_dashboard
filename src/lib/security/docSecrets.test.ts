@@ -2,6 +2,29 @@ import { createHash } from "node:crypto";
 import { describe, it, expect } from "vitest";
 import { BURNED_SECRET_HASHES, findSecretLeaks, scanFiles, isScannableDocPath } from "./docSecrets";
 
+/**
+ * Fixtures are ASSEMBLED AT RUNTIME, never written as literals (audit P1 §7).
+ *
+ * These strings were always synthetic, and the comments beside them always said
+ * so — but Gitleaks cannot read comments. It scans full history, flagged them,
+ * and turned the repository's Security workflow permanently red, burying any
+ * genuine future finding in known noise. A scanner nobody believes is worse
+ * than no scanner at all.
+ *
+ * Deriving each from a SHA-256 of a fixed seed keeps every property these tests
+ * depend on — deterministic, high-entropy, exact length and shape — while
+ * leaving no secret-shaped literal in a tracked file for any scanner to trip
+ * over. That removes the false positive at its source rather than suppressing
+ * it, so only immutable git history still needs an exception.
+ */
+function synthetic(seed: string, length: number): string {
+  let out = "";
+  for (let i = 0; out.length < length; i += 1) {
+    out += createHash("sha256").update(`${seed}:${i}`).digest("base64").replace(/[^A-Za-z0-9]/g, "");
+  }
+  return out.slice(0, length);
+}
+
 describe("isScannableDocPath", () => {
   it("scans shippable docs/config/env", () => {
     expect(isScannableDocPath("DEPLOY_TO_VERCEL.md")).toBe(true);
@@ -33,7 +56,7 @@ describe("isScannableDocPath", () => {
   });
 
   it("still flags a real base64 secret on a keyworded line", () => {
-    const leaks = findSecretLeaks("AUTH_SECRET=Zk3rP9vQ2mX7bN4wL6tY8cA1sD5fG0hJ2kL4mN6pQ8s=");
+    const leaks = findSecretLeaks(`AUTH_SECRET=${synthetic("inline-b64", 43)}=`);
     expect(leaks.length).toBeGreaterThan(0);
   });
 
@@ -43,10 +66,9 @@ describe("isScannableDocPath", () => {
   });
 });
 
-// All fixtures below are SYNTHETIC high-entropy strings — never real secrets.
-const FAKE_B64 = "Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0Ab2Cd4Ef6Hj8="; // 44-char base64 shape
-const FAKE_TOKEN = "Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5Jk0A"; // 32-char alnum shape
-const FAKE_HYPHEN = "ab1-cd2-Qp7Lm2Xv9Rt4Wy6Zb8Nc1Df3Gh5"; // hyphen-prefixed shape
+const FAKE_B64 = `${synthetic("b64", 43)}=`; // 44-char base64 shape
+const FAKE_TOKEN = synthetic("token", 32); // 32-char alnum shape
+const FAKE_HYPHEN = `ab1-cd2-${synthetic("hyphen", 27)}`; // hyphen-prefixed shape
 
 describe("findSecretLeaks", () => {
   it("flags a base64 secret next to a keyword (markdown table row)", () => {
@@ -91,7 +113,7 @@ describe("findSecretLeaks", () => {
 
   it("flags a special-character password assigned after the keyword (Issue 2)", () => {
     expect(findSecretLeaks("DB_PASSWORD=MyS3cur3P@ss!2024")).toHaveLength(1);
-    expect(findSecretLeaks('PASSWORD: "Tr0ub4dor3xtraMix"')).toHaveLength(1);
+    expect(findSecretLeaks(`PASSWORD: "${synthetic("password", 17)}"`)).toHaveLength(1);
   });
 
   it("does NOT flag .env.example placeholders or env-var references", () => {
@@ -106,7 +128,7 @@ describe("findSecretLeaks", () => {
 describe("burned-secret deny-list (audit 2026-07-08 A-01)", () => {
   // Synthetic stand-in for a leaked value; the real deny-list stores only
   // SHA-256 digests so no test or source file ever contains a burned plaintext.
-  const FAKE_BURNED = "Zz9Yx8Wv7Ut6Sr5Qp4On3Ml2Kj1Ih0Gf9Ee8Dd7Cc6B=";
+  const FAKE_BURNED = `${synthetic("burned", 43)}=`;
   const fakeHash = createHash("sha256").update(FAKE_BURNED).digest("hex");
 
   it("flags a burned literal even with NO secret keyword on the line", () => {
