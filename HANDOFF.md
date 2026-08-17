@@ -3,9 +3,70 @@
 **Branch** `fix/2026-08-06-forensic-remediation` · **base** `efb124b` (= `origin/main`, verified unmoved)
 **Plan** `~/.claude/plans/you-are-the-lead-proud-canyon.md` · **Evidence** `reports/2026-08-06/`
 
-**No merge, no deployment, no credential rotation, and no production database mutation has occurred.**
-**All 12 audit findings are now addressed.** Two user-added items (F-010, F-012) remain PARTIAL with
-their remainders named below; everything from the original audit is closed.
+**No merge, no deployment, no credential rotation, no history rewrite, no force push, and no
+production database mutation has occurred.**
+
+---
+
+## Second-pass audit (2026-08-17) — P1/P2 round
+
+A follow-up audit against branch head `c156652` raised six P1 and four P2 items. All are now closed;
+see [reports/2026-08-06/audit-p1-p2.md](reports/2026-08-06/audit-p1-p2.md) for the full ledger.
+
+| Item | Finding | Status | Commit |
+|---|---|---|---|
+| P1 §2 | Production build broken — `next.config.mjs` imports a `.ts` file | **PASS** | `0b3be99` |
+| P1 §3 | Dynasty leagues still parsed through the redraft branch | **PASS** | `0b3be99` |
+| P1 §4 | Trade provenance hardcoded "redraft" | **PASS** | `0b3be99` |
+| P1 §5 | Auth throttle not atomic (lost updates) | **PASS** | `6e1a96a` |
+| P1 §6 | No lifecycle reconciliation | **PASS** | `d6eeeeb` |
+| P1 §7 | Gitleaks red on full history | **PASS** | `c068963` |
+| P2 §8 | Trade Center used `leagues[0]`, not the selected league | **PASS** | `825ffd0` |
+| P2 §9 | `DEPTH_CUSHION` described as "calibrated" without evidence | **PASS** | `35de09a` |
+| P2 §10 | SUPERFLEX occupancy assumption untested | **PASS** | `35de09a` |
+| P2 §11 | ESPN dynasty heuristic presented as authoritative | **PASS** | `35de09a` |
+
+### Why the build failure mattered more than it looked
+
+`next.config.mjs` imported `./src/lib/security/csp.ts`. Node ≥ 22.18 strips TypeScript types natively,
+so on the dev machine (v25.8.2) `npm run build` passed — and **that passing build was reported as
+release evidence in earlier handoffs. It should not have been.** CI runs Node 20.20.2, which cannot,
+and failed with `ERR_UNKNOWN_FILE_EXTENSION ".ts"`. Because the Playwright and Lighthouse jobs gate on
+the build, **Playwright, axe and Lighthouse were all SKIPPED** — a red pipeline that read as an absence
+of results rather than a failure. Any claim resting on those three gates before `0b3be99` is unsupported.
+
+Guarded by `securityHeaders.node20.test.ts`, which loads the config in a child Node process with
+`--no-experimental-strip-types`, reproducing Node 20's loader on any host.
+
+### Corrections to the second-pass audit
+
+- **Gitleaks**: the audit described one synthetic `AUTH_SECRET` fixture on this branch. It is **13
+  findings / 4 distinct values / 7 commits**, and the majority are a *real* (already-rotated)
+  `DB_INIT_TOKEN`. Critically, **6 of the 7 commits are already ancestors of `origin/main`**, so the
+  audit's suggested branch-history rewrite would have left 12 of 13 findings untouched. History was
+  treated as immutable and the tip cleaned instead.
+- **A third valuation bug, unreported by the audit**: FantasyCalc's `redraftValue` is
+  *format-independent* — Jahmyr Gibbs returns 10017 at 8/12/14 teams and at ppr 0/0.5/1, identical
+  every time — while `value` tracks the query. Reading `redraftValue` discarded every format
+  adjustment `buildFantasyCalcUrl` had just requested, pricing all three of the operator's non-12-team
+  ESPN leagues as 12-team full-PPR.
+- **The throttle race was far worse than "two failures counted as one"**: measured, ten parallel
+  failures persisted `attempts = 1`, and three hundred parallel global failures also persisted 1.
+  Every dimension collapsed to a single count.
+
+### Assumptions now labelled, not claimed
+
+`DEPTH_CUSHION = 1.2` and `superflexQbOccupancy = 1.0` are **model assumptions, not calibrated
+values** — no observed-outcome target exists for either and none was manufactured. Their influence is
+measured across 48 league shapes in
+[reports/2026-08-06/replacement-sensitivity.md](reports/2026-08-06/replacement-sensitivity.md):
+worst-case cross-position inversion 4.2% (cushion) and 1.7% (occupancy), with at most one player of
+top-24 churn. Reproduce with `npm run sensitivity:replacement`.
+
+---
+
+**All 12 original audit findings are addressed.** Two user-added items (F-010, F-012) remain PARTIAL
+with their remainders named below; everything from the original audit is closed.
 
 ---
 
@@ -161,8 +222,8 @@ These three remain, and they are the deeper ones because they contaminate `trueV
   [DraftIntelligence.tsx:31](src/components/panels/DraftIntelligence.tsx#L31)) — superflex gets `QB:1`,
   no-K leagues are still told to draft a kicker. This is the root of the user's "picking multiple
   RBs/WRs" concern and of the requested lineup-meshing score.
-- **Trade actions read the wrong league**: `firstLeague()` returns `leagues[0]`, ignoring the
-  active-league cookie every other surface uses ([trade/actions.ts:31-37](src/app/trade/actions.ts#L31-L37)).
+- ~~**Trade actions read the wrong league**~~ — **FIXED** in `825ffd0`. `resolveActiveLeague()` is now
+  the single selection contract, and Trade Center names the league, its shape, and why it was chosen.
 - `leagues.settings` is written once at add-time and never updated.
 
 ### 5. F-012 remainder + docs/hygiene
@@ -193,6 +254,15 @@ Recorded OPEN there, deliberately not changed unilaterally:
   runtime; the gate is informational for dev scope by explicit policy.
 - `backtest:sleeper` ECE is 0.2583 on n=10 team-seasons — pre-existing and statistically thin; not
   affected by this work, but it does not support strong calibration claims.
+- **The simulator that is validated is not the simulator the product uses.** `calibrate:season`
+  measures self-consistency only, and `backtest:sleeper` exercises `runSeasonSimulation`; the shipped
+  chain (`ECR → replacement level → trueValue → runNexusSimulation`) has **no out-of-sample
+  validation at all**. Both harnesses returned bit-identical numbers across four runs spanning three
+  model changes, which is evidence of non-coverage rather than of safety. Design and leakage rules in
+  [docs/model-validation-plan.md](docs/model-validation-plan.md); the harness is **designed, not
+  built**. This is the largest remaining gap and no calibration claim should be made until it exists.
+- `npm run check:freshness` exits 1 in this environment: it probes the **deployed** app and needs
+  `CRON_SECRET`, which was not available. **BLOCKED**, not a code failure — it is not a CI gate.
 
 ## Requires owner approval (not done)
 
