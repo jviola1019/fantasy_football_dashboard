@@ -25,7 +25,8 @@
     "backtest:sleeper": "tsx scripts/backtest-sleeper-2025.ts",
     "check:freshness": "tsx scripts/check-cron-freshness.ts",
     "deploy": "next build",
-    "sensitivity:replacement": "tsx scripts/replacement-sensitivity.ts"
+    "sensitivity:replacement": "tsx scripts/replacement-sensitivity.ts",
+    "backtest:valuation": "tsx scripts/backtest-valuation.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

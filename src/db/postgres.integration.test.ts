@@ -69,7 +69,7 @@ pg("Postgres integration (F-003 notifications migration)", () => {
       db,
       `SELECT column_name, data_type, is_nullable
          FROM information_schema.columns
-        WHERE table_name = 'notifications'
+        WHERE table_schema = 'public' AND table_name = 'notifications'
         ORDER BY column_name`
     );
     const byName = new Map(rows.map((r) => [String(r.column_name), r]));
@@ -86,7 +86,7 @@ pg("Postgres integration (F-003 notifications migration)", () => {
     const rows = await raw(
       db,
       `SELECT indexname, indexdef FROM pg_indexes
-        WHERE tablename = 'notifications' AND indexname = 'notifications_user_dedup'`
+        WHERE schemaname = 'public' AND tablename = 'notifications' AND indexname = 'notifications_user_dedup'`
     );
     expect(rows).toHaveLength(1);
     expect(String(rows[0]!.indexdef)).toContain("UNIQUE");
@@ -98,7 +98,7 @@ pg("Postgres integration (F-003 notifications migration)", () => {
     const rows = await raw(
       db,
       `SELECT count(*)::int AS n FROM pg_indexes
-        WHERE tablename='notifications' AND indexname='notifications_user_dedup'`
+        WHERE schemaname = 'public' AND tablename='notifications' AND indexname='notifications_user_dedup'`
     );
     expect(Number(rows[0]!.n)).toBe(1);
   });
@@ -242,7 +242,7 @@ pg("Postgres integration (F-003 notifications migration)", () => {
     const idx = await raw(
       db,
       `SELECT count(*)::int AS n FROM pg_indexes
-        WHERE tablename='notifications' AND indexname='notifications_user_dedup'`
+        WHERE schemaname = 'public' AND tablename='notifications' AND indexname='notifications_user_dedup'`
     );
     expect(Number(idx[0]!.n)).toBe(1);
   }, 60_000);
@@ -258,7 +258,7 @@ pg("Postgres integration (F-003 notifications migration)", () => {
 
     const cols = await raw(
       db,
-      `SELECT column_name FROM information_schema.columns WHERE table_name='notifications'`
+      `SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='notifications'`
     );
     expect(cols.map((c) => String(c.column_name))).not.toContain("dedupKey");
 
@@ -266,7 +266,7 @@ pg("Postgres integration (F-003 notifications migration)", () => {
     await applyInitSql(db);
     const restored = await raw(
       db,
-      `SELECT column_name FROM information_schema.columns WHERE table_name='notifications'`
+      `SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='notifications'`
     );
     expect(restored.map((c) => String(c.column_name))).toContain("dedupKey");
   }, 60_000);

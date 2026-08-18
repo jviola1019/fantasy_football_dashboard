@@ -1,4 +1,5 @@
 import type { PlayerMarketRecord } from "./governance";
+import type { LeagueFormat } from "./trade/format";
 import { reputationEdge, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
 import { runNexusSimulation, deriveSeasonInputs, type SimulationResult } from "./simulation";
 import { avg, clamp, gradeFromScore } from "./utils";
@@ -190,8 +191,35 @@ export function deriveScenarioComparison(players: PlayerMarketRecord[], baseline
   };
 }
 
-export function derivePositionGrades(players: PlayerMarketRecord[]): PositionGrades {
-  const posSlots = ["QB", "RB", "WR", "TE", "FLEX", "DEF"];
+/**
+ * Which slots to grade, taken from the league's real starting lineup.
+ *
+ * Audit F-012: this was the hardcoded list ["QB","RB","WR","TE","FLEX","DEF"],
+ * so a superflex league got no SUPERFLEX grade and NO league ever got a K grade
+ * — the scorecard silently omitted a slot the user has to fill every week.
+ * Falls back to the historical list when no league is connected, which keeps
+ * the demo unchanged rather than inventing slots for a league that isn't there.
+ */
+function gradedSlots(format?: LeagueFormat | null): string[] {
+  if (!format) return ["QB", "RB", "WR", "TE", "FLEX", "DEF"];
+  const s = format.starters;
+  const slots: string[] = [];
+  if (s.QB > 0) slots.push("QB");
+  if (s.RB > 0) slots.push("RB");
+  if (s.WR > 0) slots.push("WR");
+  if (s.TE > 0) slots.push("TE");
+  if (s.FLEX > 0) slots.push("FLEX");
+  if (s.SUPERFLEX > 0) slots.push("SUPERFLEX");
+  if (s.DEF > 0) slots.push("DEF");
+  if (s.K > 0) slots.push("K");
+  return slots;
+}
+
+export function derivePositionGrades(
+  players: PlayerMarketRecord[],
+  format?: LeagueFormat | null
+): PositionGrades {
+  const posSlots = gradedSlots(format);
   const edgeFor = (filter: (p: PlayerMarketRecord) => boolean) => {
     const group = players.filter(filter);
     return group.length ? avg(group.map(reputationEdge)) : 0;
@@ -202,6 +230,12 @@ export function derivePositionGrades(players: PlayerMarketRecord[]): PositionGra
     WR: edgeFor((p) => p.position === "WR"),
     TE: edgeFor((p) => p.position === "TE"),
     FLEX: edgeFor((p) => p.position === "RB" || p.position === "WR"),
+    // A superflex slot is graded on everyone eligible to fill it, QBs included —
+    // which is the whole point of the slot.
+    SUPERFLEX: edgeFor(
+      (p) => p.position === "QB" || p.position === "RB" || p.position === "WR" || p.position === "TE"
+    ),
+    K: edgeFor((p) => p.position === "K"),
     DEF: players.length ? (avg(players.map((p) => (p.fragility < 35 ? 6 : -4)))) : 0,
   };
   const overall = avg(players.map(reputationEdge));

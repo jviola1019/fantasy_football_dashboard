@@ -81,10 +81,14 @@ pg("Postgres lifecycle reconciliation", () => {
   let db: Db;
   const byeKey = (leagueId: string) => `bye:${leagueId}:RB:2026:5`;
 
+  /** Dedicated schema — see the note in throttle.pg.integration.test.ts. */
+  const SCHEMA = "rae_test_reconcile";
+
   beforeAll(async () => {
     db = createPostgresDb(PG_URL!);
-    await raw(db, "DROP SCHEMA public CASCADE");
-    await raw(db, "CREATE SCHEMA public");
+    await raw(db, `DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
+    await raw(db, `CREATE SCHEMA ${SCHEMA}`);
+    await raw(db, `SET search_path TO ${SCHEMA}`);
     for (const statement of INIT_SQL.split(";")) {
       const trimmed = statement.trim();
       if (trimmed.length === 0) continue;
@@ -94,8 +98,7 @@ pg("Postgres lifecycle reconciliation", () => {
 
   afterAll(async () => {
     if (!db) return;
-    await raw(db, "DROP SCHEMA public CASCADE").catch(() => undefined);
-    await raw(db, "CREATE SCHEMA public").catch(() => undefined);
+    await raw(db, `DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`).catch(() => undefined);
   }, 60_000);
 
   beforeEach(async () => {

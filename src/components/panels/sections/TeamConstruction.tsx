@@ -32,7 +32,7 @@ export function TeamConstruction({
   /** Draftable pool, best-first — used to price what a keeper costs. */
   board?: PlayerMarketRecord[];
 }) {
-  const grades = derivePositionGrades(players);
+  const grades = derivePositionGrades(players, format ?? null);
   return (
     <PanelCard
       id="team-construction"

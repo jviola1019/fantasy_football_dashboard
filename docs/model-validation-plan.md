@@ -107,8 +107,70 @@ Add the harness to CI as a **reported, non-blocking** metric first — a Brier t
 moves is information, not a build failure — and record each run in
 `reports/`. Promote to blocking only once a stable baseline exists.
 
-## Status
+## Status — EXECUTED 2026-08-17
 
-- Steps 1–5: **not started.** This is a plan, not a result.
-- Until step 1 exists, no statement of the form "the model is calibrated" is
-  supportable for `runNexusSimulation`, and none should be made.
+| Step | State |
+|---|---|
+| 1. Harness that exercises the real path | **DONE** — `scripts/backtest-valuation.ts`, `npm run backtest:valuation` |
+| 2. Baseline + per-change attribution | **DONE** — before/after the anchor fix; see below |
+| 3. Honest bar (report n) | **DONE** — n=50 team-seasons, 5 leagues, 2022–2025, cluster-bootstrap CIs |
+| 4. Only then consider tuning | **DELIBERATELY NOT DONE** — see below |
+| 5. Wire into the gates | **DONE as reported-not-blocking** — network-dependent, so it is a script, not a CI gate |
+
+Full write-up: [`reports/2026-08-06/backtest-valuation.md`](../reports/2026-08-06/backtest-valuation.md).
+
+### Result: the model FAILED
+
+| Metric | Model | Climatology (p=0.60) |
+|---|---|---|
+| Brier | 0.3098 | 0.2400 |
+| AUC | 0.3058, CI [0.1333, 0.4450] | 0.5 |
+| Brier skill score | −0.2908, CI [−0.4588, −0.1320] | 0 |
+
+Both CIs exclude the null **on the wrong side**: the chain is significantly worse
+than forecasting the base rate, and its ranking is inverted.
+
+### A unit error the harness found immediately
+
+`starterWeeklyMean` mapped `trueValue = 50` — which is *replacement level* — onto
+the average *starter's* points. Every real roster therefore floated above its own
+field: measured, every team averaged 164 weekly points against a 115 field, so all
+50 team-seasons predicted ~100% playoff odds (Brier 0.4000, AUC exactly 0.5000).
+
+Fixed by anchoring at the average startable trueValue, derived in closed form from
+the depth cushion (79.2 at cushion 1.2) rather than fitted. Pinned by
+`src/lib/simulation.calibration.test.ts`.
+
+**This is also the coverage proof the plan asked for.** The anchor fix moved
+`backtest:valuation` from 0.4000 to 0.3098 while leaving `calibrate:season`
+(0.0770) and `backtest:sleeper` (0.1657) bit-identical — direct evidence that
+the old two never touched `runNexusSimulation`.
+
+### Ablation: the transform, not the input
+
+| Signal | AUC |
+|---|---|
+| Shipped chain | 0.3058 |
+| Raw draft capital | 0.5033 |
+| Early QB/TE share | 0.6725 |
+
+Rank-ratio VBD's advantage term grows with position depth, so it systematically
+under-values scarce positions (QB3 → 87.5 vs RB3 → 95.7 in a 10-team league). In
+this sample, early QB/TE spend correlated with qualifying — so the model marked
+down the teams that succeeded.
+
+### Step 4 — why no tuning happened
+
+No parameter was flipped or refitted to improve these numbers. With 5 effective
+clusters that is curve-fitting to noise. The anchor fix was made because it
+corrects an error provable from the definitions, not because it improved a score.
+
+The indicated next change is **points-above-replacement instead of rank-ratio
+VBD**, which needs projected points per player rather than ranks. That is a real
+modelling change and belongs behind its own evidence.
+
+### Standing conclusion
+
+No statement of the form "the model is calibrated" is supportable for
+`runNexusSimulation`. There is now positive evidence in the other direction, and
+the simulation declares it in its own assumptions.

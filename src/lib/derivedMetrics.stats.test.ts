@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixturePlayers } from "./fixtures";
+import { DEFAULT_FORMAT, type LeagueFormat, type LeagueStarters } from "./trade/format";
 import {
   deriveCommandMetrics,
   deriveMarketMetrics,
@@ -166,6 +167,49 @@ describe("derivedMetrics — statistical properties", () => {
       const valid = /^[ABCD][+-]?$/;
       expect(valid.test(g.overall)).toBe(true);
       for (const row of g.positions) expect(valid.test(row.grade)).toBe(true);
+    });
+
+    describe("derivePositionGrades follows the league's real lineup (F-012)", () => {
+      // The scorecard used a hardcoded ["QB","RB","WR","TE","FLEX","DEF"], so a
+      // superflex league never saw a SUPERFLEX grade and NO league ever saw a K
+      // grade — a slot the user has to fill every single week.
+      const starters = (o: Partial<LeagueStarters> = {}): LeagueStarters => ({
+        QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, DEF: 1, K: 1, SUPERFLEX: 0, ...o
+      });
+      const fmt = (o: Partial<LeagueStarters> = {}): LeagueFormat => ({
+        ...DEFAULT_FORMAT,
+        starters: starters(o)
+      });
+      const slotsOf = (f: LeagueFormat | null) =>
+        derivePositionGrades(fixturePlayers, f).positions.map((p) => p.pos);
+
+      it("grades K when the league actually starts one", () => {
+        expect(slotsOf(fmt())).toContain("K");
+      });
+
+      it("omits K when the league does not start one", () => {
+        expect(slotsOf(fmt({ K: 0 }))).not.toContain("K");
+      });
+
+      it("grades SUPERFLEX only in a superflex league", () => {
+        expect(slotsOf(fmt({ SUPERFLEX: 1 }))).toContain("SUPERFLEX");
+        expect(slotsOf(fmt())).not.toContain("SUPERFLEX");
+      });
+
+      it("omits FLEX when the league has no flex slot", () => {
+        expect(slotsOf(fmt({ FLEX: 0 }))).not.toContain("FLEX");
+      });
+
+      it("keeps the historical slot list when no league is connected", () => {
+        expect(slotsOf(null)).toEqual(["QB", "RB", "WR", "TE", "FLEX", "DEF"]);
+      });
+
+      it("still emits a valid letter for every slot it does grade", () => {
+        const valid = /^[ABCD][+-]?$/;
+        for (const row of derivePositionGrades(fixturePlayers, fmt({ SUPERFLEX: 1 })).positions) {
+          expect(valid.test(row.grade), `${row.pos} → ${row.grade}`).toBe(true);
+        }
+      });
     });
 
     it("deriveStartSitEdge: edge = value - bestAlt is finite and consistent", () => {

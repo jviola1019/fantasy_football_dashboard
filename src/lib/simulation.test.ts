@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixturePlayers } from "./fixtures";
-import { avgStarterPtsFor, mulberry32, runNexusSimulation } from "./simulation";
+import { avgStarterPtsFor, deriveSeasonInputs, mulberry32, runNexusSimulation } from "./simulation";
 
 describe("nexus simulation", () => {
   it("replays deterministic random streams", () => {
@@ -33,18 +33,47 @@ describe("opponent field follows league scoring (audit F-010)", () => {
     expect(avgStarterPtsFor("PPR") - avgStarterPtsFor("STD")).toBeCloseTo(2, 5);
   });
 
-  it("raises a roster's playoff odds in STD relative to PPR, all else equal", () => {
-    // The concrete bias: the same roster in a standard league was scored in STD
-    // points against a PPR-sized field, so its odds came out too low.
+  it("gives the SAME odds in STD and PPR for an equally-valuable roster", () => {
+    // CORRECTED. This test used to assert std > ppr "all else equal", and that
+    // asymmetry was the bug, not the fix. When it was written the FIELD moved
+    // with scoring format while the team stayed anchored to the PPR constant,
+    // so a standard league mechanically inflated the team against a shrunken
+    // field — the same defect as the original F-010, pointing the other way.
     //
-    // Uses a MID-STRENGTH roster deliberately — the stock fixture is strong
-    // enough to saturate at 100% in both formats, which would hide the effect
-    // rather than test it.
-    const roster = fixturePlayers.map((p) => ({ ...p, trueValue: 52 }));
+    // The correct invariant: trueValue is already format-relative (replacement
+    // level accounts for ppr through the flex weights), so a roster that is
+    // equally far above replacement is equally good in its own league. Scoring
+    // format rescales BOTH sides of the comparison and must cancel.
+    //
+    // Format-sensitivity of the baseline itself is still asserted by the
+    // avgStarterPtsFor tests above; this one pins that it is applied evenly.
+    const roster = fixturePlayers.map((p) => ({ ...p, trueValue: 82 }));
     const base = { seed: 7, iterations: 4000, rosterSlots: 9, riskTolerance: 0.5 } as const;
+
+    // The exact invariant: the team's ADVANTAGE over its field, in points, does
+    // not depend on scoring format.
+    const gap = (scoringFormat: "STD" | "HALF" | "PPR") => {
+      const { team, field } = deriveSeasonInputs(roster, { ...base, scoringFormat });
+      return team.meanWeekly - field.meanWeekly;
+    };
+    expect(gap("STD")).toBeCloseTo(gap("PPR"), 6);
+    expect(gap("HALF")).toBeCloseTo(gap("PPR"), 6);
+
     const ppr = runNexusSimulation(roster, { ...base, scoringFormat: "PPR" });
     const std = runNexusSimulation(roster, { ...base, scoringFormat: "STD" });
-    expect(std.playoffProbability).toBeGreaterThan(ppr.playoffProbability);
+    const half = runNexusSimulation(roster, { ...base, scoringFormat: "HALF" });
+
+    // Odds are CLOSE but not identical, and the reason is a known second-order
+    // asymmetry rather than the bug above: the field's betweenTeamSigma is
+    // proportional to the field mean and so shrinks in STD, while a player's
+    // weekly sigma is an absolute points figure that does not move with format.
+    // The same mean edge against slightly less noise is worth slightly more.
+    // Documented in reports/2026-08-06/backtest-valuation.md as a residual.
+    expect(Math.abs(std.playoffProbability - ppr.playoffProbability)).toBeLessThan(4);
+    expect(Math.abs(half.playoffProbability - ppr.playoffProbability)).toBeLessThan(4);
+    // Not vacuous — the roster is nowhere near saturation.
+    expect(ppr.playoffProbability).toBeGreaterThan(1);
+    expect(ppr.playoffProbability).toBeLessThan(99);
   });
 
   it("defaults to PPR when the league format is unknown", () => {

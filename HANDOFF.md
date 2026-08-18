@@ -54,6 +54,48 @@ Guarded by `securityHeaders.node20.test.ts`, which loads the config in a child N
   failures persisted `attempts = 1`, and three hundred parallel global failures also persisted 1.
   Every dimension collapsed to a single count.
 
+### Model validation — the harness now EXISTS, and the model failed
+
+`scripts/backtest-valuation.ts` (`npm run backtest:valuation`) scores the shipped
+chain — draft ADP → replacement level → `trueValue` → `runNexusSimulation` →
+playoff odds — against actual qualification on **50 team-seasons, 5 completed
+leagues, 2022–2025**.
+
+| Metric | Model | Climatology (p=0.60) |
+|---|---|---|
+| Brier | 0.3098 | 0.2400 |
+| AUC | **0.3058**, CI [0.1333, 0.4450] | 0.5 |
+| Brier skill | **−0.2908**, CI [−0.4588, −0.1320] | 0 |
+
+Both CIs exclude the null **on the wrong side**. The model is significantly worse
+than forecasting the base rate and its ranking is inverted. `runNexusSimulation`
+now says so in its own assumptions, per CLAUDE.md's "do not present an
+uncalibrated model as production-safe".
+
+**A unit error the harness found on its first run.** `starterWeeklyMean` mapped
+`trueValue = 50` — *replacement level* — onto the average *starter's* points.
+Every real roster therefore floated above its own field: every team averaged 164
+weekly points against a 115 field, so all 50 team-seasons predicted ~100% playoff
+odds (Brier 0.4000, AUC exactly 0.5000). Fixed by anchoring at the average
+startable trueValue, **derived in closed form** from the depth cushion (79.2), not
+fitted. Pinned by `simulation.anchor.test.ts` + `simulation.calibration.test.ts`.
+
+**Coverage proof**: the anchor fix moved `backtest:valuation` 0.4000 → 0.3098
+while leaving `calibrate:season` (0.0770) and `backtest:sleeper` (0.1657)
+bit-identical — direct evidence the old two never touched `runNexusSimulation`.
+
+**Ablation**: raw draft capital AUC 0.5033 vs shipped chain 0.3058 — the
+*transform* is destroying signal, not the input. Mechanism: rank-ratio VBD's
+advantage grows with position depth, so it systematically under-values scarce
+positions (QB3 → 87.5 vs RB3 → 95.7 in a 10-team league).
+
+**Not done, deliberately**: no parameter was flipped or refitted to improve the
+score. With 5 effective clusters that is curve-fitting. The indicated next change
+is points-above-replacement instead of rank-ratio VBD, which needs projected
+points per player and belongs behind its own evidence.
+
+Full write-up: [reports/2026-08-06/backtest-valuation.md](reports/2026-08-06/backtest-valuation.md).
+
 ### Assumptions now labelled, not claimed
 
 `DEPTH_CUSHION = 1.2` and `superflexQbOccupancy = 1.0` are **model assumptions, not calibrated
@@ -254,13 +296,17 @@ Recorded OPEN there, deliberately not changed unilaterally:
   runtime; the gate is informational for dev scope by explicit policy.
 - `backtest:sleeper` ECE is 0.2583 on n=10 team-seasons — pre-existing and statistically thin; not
   affected by this work, but it does not support strong calibration claims.
-- **The simulator that is validated is not the simulator the product uses.** `calibrate:season`
-  measures self-consistency only, and `backtest:sleeper` exercises `runSeasonSimulation`; the shipped
-  chain (`ECR → replacement level → trueValue → runNexusSimulation`) has **no out-of-sample
-  validation at all**. Both harnesses returned bit-identical numbers across four runs spanning three
-  model changes, which is evidence of non-coverage rather than of safety. Design and leakage rules in
-  [docs/model-validation-plan.md](docs/model-validation-plan.md); the harness is **designed, not
-  built**. This is the largest remaining gap and no calibration claim should be made until it exists.
+- **The shipped model FAILED out-of-sample validation** (harness now built — see above). Brier 0.3098
+  vs a 0.2400 climatology baseline; AUC 0.3058 with CI [0.1333, 0.4450]. Playoff odds are a structured
+  scenario, not a prediction, and the simulation declares that in its assumptions. The remaining work
+  is a modelling change (points-above-replacement instead of rank-ratio VBD), not a measurement gap.
+- **n is still small and not independent.** 5 leagues from one manager group across four seasons —
+  same players, correlated skill, all 10-team PPR. Every interval is wide and format generalisation
+  is untested. Widening needs public completed leagues, which Sleeper exposes no directory for.
+- **Variance does not scale with scoring format.** The field's `betweenTeamSigma` is proportional to
+  the field mean and shrinks in STD, while a player's weekly sigma is an absolute points figure. Same
+  mean edge, slightly less noise → STD and PPR odds differ ~2pp for an identical roster. Second-order
+  next to the anchor error; pinned to <4pp by `simulation.test.ts`.
 - `npm run check:freshness` exits 1 in this environment: it probes the **deployed** app and needs
   `CRON_SECRET`, which was not available. **BLOCKED**, not a code failure — it is not a CI gate.
 

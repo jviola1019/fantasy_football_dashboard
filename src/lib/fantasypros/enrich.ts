@@ -97,6 +97,42 @@ export const DEFAULT_REPLACEMENT_MODEL: ReplacementModel = {
   superflexQbOccupancy: 1.0
 };
 
+/**
+ * The trueValue of the AVERAGE STARTABLE player — not of a replacement player.
+ *
+ * Found by the out-of-sample backtest (scripts/backtest-valuation.ts), which is
+ * the only thing that could have found it. `trueValue = 50` means REPLACEMENT
+ * LEVEL, but `starterWeeklyMean` in simulation.ts was mapping trueValue 50 onto
+ * AVG_STARTER_PTS — the average *starter*. Replacement is by definition worse
+ * than an average starter, so every real roster floated far above the opponent
+ * field: measured on five completed leagues, every team averaged 164 weekly
+ * points against a 115 field, i.e. every team in the league was 42% "above
+ * average". Every team therefore drew ~100% playoff odds, Brier 0.4000 against
+ * a 0.2400 climatology baseline, AUC exactly 0.5000.
+ *
+ * The derivation is closed-form and, pleasingly, free of league size and
+ * position. Startable players at a position occupy ranks 1..S where
+ * S = numTeams x perTeamDemand, and replacement sits at R = S x cushion. Mean
+ * trueValue over those ranks is
+ *
+ *   50 + 50 * (R - (S+1)/2) / R  =  50 + 50 * (1 - 1/(2c) - 1/(2R))
+ *
+ * and since S and R scale together, the 1/(2c) term dominates: the answer
+ * depends only on the depth cushion. At c = 1.2 that is 79.2.
+ *
+ * This is DERIVED from the replacement model, not fitted to the backtest. The
+ * backtest is then a genuine holdout that reports whether it helped.
+ *
+ * The residual -1/(2R) term is at most ~2 trueValue points for the shallowest
+ * position (R ~ 12) and under 1 for the deepest; it is left out so the anchor
+ * stays a single self-consistent constant rather than varying per position.
+ */
+export function averageStartableTrueValue(
+  model: ReplacementModel = DEFAULT_REPLACEMENT_MODEL
+): number {
+  return 50 + 50 * (1 - 1 / (2 * model.depthCushion));
+}
+
 export function positionReplacementRank(
   position: PlayerMarketRecord["position"],
   format: LeagueFormat,

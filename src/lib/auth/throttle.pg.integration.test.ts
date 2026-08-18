@@ -48,10 +48,22 @@ pg("Postgres auth-throttle concurrency", () => {
   const accountKey = throttleKey("account", account);
   const ipKey = throttleKey("ip", ip);
 
+  /**
+   * A DEDICATED schema, not `public`.
+   *
+   * Vitest runs test files in parallel. Three PG suites each doing
+   * `DROP SCHEMA public CASCADE` in beforeAll destroy each other's tables
+   * mid-run — they pass individually and fail together, which is the most
+   * misleading failure mode available. `createPostgresDb` uses `max: 1`, so a
+   * single `SET search_path` pins every subsequent query on that connection.
+   */
+  const SCHEMA = "rae_test_throttle";
+
   beforeAll(async () => {
     db = createPostgresDb(PG_URL!);
-    await raw(db, "DROP SCHEMA public CASCADE");
-    await raw(db, "CREATE SCHEMA public");
+    await raw(db, `DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`);
+    await raw(db, `CREATE SCHEMA ${SCHEMA}`);
+    await raw(db, `SET search_path TO ${SCHEMA}`);
     for (const statement of INIT_SQL.split(";")) {
       const trimmed = statement.trim();
       if (trimmed.length === 0) continue;
@@ -61,8 +73,7 @@ pg("Postgres auth-throttle concurrency", () => {
 
   afterAll(async () => {
     if (!db) return;
-    await raw(db, "DROP SCHEMA public CASCADE").catch(() => undefined);
-    await raw(db, "CREATE SCHEMA public").catch(() => undefined);
+    await raw(db, `DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE`).catch(() => undefined);
   }, 60_000);
 
   beforeEach(async () => {

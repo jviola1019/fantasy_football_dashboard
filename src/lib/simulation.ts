@@ -1,4 +1,5 @@
 import type { PlayerMarketRecord, SourceMeta } from "./governance";
+import { averageStartableTrueValue } from "./fantasypros/enrich";
 import {
   runSeasonSimulation,
   OUTCOME_TIERS,
@@ -85,17 +86,42 @@ export function avgStarterPtsFor(scoringFormat: "STD" | "HALF" | "PPR"): number 
   return AVG_STARTER_PTS_PPR - 2;
 }
 
-const AVG_STARTER_PTS = AVG_STARTER_PTS_PPR;
-const TV_SLOPE = 0.18; // weekly pts per trueValue point away from the median
-const MEDIAN_TV = 50;
+const TV_SLOPE = 0.18; // weekly pts per trueValue point away from the anchor
 const PLAYER_SIGMA_BASE = 4;
 const PLAYER_SIGMA_SLOPE = 0.08; // weekly sd per volatility point
 const MEDIAN_PLAYER_SIGMA = PLAYER_SIGMA_BASE + PLAYER_SIGMA_SLOPE * 35;
 
-function starterWeeklyMean(p: PlayerMarketRecord, weekly: Map<string, number> | null): number {
+/**
+ * The trueValue that maps onto an average starter's points.
+ *
+ * Was `MEDIAN_TV = 50`, and that was a unit error rather than a tuning choice.
+ * `trueValue = 50` is REPLACEMENT LEVEL (see ecrToTrueValue) while
+ * `avgStarterPtsFor()` is the average STARTER's points, so the transform
+ * equated a replacement player with an average starter and inflated every real
+ * roster by the whole replacement-to-starter gap.
+ *
+ * Caught by scripts/backtest-valuation.ts on five completed leagues: every team
+ * averaged 164 weekly points against a 115 field — every team 42% above
+ * average, which cannot be true of every team simultaneously — so all 50
+ * team-seasons predicted ~100% playoff odds. Brier 0.4000 against a 0.2400
+ * climatology baseline; AUC exactly 0.5000, i.e. no discrimination at all.
+ *
+ * The replacement model now supplies the correct anchor, derived in closed form
+ * from the depth cushion (79.2 at cushion 1.2), so the two sides of the
+ * comparison share a scale and the documented calibration anchor — a
+ * league-average roster makes the playoffs about playoffTeams/numTeams of the
+ * time — actually holds. Pinned by simulation.calibration.test.ts.
+ */
+const STARTER_ANCHOR_TV = averageStartableTrueValue();
+
+function starterWeeklyMean(
+  p: PlayerMarketRecord,
+  weekly: Map<string, number> | null,
+  avgStarterPts: number
+): number {
   const proj = weekly?.get(p.id);
   if (proj != null) return Math.max(0, proj); // real weekly projection (live path)
-  return Math.max(0, AVG_STARTER_PTS + (p.trueValue - MEDIAN_TV) * TV_SLOPE);
+  return Math.max(0, avgStarterPts + (p.trueValue - STARTER_ANCHOR_TV) * TV_SLOPE);
 }
 
 function starterWeeklySigma(p: PlayerMarketRecord): number {
@@ -124,10 +150,15 @@ export function deriveSeasonInputs(players: PlayerMarketRecord[], params: Simula
   const weekly = params.weeklyProjections ?? null;
   const chosen = [...players].sort((a, b) => b.trueValue - a.trueValue).slice(0, rosterSlots);
 
+  // BOTH sides of the comparison use this same per-starter baseline, which is
+  // the property that was broken: the field used it while the team was anchored
+  // at replacement level instead.
+  const avgStarterPts = avgStarterPtsFor(params.scoringFormat ?? "PPR");
+
   let mean = 0;
   let varSum = 0;
   const starters = chosen.map((player) => {
-    const m = starterWeeklyMean(player, weekly);
+    const m = starterWeeklyMean(player, weekly, avgStarterPts);
     const s = starterWeeklySigma(player);
     mean += m;
     varSum += s * s;
@@ -143,7 +174,7 @@ export function deriveSeasonInputs(players: PlayerMarketRecord[], params: Simula
   // Otherwise a roster with fewer players than rosterSlots (e.g. the 8-player
   // demo fixture) is scored against a larger field and looks artificially weak.
   const usedStarters = Math.max(1, starters.length);
-  const fieldMean = usedStarters * avgStarterPtsFor(params.scoringFormat ?? "PPR");
+  const fieldMean = usedStarters * avgStarterPts;
   const field: FieldModel = {
     meanWeekly: fieldMean,
     betweenTeamSigma: fieldMean * 0.13,
@@ -203,7 +234,11 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
       `Real season Monte Carlo: ${numTeams}-team league, ${regularSeasonWeeks}-week round-robin, top ${playoffTeams} make a single-elimination bracket (byes for top seeds), over ${season.iterations.toLocaleString()} simulated seasons.`,
       "Each weekly matchup is decided by sampled team scores; the user's team uses its real starters' weekly means/variances and opponents draw a season strength from the league distribution.",
       "Live path: each starter's weekly mean is its real Sleeper pts_ppr projection; off-season it is mapped from season-aggregate trueValue. Risk tolerance scales week-to-week variance.",
-      "Calibration anchor: a league-average roster makes the playoffs ≈ playoffTeams/numTeams of the time (see docs/season-sim.md)."
+      `Calibration anchor: a league-average roster (trueValue ≈ ${STARTER_ANCHOR_TV.toFixed(0)}, the average STARTABLE player) makes the playoffs ≈ playoffTeams/numTeams of the time. Verified by simulation.calibration.test.ts.`,
+      // CLAUDE.md: "if a model lacks calibration, do not present it as
+      // production-safe". An out-of-sample backtest now exists, and it failed —
+      // so saying nothing here would be the dishonest option.
+      "NOT VALIDATED OUT-OF-SAMPLE: backtested on 50 team-seasons across 5 completed leagues (2022-2025), this chain scored Brier 0.310 against a 0.240 climatology baseline and AUC 0.306 — significantly worse than forecasting the league's base rate. Treat these odds as a structured scenario, not a prediction. See reports/2026-08-06/backtest-valuation.md."
     ],
     source,
     distribution: {
