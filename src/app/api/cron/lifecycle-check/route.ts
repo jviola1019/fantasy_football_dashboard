@@ -7,6 +7,7 @@ import {
 } from "@/lib/lifecycle/notifications";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { getCurrentNflSeason } from "@/lib/schedule/season";
+import { pruneThrottle, THROTTLE_RETENTION_MS } from "@/lib/auth/throttle";
 import {
   describeByeUnavailability,
   fetchByeSchedule,
@@ -129,6 +130,23 @@ export async function GET(request: Request): Promise<Response> {
     }
   }
 
+  // Housekeeping. auth_attempts had NO pruning wired anywhere — pruneThrottle
+  // existed with zero callers — so the table grew a row per (account, IP,
+  // global) key per window, forever. It rides this cron rather than an eighth
+  // Vercel cron because the Hobby plan caps them and this is the last daily job
+  // to run. A failure here must not fail the lifecycle run.
+  let throttleRowsPruned: number | null = null;
+  try {
+    throttleRowsPruned = await pruneThrottle(new Date(Date.now() - THROTTLE_RETENTION_MS), db);
+  } catch (err) {
+    console.warn(
+      JSON.stringify({
+        event: "throttle-prune-failed",
+        reason: err instanceof Error ? err.message : "unknown"
+      })
+    );
+  }
+
   return NextResponse.json({
     ok: true,
     season: seasonState
@@ -149,6 +167,7 @@ export async function GET(request: Request): Promise<Response> {
             reason: byeSchedule.reason,
             explanation: describeByeUnavailability(byeSchedule)
           },
+    throttleRowsPruned,
     leaguesScanned: leagues.length,
     notificationsWritten: writtenCount,
     notificationsResolved: resolvedCount,

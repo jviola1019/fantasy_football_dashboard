@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resetDbForTests } from "../../db";
 import {
   checkThrottle,
+  pruneThrottle,
   readThrottleState,
   recordFailure,
+  THROTTLE_RETENTION_MS,
   THROTTLE_RULES,
   throttleKey
 } from "./throttle";
@@ -136,6 +138,50 @@ describe("auth throttle is atomic under concurrency (P1 §5)", () => {
       // And it still expires on the ORIGINAL schedule.
       const afterOriginalLock = at(THROTTLE_RULES.account.lockMs + 1);
       expect((await checkThrottle({ account }, afterOriginalLock, db)).allowed).toBe(true);
+    });
+  });
+
+
+  describe("pruning (the table used to grow forever)", () => {
+    // pruneThrottle had ZERO callers until 2026-08-18, so auth_attempts
+    // accumulated a row per key per window with nothing ever removing them.
+    /** What the cron does: prune everything older than `now - retention`. */
+    const pruneAsCronAt = (now: Date) =>
+      pruneThrottle(new Date(now.getTime() - THROTTLE_RETENTION_MS), db);
+
+    it("removes rows whose window is older than the retention period", async () => {
+      await recordFailure({ account, ip }, T0, db);
+      expect(await readThrottleState(accountKey, db)).not.toBeNull();
+
+      // Cron runs a day and a second later.
+      const removed = await pruneAsCronAt(at(THROTTLE_RETENTION_MS + 1000));
+
+      expect(removed).toBe(3); // account + ip + global
+      expect(await readThrottleState(accountKey, db)).toBeNull();
+      expect(await readThrottleState(ipKey, db)).toBeNull();
+      expect(await readThrottleState("global", db)).toBeNull();
+    });
+
+    it("KEEPS rows still inside the retention period", async () => {
+      // A live lockout must survive housekeeping, or pruning becomes a way to
+      // clear a throttle.
+      await parallelFailures(THROTTLE_RULES.account.max, { account }, T0);
+      // Cron runs a minute later — well inside retention.
+      const removed = await pruneAsCronAt(at(60_000));
+
+      expect(removed).toBe(0);
+      expect((await checkThrottle({ account }, T0, db)).allowed).toBe(false);
+    });
+
+    it("retention comfortably outlives the longest window plus lock", () => {
+      const longest = Math.max(
+        ...Object.values(THROTTLE_RULES).map((r) => r.windowMs + r.lockMs)
+      );
+      expect(THROTTLE_RETENTION_MS).toBeGreaterThan(longest);
+    });
+
+    it("is a no-op on an empty table", async () => {
+      expect(await pruneAsCronAt(at(THROTTLE_RETENTION_MS + 1000))).toBe(0);
     });
   });
 

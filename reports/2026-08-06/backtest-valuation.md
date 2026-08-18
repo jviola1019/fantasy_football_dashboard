@@ -195,3 +195,93 @@ banner surfaces:
 - `volatility` is held at the model median because draft order carries no
   dispersion signal. It is constant across teams, so it cannot create or destroy
   discrimination, but it does mean the sim's variance input is uninformative here.
+
+---
+
+# UPDATE 2026-08-18 — points-above-replacement built and scored
+
+The indicated fix from the section above was implemented and backtested. Both
+forecasters run through the **identical** production simulation, so the only
+difference between them is the valuation transform.
+
+## Result
+
+Like-for-like on the 30 team-seasons PAR can score (2023-2025; 2022 has no prior
+season to fit a curve on):
+
+| | Brier | AUC | AUC 95% CI |
+|---|---|---|---|
+| RANK (shipped rank-ratio VBD) | 0.3353 | **0.2546** | **[0.1333, 0.4450]** |
+| PAR (candidate) | **0.3338** | **0.4398** | **[0.3750, 0.5417]** |
+| climatology (p=0.60) | 0.2400 | 0.5 | — |
+
+**The difference that matters:** rank-ratio's AUC interval lies entirely below
+0.5, so its ranking is *significantly inverted*. PAR's interval **includes 0.5**.
+Replacing the transform removes a measurable defect.
+
+**What is still not true:** AUC did not cross 0.5, which was the success
+criterion set for this work. Neither forecaster beats a constant on Brier
+(PAR skill CI [-0.6824, -0.1958]). PAR is *less wrong*, not *right*.
+
+## The curve, and the temporal split
+
+Expected season points by positional draft rank, fitted by **isotonic regression
+(pool-adjacent-violators, non-increasing)**. That smoother was chosen because
+the only constraint the data genuinely supports is that expected points must not
+*rise* with draft rank; a moving average would invent a smoothness the data has
+not earned and would still permit rank inversions. Raw single-season means
+violate monotonicity constantly — one real league had QB1/2/3 at 320/180/114
+while QB4 scored 254.
+
+Each league's curve is fitted on **strictly earlier seasons only**, and the
+harness asserts it:
+
+| league | season | curve fitted on | observations |
+|---|---|---|---|
+| Joe V | 2022 | (none) | — no PAR forecast |
+| Creamy Les Coot | 2022 | (none) | — no PAR forecast |
+| Creamy Les Coot | 2023 | 2022 | 290 |
+| Creamy Les Coot | 2024 | 2022, 2023 | 428 |
+| Creamy Les Coot 4.0 | 2025 | 2022, 2023, 2024 | 568 |
+
+A league whose curve contained its own season would throw rather than score.
+
+## A second scale error, found the same way
+
+The first PAR attempt anchored the trueValue scale on the **best** player in the
+pool (best PAR → 100). Measured on the 2025 league with a 2024 curve:
+
+| | mean starter trueValue | Brier | AUC |
+|---|---|---|---|
+| simulation anchor | **79.2** | — | — |
+| RANK starters | 77.1 | 0.3353 | 0.2546 |
+| PAR starters (best-anchored) | **71.4** | **0.5530** | 0.4329 |
+
+Discrimination improved while calibration collapsed — the signature of a level
+error, not a signal error. Every team sat below the simulation's field baseline,
+so every team looked weak against a 60% base rate.
+
+Fixed by anchoring on the **average startable player** instead, which is the
+contract the simulation actually imposes: PAR = 0 → 50, and the average startable
+player's PAR → 79.2. Both anchors are structural, computed from the curve and the
+league format, with no outcome data from the season being scored. Brier recovered
+0.5530 → 0.3338 with ordering unchanged.
+
+## Why this is NOT shipped as the production default
+
+PAR needs a points curve at runtime, and the application has no source for one.
+The only curve available is fitted on five leagues from a single manager group,
+all 10-team PPR — too thin and too unrepresentative to bake in as a production
+parameter, especially on the strength of a comparison that still loses to a
+constant.
+
+So `src/lib/models/pointsCurve.ts` ships as a tested, evidence-backed library and
+the harness scores it; production remains on rank-ratio with its failure declared
+in the simulation's own assumptions. Flipping the default is a one-line change
+once a broader curve source exists — the concrete blocker to record is *curve
+data*, not modelling work.
+
+## Limitations unchanged from above
+
+30 rows across 3 clusters for PAR. One platform, one scoring format in practice,
+one manager group. Playoff qualification is a coarse label that discards margin.

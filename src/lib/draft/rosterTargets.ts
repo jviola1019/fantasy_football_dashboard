@@ -1,5 +1,10 @@
 import type { PlayerMarketRecord } from "../governance";
 import type { LeagueFormat } from "../trade/format";
+import {
+  DEFAULT_REPLACEMENT_MODEL,
+  perTeamDemand,
+  type ReplacementModel
+} from "../league/lineupDemand";
 
 /**
  * Roster targets and lineup fit, derived from the league's ACTUAL starting
@@ -73,7 +78,10 @@ function allocate(total: number, weights: Partial<Record<Position, number>>): Po
  * size. K and DEF never receive bench depth — they are near-fungible and taking
  * a second one is wasted draft capital.
  */
-export function targetsFromFormat(format: LeagueFormat): PositionTargets {
+export function targetsFromFormat(
+  format: LeagueFormat,
+  model: ReplacementModel = DEFAULT_REPLACEMENT_MODEL
+): PositionTargets {
   const s = format.starters;
   const targets = emptyCounts();
 
@@ -84,20 +92,29 @@ export function targetsFromFormat(format: LeagueFormat): PositionTargets {
   targets.K = s.K;
   targets.DEF = s.DEF;
 
-  // SUPERFLEX is overwhelmingly started with a quarterback; that is the whole
-  // point of the format, and it is why a hardcoded QB target of 1 was wrong.
-  targets.QB += s.SUPERFLEX;
-
-  // FLEX goes to RB/WR (and TE only when the league already starts 2+, which
-  // signals a TE-premium build). PPR nudges the odd slot to WR, standard to RB.
-  if (s.FLEX > 0) {
-    const flexWeights: Partial<Record<Position, number>> =
-      s.TE >= 2
-        ? { RB: 4, WR: format.ppr > 0 ? 5 : 4, TE: 2 }
-        : { RB: 4, WR: format.ppr > 0 ? 5 : 4 };
-    const flexAlloc = allocate(s.FLEX, flexWeights);
-    for (const pos of FLEX_ELIGIBLE) targets[pos] += flexAlloc[pos];
+  // SUPERFLEX and FLEX allocation comes from the SHARED lineup model.
+  //
+  // This block used to hardcode `targets.QB += s.SUPERFLEX` (occupancy 1.0) and
+  // carry its own copy of the flex-weight table, while enrich.ts had been given
+  // an injectable superflexQbOccupancy against the same table. The draft board
+  // and the valuation model therefore answered the same question differently.
+  // Both now read lineupDemand.ts, so a change to either reaches both.
+  //
+  // perTeamDemand returns FRACTIONAL demand (replacement level is a depth
+  // measure); a draft plan needs whole players, so the flex/superflex spillover
+  // above the forced starters is rounded here with largest-remainder.
+  const demand = perTeamDemand(format, model);
+  const spillover: Partial<Record<Position, number>> = {};
+  for (const pos of SUPERFLEX_ELIGIBLE) {
+    const forced = pos === "QB" ? s.QB : pos === "RB" ? s.RB : pos === "WR" ? s.WR : s.TE;
+    const extra = demand[pos] - forced;
+    if (extra > 0) spillover[pos] = extra;
   }
+  const spilloverTotal = Math.round(
+    Object.values(spillover).reduce((a, b) => a + (b ?? 0), 0)
+  );
+  const alloc = allocate(spilloverTotal, spillover);
+  for (const pos of SUPERFLEX_ELIGIBLE) targets[pos] += alloc[pos];
 
   // Bench depth: whatever the roster size allows beyond the starting lineup.
   const startingSlots =

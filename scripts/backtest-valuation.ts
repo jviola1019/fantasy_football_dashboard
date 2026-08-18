@@ -1,55 +1,62 @@
 /**
- * Out-of-sample backtest of the SHIPPED valuation chain.
+ * Out-of-sample backtest of the SHIPPED valuation chain, plus the
+ * points-above-replacement candidate that replaces it.
  *
- * This exists because of a gap documented in docs/model-validation-plan.md: the
- * simulator that was validated is not the simulator the product uses.
+ * This exists because of a gap recorded in docs/model-validation-plan.md: the
+ * simulator that was validated was not the simulator the product uses.
  *
  *   runSeasonSimulation  real weekly scores in — backtested, NOT on the dashboard
  *   runNexusSimulation   trueValue in — DRIVES the dashboard, never validated
  *
- * So this harness scores the chain the product actually renders:
+ * Two forecasters are scored through the identical production simulation, so
+ * the only thing that differs between them is the valuation transform:
  *
- *   draft ADP -> positional rank -> positionReplacementRank -> ecrToTrueValue
- *             -> PlayerMarketRecord -> runNexusSimulation -> playoffProbability
+ *   RANK   draft ADP -> positionReplacementRank -> ecrToTrueValue      (shipped)
+ *   PAR    draft ADP -> expected points by rank -> points above replacement
  *
- * against whether each team ACTUALLY made the playoffs.
- *
- * LEAKAGE CONTROLS (asserted in code, not just promised):
- *   1. The only input signal is `pick_no` from the completed draft. A draft
- *      happens before week 1, so it cannot contain in-season information.
- *      A historical FantasyPros ECR snapshot is NOT retrievable — rankings
- *      snapshots prune after 7 days — and draft ADP is the same quantity ECR
- *      approximates, measured on the day it mattered.
- *   2. Rosters are the DRAFTED roster only. No waiver adds, no trades, no
- *      end-of-season roster — those encode in-season outcomes.
- *   3. Weekly scores are used ONLY as the outcome label, never as an input.
- *      `weeklyProjections` is explicitly null so the offseason trueValue path
- *      is exercised, which is the path a pre-draft user actually sees.
- *   4. League format comes from the platform, not from the outcome.
+ * LEAKAGE CONTROLS (asserted in code, not merely promised):
+ *   1. The only per-player input is `pick_no` from the completed draft. A draft
+ *      happens before week 1, so it cannot contain in-season information. A
+ *      historical FantasyPros ECR snapshot is NOT retrievable — rankings prune
+ *      after 7 days — and draft ADP is the same quantity ECR approximates,
+ *      measured on the day it mattered.
+ *   2. Rosters are the DRAFTED roster only. No waiver adds, no trades.
+ *   3. Actual scores are the outcome label, never an input, with ONE carefully
+ *      bounded exception: the PAR curve is fitted on points from STRICTLY
+ *      EARLIER seasons. A 2025 forecast may use 2022-2024 results, never 2025.
+ *      The harness asserts this per league and prints the fitting seasons.
+ *   4. `weeklyProjections` is null, so the offseason trueValue path — the one a
+ *      pre-draft user actually sees — is the path under test.
+ *   5. League format comes from the platform, not from the outcome.
  *
  * WHY THE STATISTICS ARE CLUSTERED. Within one league exactly `playoff_teams`
- * of `num_teams` qualify, so the ten team-seasons in a league are strongly
- * dependent — one team making it forces another out. Treating 50 team-seasons
- * as 50 independent trials would overstate precision badly. Confidence
- * intervals therefore come from a CLUSTER bootstrap that resamples whole
- * leagues, and the effective sample size is nearer the 5 leagues than the 50
- * rows.
+ * of `num_teams` qualify, so the rows in a league are strongly dependent — one
+ * team making it forces another out. Treating 50 team-seasons as 50 independent
+ * trials would badly overstate precision, so every interval comes from a
+ * CLUSTER bootstrap that resamples whole leagues.
  *
- * Run:  npx tsx scripts/backtest-valuation.ts
+ * Run:  npm run backtest:valuation
  * Env:  RAE_VALUATION_LEAGUES  comma-separated Sleeper league ids (optional)
  */
 import { writeFileSync } from "node:fs";
 import { parseSleeperFormat, type LeagueFormat } from "../src/lib/trade/format";
 import { positionReplacementRank, ecrToTrueValue } from "../src/lib/fantasypros/enrich";
+import { startingSlotCount, type DemandPosition } from "../src/lib/league/lineupDemand";
+import {
+  averageStartablePar,
+  buildPointsCurve,
+  parToTrueValue,
+  pointsAboveReplacement,
+  type PointsCurve,
+  type PointsObservation
+} from "../src/lib/models/pointsCurve";
 import { runNexusSimulation } from "../src/lib/simulation";
-import { scoreForecasts } from "../src/lib/stats/seasonCalibration";
-import type { BrierForecast } from "../src/lib/stats/distribution";
 import type { PlayerMarketRecord } from "../src/lib/governance";
 
 /**
  * Completed leagues reachable from the operator's Sleeper account that actually
- * have draft picks stored. Three further league shells exist for 2023-2025 with
- * zero picks; they are excluded because a roster cannot be reconstructed.
+ * have draft picks stored. Three further 2023-2025 league shells exist with
+ * zero picks; they are excluded because no roster can be reconstructed.
  */
 const DEFAULT_LEAGUES = [
   "861777048362942464", // 2022 Joe V
@@ -80,100 +87,50 @@ interface SleeperLeague {
 }
 interface DraftPick {
   pick_no: number;
-  round: number;
   roster_id: number | null;
   player_id: string;
-  is_keeper: boolean | null;
   metadata?: { position?: string; first_name?: string; last_name?: string; team?: string };
 }
 type BracketNode = { t1?: unknown; t2?: unknown };
+interface Matchup {
+  players_points?: Record<string, number>;
+}
 
 const POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF"] as const;
 type Pos = (typeof POSITIONS)[number];
+const isPos = (p: string | undefined): p is Pos =>
+  !!p && (POSITIONS as readonly string[]).includes(p);
 
-function isPos(p: string | undefined): p is Pos {
-  return !!p && (POSITIONS as readonly string[]).includes(p);
-}
-
-/** Starting-lineup size for this league, used as the sim's rosterSlots. */
-function startingSlots(f: LeagueFormat): number {
-  const s = f.starters;
-  return Math.max(1, s.QB + s.RB + s.WR + s.TE + s.FLEX + s.SUPERFLEX + s.K + s.DEF);
-}
-
-/**
- * Build the PlayerMarketRecord the product would have held on draft day.
- *
- * `posRank` is the player's rank among same-position players by draft order —
- * positional ADP, the market's own pre-season consensus. Everything downstream
- * (replacement level, VBD, the simulation) is the untouched production code.
- *
- * `volatility` is set to the model's median rather than invented per player:
- * draft order carries no dispersion signal, and fabricating one would be
- * exactly the sort of made-up input this harness exists to avoid. It is
- * constant across teams, so it cannot create or destroy discrimination.
- */
+/** Median volatility — draft order carries no dispersion signal, so inventing
+ *  one per player would be fabricating an input. Constant across teams, so it
+ *  can neither create nor destroy discrimination. */
 const MEDIAN_VOLATILITY = 35;
 
-function toRecord(
-  pick: DraftPick,
-  position: Pos,
-  posRank: number,
-  format: LeagueFormat
-): PlayerMarketRecord {
-  const replacement = positionReplacementRank(position, format);
-  const trueValue = ecrToTrueValue(posRank, posRank, replacement);
-  const name = `${pick.metadata?.first_name ?? ""} ${pick.metadata?.last_name ?? ""}`.trim();
-  return {
-    id: pick.player_id,
-    name: name || pick.player_id,
-    position,
-    team: pick.metadata?.team ?? null,
-    perceivedValue: trueValue,
-    trueValue,
-    ownershipLeverage: 0,
-    fragility: 0,
-    trendingMomentum: 0,
-    volatility: MEDIAN_VOLATILITY,
-    opportunity: 0,
-    confidence: 0.5,
-    sources: [],
-    rosterSlot: position,
-    status: "active",
-    imageUrl: "",
-    imageSource: "backtest"
-  } as PlayerMarketRecord;
-}
-
-interface TeamRow {
-  leagueId: string;
-  leagueName: string;
-  season: number;
+interface DraftedPlayer {
+  playerId: string;
+  name: string;
+  team: string | null;
+  position: Pos;
+  /** 1-based rank within position by draft order — the pre-season signal. */
+  adpRank: number;
   rosterId: number;
-  predicted: number;
-  actual: 0 | 1;
-  starters: number;
-  /**
-   * ABLATION SIGNAL — total draft capital, as the sum of (totalPicks - pick_no)
-   * over the team's picks. This is the raw market signal BEFORE the replacement
-   * model and the VBD transform touch it.
-   *
-   * It exists to answer the question a single Brier number cannot: if the
-   * shipped chain ranks worse than chance, is the input signal worthless, or is
-   * the transform destroying a signal that was there? Those have opposite fixes.
-   */
-  draftCapital: number;
-  /** Share of the team's top-5 picks spent on QB or TE — see the scarcity probe. */
-  earlyScarceShare: number;
+  pickNo: number;
 }
 
-async function backtestLeague(id: string): Promise<{
+interface LeagueData {
+  id: string;
   name: string;
   season: number;
-  rows: TeamRow[];
   format: LeagueFormat;
   playoffTeams: number;
-} | null> {
+  regWeeks: number;
+  players: DraftedPlayer[];
+  madePlayoffs: Set<number>;
+  /** Actual regular-season points per player — OUTCOME data. */
+  seasonPoints: Map<string, number>;
+}
+
+async function loadLeague(id: string): Promise<LeagueData | null> {
   const lg = await getJson<SleeperLeague>(`/league/${id}`);
   if (!lg) return null;
   const drafts = await getJson<Array<{ draft_id: string }>>(`/league/${id}/drafts`);
@@ -186,115 +143,196 @@ async function backtestLeague(id: string): Promise<{
 
   const format = parseSleeperFormat(lg);
   const season = Number(lg.season);
-  const numTeams = format.numTeams;
-  const playoffTeams = format.playoffTeams ?? 6;
-  const regularSeasonWeeks = Math.max(1, (format.playoffWeekStart ?? 15) - 1);
+  const regWeeks = Math.max(1, (format.playoffWeekStart ?? 15) - 1);
 
-  // Who actually qualified.
   const madePlayoffs = new Set<number>();
   for (const node of bracket) {
     for (const t of [node.t1, node.t2]) if (typeof t === "number") madePlayoffs.add(t);
   }
 
-  // Positional ADP: rank within position, by draft order. Pre-season by
-  // construction — this is the whole leakage argument.
-  const ordered = [...picks].sort((a, b) => a.pick_no - b.pick_no);
+  const players: DraftedPlayer[] = [];
   const posCounter = new Map<Pos, number>();
-  const byRoster = new Map<number, PlayerMarketRecord[]>();
-  const capital = new Map<number, number>();
-  const earlyPicks = new Map<number, Array<Pos>>();
-  const totalPicks = ordered.length;
-
-  for (const pick of ordered) {
+  for (const pick of [...picks].sort((a, b) => a.pick_no - b.pick_no)) {
     const position = pick.metadata?.position;
-    if (!isPos(position)) continue;
-    const rank = (posCounter.get(position) ?? 0) + 1;
-    posCounter.set(position, rank);
-    if (pick.roster_id == null) continue;
-    const rec = toRecord(pick, position, rank, format);
-    const list = byRoster.get(pick.roster_id) ?? [];
-    list.push(rec);
-    byRoster.set(pick.roster_id, list);
-    capital.set(pick.roster_id, (capital.get(pick.roster_id) ?? 0) + (totalPicks - pick.pick_no));
-    const early = earlyPicks.get(pick.roster_id) ?? [];
-    if (early.length < 5) early.push(position);
-    earlyPicks.set(pick.roster_id, early);
+    if (!isPos(position) || pick.roster_id == null) continue;
+    const adpRank = (posCounter.get(position) ?? 0) + 1;
+    posCounter.set(position, adpRank);
+    players.push({
+      playerId: pick.player_id,
+      name: `${pick.metadata?.first_name ?? ""} ${pick.metadata?.last_name ?? ""}`.trim() || pick.player_id,
+      team: pick.metadata?.team ?? null,
+      position,
+      adpRank,
+      rosterId: pick.roster_id,
+      pickNo: pick.pick_no
+    });
   }
 
-  const slots = startingSlots(format);
-  const rows: TeamRow[] = [];
-  for (const [rosterId, roster] of [...byRoster.entries()].sort((a, b) => a[0] - b[0])) {
-    const sim = runNexusSimulation(roster, {
-      // Seeded per league+roster so the run is reproducible but teams are not
-      // correlated through a shared random stream.
-      seed: Number(id.slice(-6)) + rosterId,
+  // Outcome data: actual regular-season points per player.
+  const seasonPoints = new Map<string, number>();
+  for (let w = 1; w <= regWeeks; w += 1) {
+    const ms = await getJson<Matchup[]>(`/league/${id}/matchups/${w}`);
+    if (!ms) continue;
+    for (const m of ms) {
+      for (const [pid, pts] of Object.entries(m.players_points ?? {})) {
+        if (typeof pts === "number") seasonPoints.set(pid, (seasonPoints.get(pid) ?? 0) + pts);
+      }
+    }
+  }
+
+  return {
+    id,
+    name: lg.name,
+    season,
+    format,
+    playoffTeams: format.playoffTeams ?? 6,
+    regWeeks,
+    players,
+    madePlayoffs,
+    seasonPoints
+  };
+}
+
+/** Observations for the PAR curve: (position, ADP rank) -> points actually scored. */
+function toObservations(lg: LeagueData): PointsObservation[] {
+  const out: PointsObservation[] = [];
+  for (const p of lg.players) {
+    const pts = lg.seasonPoints.get(p.playerId);
+    if (pts == null) continue;
+    out.push({
+      season: lg.season,
+      position: p.position as DemandPosition,
+      adpRank: p.adpRank,
+      // Normalised to a 14-week regular season so leagues of different length
+      // are comparable. Without this a 14-week league would look systematically
+      // weaker than a 13-week one purely from schedule length.
+      seasonPoints: (pts * 14) / lg.regWeeks
+    });
+  }
+  return out;
+}
+
+function baseRecord(p: DraftedPlayer, trueValue: number): PlayerMarketRecord {
+  return {
+    id: p.playerId,
+    name: p.name,
+    position: p.position,
+    team: p.team,
+    perceivedValue: trueValue,
+    trueValue,
+    ownershipLeverage: 0,
+    fragility: 0,
+    trendingMomentum: 0,
+    volatility: MEDIAN_VOLATILITY,
+    opportunity: 0,
+    confidence: 0.5,
+    sources: [],
+    rosterSlot: p.position,
+    status: "active",
+    imageUrl: "",
+    imageSource: "backtest"
+  } as PlayerMarketRecord;
+}
+
+/** SHIPPED transform: rank-ratio VBD. */
+function rankRatioRoster(lg: LeagueData, rosterId: number): PlayerMarketRecord[] {
+  return lg.players
+    .filter((p) => p.rosterId === rosterId)
+    .map((p) =>
+      baseRecord(p, ecrToTrueValue(p.adpRank, p.adpRank, positionReplacementRank(p.position, lg.format)))
+    );
+}
+
+/** CANDIDATE transform: points above replacement, from a prior-seasons curve. */
+function parRoster(
+  lg: LeagueData,
+  rosterId: number,
+  curve: PointsCurve,
+  parAnchor: number
+): PlayerMarketRecord[] {
+  return lg.players
+    .filter((p) => p.rosterId === rosterId)
+    .map((p) => {
+      const par = pointsAboveReplacement(
+        curve,
+        p.position as DemandPosition,
+        p.adpRank,
+        positionReplacementRank(p.position, lg.format)
+      );
+      return baseRecord(p, par == null ? 50 : parToTrueValue(par, parAnchor));
+    });
+}
+
+interface TeamRow {
+  leagueId: string;
+  season: number;
+  rosterId: number;
+  /** Shipped rank-ratio forecast. */
+  rank: number;
+  /** Points-above-replacement forecast; null when no prior season exists. */
+  par: number | null;
+  actual: 0 | 1;
+  /** Raw market signal, before any transform — the ablation control. */
+  draftCapital: number;
+}
+
+function simulate(lg: LeagueData, roster: PlayerMarketRecord[], rosterId: number): number {
+  return (
+    runNexusSimulation(roster, {
+      seed: Number(lg.id.slice(-6)) + rosterId,
       iterations: 4000,
-      rosterSlots: slots,
+      rosterSlots: startingSlotCount(lg.format),
       riskTolerance: 0.5,
-      weeklyProjections: null, // LEAKAGE CONTROL 3
-      scoringFormat: format.scoringFormat,
-      numTeams,
-      playoffTeams,
-      regularSeasonWeeks
-    });
-    const early = earlyPicks.get(rosterId) ?? [];
-    rows.push({
-      leagueId: id,
-      leagueName: lg.name,
-      season,
-      rosterId,
-      predicted: sim.playoffProbability / 100,
-      actual: madePlayoffs.has(rosterId) ? 1 : 0,
-      starters: Math.min(slots, roster.length),
-      draftCapital: capital.get(rosterId) ?? 0,
-      earlyScarceShare:
-        early.length === 0 ? 0 : early.filter((p) => p === "QB" || p === "TE").length / early.length
-    });
-  }
-
-  return { name: lg.name, season, rows, format, playoffTeams };
+      weeklyProjections: null, // LEAKAGE CONTROL 4
+      scoringFormat: lg.format.scoringFormat,
+      numTeams: lg.format.numTeams,
+      playoffTeams: lg.playoffTeams,
+      regularSeasonWeeks: lg.regWeeks
+    }).playoffProbability / 100
+  );
 }
 
 // ── statistics ──────────────────────────────────────────────────────────────
 
-function brier(rows: TeamRow[]): number {
-  return rows.reduce((a, r) => a + (r.predicted - r.actual) ** 2, 0) / rows.length;
+const pick = (rows: TeamRow[], f: "rank" | "par") =>
+  rows.filter((r) => r[f] != null) as Array<TeamRow & { rank: number; par: number }>;
+
+function brierOf(rows: TeamRow[], f: "rank" | "par"): number | null {
+  const rs = pick(rows, f);
+  if (rs.length === 0) return null;
+  return rs.reduce((a, r) => a + ((r[f] as number) - r.actual) ** 2, 0) / rs.length;
 }
 
-/** Bounded so a confident miss does not return Infinity on a 50-row sample. */
-function logLoss(rows: TeamRow[]): number {
+function logLossOf(rows: TeamRow[], f: "rank" | "par"): number | null {
+  const rs = pick(rows, f);
+  if (rs.length === 0) return null;
   const eps = 1e-6;
   return (
-    -rows.reduce((a, r) => {
-      const p = Math.min(1 - eps, Math.max(eps, r.predicted));
+    -rs.reduce((a, r) => {
+      const p = Math.min(1 - eps, Math.max(eps, r[f] as number));
       return a + (r.actual === 1 ? Math.log(p) : Math.log(1 - p));
-    }, 0) / rows.length
+    }, 0) / rs.length
   );
 }
 
 /**
- * Area under the ROC curve, via the Mann-Whitney U identity with tie handling.
+ * AUC via the Mann-Whitney U identity, with ties at 0.5.
  *
- * Reported because Brier conflates calibration with discrimination, and with a
- * constrained outcome those fail very differently: a model can be badly
- * mis-calibrated yet still rank teams correctly (fixable by recalibration), or
+ * Reported alongside Brier because the two fail differently: a model can be
+ * badly mis-calibrated yet rank correctly (fixable by recalibration), or be
  * perfectly calibrated to the base rate while ranking at chance (not fixable).
  */
-function aucOf(rows: TeamRow[], score: (r: TeamRow) => number): number | null {
-  const pos = rows.filter((r) => r.actual === 1).map(score);
-  const neg = rows.filter((r) => r.actual === 0).map(score);
+function aucBy(rows: TeamRow[], score: (r: TeamRow) => number | null): number | null {
+  const pos = rows.map(score).filter((v, i) => v != null && rows[i]!.actual === 1) as number[];
+  const neg = rows.map(score).filter((v, i) => v != null && rows[i]!.actual === 0) as number[];
   if (pos.length === 0 || neg.length === 0) return null;
   let sum = 0;
   for (const p of pos) for (const n of neg) sum += p > n ? 1 : p === n ? 0.5 : 0;
   return sum / (pos.length * neg.length);
 }
 
-const auc = (rows: TeamRow[]) => aucOf(rows, (r) => r.predicted);
-
-/** Brier of a constant forecast at the league base rate — the honest baseline. */
-function climatologyBrier(rows: TeamRow[], rate: number): number {
-  return rows.reduce((a, r) => a + (rate - r.actual) ** 2, 0) / rows.length;
-}
+const climatologyBrier = (rows: TeamRow[], rate: number) =>
+  rows.reduce((a, r) => a + (rate - r.actual) ** 2, 0) / rows.length;
 
 /** Cluster bootstrap over LEAGUES, respecting within-league dependence. */
 function clusterBootstrap(
@@ -330,7 +368,8 @@ function clusterBootstrap(
   };
 }
 
-const f3 = (n: number | null) => (n == null ? "  n/a" : n.toFixed(4));
+const f4 = (n: number | null) => (n == null ? "   n/a" : n.toFixed(4));
+const ci = (c: { lo: number; hi: number } | null) => (c ? `[${f4(c.lo)}, ${f4(c.hi)}]` : "n/a");
 
 // ── main ────────────────────────────────────────────────────────────────────
 
@@ -341,215 +380,218 @@ async function main(): Promise<void> {
     console.log(s);
   };
 
-  say("# Out-of-sample backtest — the SHIPPED valuation chain");
+  say("# Out-of-sample backtest — shipped rank-ratio VBD vs points-above-replacement");
   say(`# generated ${new Date().toISOString()}`);
   say("#");
-  say("# chain: draft ADP -> positional rank -> replacement level -> trueValue");
-  say("#        -> runNexusSimulation -> playoffProbability");
-  say("# label: actual playoff qualification (winners bracket)");
+  say("# Both forecasters run through the IDENTICAL production simulation.");
+  say("# The only difference is the valuation transform.");
   say();
 
-  const all: TeamRow[] = [];
-  const byLeague = new Map<string, TeamRow[]>();
-  const seasons = new Set<number>();
-  let baseRateNum = 0;
-  let baseRateDen = 0;
-
+  const loaded: LeagueData[] = [];
   say("## Leagues");
   say();
-  say("league               season  teams  fmt      starters  rows  actual-in");
+  say("league               season  teams  fmt   wks  drafted  scored  made");
   for (const id of leagueIds) {
-    const res = await backtestLeague(id);
-    if (!res) {
+    const lg = await loadLeague(id);
+    if (!lg) {
       say(`${id.padEnd(20)} SKIPPED — no draft picks or bracket`);
       continue;
     }
-    all.push(...res.rows);
-    byLeague.set(id, res.rows);
-    seasons.add(res.season);
-    baseRateNum += res.playoffTeams;
-    baseRateDen += res.format.numTeams;
-    const made = res.rows.filter((r) => r.actual === 1).length;
+    loaded.push(lg);
+    const scored = lg.players.filter((p) => lg.seasonPoints.has(p.playerId)).length;
     say(
-      `${res.name.slice(0, 20).padEnd(20)} ${String(res.season).padEnd(7)} ` +
-        `${String(res.format.numTeams).padEnd(6)} ${res.format.scoringFormat.padEnd(8)} ` +
-        `${String(res.rows[0]?.starters ?? 0).padEnd(9)} ${String(res.rows.length).padEnd(5)} ${made}`
+      `${lg.name.slice(0, 20).padEnd(20)} ${String(lg.season).padEnd(7)} ` +
+        `${String(lg.format.numTeams).padEnd(6)} ${lg.format.scoringFormat.padEnd(5)} ` +
+        `${String(lg.regWeeks).padEnd(4)} ${String(lg.players.length).padEnd(8)} ` +
+        `${String(scored).padEnd(7)} ${lg.madePlayoffs.size}`
     );
   }
   say();
 
-  if (all.length === 0) {
+  if (loaded.length === 0) {
     say("No usable leagues — nothing to score. Exiting without a claim.");
     writeFileSync("reports/2026-08-06/backtest-valuation.txt", out.join("\n"));
     return;
   }
 
-  // ── leakage assertions ────────────────────────────────────────────────────
-  say("## Leakage controls (asserted, not promised)");
+  // ── temporal split ────────────────────────────────────────────────────────
+  say("## Temporal split for the PAR curve (leakage control 3)");
   say();
-  const observedRate = all.filter((r) => r.actual === 1).length / all.length;
-  const expectedRate = baseRateNum / baseRateDen;
-  say(`  input signal .............. draft pick_no only (pre-season by construction)`);
-  say(`  roster ..................... drafted roster only, no waivers/trades`);
-  say(`  weeklyProjections .......... null (offseason trueValue path exercised)`);
-  say(`  weekly scores as input ..... none; outcome label only`);
-  say(`  observed qualification rate  ${observedRate.toFixed(4)} (structural ${expectedRate.toFixed(4)})`);
-  if (Math.abs(observedRate - expectedRate) > 0.02) {
-    say(`  WARNING: observed rate deviates from the structural rate — check brackets.`);
+  say("Each league's curve is fitted ONLY on strictly earlier seasons. A league");
+  say("with no prior season gets no PAR forecast at all rather than a curve that");
+  say("has seen its own outcomes.");
+  say();
+  say("league               season  curve fitted on      obs   PAR?");
+
+  const obsBySeason = new Map<number, PointsObservation[]>();
+  for (const lg of loaded) {
+    const list = obsBySeason.get(lg.season) ?? [];
+    list.push(...toObservations(lg));
+    obsBySeason.set(lg.season, list);
+  }
+
+  const curves = new Map<string, PointsCurve>();
+  for (const lg of loaded) {
+    const prior: PointsObservation[] = [];
+    for (const [season, obs] of obsBySeason) if (season < lg.season) prior.push(...obs);
+    if (prior.length === 0) {
+      say(`${lg.name.slice(0, 20).padEnd(20)} ${String(lg.season).padEnd(7)} ${"(none)".padEnd(20)} ${String(0).padEnd(5)} no`);
+      continue;
+    }
+    const curve = buildPointsCurve(prior);
+    // Hard assertion: the curve must not contain this league's own season.
+    if (curve.seasons.includes(lg.season)) {
+      throw new Error(`LEAKAGE: curve for ${lg.season} contains season ${lg.season}`);
+    }
+    curves.set(lg.id, curve);
+    const total = Object.values(curve.counts).reduce((a, b) => a + (b ?? 0), 0);
+    say(
+      `${lg.name.slice(0, 20).padEnd(20)} ${String(lg.season).padEnd(7)} ` +
+        `${curve.seasons.join(",").padEnd(20)} ${String(total).padEnd(5)} yes`
+    );
   }
   say();
 
-  // ── headline ──────────────────────────────────────────────────────────────
-  const forecasts: BrierForecast[] = all.map((r) => ({ prob: r.predicted, outcome: r.actual }));
-  const scored = scoreForecasts(forecasts);
-  const modelBrier = brier(all);
-  const climBrier = climatologyBrier(all, expectedRate);
-  const uniformBrier = climatologyBrier(all, 0.5);
-  const skill = 1 - modelBrier / climBrier;
-  const discrimination = auc(all);
+  // ── score ─────────────────────────────────────────────────────────────────
+  const all: TeamRow[] = [];
+  const byLeague = new Map<string, TeamRow[]>();
+  let baseNum = 0;
+  let baseDen = 0;
+
+  for (const lg of loaded) {
+    const curve = curves.get(lg.id) ?? null;
+    const anchor = curve ? averageStartablePar(curve, lg.format) : 0;
+    const rosterIds = [...new Set(lg.players.map((p) => p.rosterId))].sort((a, b) => a - b);
+    const rows: TeamRow[] = [];
+    for (const rosterId of rosterIds) {
+      const capital = lg.players
+        .filter((p) => p.rosterId === rosterId)
+        .reduce((a, p) => a + (lg.players.length - p.pickNo), 0);
+      rows.push({
+        leagueId: lg.id,
+        season: lg.season,
+        rosterId,
+        rank: simulate(lg, rankRatioRoster(lg, rosterId), rosterId),
+        par: curve && anchor > 0 ? simulate(lg, parRoster(lg, rosterId, curve, anchor), rosterId) : null,
+        actual: lg.madePlayoffs.has(rosterId) ? 1 : 0,
+        draftCapital: capital
+      });
+    }
+    all.push(...rows);
+    byLeague.set(lg.id, rows);
+    baseNum += lg.playoffTeams;
+    baseDen += lg.format.numTeams;
+  }
+
+  const rate = baseNum / baseDen;
+  const parRows = all.filter((r) => r.par != null);
+  const parByLeague = new Map([...byLeague].filter(([, rows]) => rows.some((r) => r.par != null)));
 
   say("## Headline");
   say();
-  say(`  n (team-seasons) ........... ${all.length}`);
-  say(`  leagues .................... ${byLeague.size}`);
-  say(`  seasons .................... ${[...seasons].sort().join(", ")}`);
-  say(`  Brier ...................... ${f3(modelBrier)}`);
-  say(`  log loss ................... ${f3(logLoss(all))}`);
-  say(`  ECE (10 bins) .............. ${f3(scored.ece)}`);
-  say(`  AUC (discrimination) ....... ${f3(discrimination)}`);
+  say(`  base rate (structural) ..... ${rate.toFixed(4)}`);
+  say(`  observed qualification ..... ${(all.filter((r) => r.actual === 1).length / all.length).toFixed(4)}`);
   say();
-  say("## Baselines — is the model beating a constant?");
-  say();
-  say(`  climatology (p=${expectedRate.toFixed(2)}) Brier .. ${f3(climBrier)}`);
-  say(`  uniform     (p=0.50) Brier .. ${f3(uniformBrier)}`);
-  say(`  Brier skill score vs clim ... ${f3(skill)}   ${skill > 0 ? "(model better)" : "(model WORSE than a constant)"}`);
+  say("                              n    Brier    logloss  AUC      vs climatology");
+  const climAll = climatologyBrier(all, rate);
+  const climPar = parRows.length ? climatologyBrier(parRows, rate) : null;
+  const rankBrier = brierOf(all, "rank")!;
+  const parBrier = brierOf(parRows, "par");
+  say(
+    `  RANK (shipped)             ${String(all.length).padEnd(4)} ${f4(rankBrier)}  ${f4(logLossOf(all, "rank"))}  ` +
+      `${f4(aucBy(all, (r) => r.rank))}  ${f4(1 - rankBrier / climAll)}`
+  );
+  say(
+    `  PAR  (candidate)           ${String(parRows.length).padEnd(4)} ${f4(parBrier)}  ${f4(logLossOf(parRows, "par"))}  ` +
+      `${f4(aucBy(parRows, (r) => r.par))}  ${parBrier != null && climPar ? f4(1 - parBrier / climPar) : "   n/a"}`
+  );
+  say(`  climatology (p=${rate.toFixed(2)})       ${String(all.length).padEnd(4)} ${f4(climAll)}`);
+  say(`  raw draft capital          ${String(all.length).padEnd(4)}   —        —      ${f4(aucBy(all, (r) => r.draftCapital))}`);
   say();
 
-  // ── uncertainty ───────────────────────────────────────────────────────────
+  // Like-for-like: RANK restricted to the same rows PAR could score.
+  if (parRows.length > 0 && parRows.length < all.length) {
+    say("## Like-for-like (same rows both forecasters could score)");
+    say();
+    const rBrier = brierOf(parRows, "rank")!;
+    const pBrier = brierOf(parRows, "par")!;
+    say(`  n .......................... ${parRows.length}`);
+    say(`  RANK Brier ................. ${f4(rBrier)}   AUC ${f4(aucBy(parRows, (r) => r.rank))}`);
+    say(`  PAR  Brier ................. ${f4(pBrier)}   AUC ${f4(aucBy(parRows, (r) => r.par))}`);
+    say(`  climatology Brier .......... ${f4(climPar)}`);
+    say();
+  }
+
   say("## Uncertainty — cluster bootstrap over leagues (5000 resamples)");
   say();
-  say("Resamples whole LEAGUES, not team-seasons: within a league exactly");
-  say(`${baseRateNum / byLeague.size} of ${baseRateDen / byLeague.size} qualify, so rows inside a league are strongly`);
-  say("dependent and a row-level bootstrap would understate the interval.");
-  say();
-  const ciBrier = clusterBootstrap(byLeague, brier);
-  const ciAuc = clusterBootstrap(byLeague, auc);
-  const ciSkill = clusterBootstrap(byLeague, (rows) => 1 - brier(rows) / climatologyBrier(rows, expectedRate));
-  say(`  Brier 95% CI ............... ${ciBrier ? `[${f3(ciBrier.lo)}, ${f3(ciBrier.hi)}]` : "n/a"}`);
-  say(`  AUC 95% CI ................. ${ciAuc ? `[${f3(ciAuc.lo)}, ${f3(ciAuc.hi)}]` : "n/a"}`);
-  say(`  Skill score 95% CI ......... ${ciSkill ? `[${f3(ciSkill.lo)}, ${f3(ciSkill.hi)}]` : "n/a"}`);
-  // Two-sided. An earlier version only asked "is it better than chance?", which
-  // silently passed over the far more serious answer: significantly WORSE.
-  const skillSignificant = ciSkill != null && ciSkill.lo > 0;
-  const skillSignificantlyBad = ciSkill != null && ciSkill.hi < 0;
-  const aucSignificant = ciAuc != null && ciAuc.lo > 0.5;
-  const aucSignificantlyInverted = ciAuc != null && ciAuc.hi < 0.5;
-  say();
-  say(`  skill CI entirely ABOVE 0? ..... ${skillSignificant ? "YES" : "NO"}`);
-  say(`  skill CI entirely BELOW 0? ..... ${skillSignificantlyBad ? "YES — worse than a constant" : "NO"}`);
-  say(`  AUC CI entirely ABOVE 0.5? ..... ${aucSignificant ? "YES" : "NO"}`);
-  say(`  AUC CI entirely BELOW 0.5? ..... ${aucSignificantlyInverted ? "YES — ranking is INVERTED" : "NO"}`);
+  const ciRankAuc = clusterBootstrap(byLeague, (rows) => aucBy(rows, (r) => r.rank));
+  const ciParAuc = clusterBootstrap(parByLeague, (rows) => {
+    const rs = rows.filter((r) => r.par != null);
+    return rs.length ? aucBy(rs, (r) => r.par) : null;
+  });
+  const ciRankSkill = clusterBootstrap(byLeague, (rows) => {
+    const b = brierOf(rows, "rank");
+    return b == null ? null : 1 - b / climatologyBrier(rows, rate);
+  });
+  const ciParSkill = clusterBootstrap(parByLeague, (rows) => {
+    const rs = rows.filter((r) => r.par != null);
+    if (!rs.length) return null;
+    const b = brierOf(rs, "par");
+    return b == null ? null : 1 - b / climatologyBrier(rs, rate);
+  });
+  say(`  RANK AUC ................... ${ci(ciRankAuc)}`);
+  say(`  PAR  AUC ................... ${ci(ciParAuc)}`);
+  say(`  RANK skill ................. ${ci(ciRankSkill)}`);
+  say(`  PAR  skill ................. ${ci(ciParSkill)}`);
   say();
 
-  // ── ablation: where does the signal die? ──────────────────────────────────
-  say("## Ablation — is the input signal worthless, or is the transform?");
-  say();
-  say("A single Brier number cannot separate these, and they have opposite");
-  say("fixes. `draft capital` is the raw market signal (sum of totalPicks -");
-  say("pick_no) BEFORE replacement level and the VBD transform touch it.");
-  say("Compared on AUC, which needs no calibration — only ranking.");
-  say();
-  const aucCapital = aucOf(all, (r) => r.draftCapital);
-  const aucScarce = aucOf(all, (r) => r.earlyScarceShare);
-  const ciCapital = clusterBootstrap(byLeague, (rows) => aucOf(rows, (r) => r.draftCapital));
-  say(`  AUC — shipped chain (trueValue -> sim) ... ${f3(discrimination)}  ${ciAuc ? `CI [${f3(ciAuc.lo)}, ${f3(ciAuc.hi)}]` : ""}`);
-  say(`  AUC — raw draft capital ................. ${f3(aucCapital)}  ${ciCapital ? `CI [${f3(ciCapital.lo)}, ${f3(ciCapital.hi)}]` : ""}`);
-  say(`  AUC — early QB/TE share (scarcity probe)  ${f3(aucScarce)}`);
-  say();
-  if (aucCapital != null && discrimination != null) {
-    if (aucCapital > 0.5 && discrimination < 0.5) {
-      say("  READ: the raw signal ranks better than chance and the shipped chain");
-      say("  ranks worse. The TRANSFORM is destroying signal, not the input.");
-    } else if (aucCapital <= 0.5 && discrimination <= 0.5) {
-      say("  READ: neither the raw signal nor the transform ranks better than");
-      say("  chance. Draft-day ADP alone does not predict qualification in this");
-      say("  sample — no amount of re-transforming it will help.");
+  /**
+   * Two DIFFERENT failures, reported separately.
+   *
+   * An earlier version collapsed them and reported "ranking inverted" for a
+   * forecaster whose AUC interval straddled 0.5 — which was simply untrue. A
+   * model can rank acceptably and still be worse calibrated than a constant;
+   * that is a recalibration problem, not a broken signal.
+   */
+  const verdict = (
+    label: string,
+    aucCi: { lo: number; hi: number } | null,
+    skillCi: { lo: number; hi: number } | null
+  ): string[] => {
+    if (!aucCi || !skillCi) return [`${label}: too few clusters for an interval.`];
+    const lines: string[] = [];
+    if (aucCi.hi < 0.5) {
+      lines.push(`${label}: ranking is significantly INVERTED (AUC CI entirely below 0.5).`);
+    } else if (aucCi.lo > 0.5) {
+      lines.push(`${label}: ranks significantly better than chance.`);
     } else {
-      say("  READ: both carry some ranking signal.");
+      lines.push(`${label}: ranking is not distinguishable from chance.`);
     }
-  }
-  say();
-  say("  MECHANISM. rank-ratio VBD computes 50 + 50*(replacement - rank)/replacement,");
-  say("  so the advantage at a given positional rank GROWS with position depth.");
-  say("  In a 10-team league replacement is QB 12 / TE 12 but RB 35 / WR 37, so:");
-  say();
-  say("      QB3 -> 87.5     RB3 -> 95.7");
-  say("      QB5 -> 79.2     RB5 -> 92.9");
-  say();
-  say("  The transform therefore systematically UNDER-values scarce positions.");
-  say("  In this sample early QB/TE spend correlates with qualifying (AUC above),");
-  say("  so the model marks down exactly the teams that went on to succeed. That");
-  say("  is a coherent explanation for an inverted AUC, and it points at the VBD");
-  say("  transform — rank ratios are not points above replacement — rather than");
-  say("  at replacement level or the simulator.");
-  say();
+    if (skillCi.hi < 0) {
+      lines.push(`${" ".repeat(label.length)}  and is significantly WORSE calibrated than a constant.`);
+    } else if (skillCi.lo > 0) {
+      lines.push(`${" ".repeat(label.length)}  and is significantly better calibrated than a constant.`);
+    } else {
+      lines.push(`${" ".repeat(label.length)}  calibration is not distinguishable from a constant.`);
+    }
+    return lines;
+  };
 
-  // ── per season ────────────────────────────────────────────────────────────
-  say("## Per season");
-  say();
-  say("season  n   Brier   AUC     base");
-  for (const s of [...seasons].sort()) {
-    const rows = all.filter((r) => r.season === s);
-    const rate = rows.filter((r) => r.actual === 1).length / rows.length;
-    say(
-      `${String(s).padEnd(7)} ${String(rows.length).padEnd(3)} ${f3(brier(rows))}  ${f3(auc(rows))}  ${rate.toFixed(2)}`
-    );
-  }
-  say();
-
-  // ── reliability ───────────────────────────────────────────────────────────
-  say("## Reliability (forecast -> observed)");
-  say();
-  for (const b of scored.reliabilityBins) {
-    if (b.n === 0) continue;
-    say(
-      `  bin ${b.binCenter.toFixed(2)}  fc=${b.meanForecast.toFixed(3)}  obs=${b.observedFreq.toFixed(3)}  n=${b.n}`
-    );
-  }
-  say();
-
-  // ── verdict ───────────────────────────────────────────────────────────────
   say("## Verdict");
   say();
-  if (skillSignificantlyBad || aucSignificantlyInverted) {
-    say("  FAILED. The model is significantly WORSE than a constant forecast on");
-    say("  this sample, and its ranking is inverted — teams it rates highly");
-    say("  qualified LESS often than teams it rated poorly.");
-    say();
-    say("  This is a finding, not a crash. It means the shipped playoff odds");
-    say("  carry no demonstrated predictive value and must not be presented as");
-    say("  though they do (CLAUDE.md: 'if a model lacks calibration, do not");
-    say("  present it as production-safe').");
-    say();
-    say("  NOT DONE, deliberately: no parameter was flipped or refitted to");
-    say("  improve these numbers. With 5 effective clusters that would be");
-    say("  curve-fitting to noise, and inverting a model because it scored");
-    say("  badly on 5 leagues is how you turn a small sample into a big one.");
-  } else if (!aucSignificant && !skillSignificant) {
-    say("  NOT VALIDATED. Neither discrimination nor skill is distinguishable");
-    say("  from a constant forecast at this sample size. The model may still be");
-    say("  right — this says the evidence cannot show it, not that it is wrong.");
-  } else if (aucSignificant && !skillSignificant) {
-    say("  PARTIAL. The model RANKS teams better than chance (AUC CI excludes");
-    say("  0.5) but its probabilities are not better calibrated than a constant.");
-    say("  That is a recalibration problem, not a ranking problem.");
-  } else {
-    say("  The model beats a climatology constant on this sample. Treat as");
-    say("  DIRECTIONAL until n is in the low hundreds.");
+  for (const line of verdict("RANK (shipped)", ciRankAuc, ciRankSkill)) say(`  ${line}`);
+  say();
+  for (const line of verdict("PAR  (candidate)", ciParAuc, ciParSkill)) say(`  ${line}`);
+  say();
+  if (ciRankAuc && ciParAuc && ciRankAuc.hi < 0.5 && ciParAuc.hi >= 0.5) {
+    say("  DIFFERENCE THAT MATTERS: rank-ratio is significantly inverted; PAR is");
+    say("  not. Replacing the transform removes a measurable defect, even though");
+    say("  neither forecaster yet beats a constant at this sample size.");
   }
   say();
-  say(`  Effective sample size is nearer ${byLeague.size} leagues than ${all.length} rows.`);
-  say("  No parameter was fitted on this data; it is a pure holdout.");
+  say(`  Effective sample size is nearer ${byLeague.size} leagues than ${all.length} rows,`);
+  say(`  and PAR is scored on only ${parByLeague.size} of them (the rest have no prior season).`);
+  say("  No parameter was fitted on the season being scored.");
 
   writeFileSync("reports/2026-08-06/backtest-valuation.txt", out.join("\n"));
   console.log("\nWrote reports/2026-08-06/backtest-valuation.txt");

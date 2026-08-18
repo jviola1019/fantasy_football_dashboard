@@ -4,6 +4,7 @@ import type { FpEcrData, FpPlayer } from "./types";
 import type { FpIndex } from "./match";
 import { buildFpIndex, matchSleeperToFp } from "./match";
 import { trendingMomentumFromProxy } from "../sleeper/trendingProxy";
+import { positionReplacementRank } from "../league/lineupDemand";
 
 // Map a FantasyPros ranking entry into the behavioral-market fields of
 // PlayerMarketRecord. The transform is intentionally simple — invert the
@@ -65,114 +66,18 @@ const PPR_BEHAVIORAL_FIELDS = [
  * 12-team baselines.
  */
 /**
- * The two free parameters, named so they can be swept rather than trusted.
- *
- * Audit P2 §9/§10 correction: an earlier revision of this comment called the
- * 1.2 cushion "calibrated" because the RB figure it produced landed near the
- * retired hand-tuned RB constant. That is not calibration — it is agreement
- * with the previous guess, on one position, in one league shape. There is no
- * observed-outcome target behind either number, so both are labelled MODEL
- * ASSUMPTIONS and their influence is measured instead of asserted.
- *
- * See reports/2026-08-06/replacement-sensitivity.md for the executed sweep and
- * scripts/replacement-sensitivity.ts to reproduce it.
+ * The replacement model and its derived anchor now live in
+ * `lib/league/lineupDemand.ts`, beside the flex-allocation logic they belong
+ * with. Re-exported here so existing importers are unchanged, and so there is
+ * exactly ONE definition rather than two that a comment merely claims agree.
  */
-export interface ReplacementModel {
-  /**
-   * MODEL ASSUMPTION. Practical replacement sits slightly deeper than the last
-   * forced starter, because managers stream from waivers. 1.2 is a judgement
-   * about manager behaviour, not a fitted value.
-   */
-  depthCushion: number;
-  /**
-   * MODEL ASSUMPTION. Probability a SUPERFLEX slot is filled by a quarterback.
-   * 1.0 says "always", which is directionally right in most superflex leagues
-   * but cannot be universally true — a manager short at QB starts a flex body.
-   */
-  superflexQbOccupancy: number;
-}
+export {
+  averageStartableTrueValue,
+  DEFAULT_REPLACEMENT_MODEL,
+  type ReplacementModel
+} from "../league/lineupDemand";
 
-export const DEFAULT_REPLACEMENT_MODEL: ReplacementModel = {
-  depthCushion: 1.2,
-  superflexQbOccupancy: 1.0
-};
-
-/**
- * The trueValue of the AVERAGE STARTABLE player — not of a replacement player.
- *
- * Found by the out-of-sample backtest (scripts/backtest-valuation.ts), which is
- * the only thing that could have found it. `trueValue = 50` means REPLACEMENT
- * LEVEL, but `starterWeeklyMean` in simulation.ts was mapping trueValue 50 onto
- * AVG_STARTER_PTS — the average *starter*. Replacement is by definition worse
- * than an average starter, so every real roster floated far above the opponent
- * field: measured on five completed leagues, every team averaged 164 weekly
- * points against a 115 field, i.e. every team in the league was 42% "above
- * average". Every team therefore drew ~100% playoff odds, Brier 0.4000 against
- * a 0.2400 climatology baseline, AUC exactly 0.5000.
- *
- * The derivation is closed-form and, pleasingly, free of league size and
- * position. Startable players at a position occupy ranks 1..S where
- * S = numTeams x perTeamDemand, and replacement sits at R = S x cushion. Mean
- * trueValue over those ranks is
- *
- *   50 + 50 * (R - (S+1)/2) / R  =  50 + 50 * (1 - 1/(2c) - 1/(2R))
- *
- * and since S and R scale together, the 1/(2c) term dominates: the answer
- * depends only on the depth cushion. At c = 1.2 that is 79.2.
- *
- * This is DERIVED from the replacement model, not fitted to the backtest. The
- * backtest is then a genuine holdout that reports whether it helped.
- *
- * The residual -1/(2R) term is at most ~2 trueValue points for the shallowest
- * position (R ~ 12) and under 1 for the deepest; it is left out so the anchor
- * stays a single self-consistent constant rather than varying per position.
- */
-export function averageStartableTrueValue(
-  model: ReplacementModel = DEFAULT_REPLACEMENT_MODEL
-): number {
-  return 50 + 50 * (1 - 1 / (2 * model.depthCushion));
-}
-
-export function positionReplacementRank(
-  position: PlayerMarketRecord["position"],
-  format: LeagueFormat,
-  model: ReplacementModel = DEFAULT_REPLACEMENT_MODEL
-): number {
-  const s = format.starters;
-
-  // Fractional flex share, using the same weighting as the draft targets so the
-  // two models cannot disagree about who the flex belongs to.
-  const flexWeights: Partial<Record<PlayerMarketRecord["position"], number>> =
-    s.TE >= 2
-      ? { RB: 4, WR: format.ppr > 0 ? 5 : 4, TE: 2 }
-      : { RB: 4, WR: format.ppr > 0 ? 5 : 4 };
-  const weightSum = Object.values(flexWeights).reduce((a, b) => a + (b ?? 0), 0);
-  const flexShare = (pos: PlayerMarketRecord["position"]): number =>
-    weightSum > 0 && flexWeights[pos] ? (s.FLEX * flexWeights[pos]!) / weightSum : 0;
-
-  // A SUPERFLEX slot not filled by a QB is filled by a flex body, so the
-  // leftover occupancy is redistributed on the same flex weights rather than
-  // vanishing — otherwise lowering the coefficient would quietly shrink total
-  // startable demand instead of moving it between positions.
-  const sflexToQb = s.SUPERFLEX * model.superflexQbOccupancy;
-  const sflexToFlex = s.SUPERFLEX - sflexToQb;
-  const sflexShare = (pos: PlayerMarketRecord["position"]): number =>
-    weightSum > 0 && flexWeights[pos] ? (sflexToFlex * flexWeights[pos]!) / weightSum : 0;
-
-  const perTeam: Record<PlayerMarketRecord["position"], number> = {
-    // SUPERFLEX is started with a quarterback far more often than not, which is
-    // exactly why a fixed QB baseline was wrong for those leagues.
-    QB: s.QB + sflexToQb,
-    RB: s.RB + flexShare("RB") + sflexShare("RB"),
-    WR: s.WR + flexShare("WR") + sflexShare("WR"),
-    TE: s.TE + flexShare("TE") + sflexShare("TE"),
-    K: s.K,
-    DEF: s.DEF
-  };
-
-  const cushion = position === "K" || position === "DEF" ? 1 : model.depthCushion;
-  return Math.max(1, Math.round(format.numTeams * perTeam[position] * cushion));
-}
+export { positionReplacementRank };
 
 /**
  * Build a perceivedValue (0-100) from an ECR rank. Top player = 100,

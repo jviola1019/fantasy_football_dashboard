@@ -1,119 +1,68 @@
-# Out-of-sample backtest — the SHIPPED valuation chain
-# generated 2026-08-18T01:14:16.446Z
+# Out-of-sample backtest — shipped rank-ratio VBD vs points-above-replacement
+# generated 2026-08-18T05:59:47.961Z
 #
-# chain: draft ADP -> positional rank -> replacement level -> trueValue
-#        -> runNexusSimulation -> playoffProbability
-# label: actual playoff qualification (winners bracket)
+# Both forecasters run through the IDENTICAL production simulation.
+# The only difference is the valuation transform.
 
 ## Leagues
 
-league               season  teams  fmt      starters  rows  actual-in
-Joe V                2022    10     PPR      10        10    6
-Creamy Les Coot      2022    10     PPR      9         10    6
-Creamy Les Coot      2023    10     PPR      9         10    6
-Creamy Les Coot      2024    10     PPR      9         10    6
-Creamy Les Coot 4.0  2025    10     PPR      10        10    6
+league               season  teams  fmt   wks  drafted  scored  made
+Joe V                2022    10     PPR   14   150      150     6
+Creamy Les Coot      2022    10     PPR   13   140      140     6
+Creamy Les Coot      2023    10     PPR   13   140      138     6
+Creamy Les Coot      2024    10     PPR   13   140      140     6
+Creamy Les Coot 4.0  2025    10     PPR   14   150      147     6
 
-## Leakage controls (asserted, not promised)
+## Temporal split for the PAR curve (leakage control 3)
 
-  input signal .............. draft pick_no only (pre-season by construction)
-  roster ..................... drafted roster only, no waivers/trades
-  weeklyProjections .......... null (offseason trueValue path exercised)
-  weekly scores as input ..... none; outcome label only
-  observed qualification rate  0.6000 (structural 0.6000)
+Each league's curve is fitted ONLY on strictly earlier seasons. A league
+with no prior season gets no PAR forecast at all rather than a curve that
+has seen its own outcomes.
+
+league               season  curve fitted on      obs   PAR?
+Joe V                2022    (none)               0     no
+Creamy Les Coot      2022    (none)               0     no
+Creamy Les Coot      2023    2022                 290   yes
+Creamy Les Coot      2024    2022,2023            428   yes
+Creamy Les Coot 4.0  2025    2022,2023,2024       568   yes
 
 ## Headline
 
-  n (team-seasons) ........... 50
-  leagues .................... 5
-  seasons .................... 2022, 2023, 2024, 2025
-  Brier ...................... 0.3098
-  log loss ................... 0.8267
-  ECE (10 bins) .............. 0.2999
-  AUC (discrimination) ....... 0.3058
+  base rate (structural) ..... 0.6000
+  observed qualification ..... 0.6000
 
-## Baselines — is the model beating a constant?
+                              n    Brier    logloss  AUC      vs climatology
+  RANK (shipped)             50   0.3098  0.8267  0.3058  -0.2908
+  PAR  (candidate)           30   0.3338  0.8889  0.4398  -0.3909
+  climatology (p=0.60)       50   0.2400
+  raw draft capital          50     —        —      0.5033
 
-  climatology (p=0.60) Brier .. 0.2400
-  uniform     (p=0.50) Brier .. 0.2500
-  Brier skill score vs clim ... -0.2908   (model WORSE than a constant)
+## Like-for-like (same rows both forecasters could score)
+
+  n .......................... 30
+  RANK Brier ................. 0.3353   AUC 0.2546
+  PAR  Brier ................. 0.3338   AUC 0.4398
+  climatology Brier .......... 0.2400
 
 ## Uncertainty — cluster bootstrap over leagues (5000 resamples)
 
-Resamples whole LEAGUES, not team-seasons: within a league exactly
-6 of 10 qualify, so rows inside a league are strongly
-dependent and a row-level bootstrap would understate the interval.
-
-  Brier 95% CI ............... [0.2717, 0.3501]
-  AUC 95% CI ................. [0.1333, 0.4450]
-  Skill score 95% CI ......... [-0.4588, -0.1320]
-
-  skill CI entirely ABOVE 0? ..... NO
-  skill CI entirely BELOW 0? ..... YES — worse than a constant
-  AUC CI entirely ABOVE 0.5? ..... NO
-  AUC CI entirely BELOW 0.5? ..... YES — ranking is INVERTED
-
-## Ablation — is the input signal worthless, or is the transform?
-
-A single Brier number cannot separate these, and they have opposite
-fixes. `draft capital` is the raw market signal (sum of totalPicks -
-pick_no) BEFORE replacement level and the VBD transform touch it.
-Compared on AUC, which needs no calibration — only ranking.
-
-  AUC — shipped chain (trueValue -> sim) ... 0.3058  CI [0.1333, 0.4450]
-  AUC — raw draft capital ................. 0.5033  CI [0.4850, 0.5333]
-  AUC — early QB/TE share (scarcity probe)  0.6725
-
-  READ: the raw signal ranks better than chance and the shipped chain
-  ranks worse. The TRANSFORM is destroying signal, not the input.
-
-  MECHANISM. rank-ratio VBD computes 50 + 50*(replacement - rank)/replacement,
-  so the advantage at a given positional rank GROWS with position depth.
-  In a 10-team league replacement is QB 12 / TE 12 but RB 35 / WR 37, so:
-
-      QB3 -> 87.5     RB3 -> 95.7
-      QB5 -> 79.2     RB5 -> 92.9
-
-  The transform therefore systematically UNDER-values scarce positions.
-  In this sample early QB/TE spend correlates with qualifying (AUC above),
-  so the model marks down exactly the teams that went on to succeed. That
-  is a coherent explanation for an inverted AUC, and it points at the VBD
-  transform — rank ratios are not points above replacement — rather than
-  at replacement level or the simulator.
-
-## Per season
-
-season  n   Brier   AUC     base
-2022    20  0.2715  0.3854  0.60
-2023    10  0.3155  0.3750  0.60
-2024    10  0.3096  0.2917  0.60
-2025    10  0.3808  0.0000  0.60
-
-## Reliability (forecast -> observed)
-
-  bin 0.25  fc=0.297  obs=1.000  n=1
-  bin 0.35  fc=0.364  obs=0.714  n=7
-  bin 0.45  fc=0.454  obs=0.789  n=19
-  bin 0.55  fc=0.548  obs=0.545  n=11
-  bin 0.65  fc=0.637  obs=0.333  n=6
-  bin 0.75  fc=0.740  obs=0.250  n=4
-  bin 0.85  fc=0.829  obs=0.000  n=2
+  RANK AUC ................... [0.1333, 0.4450]
+  PAR  AUC ................... [0.3750, 0.5417]
+  RANK skill ................. [-0.4588, -0.1320]
+  PAR  skill ................. [-0.6824, -0.1958]
 
 ## Verdict
 
-  FAILED. The model is significantly WORSE than a constant forecast on
-  this sample, and its ranking is inverted — teams it rates highly
-  qualified LESS often than teams it rated poorly.
+  RANK (shipped): ranking is significantly INVERTED (AUC CI entirely below 0.5).
+                  and is significantly WORSE calibrated than a constant.
 
-  This is a finding, not a crash. It means the shipped playoff odds
-  carry no demonstrated predictive value and must not be presented as
-  though they do (CLAUDE.md: 'if a model lacks calibration, do not
-  present it as production-safe').
+  PAR  (candidate): ranking is not distinguishable from chance.
+                    and is significantly WORSE calibrated than a constant.
 
-  NOT DONE, deliberately: no parameter was flipped or refitted to
-  improve these numbers. With 5 effective clusters that would be
-  curve-fitting to noise, and inverting a model because it scored
-  badly on 5 leagues is how you turn a small sample into a big one.
+  DIFFERENCE THAT MATTERS: rank-ratio is significantly inverted; PAR is
+  not. Replacing the transform removes a measurable defect, even though
+  neither forecaster yet beats a constant at this sample size.
 
-  Effective sample size is nearer 5 leagues than 50 rows.
-  No parameter was fitted on this data; it is a pure holdout.
+  Effective sample size is nearer 5 leagues than 50 rows,
+  and PAR is scored on only 3 of them (the rest have no prior season).
+  No parameter was fitted on the season being scored.

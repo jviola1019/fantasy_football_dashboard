@@ -245,7 +245,32 @@ export async function clearAccountThrottle(
   await db.delete(schema.authAttempts).where(eq(schema.authAttempts.key, throttleKey("account", account)));
 }
 
-/** Housekeeping: drop rows whose window and lock have both long expired. */
-export async function pruneThrottle(olderThan: Date, db: Db = getDb()): Promise<void> {
-  await db.delete(schema.authAttempts).where(lt(schema.authAttempts.windowStart, olderThan.getTime()));
+/**
+ * How long a counter row is kept after its window opened.
+ *
+ * The longest rule is 15 minutes of window plus 15 minutes of lock, so anything
+ * older than half an hour is already inert. 24 hours is a wide safety margin
+ * that still bounds the table at roughly one day of attempts — which matters
+ * because these rows are a record of who tried to sign in and from where, even
+ * hashed, and an unbounded log of that is not something to accumulate.
+ */
+export const THROTTLE_RETENTION_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Housekeeping: drop rows whose window and lock have both long expired.
+ *
+ * Had ZERO callers until the 2026-08-18 sweep — `auth_attempts` grew forever,
+ * one row per (account, IP, global) key per window, with nothing ever removing
+ * them. Now invoked by the daily lifecycle cron. Returns the number of rows
+ * removed so the cron can report it rather than pruning silently.
+ */
+export async function pruneThrottle(
+  olderThan: Date = new Date(Date.now() - THROTTLE_RETENTION_MS),
+  db: Db = getDb()
+): Promise<number> {
+  const removed = await db
+    .delete(schema.authAttempts)
+    .where(lt(schema.authAttempts.windowStart, olderThan.getTime()))
+    .returning({ key: schema.authAttempts.key });
+  return removed.length;
 }

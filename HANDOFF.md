@@ -96,6 +96,60 @@ points per player and belongs behind its own evidence.
 
 Full write-up: [reports/2026-08-06/backtest-valuation.md](reports/2026-08-06/backtest-valuation.md).
 
+### Third pass (2026-08-18) — PAR, deduplication, and hygiene
+
+**Points-above-replacement built and scored.** `src/lib/models/pointsCurve.ts`
+fits expected season points by positional draft rank using isotonic regression
+(PAVA, non-increasing), and `npm run backtest:valuation` now scores it against
+the shipped rank-ratio transform through the identical simulation.
+
+Like-for-like on the 30 team-seasons PAR can score:
+
+| | Brier | AUC | AUC 95% CI |
+|---|---|---|---|
+| RANK (shipped) | 0.3353 | 0.2546 | **[0.1333, 0.4450]** — inverted |
+| PAR (candidate) | 0.3338 | **0.4398** | **[0.3750, 0.5417]** — includes 0.5 |
+
+Rank-ratio is *significantly inverted*; PAR is not. **But AUC did not cross 0.5**,
+which was the success criterion, and neither beats a constant on Brier. PAR is
+less wrong, not right.
+
+**PAR is NOT the production default**, and the blocker is data, not modelling: it
+needs a points curve at runtime and the app has no source for one. The only curve
+available is fitted on five leagues from one manager group, all 10-team PPR — too
+thin to bake in, especially behind a comparison that still loses to a constant.
+Flipping the default is a one-line change once a broader curve source exists.
+
+**A second scale error, found the same way.** Anchoring PAR on the best player in
+the pool put starters at a mean trueValue of 71.4 against the simulation's 79.2
+anchor, collapsing Brier to 0.5530 while ordering *improved* — the signature of a
+level error. Fixed by anchoring on the average startable player, which is the
+contract the simulation imposes. Brier recovered to 0.3338.
+
+**Duplication and divergence removed.** The flex-weight table was a literal in
+both `draft/rosterTargets.ts` and `fantasypros/enrich.ts`, and enrich carried the
+comment *"so the two models cannot disagree"* — they already did: rosterTargets
+hardcoded superflex occupancy at 1.0 while enrich honoured the coefficient. Both
+now read `src/lib/league/lineupDemand.ts`, which also owns
+`positionReplacementRank` and the average-startable anchor. A test asserts the
+draft board and the valuation model move together.
+
+**`pruneThrottle` wired.** It had ZERO callers, so `auth_attempts` grew forever —
+a row per (account, IP, global) key per window. Now runs in the daily
+lifecycle cron with a 24h retention (the longest window+lock is 30 minutes), and
+reports `throttleRowsPruned`.
+
+**Hygiene.** Six overlapping audit/plan docs moved from the repository root to
+`docs/history/` with an index stating what superseded them. `FINAL_AUDIT.md`
+cited a `lifecycle/trades` library that never existed — corrected in place rather
+than deleted, so the evidence of doc drift survives. 13 superseded UI screenshots
+(3.76 MB) dropped from tracking; tracked `reports/` went 4.6 MB → 0.87 MB. The
+README now documents all 20 npm scripts (it named nine).
+
+A correction to an earlier figure in this document: tracked `reports/` was 4.6 MB,
+not the ~13 MB quoted before — the 8.9 MB `reports/lighthouse/` directory was
+already untracked.
+
 ### Assumptions now labelled, not claimed
 
 `DEPTH_CUSHION = 1.2` and `superflexQbOccupancy = 1.0` are **model assumptions, not calibrated

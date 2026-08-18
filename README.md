@@ -105,14 +105,63 @@ Open `http://localhost:3000`.
 
 ## Exact run commands
 
+Every script in `package.json`, grouped by what it is for. All 20 are listed —
+an earlier version of this section named only nine, so the security gates and
+model harnesses were effectively undiscoverable.
+
+### Everyday
+
 ```bash
 npm install
-npm run dev
-npm run build
-npm run test
-npm run lint
-npm run typecheck
-npm run deploy
+npm run dev          # next dev
+npm run build        # next build
+npm run start        # next start (serves the build; used by e2e/lighthouse)
+```
+
+### Gates — run these after meaningful changes
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint .
+npm run test         # vitest run
+npm run test:watch   # vitest, watch mode
+npm run e2e          # playwright (needs a build; npm run e2e:install first time)
+npm run e2e:install  # playwright install --with-deps chromium
+npm run lighthouse   # lhci autorun against next start
+```
+
+### Security gates
+
+```bash
+npm run check:secrets     # scan tracked files for secret-shaped literals
+npm run check:advisories  # fail if the lockfile resolves below an advisory floor
+npm run check:exceptions  # fail on an expired vulnerability exception
+```
+
+### Model harnesses
+
+These reach the network (public Sleeper data, no credentials) and are therefore
+reported, not CI-blocking.
+
+```bash
+npm run backtest:valuation       # out-of-sample backtest of the SHIPPED chain
+npm run sensitivity:replacement  # sweep the two replacement-model assumptions
+npm run calibrate:season         # synthetic self-consistency check
+npm run backtest:sleeper         # season-sim backtest on real weekly scores
+```
+
+**Read [`reports/2026-08-06/backtest-valuation.md`](reports/2026-08-06/backtest-valuation.md)
+before trusting any probability this app displays.** The shipped valuation chain
+fails out-of-sample: Brier 0.3098 against a 0.2400 climatology baseline, AUC
+0.3058 with a 95% CI of [0.1333, 0.4450] — significantly worse than forecasting
+the league base rate. The simulation declares this in its own assumptions.
+
+### Operations
+
+```bash
+npm run smoke           # smoke-check a Vercel deployment
+npm run check:freshness # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
+npm run deploy          # currently aliases `next build` — see below
 ```
 
 `npm run deploy` currently aliases build validation. Wire it to Vercel, Docker, or another deployment target once production infrastructure is selected.
