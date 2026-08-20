@@ -12,7 +12,7 @@
  *
  *   npx tsx scripts/acquire-mfl-players.ts [2021,2022,2023,2024]
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 // MFL responses are untyped third-party JSON.
@@ -23,6 +23,20 @@ const UA = "RAE-audit/1.0 (model validation research; contact jviola1@vols.utk.e
 const SEASONS = ["2021", "2022", "2023", "2024"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** Seasons reach both a URL and a file path, so they are validated at entry. */
+function isSafeSeason(v: string): boolean {
+  return /^[0-9]{4}$/.test(v);
+}
+
+/** Race-free existence probe: attempt the stat, treat any error as absent. */
+function fileExists(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
 
 async function fetchPlayers(season: string): Promise<Record<string, string> | null> {
   const url = `https://api.myfantasyleague.com/${season}/export?TYPE=players&DETAILS=0&JSON=1`;
@@ -58,8 +72,12 @@ async function main(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
   const seasons = (process.argv[2] ?? SEASONS.join(",")).split(",").map((s) => s.trim());
   for (const season of seasons) {
+    if (!isSafeSeason(season)) {
+      console.error(`${season}: refusing non-numeric season`);
+      continue;
+    }
     const out = join(OUT_DIR, `_players-${season}.json`);
-    if (existsSync(out)) {
+    if (fileExists(out)) {
       console.log(`${season}: already cached`);
       continue;
     }
@@ -68,11 +86,18 @@ async function main(): Promise<void> {
       console.error(`${season}: FAILED to fetch player database`);
       continue;
     }
-    writeFileSync(out, JSON.stringify(map));
+    // Ids and positions are keys/values from a third-party response that the
+    // evaluator later reads back. Constrained here so a malformed payload cannot
+    // smuggle odd keys into the cache.
+    const safe: Record<string, string> = {};
+    for (const [id, position] of Object.entries(map)) {
+      if (/^[0-9]{1,12}$/.test(id) && /^[A-Za-z/]{1,8}$/.test(position)) safe[id] = position;
+    }
+    writeFileSync(out, JSON.stringify(safe));
     const positions = new Map<string, number>();
-    for (const p of Object.values(map)) positions.set(p, (positions.get(p) ?? 0) + 1);
+    for (const p of Object.values(safe)) positions.set(p, (positions.get(p) ?? 0) + 1);
     console.log(
-      `${season}: ${Object.keys(map).length} players — ` +
+      `${season}: ${Object.keys(safe).length} players — ` +
         [...positions].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([p, n]) => `${p}:${n}`).join(" ")
     );
   }

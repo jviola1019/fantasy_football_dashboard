@@ -16,7 +16,7 @@
  * Resumable: already-archived leagues are skipped, so an interrupted run
  * continues rather than redrawing the sample.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 
@@ -63,10 +63,56 @@ const target = Number(arg("target") ?? TARGET_LEAGUES);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Validate an identifier that will reach a FILE PATH or a URL.
+ *
+ * League ids and seasons here come from a third-party API response, and both are
+ * interpolated into a filename under OUT_DIR and into the request URL.
+ * Interpolating an unvalidated remote string into a path is a traversal waiting
+ * to happen - an id of "../../x" would escape OUT_DIR. Flagged by CodeQL
+ * (js/http-to-file-access, js/file-access-to-http) on the first CI run of this
+ * script. The ids are numeric by contract, so the fix is to ENFORCE that
+ * contract rather than sanitise after the fact.
+ */
+function isSafeId(v: unknown): v is string {
+  return typeof v === "string" && /^[0-9]{1,12}$/.test(v);
+}
+
+function isSafeSeason(v: unknown): v is string {
+  return typeof v === "string" && /^[0-9]{4}$/.test(v);
+}
+
+/** League keys already on disk. Race-free: attempt the listing, tolerate absence. */
+function listArchivedKeys(): string[] {
+  try {
+    return readdirSync(OUT_DIR)
+      .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
+      .map((f) => f.replace(/\.json$/, ""));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Read + JSON.parse without an existsSync pre-check.
+ *
+ * existsSync(p) followed by readFileSync(p) is a TOCTOU race (CodeQL
+ * js/file-system-race): the file can vanish between the two calls. Attempting
+ * the read and handling the error is both race-free and simpler.
+ */
+function readJsonOrNull<T>(path: string): T | null {
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as T;
+  } catch {
+    return null;
+  }
+}
+
 let requests = 0;
 let rateLimited = 0;
 
 async function mfl<T>(season: string, query: string): Promise<T | null> {
+  if (!isSafeSeason(season)) throw new Error(`refusing non-numeric season: ${season}`);
   const url = `https://api.myfantasyleague.com/${season}/export?${query}&JSON=1`;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     await sleep(THROTTLE_MS);
@@ -142,11 +188,9 @@ async function main(): Promise<void> {
   // `_manifest.json` and `_frame-*.json` are bookkeeping, not leagues. Counting
   // them as archived would inflate `kept` and stop the run short of target.
   const already = new Set(
-    existsSync(OUT_DIR)
-      ? readdirSync(OUT_DIR)
-          .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
-          .map((f) => f.replace(/\.json$/, ""))
-      : []
+    // No existsSync pre-check: attempt the read and handle failure (see
+    // readJsonOrNull for the same TOCTOU reasoning).
+    listArchivedKeys()
   );
   console.log(`acquire-mfl-holdout — target ${target} leagues, ${already.size} already archived\n`);
 
@@ -168,16 +212,23 @@ async function main(): Promise<void> {
     // would cost ~7 minutes of search calls AND risk drawing a different frame
     // if MFL's search index shifted between runs. Caching pins the sample.
     const framePath = join(OUT_DIR, `_frame-${season}.json`);
+    // Cached frame entries are RE-validated on read: the file is data from a
+    // previous run, and trusting it because we wrote it once is how a validated
+    // boundary quietly becomes an unvalidated one.
+    const cachedFrame = readJsonOrNull<string[]>(framePath);
     let frame: string[];
-    if (existsSync(framePath)) {
-      frame = JSON.parse(readFileSync(framePath, "utf8")) as string[];
+    if (cachedFrame) {
+      frame = cachedFrame.filter(isSafeId);
       console.log(`  frame for ${season}: ${frame.length} ids (cached)`);
     } else {
       const ids = new Set<string>();
       for (const term of SEARCH_TERMS) {
         const j = await mfl<any>(season, `TYPE=leagueSearch&SEARCH=${encodeURIComponent(term)}`);
         const list = asArray(j?.leagues?.league);
-        for (const l of list) if (l?.id) ids.add(String(l.id));
+        for (const l of list) {
+          const id = l?.id == null ? null : String(l.id);
+          if (isSafeId(id)) ids.add(id);
+        }
         console.log(`  search "${term}": +${list.length} (frame now ${ids.size})`);
       }
       frame = [...ids].sort((a, b) => Number(a) - Number(b));
@@ -239,6 +290,13 @@ async function main(): Promise<void> {
         acquiredAt: new Date().toISOString(),
         source: `https://api.myfantasyleague.com/${season}/export?L=${leagueId}`
       };
+      // `key` is season-leagueId, both already validated numeric above. Asserted
+      // again AT the filesystem call so the guarantee is local to it rather than
+      // several hundred lines away.
+      if (!/^[0-9]{4}-[0-9]{1,12}$/.test(key)) {
+        manifest.push({ season, leagueId, kept: false, reason: "unsafe league id" });
+        continue;
+      }
       writeFileSync(join(OUT_DIR, `${key}.json`), JSON.stringify(raw));
       already.add(key);
       kept += 1;
@@ -251,9 +309,7 @@ async function main(): Promise<void> {
   }
 
   const manifestPath = join(OUT_DIR, "_manifest.json");
-  const prior = existsSync(manifestPath)
-    ? (JSON.parse(readFileSync(manifestPath, "utf8")) as typeof manifest)
-    : [];
+  const prior = readJsonOrNull<typeof manifest>(manifestPath) ?? [];
   writeFileSync(manifestPath, JSON.stringify([...prior, ...manifest], null, 1));
 
   const rejected = manifest.filter((m) => !m.kept);
@@ -284,7 +340,15 @@ function bundle(): void {
     .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
     .sort();
   if (files.length === 0) return;
-  const lines = files.map((f) => readFileSync(join(OUT_DIR, f), "utf8").trim());
+  const lines = files
+    .map((f) => {
+      try {
+        return readFileSync(join(OUT_DIR, f), "utf8").trim();
+      } catch {
+        return null; // removed between readdir and read - skip rather than crash
+      }
+    })
+    .filter((l): l is string => l != null && l.length > 0);
   const gz = gzipSync(Buffer.from(lines.join("\n"), "utf8"), { level: 9 });
   writeFileSync(BUNDLE_PATH, gz);
   console.log(
