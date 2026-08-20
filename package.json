@@ -19,6 +19,7 @@
     "lighthouse": "lhci autorun",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
     "check:advisories": "tsx scripts/check-lockfile-advisories.ts",
+    "check:projection-units": "tsx scripts/check-projection-units.ts",
     "check:exceptions": "tsx scripts/check-vuln-exceptions.ts",
     "smoke": "tsx scripts/smoke-vercel.ts",
     "calibrate:season": "tsx scripts/brier-season-sim.ts",

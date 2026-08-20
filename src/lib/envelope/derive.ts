@@ -1,5 +1,6 @@
 import type { RAEEnvelope } from "@/lib/governance";
 import { runNexusSimulation, type SimulationResult, type SimulationParams } from "@/lib/simulation";
+import type { WeeklyProjectionByFormat } from "@/lib/leagues/scoringPoints";
 import { bootstrapCI, type ConfidenceInterval } from "@/lib/stats/distribution";
 import {
   deriveCommandMetrics,
@@ -101,9 +102,11 @@ export function deriveAppData(envelope: RAEEnvelope): AppData {
   const rosterSlots = fmt?.starters
     ? Math.max(1, Object.values(fmt.starters).reduce((a, b) => a + b, 0))
     : 9;
-  const weeklyProjections = envelope.weeklyProjections
-    ? new Map(Object.entries(envelope.weeklyProjections))
-    : null;
+  // Record -> Map, still carrying all three scoring variants. The simulator
+  // picks the numeric from `scoringFormat` below (audit 2026-08-20 §7), so this
+  // layer never decides a unit.
+  const weeklyProjections: Map<string, WeeklyProjectionByFormat> | null =
+    envelope.weeklyProjections ? new Map(Object.entries(envelope.weeklyProjections)) : null;
   const simParams = {
     ...SIM_BASE,
     rosterSlots,

@@ -1,6 +1,11 @@
 import type { PlayerMarketRecord, SourceMeta } from "./governance";
 import { averageStartableTrueValue } from "./fantasypros/enrich";
 import {
+  selectProjectionForFormat,
+  type WeeklyProjectionByFormat
+} from "./leagues/scoringPoints";
+import type { ScoringFormat } from "./trade/format";
+import {
   runSeasonSimulation,
   OUTCOME_TIERS,
   type FieldModel,
@@ -16,13 +21,23 @@ export type SimulationParams = {
   rosterSlots: number;
   /** 0..1. Scales the team's week-to-week variance (higher = boom/bust). */
   riskTolerance: number;
-  /** Real weekly pts_ppr per player id, when the projections cron has fired. */
-  weeklyProjections?: Map<string, number> | null;
   /**
-   * League scoring format. The OPPONENT FIELD baseline is derived from it
-   * (audit F-010) so the field and the user's own starters are measured on the
-   * same scale. Defaults to PPR, which is the value the model was originally
-   * calibrated against.
+   * Real weekly projections per player id, when the projections cron has fired.
+   *
+   * Carries ALL THREE scoring variants (audit 2026-08-20 §7). The numeric is
+   * selected here, from {@link SimulationParams.scoringFormat} — the same field
+   * that sets the opponent baseline — so the user's starters and the opponent
+   * field are structurally guaranteed to share one point unit. Passing a
+   * pre-collapsed `Map<string, number>` is exactly what made that guarantee
+   * unenforceable before.
+   */
+  weeklyProjections?: Map<string, WeeklyProjectionByFormat> | null;
+  /**
+   * League scoring format. BOTH the opponent-field baseline (audit F-010) and
+   * the per-starter projection unit (audit 2026-08-20 §7) are derived from it,
+   * so the field and the user's own starters are measured on the same scale.
+   * Defaults to PPR, which is the value the model was originally calibrated
+   * against.
    */
   scoringFormat?: "STD" | "HALF" | "PPR";
   /** League size for the simulated season. Default 12. */
@@ -114,13 +129,32 @@ const MEDIAN_PLAYER_SIGMA = PLAYER_SIGMA_BASE + PLAYER_SIGMA_SLOPE * 35;
  */
 const STARTER_ANCHOR_TV = averageStartableTrueValue();
 
+/**
+ * A starter's weekly mean, in the league's own point unit.
+ *
+ * Two paths, and the whole point of audit 2026-08-20 §7 is that BOTH are in the
+ * same unit:
+ *
+ *  1. Live — the real projection for `scoringFormat`. `selectProjectionForFormat`
+ *     returns null rather than handing back a differently-scaled number, so a
+ *     standard-scoring league never receives PPR points.
+ *  2. Structural — `avgStarterPts`, which `avgStarterPtsFor(scoringFormat)`
+ *     already scaled to the same format, offset by trueValue.
+ *
+ * So a player with no same-unit projection degrades to path 2 in the correct
+ * unit, instead of importing the wrong one.
+ */
 function starterWeeklyMean(
   p: PlayerMarketRecord,
-  weekly: Map<string, number> | null,
+  weekly: Map<string, WeeklyProjectionByFormat> | null,
+  scoringFormat: ScoringFormat,
   avgStarterPts: number
 ): number {
-  const proj = weekly?.get(p.id);
-  if (proj != null) return Math.max(0, proj); // real weekly projection (live path)
+  const raw = weekly?.get(p.id);
+  if (raw) {
+    const selected = selectProjectionForFormat(raw, scoringFormat);
+    if (selected) return Math.max(0, selected.points);
+  }
   return Math.max(0, avgStarterPts + (p.trueValue - STARTER_ANCHOR_TV) * TV_SLOPE);
 }
 
@@ -153,12 +187,13 @@ export function deriveSeasonInputs(players: PlayerMarketRecord[], params: Simula
   // BOTH sides of the comparison use this same per-starter baseline, which is
   // the property that was broken: the field used it while the team was anchored
   // at replacement level instead.
-  const avgStarterPts = avgStarterPtsFor(params.scoringFormat ?? "PPR");
+  const scoringFormat: ScoringFormat = params.scoringFormat ?? "PPR";
+  const avgStarterPts = avgStarterPtsFor(scoringFormat);
 
   let mean = 0;
   let varSum = 0;
   const starters = chosen.map((player) => {
-    const m = starterWeeklyMean(player, weekly, avgStarterPts);
+    const m = starterWeeklyMean(player, weekly, scoringFormat, avgStarterPts);
     const s = starterWeeklySigma(player);
     mean += m;
     varSum += s * s;
@@ -233,7 +268,7 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
     assumptions: [
       `Real season Monte Carlo: ${numTeams}-team league, ${regularSeasonWeeks}-week round-robin, top ${playoffTeams} make a single-elimination bracket (byes for top seeds), over ${season.iterations.toLocaleString()} simulated seasons.`,
       "Each weekly matchup is decided by sampled team scores; the user's team uses its real starters' weekly means/variances and opponents draw a season strength from the league distribution.",
-      "Live path: each starter's weekly mean is its real Sleeper pts_ppr projection; off-season it is mapped from season-aggregate trueValue. Risk tolerance scales week-to-week variance.",
+      `Live path: each starter's weekly mean is its real Sleeper projection in this league's ${params.scoringFormat ?? "PPR"} scoring unit (pts_ppr / pts_half_ppr / pts_std selected by league format); a player with no projection in that unit, and the whole off-season path, are mapped from season-aggregate trueValue on the same scale. Risk tolerance scales week-to-week variance.`,
       `Calibration anchor: a league-average roster (trueValue ≈ ${STARTER_ANCHOR_TV.toFixed(0)}, the average STARTABLE player) makes the playoffs ≈ playoffTeams/numTeams of the time. Verified by simulation.calibration.test.ts.`,
       // CLAUDE.md: "if a model lacks calibration, do not present it as
       // production-safe". An out-of-sample backtest now exists, and it failed —

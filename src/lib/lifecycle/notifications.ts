@@ -4,6 +4,11 @@ import { NOTIFICATION_STATUSES } from "../../db/schema";
 import type { PlayerMarketRecord } from "../governance";
 import { detectByeWeekRisks } from "./byes";
 import type { ByeSchedule } from "../schedule/byeSchedule";
+import {
+  canResolveInjuryAlerts,
+  describeInjuryEvidence,
+  type InjuryEvidence
+} from "../leagues/injuryEvidence";
 
 export type Severity = "info" | "warn" | "alert";
 
@@ -199,6 +204,20 @@ export interface LifecycleRulesInput {
    * the contract now matches the caller.
    */
   injuredStarters?: PlayerMarketRecord[];
+  /**
+   * How much is actually KNOWN about injury status (audit 2026-08-20 §9).
+   *
+   * The `injured-starter` family used to be marked evaluated whenever
+   * `roster.length > 0`. That proves the roster was readable; it proves nothing
+   * about whether injury state is known. So a players-snapshot outage — which
+   * leaves every record looking healthy — could RESOLVE the user's real injury
+   * alerts, converting an upstream failure into false reassurance.
+   *
+   * Omitted (undefined) is treated as `unavailable`, i.e. fail closed. A caller
+   * that has not thought about injury provenance must not accidentally acquire
+   * the authority to clear alerts.
+   */
+  injuryEvidence?: InjuryEvidence;
 }
 
 export interface DraftedNotification extends NotificationInput {
@@ -299,8 +318,30 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): LifecycleEva
     }
   }
 
-  // Rule 3: injured starter
-  if (rosterKnown) evaluated.push("injured-starter");
+  // Rule 3: injured starter.
+  //
+  // Audit 2026-08-20 §9. Reconcilability requires BOTH a readable roster AND
+  // trustworthy injury evidence:
+  //
+  //   fresh healthy   → an old injury alert may resolve
+  //   stale healthy   → MUST NOT resolve
+  //   missing status  → MUST NOT resolve
+  //   source down     → MUST NOT resolve
+  //   fresh injured   → current alert
+  //   stale injured   → alert still EMITTED, labeled stale (policy: a positive
+  //                     injury signal does not become false by ageing, but it is
+  //                     not presented as current)
+  //
+  // Emission is deliberately NOT gated: suppressing a known injury because the
+  // snapshot is a day old would hide a real risk. Only RESOLUTION is gated.
+  const injuryEvidence: InjuryEvidence = input.injuryEvidence ?? {
+    state: "unavailable",
+    reason: "caller supplied no injury evidence"
+  };
+  if (rosterKnown && canResolveInjuryAlerts(injuryEvidence)) {
+    evaluated.push("injured-starter");
+  }
+  const injuryStale = injuryEvidence.state === "stale";
   for (const injured of input.injuredStarters ?? []) {
     out.push({
       dedupKey: `injury:${input.leagueId}:${injured.id}`,
@@ -308,7 +349,10 @@ export function evaluateLifecycleRules(input: LifecycleRulesInput): LifecycleEva
       leagueId: input.leagueId,
       severity: "alert",
       rule: "injured-starter",
-      message: `${injured.name} (${injured.position}) is listed as ${injured.status}. Review your lineup.`
+      message: injuryStale
+        ? `${injured.name} (${injured.position}) was listed as ${injured.status} as of the last verified update ` +
+          `(${describeInjuryEvidence(injuryEvidence)}). Confirm on your platform before acting.`
+        : `${injured.name} (${injured.position}) is listed as ${injured.status}. Review your lineup.`
     });
   }
 

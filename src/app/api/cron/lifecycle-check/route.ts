@@ -108,7 +108,13 @@ export async function GET(request: Request): Promise<Response> {
       roster: snapshot.myRoster,
       byeSchedule,
       faabRemainingRatio: snapshot.myFaabRemainingRatio,
-      injuredStarters
+      injuredStarters,
+      // Audit 2026-08-20 §9: pass the snapshot's OWN injury-evidence state so the
+      // engine can only resolve injury alerts when the status behind them was
+      // actually verified. Previously the family was judged reconcilable on a
+      // non-empty roster, so a stale or missing players snapshot cleared real
+      // alerts.
+      injuryEvidence: snapshot.injuryEvidence
     });
 
     // Audit P1 §6: upserting alone left conditions that had STOPPED being true

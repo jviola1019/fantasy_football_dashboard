@@ -3,8 +3,10 @@ import {
   resolveSleeperRosterId,
   resolveEspnTeam,
   extractSleeperFaabRatio,
-  extractEspnFaabRatio
+  extractEspnFaabRatio,
+  materializeSleeperRoster
 } from "./fetchLive";
+import { classifyInjuryEvidence } from "./injuryEvidence";
 
 // ---------------------------------------------------------------------------
 // resolveSleeperRosterId
@@ -251,5 +253,127 @@ describe("extractEspnFaabRatio", () => {
     });
     expect(ratio).not.toBeNull();
     expect(ratio!).toBeLessThan(0.1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// materializeSleeperRoster — composite provenance (audit 2026-08-20 §8)
+// ---------------------------------------------------------------------------
+
+const NOW = new Date("2026-08-20T12:00:00.000Z");
+const hoursBefore = (h: number) => new Date(NOW.getTime() - h * 3600 * 1000);
+
+const LEAGUE = {
+  id: "lg1",
+  externalLeagueId: "999",
+  platform: "sleeper",
+  season: 2025,
+  label: "Test",
+  sleeperUsername: "alice"
+} as unknown as Parameters<typeof materializeSleeperRoster>[2];
+
+const PLAYERS_MAP = {
+  "4046": {
+    player_id: "4046",
+    first_name: "Injured",
+    last_name: "Starter",
+    position: "WR",
+    team: "DAL",
+    injury_status: "Out",
+    active: true
+  }
+} as unknown as Parameters<typeof materializeSleeperRoster>[1];
+
+const ROSTER = { roster_id: 1, owner_id: "u1", players: ["4046"] } as unknown as Parameters<
+  typeof materializeSleeperRoster
+>[0];
+
+function materialize(snapshotAgeHours: number | null) {
+  const snapshotAt = snapshotAgeHours == null ? null : hoursBefore(snapshotAgeHours);
+  return materializeSleeperRoster(ROSTER, PLAYERS_MAP, LEAGUE, {
+    rosterFetchedAt: NOW,
+    playersSnapshotFetchedAt: snapshotAt,
+    injuryEvidence: classifyInjuryEvidence(snapshotAt, NOW)
+  });
+}
+
+describe("materializeSleeperRoster composite provenance", () => {
+  it("current roster + current players snapshot → fresh decision source", () => {
+    const [rec] = materialize(1);
+    expect(rec).toBeDefined();
+    const composite = rec!.sources[0]!;
+    expect(composite.freshness).toBe("fresh");
+    expect(composite.validation).toBe("valid");
+    expect(composite.missingFields).not.toContain("status");
+  });
+
+  it("current roster + 48h-old players snapshot → decision source is STALE, not fresh", () => {
+    // The defect: this record used to be stamped fetchedAt=now, ttl=120,
+    // freshness="fresh" while its injury_status was two days old.
+    const [rec] = materialize(48);
+    const composite = rec!.sources[0]!;
+    expect(composite.freshness).toBe("stale");
+    // ...and the timestamp is the OLDER input's, never the roster's.
+    expect(composite.fetchedAt).toBe(hoursBefore(48).toISOString());
+    expect(composite.fetchedAt).not.toBe(NOW.toISOString());
+  });
+
+  it("the composite is never fresher than its oldest important input", () => {
+    for (const ageHours of [0.5, 5, 23, 25, 36, 48, 200]) {
+      const [rec] = materialize(ageHours);
+      const composite = rec!.sources[0]!;
+      const stampedAt = new Date(composite.fetchedAt!).getTime();
+      expect(stampedAt).toBeLessThanOrEqual(hoursBefore(ageHours).getTime());
+      // TTL cannot claim a 2-minute contract for a day-scale input either.
+      expect(composite.ttlSeconds).toBeLessThanOrEqual(24 * 3600);
+    }
+  });
+
+  it("missing snapshot → composite carries NO timestamp and declares status missing", () => {
+    const [rec] = materialize(null);
+    const composite = rec!.sources[0]!;
+    expect(composite.fetchedAt).toBeNull();
+    expect(composite.freshness).toBe("missing");
+    expect(composite.missingFields).toContain("status");
+    expect(composite.validation).toBe("not-run");
+    expect(composite.failure).toMatch(/not verifiable/);
+  });
+
+  it("keeps each input's own timestamp so composition loses nothing", () => {
+    const [rec] = materialize(36);
+    const sources = rec!.sources;
+    const membership = sources.find((s) => s.source.includes("(membership)"));
+    const metadata = sources.find((s) => s.source.includes("players snapshot (identity"));
+    expect(membership?.fetchedAt).toBe(NOW.toISOString());
+    expect(membership?.freshness).toBe("fresh");
+    expect(metadata?.fetchedAt).toBe(hoursBefore(36).toISOString());
+    expect(metadata?.freshness).toBe("stale");
+  });
+
+  it("the stale case still says so in the assumptions a panel would render", () => {
+    const [rec] = materialize(36);
+    const text = rec!.sources[0]!.assumptions.join(" ");
+    expect(text).toMatch(/bounded by the older one/);
+    expect(text).toMatch(/36\.0h old/);
+  });
+
+  it("a stale positive injury is still carried as a status", () => {
+    // Positive signals survive staleness; only RESOLUTION is gated (§9).
+    const [rec] = materialize(48);
+    expect(rec!.status).toBe("out");
+  });
+
+  it("drops roster ids absent from the players map rather than inventing a record", () => {
+    const recs = materializeSleeperRoster(
+      { roster_id: 1, owner_id: "u1", players: ["4046", "does-not-exist"] } as never,
+      PLAYERS_MAP,
+      LEAGUE,
+      {
+        rosterFetchedAt: NOW,
+        playersSnapshotFetchedAt: NOW,
+        injuryEvidence: classifyInjuryEvidence(NOW, NOW)
+      }
+    );
+    expect(recs).toHaveLength(1);
   });
 });

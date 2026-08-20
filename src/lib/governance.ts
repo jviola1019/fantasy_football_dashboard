@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LeagueFormatSchema } from "./trade/format";
+import { WeeklyProjectionByFormatSchema } from "./leagues/scoringPoints";
 
 export const FreshnessStateSchema = z.enum(["fresh", "stale", "missing", "unavailable", "fixture"]);
 export type FreshnessState = z.infer<typeof FreshnessStateSchema>;
@@ -49,11 +50,17 @@ export const RAEEnvelopeSchema = z.object({
   // where the user hasn't connected a league yet. Optional in the schema so
   // existing fixture payloads still parse without modification.
   leagueFormat: LeagueFormatSchema.nullable().optional(),
-  // Per-player weekly projections (sleeperId → pts_ppr) from the Sleeper
-  // undocumented projections endpoint (via cron). Only populated during the
+  // Per-player weekly projections from the Sleeper undocumented projections
+  // endpoint (via cron), keyed by sleeper player_id. Only populated during the
   // regular season when the projections-refresh cron has fired. Optional so
   // fixture + off-season envelopes parse without modification.
-  weeklyProjections: z.record(z.string(), z.number()).nullable().optional(),
+  //
+  // Audit 2026-08-20 §7: this carries ALL THREE scoring variants rather than one
+  // pre-collapsed number. The league's scoring format picks the numeric at the
+  // simulation boundary — the same place that picks the opponent field's
+  // baseline — so a PPR projection can never be scored against a
+  // standard-scoring field. See src/lib/leagues/scoringPoints.ts.
+  weeklyProjections: z.record(z.string(), WeeklyProjectionByFormatSchema).nullable().optional(),
   // Metadata about the weekly projection snapshot used above.
   weeklyProjectionsMeta: z
     .object({

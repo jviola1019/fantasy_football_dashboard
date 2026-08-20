@@ -33,6 +33,7 @@
 // schema drift) only loses that position rather than the whole week.
 
 import { z } from "zod";
+import type { WeeklyProjectionByFormat } from "../leagues/scoringPoints";
 
 export const SleeperProjectionPositionSchema = z.enum([
   "QB",
@@ -201,4 +202,40 @@ export function buildSnapshotPayload(
     }
   }
   return { season, week, projections };
+}
+
+/**
+ * Map a persisted projections snapshot into the envelope's weekly-projection
+ * record.
+ *
+ * Two contracts live here, and both were audit findings:
+ *
+ *  - **Key namespace (§7b).** The snapshot is keyed by Sleeper's bare
+ *    `player_id`; every `PlayerMarketRecord.id` is `sleeper:{player_id}` (see
+ *    `normalize.ts`). The simulator looks projections up by `record.id`, so a
+ *    bare key matched nothing and the entire live-projection path was dead code
+ *    while the UI announced "Live week-N projections". The prefix is applied
+ *    HERE, once, so no consumer does string surgery and no consumer can get it
+ *    wrong.
+ *  - **No unit collapse (§7).** All three scoring variants are carried through.
+ *    The numeric is chosen at the simulation boundary, from the same
+ *    `scoringFormat` that sets the opponent field baseline.
+ *
+ * Rows with no variant at all are dropped, so an empty row can never
+ * masquerade as a live projection.
+ */
+export function snapshotToWeeklyProjections(
+  payload: ProjectionsSnapshotPayload
+): Record<string, WeeklyProjectionByFormat> {
+  const out: Record<string, WeeklyProjectionByFormat> = {};
+  for (const [playerId, p] of Object.entries(payload.projections)) {
+    if (p.pts_ppr == null && p.pts_half_ppr == null && p.pts_std == null) continue;
+    out[`sleeper:${playerId}`] = {
+      ppr: p.pts_ppr,
+      halfPpr: p.pts_half_ppr,
+      standard: p.pts_std,
+      position: p.position
+    };
+  }
+  return out;
 }

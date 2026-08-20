@@ -12,6 +12,7 @@ import { RadarChart } from "@/components/charts/RadarChart";
 import { avg, trendingLabel, fmt, surname } from "@/lib/utils";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
+import { selectProjectionForFormat } from "@/lib/leagues/scoringPoints";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -444,27 +445,52 @@ function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; pl
       />
     );
   }
-  const ranked = players
-    .map((p) => ({ p, pts: proj[p.id.replace(/^sleeper:/, "")] ?? null }))
-    .filter((r): r is { p: PlayerMarketRecord; pts: number } => r.pts != null)
-    .sort((a, b) => b.pts - a.pts)
-    .slice(0, 25);
+  // Audit 2026-08-20 §7: the projection record carries all three scoring
+  // variants, so the unit shown here is chosen from the league's OWN format and
+  // named in the column header. A player with no projection in that unit is
+  // omitted rather than shown in a different unit, and the omission is disclosed
+  // instead of hidden.
+  const scoring = envelope?.leagueFormat?.scoringFormat ?? "PPR";
+  const scored = players
+    .map((p) => {
+      // Keyed by the namespaced record id (audit 2026-08-20 §7b) — no stripping.
+      const raw = proj[p.id];
+      const sel = raw ? selectProjectionForFormat(raw, scoring) : null;
+      return sel ? { p, pts: sel.points, substituted: sel.substituted } : null;
+    })
+    .filter((r): r is { p: PlayerMarketRecord; pts: number; substituted: boolean } => r != null);
+  const ranked = [...scored].sort((a, b) => b.pts - a.pts).slice(0, 25);
+  const omitted = players.length - scored.length;
   return (
     <div className="table-wrap" tabIndex={0} role="region" aria-label="Weekly projections table">
       <div className="section-label">
-        WEEKLY PROJECTIONS{meta ? ` — week ${meta.week}, ${meta.season}` : ""}
+        WEEKLY PROJECTIONS{meta ? ` — week ${meta.week}, ${meta.season}` : ""} — {scoring} SCORING
       </div>
       {ranked.length === 0 ? (
         <p className="muted-note">No projected players in this set.</p>
       ) : (
-        <table>
-          <thead><tr><th>Player</th><th>Position</th><th>Projected pts</th></tr></thead>
-          <tbody>
-            {ranked.map(({ p, pts }) => (
-              <tr key={p.id}><td>{p.name}</td><td>{p.position}</td><td><b>{pts.toFixed(1)}</b></td></tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Position</th>
+                <th>Projected pts ({scoring})</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranked.map(({ p, pts }) => (
+                <tr key={p.id}><td>{p.name}</td><td>{p.position}</td><td><b>{pts.toFixed(1)}</b></td></tr>
+              ))}
+            </tbody>
+          </table>
+          {omitted > 0 ? (
+            <p className="muted-note">
+              {omitted} player{omitted === 1 ? "" : "s"} in this set have no projection in {scoring}
+              {" "}scoring and are omitted rather than shown in a different unit.
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );

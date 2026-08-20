@@ -6,7 +6,9 @@ import {
   buildSnapshotPayload,
   fetchSleeperWeeklyProjections,
   snapshotSourceKey,
+  snapshotToWeeklyProjections,
   PROJECTION_POSITIONS,
+  type ProjectionsSnapshotPayload,
   type SleeperProjection,
   type SleeperProjectionPosition
 } from "./projections";
@@ -262,5 +264,70 @@ describe("fetchSleeperWeeklyProjections", () => {
     });
 
     expect(mockFetcher).toHaveBeenCalledTimes(PROJECTION_POSITIONS.length);
+  });
+});
+
+// ── Audit 2026-08-20 §7 / §7b ────────────────────────────────────────────────
+describe("snapshotToWeeklyProjections", () => {
+  const payload = (
+    projections: ProjectionsSnapshotPayload["projections"]
+  ): ProjectionsSnapshotPayload => ({ season: "2025", week: 8, projections });
+
+  const row = (over: Record<string, unknown> = {}) => ({
+    pts_ppr: 22,
+    pts_half_ppr: 16,
+    pts_std: 10,
+    position: "WR" as const,
+    team: "DAL",
+    opponent: "PHI",
+    ...over
+  });
+
+  it("namespaces every key to match PlayerMarketRecord.id (§7b regression)", () => {
+    // The defect: the snapshot key is Sleeper's bare player_id, but every record
+    // id is `sleeper:{player_id}`. The simulator looked up by record id, so the
+    // live projection path never matched a single player.
+    const out = snapshotToWeeklyProjections(payload({ "3294": row() }));
+    expect(Object.keys(out)).toEqual(["sleeper:3294"]);
+    expect(out["3294"]).toBeUndefined();
+  });
+
+  it("carries all three scoring variants plus the position, uncollapsed (§7)", () => {
+    const out = snapshotToWeeklyProjections(payload({ "3294": row() }));
+    expect(out["sleeper:3294"]).toEqual({
+      ppr: 22,
+      halfPpr: 16,
+      standard: 10,
+      position: "WR"
+    });
+  });
+
+  it("preserves nulls rather than substituting a different variant", () => {
+    const out = snapshotToWeeklyProjections(
+      payload({ "1": row({ pts_std: null, pts_half_ppr: null }) })
+    );
+    expect(out["sleeper:1"]).toEqual({
+      ppr: 22,
+      halfPpr: null,
+      standard: null,
+      position: "WR"
+    });
+  });
+
+  it("drops a row with no variant at all, so it cannot pose as a live projection", () => {
+    const out = snapshotToWeeklyProjections(
+      payload({
+        "1": row({ pts_ppr: null, pts_half_ppr: null, pts_std: null }),
+        "2": row()
+      })
+    );
+    expect(Object.keys(out)).toEqual(["sleeper:2"]);
+  });
+
+  it("keeps a legitimate zero", () => {
+    const out = snapshotToWeeklyProjections(
+      payload({ "1": row({ pts_ppr: 0, pts_half_ppr: 0, pts_std: 0, position: "K" }) })
+    );
+    expect(out["sleeper:1"]).toEqual({ ppr: 0, halfPpr: 0, standard: 0, position: "K" });
   });
 });
