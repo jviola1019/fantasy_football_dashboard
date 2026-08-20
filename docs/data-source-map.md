@@ -86,7 +86,7 @@ shapes in `src/lib/governance.ts`:
 | Sleeper trending add/drop | `src/lib/sleeper/trendingProxy.ts` | trendingMomentum (proxy) | 24h window | — |
 | ESPN headline velocity | `src/lib/espn/news.ts`, `newsMatch.ts` | trendingMomentum (preferred) | 72h window | — |
 | nflverse snap counts | `src/lib/nflverse/opportunity.ts` | opportunity (snap share) | per-season CSV | — |
-| Sleeper weekly projections | `src/lib/sleeper/projections.ts`, `projectionsSnapshot.ts` | weekly pts_ppr | in-season cron | — |
+| Sleeper weekly projections | `src/lib/sleeper/projections.ts`, `projectionsSnapshot.ts` | weekly `pts_ppr` + `pts_half_ppr` + `pts_std`, all three carried; the unit is chosen at the simulation boundary from the league format (audit 2026-08-20 §7) | in-season cron | — |
 | FantasyCalc → KTC → DynastyProcess | `src/lib/trade/values.ts` | trade `value` (3-tier fallback) | 12h | 0.9 / 0.75 / 0.6 |
 | Fixture catalog | `src/lib/fixtures.ts` | demo records | `fixture` (1y) | 0.42 |
 
