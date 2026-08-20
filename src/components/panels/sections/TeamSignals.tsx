@@ -5,6 +5,9 @@ import type { SimulationResult } from "@/lib/simulation";
 import { deriveNarrativeMovers } from "@/lib/derivedMetrics";
 import { narrativeVelocity } from "@/lib/models";
 import { wilsonInterval } from "@/lib/stats/distribution";
+import { ModelScenarioNotice } from "@/components/model/ModelScenarioNotice";
+import { ScenarioOutlook } from "@/components/model/ScenarioOutlook";
+import { structuralBaseline } from "@/lib/models/scenarioBand";
 import { PanelCard } from "../../ui/PanelCard";
 
 /**
@@ -40,48 +43,58 @@ export function TeamSignals({
   );
 }
 
+/**
+ * Playoff scenario tile (audit 2026-08-20 SS3, Strategy B).
+ *
+ * What was here: a triangle chart with the simulated playoff percentage set in
+ * 16px type at its centre, captioned "ESTIMATE", flanked by LOW and HIGH legs
+ * from a Wilson interval. Every element of that presentation asserted a
+ * calibrated point forecast with quantified error - and the interval was
+ * Monte-Carlo sampling error only, which shrinks with iteration count and says
+ * nothing about whether the model is right. On the backtest it is not: AUC 0.25
+ * with a CI entirely below 0.5.
+ *
+ * The chart was not kept and re-pointed at the baseline, because with a fixed
+ * structural baseline its LOW/HIGH legs carry no information - it would have
+ * become decoration, which CLAUDE.md rules out ("no meaningless charts"). The
+ * shared scenario presentation is used instead, so this surface and the Nexus
+ * panel state the same thing the same way.
+ *
+ * The Wilson interval is retained, correctly scoped, inside the raw disclosure.
+ */
 function LineupWinProb({ sim }: { sim: SimulationResult }) {
   const mid = Math.min(100, Math.max(0, sim.playoffProbability));
-  // Honest uncertainty: the Wilson 90% interval for the simulated playoff
-  // FREQUENCY over the actual number of seasons. This is Monte-Carlo SAMPLING
-  // error only — it shrinks as iterations grow and does NOT capture model/input
-  // uncertainty. (Replaces a former fabricated ±32% "P10/P90" band.)
+  // Monte-Carlo SAMPLING error only - it shrinks as iterations grow and does
+  // NOT capture model or input uncertainty, which is the dominant term here.
   const ci = wilsonInterval(mid / 100, sim.params.iterations, 0.9);
-  const lo = Math.round(ci.lower * 1000) / 10;
-  const hi = Math.round(ci.upper * 1000) / 10;
-  const tCx = 60;
-  const tTop = 10;
-  const tBot = 95;
-  const halfW = 50;
+  const baseline = structuralBaseline(sim.params.numTeams ?? 12, sim.params.playoffTeams ?? 6);
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">Playoff Probability</div>
-      <div className="triangle-wrap">
-        <svg
-          viewBox="-14 -6 148 138"
-          width="100%"
-          preserveAspectRatio="xMidYMid meet"
-          role="img"
-          aria-label={`Playoff probability estimate ${mid}%, 90% Monte-Carlo interval ${lo}% to ${hi}%`}
-        >
-          <polygon
-            points={`${tCx},${tTop} ${tCx - halfW},${tBot} ${tCx + halfW},${tBot}`}
-            fill="rgba(119,215,176,0.08)"
-            stroke="rgba(119,215,176,0.5)"
-            strokeWidth="1.5"
-          />
-          <text x={tCx} y={tTop - 2} textAnchor="middle" fontSize="8" fill="var(--muted)">ESTIMATE</text>
-          <text x={tCx} y={(tTop + tBot) / 2 + 4} textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">{mid}%</text>
-          <text x={tCx - halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">LOW</text>
-          <text x={tCx - halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--red)">{lo}%</text>
-          <text x={tCx + halfW} y={tBot + 14} textAnchor="middle" fontSize="9" fill="var(--muted)">HIGH</text>
-          <text x={tCx + halfW} y={tBot + 26} textAnchor="middle" fontSize="10" fill="var(--green)">{hi}%</text>
-        </svg>
+      <div className="mini-panel-title" id="playoff-scenario-title">
+        Playoff Scenario
       </div>
-      <div className="small-note">
-        90% Monte-Carlo interval over {sim.params.iterations.toLocaleString()} simulated seasons
-        — sampling error only, excludes model uncertainty.
-      </div>
+      <ModelScenarioNotice variant="banner" />
+      <ScenarioOutlook
+        headingId="playoff-scenario-title"
+        numTeams={baseline.numTeams}
+        playoffTeams={baseline.playoffTeams}
+        iterations={sim.params.iterations}
+        seed={sim.seed}
+        rows={[
+          {
+            label: "Playoffs",
+            scenarioPct: mid,
+            baselinePct: baseline.playoffs,
+            interval: {
+              estimate: mid,
+              lower: Math.round(ci.lower * 1000) / 10,
+              upper: Math.round(ci.upper * 1000) / 10,
+              width: Math.round((ci.upper - ci.lower) * 1000) / 10,
+              level: 0.9
+            }
+          }
+        ]}
+      />
     </div>
   );
 }

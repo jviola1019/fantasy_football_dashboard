@@ -273,7 +273,7 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
       // CLAUDE.md: "if a model lacks calibration, do not present it as
       // production-safe". An out-of-sample backtest now exists, and it failed —
       // so saying nothing here would be the dishonest option.
-      "NOT VALIDATED OUT-OF-SAMPLE: backtested on 50 team-seasons across 5 completed leagues (2022-2025), this chain scored Brier 0.310 against a 0.240 climatology baseline and AUC 0.306 — significantly worse than forecasting the league's base rate. Treat these odds as a structured scenario, not a prediction. See reports/2026-08-06/backtest-valuation.md."
+      "NOT VALIDATED OUT-OF-SAMPLE: backtested on 50 team-seasons across 5 completed leagues (2022-2025), this chain scored Brier 0.3098 against a 0.2400 climatology baseline with AUC 0.3058 [95% CI 0.1333, 0.4450]. On the 30 team-seasons where the points-above-replacement candidate can be scored like-for-like it is Brier 0.3353 / AUC 0.2546. Both AUC intervals lie entirely below 0.5, so the ranking is significantly INVERTED - worse than forecasting the league's base rate. These are simulated frequencies under model assumptions, not forecast probabilities. See reports/2026-08-06/backtest-valuation.md."
     ],
     source,
     distribution: {

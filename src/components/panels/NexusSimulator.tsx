@@ -13,6 +13,9 @@ import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import { surname } from "@/lib/utils";
 import { ReliabilityDiagram } from "@/components/charts/ReliabilityDiagram";
+import { ModelScenarioNotice } from "@/components/model/ModelScenarioNotice";
+import { ScenarioOutlook } from "@/components/model/ScenarioOutlook";
+import { structuralBaseline } from "@/lib/models/scenarioBand";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 
@@ -124,7 +127,7 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
               <OutcomeMultiverse players={players} sim={sim} />
             </div>
             <div className="nexus-side">
-              <ConfidenceBands sim={sim} bands={confidenceBands ?? null} ciMultiplier={ciMultiplier} />
+              <ScenarioBands sim={sim} bands={confidenceBands ?? null} ciMultiplier={ciMultiplier} />
               <KeyDrivers sim={sim} hasData={hasData} />
               <RiskOfRegret sim={sim} hasData={hasData} />
             </div>
@@ -132,15 +135,18 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
         )}
         {activeTab === "Scenarios" && (
           <div className="nexus-full">
+            {/* Same model, same failure - the notice travels with the numbers. */}
+            <ModelScenarioNotice variant="banner" />
             <ScenarioComparisonTable scenarios={scenarios} hasData={hasData} />
             <KeyDrivers sim={sim} hasData={hasData} />
           </div>
         )}
         {activeTab === "Risk Analysis" && (
           <div className="nexus-full">
+            <ModelScenarioNotice variant="banner" />
             <p className="section-intro">
-              How much to trust this forecast: the regret index quantifies downside exposure, the
-              reliability diagram shows whether forecast probabilities match real outcomes, and the
+              How much to trust this scenario: the regret index quantifies downside exposure, the
+              reliability diagram shows whether simulated frequencies match real outcomes, and the
               assumptions list states what the simulation took as given.
             </p>
             <RiskOfRegret sim={sim} hasData={hasData} />
@@ -267,7 +273,20 @@ function widen(
   return { ...ci, lower, upper, width: upper - lower };
 }
 
-function ConfidenceBands({
+/**
+ * Strategy B replacement for the former "95% Confidence Bands" tile
+ * (audit 2026-08-20 SS3).
+ *
+ * What was here: `Championship 12.4% [8.1 - 17.0]` under a heading that said
+ * "95% Confidence Bands", on the DEFAULT tab, with the model-failure notice
+ * three components away inside a different tab. That presentation asserted a
+ * calibrated forecast the backtest had already refuted.
+ *
+ * What is here now: the league's structural baseline as the prominent number,
+ * the model's output as a band relative to it, the failure notice immediately
+ * above, and the raw frequencies one keyboard-reachable disclosure away.
+ */
+function ScenarioBands({
   sim,
   bands,
   ciMultiplier = 1
@@ -278,7 +297,7 @@ function ConfidenceBands({
   ciMultiplier?: number;
 }) {
   // The bootstrap replication runs on the SERVER (deriveConfidenceBands); here
-  // we only apply the cheap data-state widen() — no client-side simulation.
+  // we only apply the cheap data-state widen() - no client-side simulation.
   const widened = useMemo(
     () =>
       bands
@@ -287,48 +306,56 @@ function ConfidenceBands({
     [bands, ciMultiplier]
   );
 
-  if (!widened) {
+  const baseline = structuralBaseline(sim.params.numTeams ?? 12, sim.params.playoffTeams ?? 6);
+
+  if (!bands) {
     return (
       <div className="mini-panel">
-        <div className="mini-panel-title">Confidence Bands</div>
-        <p className="muted-note">No data — confidence intervals unavailable.</p>
+        <div className="mini-panel-title">Scenario Outlook</div>
+        <p className="muted-note">No roster to simulate - connect a league.</p>
       </div>
     );
   }
 
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">95% Confidence Bands</div>
-      <ul className="ci-list">
-        <li className="ci-row">
-          <span>Championship</span>
-          <b>
-            {sim.championshipProbability.toFixed(1)}%
-            <small className="ci-range">
-              {" "}[{widened.championship.lower.toFixed(1)} – {widened.championship.upper.toFixed(1)}]
-            </small>
-          </b>
-        </li>
-        <li className="ci-row">
-          <span>Playoffs</span>
-          <b>
-            {sim.playoffProbability.toFixed(1)}%
-            <small className="ci-range">
-              {" "}[{widened.playoff.lower.toFixed(1)} – {widened.playoff.upper.toFixed(1)}]
-            </small>
-          </b>
-        </li>
-      </ul>
-      <p className="small-note">20 replicate seasons · bootstrap N=500 (computed server-side).</p>
+      <div className="mini-panel-title" id="scenario-outlook-title">
+        Scenario Outlook
+      </div>
+      {/* Adjacent, not behind a tab. This is the SS3/SS20 requirement. */}
+      <ModelScenarioNotice variant="banner" />
+      <ScenarioOutlook
+        headingId="scenario-outlook-title"
+        numTeams={baseline.numTeams}
+        playoffTeams={baseline.playoffTeams}
+        iterations={sim.params.iterations}
+        seed={sim.seed}
+        rows={[
+          {
+            label: "Playoffs",
+            scenarioPct: sim.playoffProbability,
+            baselinePct: baseline.playoffs,
+            interval: widened?.playoff ?? null
+          },
+          {
+            label: "Championship",
+            scenarioPct: sim.championshipProbability,
+            baselinePct: baseline.championship,
+            interval: widened?.championship ?? null
+          }
+        ]}
+      />
     </div>
   );
 }
 
 function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioComparison; hasData: boolean }) {
+  // Labels name the quantity: these are scenario frequencies, and the notice
+  // above the table states the model has no demonstrated skill (audit SS3).
   const rows = [
-    { label: "Championship %", best: `${scenarios.bestCase.championship}%`, base: `${scenarios.baseline.championship}%`, worst: `${scenarios.worstCase.championship}%` },
-    { label: "Top 3 Finish %", best: `${scenarios.bestCase.topThree}%`, base: `${scenarios.baseline.topThree}%`, worst: `${scenarios.worstCase.topThree}%` },
-    { label: "Playoffs %", best: `${scenarios.bestCase.playoffs}%`, base: `${scenarios.baseline.playoffs}%`, worst: `${scenarios.worstCase.playoffs}%` },
+    { label: "Championship (scenario %)", best: `${scenarios.bestCase.championship}%`, base: `${scenarios.baseline.championship}%`, worst: `${scenarios.worstCase.championship}%` },
+    { label: "Top 3 Finish (scenario %)", best: `${scenarios.bestCase.topThree}%`, base: `${scenarios.baseline.topThree}%`, worst: `${scenarios.worstCase.topThree}%` },
+    { label: "Playoffs (scenario %)", best: `${scenarios.bestCase.playoffs}%`, base: `${scenarios.baseline.playoffs}%`, worst: `${scenarios.worstCase.playoffs}%` },
     { label: "Points For", best: scenarios.bestCase.pointsFor, base: scenarios.baseline.pointsFor, worst: scenarios.worstCase.pointsFor },
     { label: "Points Against", best: scenarios.bestCase.pointsAgainst, base: scenarios.baseline.pointsAgainst, worst: scenarios.worstCase.pointsAgainst },
     { label: "Final Rank", best: scenarios.bestCase.finalRank, base: scenarios.baseline.finalRank, worst: scenarios.worstCase.finalRank },
@@ -413,11 +440,15 @@ function RiskOfRegret({ sim, hasData }: { sim: SimulationResult; hasData: boolea
       <div className="risk-layout">
         <DonutChart segments={segments} centerValue={`${regret}%`} centerLabel={level} />
         <ul className="risk-list">
+          {/* Was assumptions.slice(0, 3) truncated to 60 chars, which cut the
+              out-of-sample failure notice (assumptions[4]) out entirely. The
+              notice now renders in full, as a component, below. */}
           {sim.assumptions.slice(0, 3).map((a, i) => (
             <li key={i}>{a.slice(0, 60)}{a.length > 60 ? "…" : ""}</li>
           ))}
         </ul>
       </div>
+      <ModelScenarioNotice variant="inline" />
     </div>
   );
 }

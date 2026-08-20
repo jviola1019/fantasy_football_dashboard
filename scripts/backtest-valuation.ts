@@ -45,6 +45,8 @@ import { startingSlotCount, type DemandPosition } from "../src/lib/league/lineup
 import {
   averageStartablePar,
   buildPointsCurve,
+  curveSampleDiagnostics,
+  expectedPointsAt,
   parToTrueValue,
   pointsAboveReplacement,
   type PointsCurve,
@@ -65,6 +67,16 @@ const DEFAULT_LEAGUES = [
   "1124852606087213056", // 2024 Creamy Les Coot
   "1265735061127311360" // 2025 Creamy Les Coot 4.0
 ];
+
+/**
+ * Dependence treatment for the curve fit (audit 2026-08-20 SS5). Overridable
+ * ONLY so the effect of the choice can be reported side by side; the default is
+ * the a-priori statistical choice and is not selected by score.
+ */
+const CURVE_AGGREGATION = (process.env.RAE_CURVE_AGGREGATION ?? "cluster-weighted") as
+  | "league-level"
+  | "player-season"
+  | "cluster-weighted";
 
 const leagueIds = (process.env.RAE_VALUATION_LEAGUES ?? DEFAULT_LEAGUES.join(","))
   .split(",")
@@ -203,6 +215,11 @@ function toObservations(lg: LeagueData): PointsObservation[] {
       season: lg.season,
       position: p.position as DemandPosition,
       adpRank: p.adpRank,
+      // Audit 2026-08-20 SS5. Identity is what makes pseudo-replication
+      // measurable: the same NFL player-season appears once per league that
+      // drafted them, with a different ADP rank but the SAME outcome.
+      playerId: p.playerId,
+      leagueId: lg.id,
       // Normalised to a 14-week regular season so leagues of different length
       // are comparable. Without this a 14-week league would look systematically
       // weaker than a 13-week one purely from schedule length.
@@ -334,13 +351,23 @@ function aucBy(rows: TeamRow[], score: (r: TeamRow) => number | null): number | 
 const climatologyBrier = (rows: TeamRow[], rate: number) =>
   rows.reduce((a, r) => a + (rate - r.actual) ** 2, 0) / rows.length;
 
-/** Cluster bootstrap over LEAGUES, respecting within-league dependence. */
+/**
+ * Cluster bootstrap over LEAGUES, respecting within-league dependence.
+ *
+ * RESOLUTION WARNING (audit 2026-08-20 SS5). With `k` clusters, resampling `k`
+ * with replacement can only produce C(2k-1, k) distinct multisets - 10 for k=3,
+ * 126 for k=5. Raising `iterations` to 5000 does NOT add resolution; it only
+ * samples those few multisets more times. A 95% percentile interval from ~10
+ * distinct values is effectively a min/max, and small differences between such
+ * intervals - including whether one straddles 0.5 - are not evidence.
+ * `distinctResamples` is returned so this can be stated rather than assumed.
+ */
 function clusterBootstrap(
   byLeague: Map<string, TeamRow[]>,
   stat: (rows: TeamRow[]) => number | null,
   iterations = 5000,
   seed = 12345
-): { lo: number; hi: number } | null {
+): { lo: number; hi: number; distinctValues: number; clusters: number } | null {
   const keys = [...byLeague.keys()];
   if (keys.length < 2) return null;
   let s = seed >>> 0;
@@ -362,14 +389,24 @@ function clusterBootstrap(
   }
   if (samples.length < 100) return null;
   samples.sort((a, b) => a - b);
+  // How many DISTINCT values the resampling could actually reach. This is the
+  // real resolution of the interval below, and it is a function of cluster
+  // count, not of `iterations`.
+  const distinctValues = new Set(samples.map((v) => v.toFixed(6))).size;
   return {
     lo: samples[Math.floor(0.025 * samples.length)]!,
-    hi: samples[Math.floor(0.975 * samples.length)]!
+    hi: samples[Math.floor(0.975 * samples.length)]!,
+    distinctValues,
+    clusters: keys.length
   };
 }
 
 const f4 = (n: number | null) => (n == null ? "   n/a" : n.toFixed(4));
-const ci = (c: { lo: number; hi: number } | null) => (c ? `[${f4(c.lo)}, ${f4(c.hi)}]` : "n/a");
+const ci = (c: { lo: number; hi: number; distinctValues?: number; clusters?: number } | null) =>
+  c
+    ? `[${f4(c.lo)}, ${f4(c.hi)}]` +
+      (c.distinctValues != null ? `  (${c.clusters} clusters, ${c.distinctValues} distinct resample values)` : "")
+    : "n/a";
 
 // ── main ────────────────────────────────────────────────────────────────────
 
@@ -431,6 +468,7 @@ async function main(): Promise<void> {
   }
 
   const curves = new Map<string, PointsCurve>();
+  const priorBySchedule = new Map<string, PointsObservation[]>();
   for (const lg of loaded) {
     const prior: PointsObservation[] = [];
     for (const [season, obs] of obsBySeason) if (season < lg.season) prior.push(...obs);
@@ -438,17 +476,76 @@ async function main(): Promise<void> {
       say(`${lg.name.slice(0, 20).padEnd(20)} ${String(lg.season).padEnd(7)} ${"(none)".padEnd(20)} ${String(0).padEnd(5)} no`);
       continue;
     }
-    const curve = buildPointsCurve(prior);
+    const curve = buildPointsCurve(prior, { aggregation: CURVE_AGGREGATION });
     // Hard assertion: the curve must not contain this league's own season.
     if (curve.seasons.includes(lg.season)) {
       throw new Error(`LEAKAGE: curve for ${lg.season} contains season ${lg.season}`);
     }
     curves.set(lg.id, curve);
+    priorBySchedule.set(lg.id, prior);
     const total = Object.values(curve.counts).reduce((a, b) => a + (b ?? 0), 0);
     say(
       `${lg.name.slice(0, 20).padEnd(20)} ${String(lg.season).padEnd(7)} ` +
-        `${curve.seasons.join(",").padEnd(20)} ${String(total).padEnd(5)} yes`
+        `${curve.seasons.join(",").padEnd(20)} ${total.toFixed(1).padEnd(5)} yes`
     );
+  }
+  say();
+
+  // ── dependence audit (audit 2026-08-20 SS5) ───────────────────────────────
+  say("## Dependence and pseudo-replication in the curve training data");
+  say();
+  say("The backtest pools observations from every earlier league, so ONE NFL");
+  say("player-season appears once per league that drafted them - a different ADP");
+  say("rank each time, but literally the same outcome. That is not automatically");
+  say("wrong (ADP is league-specific), but the rows are correlated and must not");
+  say("be counted as independent evidence.");
+  say();
+  say("fit for            raw   unique  dup   multi-lg  leagues  seasons  design effect");
+  for (const lg of loaded) {
+    const prior = priorBySchedule.get(lg.id);
+    if (!prior) continue;
+    const d = curveSampleDiagnostics(prior);
+    say(
+      `${`${lg.name.slice(0, 12)} ${lg.season}`.padEnd(18)} ` +
+        `${String(d.rawObservations).padStart(4)}  ${String(d.uniquePlayerSeasons).padStart(6)}  ` +
+        `${String(d.duplicatedPlayerSeasons).padStart(3)}  ${String(d.playerSeasonsInMultipleLeagues).padStart(8)}  ` +
+        `${String(d.leagues).padStart(7)}  ${d.seasons.join("/").padEnd(14)} ${d.designEffect.toFixed(2)}`
+    );
+  }
+  say();
+  say("Per-position effective sample for the LARGEST fit:");
+  say();
+  {
+    let biggest: PointsObservation[] = [];
+    for (const prior of priorBySchedule.values()) if (prior.length > biggest.length) biggest = prior;
+    if (biggest.length > 0) {
+      const d = curveSampleDiagnostics(biggest);
+      say("position  raw   effective  distinct ranks  design effect");
+      for (const [position, stats] of Object.entries(d.perPosition)) {
+        say(
+          `${position.padEnd(9)} ${String(stats.rawObservations).padStart(4)}  ` +
+            `${String(stats.effectiveObservations).padStart(9)}  ${String(stats.distinctRanks).padStart(14)}  ` +
+            `${stats.designEffect.toFixed(2)}`
+        );
+      }
+      say();
+      say("Aggregation comparison on the same fit (A/B/C from audit SS5).");
+      say("Reported side by side; the DEFAULT is chosen on statistical grounds");
+      say("(cluster-weighted), NOT by whichever scores best here.");
+      say();
+      say("mode              effective obs  QB1 expected pts  RB1 expected pts");
+      for (const aggregation of ["league-level", "player-season", "cluster-weighted"] as const) {
+        const c = buildPointsCurve(biggest, { aggregation });
+        const eff = Object.values(c.counts).reduce((a, b) => a + (b ?? 0), 0);
+        const qb1 = expectedPointsAt(c, "QB", 1);
+        const rb1 = expectedPointsAt(c, "RB", 1);
+        say(
+          `${aggregation.padEnd(17)} ${eff.toFixed(1).padStart(13)}  ` +
+            `${(qb1 == null ? "-" : qb1.toFixed(1)).padStart(15)}  ` +
+            `${(rb1 == null ? "-" : rb1.toFixed(1)).padStart(15)}`
+        );
+      }
+    }
   }
   say();
 

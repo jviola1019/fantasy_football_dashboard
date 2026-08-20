@@ -1,0 +1,1751 @@
+PostgreSQL integration evidence — audit 2026-08-20 §10
+======================================================
+host        : 127.0.0.1:55432 (isolated cluster, C:\tmp\rae-pgtest)
+database    : rae_test   role: raetest
+psql: error: connection to server at "127.0.0.1", port 55432 failed: fe_sendauth: no password supplied
+server      : 
+node        : v25.8.2   npm: 11.11.1
+branch SHA  : 52f8d6df18bf9e7d2613b3d08d4257ed664d5ff3
+OS          : win32 / Windows 11
+command     : npx vitest run src/db/postgres.integration.test.ts src/lib/auth/throttle.pg.integration.test.ts src/lib/lifecycle/reconcile.pg.integration.test.ts
+
+ RUN  v4.1.6 C:/Users/jviol/Downloads/fantasy_football_dashboard
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'schema "rae_test_throttle" does not exist, skipping',
+  file: 'dropcmds.c',
+  line: '521',
+  routine: 'does_not_exist_skipping'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'schema "rae_test_reconcile" does not exist, skipping',
+  file: 'dropcmds.c',
+  line: '521',
+  routine: 'does_not_exist_skipping'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "dedupKey" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "status" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "occurrences" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "season" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "week" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "updatedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "resolvedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "dedupKey" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "status" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "occurrences" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "season" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "week" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "updatedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "resolvedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "dedupKey" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "status" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "occurrences" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "season" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "week" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "updatedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "resolvedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > resolves a condition that stopped being true
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > resolves a condition that stopped being true
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > stores auth_attempts as epoch-ms integer columns, not timestamps 50ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > counts 2 truly simultaneous failures as 2 50ms
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "users" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "accounts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "sessions" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "verificationTokens" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagues" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sessionVersion" of relation "users" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "auth_attempts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sleeperUsername" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagueCredentials" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "dedupKey" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "status" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "occurrences" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "season" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "week" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "updatedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "resolvedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications_user_dedup" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications_user_created" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "users" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "accounts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "sessions" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "verificationTokens" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagues" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sessionVersion" of relation "users" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "auth_attempts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > creates every new column with the right type 35ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > creates the unique dedup index 14ms
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sleeperUsername" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagueCredentials" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "dedupKey" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "status" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "occurrences" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > counts 10 truly simultaneous failures as 10 67ms
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "season" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "week" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "updatedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "resolvedAt" of relation "notifications" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > reopens a resolved condition on recurrence
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > reopens a resolved condition on recurrence
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications_user_dedup" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications_user_created" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > resolves a condition that stopped being true 157ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > is idempotent — re-running INIT_SQL changes nothing and does not throw 89ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > the DB itself rejects a duplicate (userId, dedupKey) 15ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > upsert is idempotent across repeated runs on the real driver 29ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > concurrent upserts collapse to one row on the real driver 24ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > counts account, IP and global dimensions independently in one burst 75ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > crosses the threshold exactly at the limit under contention 59ms
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > clears the dismissal on reopen so a recurrence is visible
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > clears the dismissal on reopen so a recurrence is visible
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "users" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "accounts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "sessions" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "verificationTokens" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagues" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sessionVersion" of relation "users" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "auth_attempts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sleeperUsername" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagueCredentials" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > round-trips timestamps as Dates through the shared toRow mapper 4ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > preserves dismissed state and reopens resolved conditions 16ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > keeps users isolated and honours the list cap 9ms
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > reopens a resolved condition on recurrence 135ms
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "users" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "accounts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "sessions" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "verificationTokens" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagues" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sessionVersion" of relation "users" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "auth_attempts" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "settings" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42701',
+  message: 'column "sleeperUsername" of relation "leagues" already exists, skipping',
+  file: 'tablecmds.c',
+  line: '7483',
+  routine: 'check_for_column_name_collision'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "leagueCredentials" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "notifications_user_created" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "players_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "rankings_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "ktc_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "projections_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > does NOT resolve a family whose upstream failed
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > does NOT resolve a family whose upstream failed
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "news_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '210',
+  routine: 'transformCreateStmt'
+}
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "opportunity_snapshots_source_fetched" already exists, skipping',
+  file: 'index.c',
+  line: '899',
+  routine: 'index_create'
+}
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > locks the IP dimension across a parallel walk of many accounts 188ms
+stdout | src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'drop cascades to 14 other objects',
+  detail: 'drop cascades to table users\n' +
+    'drop cascades to table accounts\n' +
+    'drop cascades to table sessions\n' +
+    'drop cascades to table "verificationTokens"\n' +
+    'drop cascades to table leagues\n' +
+    'drop cascades to table auth_attempts\n' +
+    'drop cascades to table "leagueCredentials"\n' +
+    'drop cascades to table players_snapshots\n' +
+    'drop cascades to table rankings_snapshots\n' +
+    'drop cascades to table ktc_snapshots\n' +
+    'drop cascades to table projections_snapshots\n' +
+    'drop cascades to table news_snapshots\n' +
+    'drop cascades to table opportunity_snapshots\n' +
+    'drop cascades to table notifications',
+  file: 'dependency.c',
+  line: '1171',
+  routine: 'reportDependentObjects'
+}
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > backfills legacy rows and then accepts the unique index (upgrade path) 96ms
+ ✓ src/db/postgres.integration.test.ts > Postgres integration (F-003 notifications migration) > rollback removes the new objects without losing rows 76ms
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > clears the dismissal on reopen so a recurrence is visible 149ms
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > does NOT resolve an injury alert when injury evidence is stale (SS9)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > does NOT resolve an injury alert when injury evidence is stale (SS9)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > does NOT resolve a family whose upstream failed 108ms
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > DOES resolve once injury evidence is verified again (SS9)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > DOES resolve once injury evidence is verified again (SS9)
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > does NOT resolve an injury alert when injury evidence is stale (SS9) 134ms
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > keeps the NOT IN filter correct when several keys are live at once
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > keeps the NOT IN filter correct when several keys are live at once
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > DOES resolve once injury evidence is verified again (SS9) 163ms
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > keeps the NOT IN filter correct when several keys are live at once 187ms
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > isolates users and leagues
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > isolates users and leagues
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > is idempotent under two concurrent runs
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "accounts"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "sessions"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'truncate cascades to table "leagueCredentials"',
+  file: 'tablecmds.c',
+  line: '1969',
+  routine: 'ExecuteTruncateGuts'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > isolates users and leagues 204ms
+stdout | src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'drop cascades to 14 other objects',
+  detail: 'drop cascades to table users\n' +
+    'drop cascades to table accounts\n' +
+    'drop cascades to table sessions\n' +
+    'drop cascades to table "verificationTokens"\n' +
+    'drop cascades to table leagues\n' +
+    'drop cascades to table auth_attempts\n' +
+    'drop cascades to table "leagueCredentials"\n' +
+    'drop cascades to table notifications\n' +
+    'drop cascades to table players_snapshots\n' +
+    'drop cascades to table rankings_snapshots\n' +
+    'drop cascades to table ktc_snapshots\n' +
+    'drop cascades to table projections_snapshots\n' +
+    'drop cascades to table news_snapshots\n' +
+    'drop cascades to table opportunity_snapshots',
+  file: 'dependency.c',
+  line: '1171',
+  routine: 'reportDependentObjects'
+}
+ ✓ src/lib/lifecycle/reconcile.pg.integration.test.ts > Postgres lifecycle reconciliation > is idempotent under two concurrent runs 145ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > holds the global ceiling under a parallel distributed attempt 1737ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > restarts the window exactly once when a burst straddles expiry 45ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > restarts counting once after the lock lapses 46ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > does NOT slide an active lock forward on further failures 56ms
+ ✓ src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency > rejects a duplicate key at the DB level, so only one row per key exists 60ms
+stdout | src/lib/auth/throttle.pg.integration.test.ts > Postgres auth-throttle concurrency
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'drop cascades to 14 other objects',
+  detail: 'drop cascades to table users\n' +
+    'drop cascades to table accounts\n' +
+    'drop cascades to table sessions\n' +
+    'drop cascades to table "verificationTokens"\n' +
+    'drop cascades to table leagues\n' +
+    'drop cascades to table auth_attempts\n' +
+    'drop cascades to table "leagueCredentials"\n' +
+    'drop cascades to table notifications\n' +
+    'drop cascades to table players_snapshots\n' +
+    'drop cascades to table rankings_snapshots\n' +
+    'drop cascades to table ktc_snapshots\n' +
+    'drop cascades to table projections_snapshots\n' +
+    'drop cascades to table news_snapshots\n' +
+    'drop cascades to table opportunity_snapshots',
+  file: 'dependency.c',
+  line: '1171',
+  routine: 'reportDependentObjects'
+}
+ Test Files  3 passed (3)
+      Tests  31 passed (31)
+   Start at  08:19:14
+   Duration  6.05s (transform 599ms, setup 0ms, import 6.92s, tests 6.70s, environment 1ms)
+
+exit code   : 0

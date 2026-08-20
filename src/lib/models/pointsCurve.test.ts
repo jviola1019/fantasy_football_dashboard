@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  curveSampleDiagnostics,
   averageStartablePar,
   buildPointsCurve,
   expectedPointsAt,
@@ -31,12 +32,26 @@ const fmt = (o: Partial<LeagueFormat> = {}): LeagueFormat => ({
   ...o
 });
 
+/**
+ * Synthetic observations. Each gets a DISTINCT playerId so the default
+ * cluster-weighted aggregation treats them as independent player-seasons —
+ * these fixtures are about curve shape, not about dependence (audit SS5).
+ * `leagueId` defaults to one league for the same reason.
+ */
 const obs = (
   position: PointsObservation["position"],
   points: number[],
-  season = 2024
+  season = 2024,
+  leagueId = "L1"
 ): PointsObservation[] =>
-  points.map((seasonPoints, i) => ({ season, position, adpRank: i + 1, seasonPoints }));
+  points.map((seasonPoints, i) => ({
+    season,
+    position,
+    adpRank: i + 1,
+    seasonPoints,
+    playerId: `${position}-${season}-${i + 1}`,
+    leagueId
+  }));
 
 describe("isotonic (non-increasing) regression", () => {
   it("leaves an already-decreasing series untouched", () => {
@@ -107,8 +122,8 @@ describe("building the curve", () => {
 
   it("ignores non-finite points instead of poisoning the fit", () => {
     const curve = buildPointsCurve([
-      { season: 2024, position: "RB", adpRank: 1, seasonPoints: Number.NaN },
-      { season: 2024, position: "RB", adpRank: 2, seasonPoints: 100 }
+      { season: 2024, position: "RB", adpRank: 1, seasonPoints: Number.NaN, playerId: "a", leagueId: "L1" },
+      { season: 2024, position: "RB", adpRank: 2, seasonPoints: 100, playerId: "b", leagueId: "L1" }
     ]);
     expect(Number.isFinite(expectedPointsAt(curve, "RB", 2)!)).toBe(true);
   });
@@ -207,5 +222,141 @@ describe("the average-startable PAR anchor", () => {
 
   it("returns 0 for an empty curve rather than throwing", () => {
     expect(averageStartablePar(buildPointsCurve([]), fmt())).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Audit 2026-08-20 §5 — dependence and pseudo-replication
+// ---------------------------------------------------------------------------
+
+/** One NFL player-season, drafted at possibly different ranks in `n` leagues. */
+function inLeagues(
+  playerId: string,
+  position: PointsObservation["position"],
+  seasonPoints: number,
+  ranks: Array<[string, number]>,
+  season = 2024
+): PointsObservation[] {
+  return ranks.map(([leagueId, adpRank]) => ({
+    season,
+    position,
+    adpRank,
+    seasonPoints,
+    playerId,
+    leagueId
+  }));
+}
+
+describe("curveSampleDiagnostics", () => {
+  it("counts a player drafted in five leagues as ONE independent outcome", () => {
+    const rows = inLeagues("mccaffrey", "RB", 300, [
+      ["L1", 1],
+      ["L2", 1],
+      ["L3", 2],
+      ["L4", 1],
+      ["L5", 3]
+    ]);
+    const d = curveSampleDiagnostics(rows);
+    expect(d.rawObservations).toBe(5);
+    expect(d.uniquePlayerSeasons).toBe(1);
+    expect(d.duplicatedPlayerSeasons).toBe(4);
+    expect(d.playerSeasonsInMultipleLeagues).toBe(1);
+    expect(d.leagues).toBe(5);
+    expect(d.designEffect).toBe(5);
+  });
+
+  it("separates the same player in different seasons — those ARE independent draws", () => {
+    const rows = [
+      ...inLeagues("x", "WR", 200, [["L1", 1]], 2023),
+      ...inLeagues("x", "WR", 250, [["L1", 1]], 2024)
+    ];
+    const d = curveSampleDiagnostics(rows);
+    expect(d.uniquePlayerSeasons).toBe(2);
+    expect(d.designEffect).toBe(1);
+    expect(d.seasons).toEqual([2023, 2024]);
+  });
+
+  it("reports per-position effective sample, not just the total", () => {
+    const rows = [
+      ...inLeagues("rb1", "RB", 300, [["L1", 1], ["L2", 1]]),
+      ...inLeagues("rb2", "RB", 250, [["L1", 2]]),
+      ...inLeagues("qb1", "QB", 320, [["L1", 1], ["L2", 1], ["L3", 1]])
+    ];
+    const d = curveSampleDiagnostics(rows);
+    expect(d.perPosition.RB).toMatchObject({ rawObservations: 3, effectiveObservations: 2 });
+    expect(d.perPosition.QB).toMatchObject({ rawObservations: 3, effectiveObservations: 1 });
+    expect(d.perPosition.QB!.designEffect).toBe(3);
+  });
+
+  it("handles an empty sample without dividing by zero", () => {
+    const d = curveSampleDiagnostics([]);
+    expect(d.designEffect).toBe(0);
+    expect(d.uniquePlayerSeasons).toBe(0);
+  });
+});
+
+describe("aggregation modes for repeated player-seasons", () => {
+  // One elite RB in three leagues at ranks 1/1/3, plus one ordinary RB in one
+  // league at rank 3. Under league-level the elite player's outcome is counted
+  // three times and dominates the fit.
+  const rows = [
+    ...inLeagues("elite", "RB", 300, [["L1", 1], ["L2", 1], ["L3", 3]]),
+    ...inLeagues("ordinary", "RB", 100, [["L1", 3]])
+  ];
+
+  it("league-level over-weights the repeated outcome (the previous behaviour)", () => {
+    const c = buildPointsCurve(rows, { aggregation: "league-level" });
+    // Rank 3 pools the elite player's 300 (from L3) with the ordinary 100.
+    expect(expectedPointsAt(c, "RB", 3)).toBe(200);
+    expect(c.counts.RB).toBe(4);
+    expect(c.aggregation).toBe("league-level");
+  });
+
+  it("player-season collapses to the median rank and drops the spread", () => {
+    const c = buildPointsCurve(rows, { aggregation: "player-season" });
+    expect(c.aggregation).toBe("player-season");
+    // Two distinct player-seasons only.
+    expect(c.counts.RB).toBe(2);
+    // The elite player's median rank across [1, 1, 3] is 1 — the rank-3
+    // evidence is discarded entirely.
+    expect(expectedPointsAt(c, "RB", 1)).toBe(300);
+    expect(expectedPointsAt(c, "RB", 3)).toBe(100);
+  });
+
+  it("cluster-weighted keeps every rank but caps each outcome at weight 1", () => {
+    const c = buildPointsCurve(rows, { aggregation: "cluster-weighted" });
+    expect(c.aggregation).toBe("cluster-weighted");
+    // Effective n is the number of distinct player-seasons.
+    expect(c.counts.RB).toBeCloseTo(2, 6);
+    // Rank 3 still sees BOTH the elite (weight 1/3) and the ordinary (weight 1)
+    // rather than either discarding the rank-3 draft or counting it in full.
+    const expected = (300 * (1 / 3) + 100 * 1) / (1 / 3 + 1);
+    expect(expectedPointsAt(c, "RB", 3)).toBeCloseTo(expected, 6);
+  });
+
+  it("cluster-weighted is the default — the a-priori statistical choice", () => {
+    expect(buildPointsCurve(rows).aggregation).toBe("cluster-weighted");
+  });
+
+  it("all three agree exactly when nothing is repeated", () => {
+    // The modes differ ONLY in how they treat dependence. With one league and
+    // distinct players they must be identical, or one of them is doing
+    // something it should not.
+    const clean = obs("WR", [250, 200, 150, 120]);
+    const a = buildPointsCurve(clean, { aggregation: "league-level" });
+    const b = buildPointsCurve(clean, { aggregation: "player-season" });
+    const c = buildPointsCurve(clean, { aggregation: "cluster-weighted" });
+    expect(a.byPosition.WR).toEqual(b.byPosition.WR);
+    expect(a.byPosition.WR).toEqual(c.byPosition.WR);
+  });
+
+  it("every mode preserves the non-increasing constraint", () => {
+    for (const aggregation of ["league-level", "player-season", "cluster-weighted"] as const) {
+      const c = buildPointsCurve(rows, { aggregation });
+      const series = c.byPosition.RB!;
+      for (let i = 1; i < series.length; i += 1) {
+        expect(series[i]!).toBeLessThanOrEqual(series[i - 1]! + 1e-9);
+      }
+    }
   });
 });

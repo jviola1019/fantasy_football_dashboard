@@ -1,0 +1,226 @@
+
+Running 220 tests using 1 worker
+
+[1A[2K[1/220] [chromium] › e2e\01-dashboard.spec.ts:4:3 › app shell + dashboard › /dashboard renders the overview without crashing
+[1A[2K[2/220] [chromium] › e2e\01-dashboard.spec.ts:26:3 › app shell + dashboard › a deep route (/analytics) renders its 2-D heatmap without crashing
+[1A[2K[3/220] [chromium] › e2e\01-dashboard.spec.ts:37:3 › app shell + dashboard › onboarding homepage shows the primary CTAs when logged out
+[1A[2K[4/220] [chromium] › e2e\01-dashboard.spec.ts:44:3 › app shell + dashboard › governance banner discloses source state on every app route
+[1A[2K[5/220] [chromium] › e2e\01-dashboard.spec.ts:52:3 › app shell + dashboard › trade builder renders and accepts a player search
+[1A[2K[6/220] [chromium] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at desktop-xl (1440px)
+[1A[2K[7/220] [chromium] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at laptop (1024px)
+[1A[2K[8/220] [chromium] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at tablet (768px)
+[1A[2K[9/220] [chromium] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at phone (390px)
+[1A[2K[10/220] [chromium] › e2e\02-login.spec.ts:4:3 › /login › renders the credentials form
+[1A[2K[11/220] [chromium] › e2e\02-login.spec.ts:12:3 › /login › can toggle to the register variant
+[1A[2K[12/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route / has no serious/critical violations
+[1A[2K[13/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /dashboard has no serious/critical violations
+[1A[2K[14/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /players has no serious/critical violations
+[1A[2K[15/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /analytics has no serious/critical violations
+[1A[2K[16/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /draft has no serious/critical violations
+[1A[2K[17/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /waivers has no serious/critical violations
+[1A[2K[18/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /trades has no serious/critical violations
+[1A[2K[19/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /reports has no serious/critical violations
+[1A[2K[20/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /login has no serious/critical violations
+[1A[2K[21/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /settings/account has no serious/critical violations
+[1A[2K[22/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /settings/leagues has no serious/critical violations
+[1A[2K[23/220] [chromium] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /mock-draft has no serious/critical violations
+[1A[2K[24/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /dashboard has a single <h1>
+[1A[2K[25/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /players has a single <h1>
+[1A[2K[26/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /analytics has a single <h1>
+[1A[2K[27/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /draft has a single <h1>
+[1A[2K[28/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /waivers has a single <h1>
+[1A[2K[29/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /trades has a single <h1>
+[1A[2K[30/220] [chromium] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /reports has a single <h1>
+[1A[2K[31/220] [chromium] › e2e\04-draft-and-lifecycle.spec.ts:4:3 › draft + lifecycle panels on their routes › Draft Intelligence content is present on /draft
+[1A[2K[32/220] [chromium] › e2e\04-draft-and-lifecycle.spec.ts:11:3 › draft + lifecycle panels on their routes › Live Board is searchable across all available players and shows recommendations on-board
+[1A[2K[33/220] [chromium] › e2e\04-draft-and-lifecycle.spec.ts:37:3 › draft + lifecycle panels on their routes › Pre-Draft, Waiver Wire, Trade Center panels render on their routes
+[1A[2K[34/220] [chromium] › e2e\04-draft-and-lifecycle.spec.ts:46:3 › draft + lifecycle panels on their routes › Waiver Wire populates a ranked free-agent table from the envelope
+[1A[2K[35/220] [chromium] › e2e\04-draft-and-lifecycle.spec.ts:55:3 › draft + lifecycle panels on their routes › Trade Center renders the Trade Builder tab and loads values or shows an honest state
+[1A[2K[36/220] [chromium] › e2e\05-auth-flow.spec.ts:9:3 › auth — register → /settings/leagues › register a new user, then reach /settings/leagues
+[1A[2K[37/220] [chromium] › e2e\05-auth-flow.spec.ts:23:3 › auth — register → /settings/leagues › unauthenticated visit to /settings/leagues redirects to /login
+[1A[2K[38/220] [chromium] › e2e\07-no-shared-data.spec.ts:32:3 › per-account isolation › user B sees none of user A's league data
+[1A[2K[39/220] [chromium] › e2e\07-no-shared-data.spec.ts:72:3 › per-account isolation › NoLeagueCTA is shown to signed-in users until a league drives the homepage
+[1A[2K[40/220] [chromium] › e2e\14-wrong-password-error.spec.ts:32:3 › wrong-password UX › displays friendly error on bad password without leaking auth internals
+[1A[2K[41/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #league-health renders on /dashboard
+[1A[2K[42/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #league-pulse renders on /dashboard
+[1A[2K[43/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #top-insights renders on /dashboard
+[1A[2K[44/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #next-best-actions renders on /dashboard
+[1A[2K[45/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #market-intelligence renders on /analytics
+[1A[2K[46/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #narrative-engine renders on /analytics
+[1A[2K[47/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #nexus-simulator renders on /analytics
+[1A[2K[48/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #team-signals renders on /analytics
+[1A[2K[49/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #player-universe renders on /players
+[1A[2K[50/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #roster-health renders on /players
+[1A[2K[51/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #draft-intelligence renders on /draft
+[1A[2K[52/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #pre-draft-audit renders on /draft
+[1A[2K[53/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #team-construction renders on /draft
+[1A[2K[54/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #waiver-wire renders on /waivers
+[1A[2K[55/220] [chromium] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #trade-center renders on /trades
+[1A[2K[56/220] [chromium] › e2e\15-sprint5-panels.spec.ts:51:3 › panels render on their routes › no fabricated / broken junk text in the deterministic (fixture) panels
+[1A[2K[57/220] [chromium] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › market-intelligence: each tab is selectable
+[1A[2K[58/220] [chromium] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › player-universe: each tab is selectable
+[1A[2K[59/220] [chromium] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › nexus-simulator: each tab is selectable
+[1A[2K[60/220] [chromium] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › trade-center: each tab is selectable
+[1A[2K[61/220] [chromium] › e2e\15-sprint5-panels.spec.ts:90:3 › in-panel tabs switch content › Value × Usage board: sort buttons re-sort and expose pressed state
+[1A[2K[62/220] [chromium] › e2e\15-sprint5-panels.spec.ts:111:3 › in-panel tabs switch content › tab targets are at least 44px tall on touch devices
+[1A[2K[63/220] [chromium] › e2e\15-sprint5-panels.spec.ts:124:3 › feature interactions › League Pulse shows ranked bars + values
+[1A[2K[64/220] [chromium] › e2e\15-sprint5-panels.spec.ts:134:3 › feature interactions › Market Intelligence Price Discovery renders the scatter
+[1A[2K[65/220] [chromium] › e2e\15-sprint5-panels.spec.ts:142:3 › feature interactions › Player Universe Tiers tab shows value bands
+[1A[2K[66/220] [chromium] › e2e\15-sprint5-panels.spec.ts:151:3 › feature interactions › Draft Intelligence: + Mine and Taken buttons update the counts
+[1A[2K[67/220] [chromium] › e2e\15-sprint5-panels.spec.ts:163:3 › feature interactions › Waiver Wire search filters the ranked free agents
+[1A[2K[68/220] [chromium] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /dashboard renders its panel inside the app shell
+[1A[2K[69/220] [chromium] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /players renders its panel inside the app shell
+[1A[2K[70/220] [chromium] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /analytics renders its panel inside the app shell
+[1A[2K[71/220] [chromium] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /draft renders its panel inside the app shell
+[1A[2K[72/220] [chromium] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /waivers renders its panel inside the app shell
+[1A[2K[73/220] [chromium] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /trades renders its panel inside the app shell
+[1A[2K[74/220] [chromium] › e2e\16-topbar-nav.spec.ts:28:3 › multi-route navigation › the active route is marked aria-current in the visible nav
+[1A[2K[75/220] [chromium] › e2e\16-topbar-nav.spec.ts:36:3 › multi-route navigation › clicking a nav link performs a client navigation
+[1A[2K[76/220] [chromium] › e2e\16-topbar-nav.spec.ts:44:3 › multi-route navigation › the mobile bottom nav is numbered sequentially with no gap
+[1A[2K[77/220] [chromium] › e2e\17-account-flows.spec.ts:21:3 › signed-in account flows › can reach the import form for BOTH Sleeper and ESPN
+[1A[2K[78/220] [chromium] › e2e\17-account-flows.spec.ts:39:3 › signed-in account flows › change-password and delete-account forms are present
+[1A[2K[79/220] [chromium] › e2e\17-account-flows.spec.ts:50:3 › signed-in account flows › settings pages have no horizontal overflow
+[1A[2K[80/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route / has no undersized interactive targets
+[1A[2K[81/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /dashboard has no undersized interactive targets
+[1A[2K[82/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /players has no undersized interactive targets
+[1A[2K[83/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /draft has no undersized interactive targets
+[1A[2K[84/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /waivers has no undersized interactive targets
+[1A[2K[85/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /trades has no undersized interactive targets
+[1A[2K[86/220] [chromium] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /reports has no undersized interactive targets
+[1A[2K[87/220] [chromium] › e2e\19-security-headers.spec.ts:18:3 › static security headers › every document route carries the full header set
+[1A[2K[88/220] [chromium] › e2e\19-security-headers.spec.ts:31:3 › static security headers › does not advertise the framework
+[1A[2K[89/220] [chromium] › e2e\19-security-headers.spec.ts:36:3 › static security headers › API responses are never cached
+[1A[2K[90/220] [chromium] › e2e\19-security-headers.spec.ts:46:3 › content security policy › declares every directive the audit requires
+[1A[2K[91/220] [chromium] › e2e\19-security-headers.spec.ts:64:3 › content security policy › contains no wildcard or unsafe-eval, and locks down the dangerous sinks
+[1A[2K[92/220] [chromium] › e2e\19-security-headers.spec.ts:78:3 › content security policy › issues a FRESH nonce per request
+[1A[2K[93/220] [chromium] › e2e\19-security-headers.spec.ts:88:3 › content security policy › connect-src stays 'self' — the app makes no client-side external calls
+[1A[2K[94/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route / reports no CSP violations
+[1A[2K[95/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /login reports no CSP violations
+[1A[2K[96/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /dashboard reports no CSP violations
+[1A[2K[97/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /players reports no CSP violations
+[1A[2K[98/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /analytics reports no CSP violations
+[1A[2K[99/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /draft reports no CSP violations
+[1A[2K[100/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /waivers reports no CSP violations
+[1A[2K[101/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /trades reports no CSP violations
+[1A[2K[102/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /reports reports no CSP violations
+[1A[2K[103/220] [chromium] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /mock-draft reports no CSP violations
+[1A[2K[104/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:33:5 › model-failure disclosure sits beside the numbers › #nexus-simulator shows the notice without any interaction
+[1A[2K[105/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:33:5 › model-failure disclosure sits beside the numbers › #team-signals shows the notice without any interaction
+[1A[2K[106/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:33:5 › model-failure disclosure sits beside the numbers › #report-outlook shows the notice without any interaction
+[1A[2K[107/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:52:3 › model-failure disclosure sits beside the numbers › the notice is not inside a collapsed <details>
+[1A[2K[108/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:58:3 › model-failure disclosure sits beside the numbers › the default Nexus tab leads with the league baseline, not a model percentage
+[1A[2K[109/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:85:3 › model-failure disclosure sits beside the numbers › raw frequencies remain reachable and are labeled uncalibrated
+[1A[2K[110/220] [chromium] › e2e\20-model-failure-disclosure.spec.ts:102:3 › model-failure disclosure sits beside the numbers › no surface presents the simulation as calibrated or validated
+[1A[2K[111/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:4:3 › app shell + dashboard › /dashboard renders the overview without crashing
+[1A[2K[112/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:26:3 › app shell + dashboard › a deep route (/analytics) renders its 2-D heatmap without crashing
+[1A[2K[113/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:37:3 › app shell + dashboard › onboarding homepage shows the primary CTAs when logged out
+[1A[2K[114/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:44:3 › app shell + dashboard › governance banner discloses source state on every app route
+[1A[2K[115/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:52:3 › app shell + dashboard › trade builder renders and accepts a player search
+[1A[2K[116/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at desktop-xl (1440px)
+[1A[2K[117/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at laptop (1024px)
+[1A[2K[118/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at tablet (768px)
+[1A[2K[119/220] [mobile-chrome] › e2e\01-dashboard.spec.ts:69:5 › app shell + dashboard › no horizontal overflow at phone (390px)
+[1A[2K[120/220] [mobile-chrome] › e2e\02-login.spec.ts:4:3 › /login › renders the credentials form
+[1A[2K[121/220] [mobile-chrome] › e2e\02-login.spec.ts:12:3 › /login › can toggle to the register variant
+[1A[2K[122/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route / has no serious/critical violations
+[1A[2K[123/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /dashboard has no serious/critical violations
+[1A[2K[124/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /players has no serious/critical violations
+[1A[2K[125/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /analytics has no serious/critical violations
+[1A[2K[126/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /draft has no serious/critical violations
+[1A[2K[127/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /waivers has no serious/critical violations
+[1A[2K[128/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /trades has no serious/critical violations
+[1A[2K[129/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /reports has no serious/critical violations
+[1A[2K[130/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /login has no serious/critical violations
+[1A[2K[131/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /settings/account has no serious/critical violations
+[1A[2K[132/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /settings/leagues has no serious/critical violations
+[1A[2K[133/220] [mobile-chrome] › e2e\03-a11y.spec.ts:26:5 › axe a11y scan › route /mock-draft has no serious/critical violations
+[1A[2K[134/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /dashboard has a single <h1>
+[1A[2K[135/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /players has a single <h1>
+[1A[2K[136/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /analytics has a single <h1>
+[1A[2K[137/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /draft has a single <h1>
+[1A[2K[138/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /waivers has a single <h1>
+[1A[2K[139/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /trades has a single <h1>
+[1A[2K[140/220] [mobile-chrome] › e2e\03-a11y.spec.ts:47:5 › each app route exposes exactly one h1 › /reports has a single <h1>
+[1A[2K[141/220] [mobile-chrome] › e2e\04-draft-and-lifecycle.spec.ts:4:3 › draft + lifecycle panels on their routes › Draft Intelligence content is present on /draft
+[1A[2K[142/220] [mobile-chrome] › e2e\04-draft-and-lifecycle.spec.ts:11:3 › draft + lifecycle panels on their routes › Live Board is searchable across all available players and shows recommendations on-board
+[1A[2K[143/220] [mobile-chrome] › e2e\04-draft-and-lifecycle.spec.ts:37:3 › draft + lifecycle panels on their routes › Pre-Draft, Waiver Wire, Trade Center panels render on their routes
+[1A[2K[144/220] [mobile-chrome] › e2e\04-draft-and-lifecycle.spec.ts:46:3 › draft + lifecycle panels on their routes › Waiver Wire populates a ranked free-agent table from the envelope
+[1A[2K[145/220] [mobile-chrome] › e2e\04-draft-and-lifecycle.spec.ts:55:3 › draft + lifecycle panels on their routes › Trade Center renders the Trade Builder tab and loads values or shows an honest state
+[1A[2K[146/220] [mobile-chrome] › e2e\05-auth-flow.spec.ts:9:3 › auth — register → /settings/leagues › register a new user, then reach /settings/leagues
+[1A[2K[147/220] [mobile-chrome] › e2e\05-auth-flow.spec.ts:23:3 › auth — register → /settings/leagues › unauthenticated visit to /settings/leagues redirects to /login
+[1A[2K[148/220] [mobile-chrome] › e2e\07-no-shared-data.spec.ts:32:3 › per-account isolation › user B sees none of user A's league data
+[1A[2K[149/220] [mobile-chrome] › e2e\07-no-shared-data.spec.ts:72:3 › per-account isolation › NoLeagueCTA is shown to signed-in users until a league drives the homepage
+[1A[2K[150/220] [mobile-chrome] › e2e\14-wrong-password-error.spec.ts:32:3 › wrong-password UX › displays friendly error on bad password without leaking auth internals
+[1A[2K[151/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #league-health renders on /dashboard
+[1A[2K[152/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #league-pulse renders on /dashboard
+[1A[2K[153/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #top-insights renders on /dashboard
+[1A[2K[154/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #next-best-actions renders on /dashboard
+[1A[2K[155/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #market-intelligence renders on /analytics
+[1A[2K[156/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #narrative-engine renders on /analytics
+[1A[2K[157/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #nexus-simulator renders on /analytics
+[1A[2K[158/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #team-signals renders on /analytics
+[1A[2K[159/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #player-universe renders on /players
+[1A[2K[160/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #roster-health renders on /players
+[1A[2K[161/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #draft-intelligence renders on /draft
+[1A[2K[162/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #pre-draft-audit renders on /draft
+[1A[2K[163/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #team-construction renders on /draft
+[1A[2K[164/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #waiver-wire renders on /waivers
+[1A[2K[165/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:43:5 › panels render on their routes › #trade-center renders on /trades
+[1A[2K[166/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:51:3 › panels render on their routes › no fabricated / broken junk text in the deterministic (fixture) panels
+[1A[2K[167/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › market-intelligence: each tab is selectable
+[1A[2K[168/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › player-universe: each tab is selectable
+[1A[2K[169/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › nexus-simulator: each tab is selectable
+[1A[2K[170/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:78:5 › in-panel tabs switch content › trade-center: each tab is selectable
+[1A[2K[171/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:90:3 › in-panel tabs switch content › Value × Usage board: sort buttons re-sort and expose pressed state
+[1A[2K[172/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:111:3 › in-panel tabs switch content › tab targets are at least 44px tall on touch devices
+[1A[2K[173/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:124:3 › feature interactions › League Pulse shows ranked bars + values
+[1A[2K[174/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:134:3 › feature interactions › Market Intelligence Price Discovery renders the scatter
+[1A[2K[175/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:142:3 › feature interactions › Player Universe Tiers tab shows value bands
+[1A[2K[176/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:151:3 › feature interactions › Draft Intelligence: + Mine and Taken buttons update the counts
+[1A[2K[177/220] [mobile-chrome] › e2e\15-sprint5-panels.spec.ts:163:3 › feature interactions › Waiver Wire search filters the ranked free agents
+[1A[2K[178/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /dashboard renders its panel inside the app shell
+[1A[2K[179/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /players renders its panel inside the app shell
+[1A[2K[180/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /analytics renders its panel inside the app shell
+[1A[2K[181/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /draft renders its panel inside the app shell
+[1A[2K[182/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /waivers renders its panel inside the app shell
+[1A[2K[183/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:20:5 › multi-route navigation › /trades renders its panel inside the app shell
+[1A[2K[184/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:28:3 › multi-route navigation › the active route is marked aria-current in the visible nav
+[1A[2K[185/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:36:3 › multi-route navigation › clicking a nav link performs a client navigation
+[1A[2K[186/220] [mobile-chrome] › e2e\16-topbar-nav.spec.ts:44:3 › multi-route navigation › the mobile bottom nav is numbered sequentially with no gap
+[1A[2K[187/220] [mobile-chrome] › e2e\17-account-flows.spec.ts:21:3 › signed-in account flows › can reach the import form for BOTH Sleeper and ESPN
+[1A[2K[188/220] [mobile-chrome] › e2e\17-account-flows.spec.ts:39:3 › signed-in account flows › change-password and delete-account forms are present
+[1A[2K[189/220] [mobile-chrome] › e2e\17-account-flows.spec.ts:50:3 › signed-in account flows › settings pages have no horizontal overflow
+[1A[2K[190/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route / has no undersized interactive targets
+[1A[2K[191/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /dashboard has no undersized interactive targets
+[1A[2K[192/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /players has no undersized interactive targets
+[1A[2K[193/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /draft has no undersized interactive targets
+[1A[2K[194/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /waivers has no undersized interactive targets
+[1A[2K[195/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /trades has no undersized interactive targets
+[1A[2K[196/220] [mobile-chrome] › e2e\18-target-size.spec.ts:22:5 › WCAG 2.2 AA target size (SC 2.5.8) › route /reports has no undersized interactive targets
+[1A[2K[197/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:18:3 › static security headers › every document route carries the full header set
+[1A[2K[198/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:31:3 › static security headers › does not advertise the framework
+[1A[2K[199/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:36:3 › static security headers › API responses are never cached
+[1A[2K[200/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:46:3 › content security policy › declares every directive the audit requires
+[1A[2K[201/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:64:3 › content security policy › contains no wildcard or unsafe-eval, and locks down the dangerous sinks
+[1A[2K[202/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:78:3 › content security policy › issues a FRESH nonce per request
+[1A[2K[203/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:88:3 › content security policy › connect-src stays 'self' — the app makes no client-side external calls
+[1A[2K[204/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route / reports no CSP violations
+[1A[2K[205/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /login reports no CSP violations
+[1A[2K[206/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /dashboard reports no CSP violations
+[1A[2K[207/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /players reports no CSP violations
+[1A[2K[208/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /analytics reports no CSP violations
+[1A[2K[209/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /draft reports no CSP violations
+[1A[2K[210/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /waivers reports no CSP violations
+[1A[2K[211/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /trades reports no CSP violations
+[1A[2K[212/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /reports reports no CSP violations
+[1A[2K[213/220] [mobile-chrome] › e2e\19-security-headers.spec.ts:96:5 › CSP violations in a real browser (rollout evidence) › route /mock-draft reports no CSP violations
+[1A[2K[214/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:33:5 › model-failure disclosure sits beside the numbers › #nexus-simulator shows the notice without any interaction
+[1A[2K[215/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:33:5 › model-failure disclosure sits beside the numbers › #team-signals shows the notice without any interaction
+[1A[2K[216/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:33:5 › model-failure disclosure sits beside the numbers › #report-outlook shows the notice without any interaction
+[1A[2K[217/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:52:3 › model-failure disclosure sits beside the numbers › the notice is not inside a collapsed <details>
+[1A[2K[218/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:58:3 › model-failure disclosure sits beside the numbers › the default Nexus tab leads with the league baseline, not a model percentage
+[1A[2K[219/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:85:3 › model-failure disclosure sits beside the numbers › raw frequencies remain reachable and are labeled uncalibrated
+[1A[2K[220/220] [mobile-chrome] › e2e\20-model-failure-disclosure.spec.ts:102:3 › model-failure disclosure sits beside the numbers › no surface presents the simulation as calibrated or validated
+[1A[2K  1 skipped
+  219 passed (9.2m)
+EXIT=0

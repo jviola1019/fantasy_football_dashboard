@@ -94,7 +94,7 @@ const CAPABILITIES: { title: string; body: string }[] = [
   },
   {
     title: "Season simulation",
-    body: "A seeded Monte-Carlo season: playoff / championship odds shown conditionally on win total, with uncertainty."
+    body: "A seeded Monte-Carlo season: playoff / championship SCENARIO frequencies shown conditionally on win total, against the league baseline. Reproducible, and openly labeled as not yet validated out of sample."
   },
   {
     title: "Draft & waivers",
