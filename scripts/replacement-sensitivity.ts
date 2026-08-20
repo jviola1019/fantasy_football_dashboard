@@ -90,6 +90,28 @@ function shapes(): Shape[] {
         name: `${numTeams}T ${scoringFormat} 2TE`,
         format: fmt({ numTeams, ppr, scoringFormat, starters: starters({ TE: 2 }) })
       });
+      // Audit 2026-08-20 SS12: the shapes the previous sweep did not cover.
+      out.push({
+        name: `${numTeams}T ${scoringFormat} noK`,
+        format: fmt({ numTeams, ppr, scoringFormat, starters: starters({ K: 0 }) })
+      });
+      out.push({
+        name: `${numTeams}T ${scoringFormat} 0FLEX`,
+        format: fmt({ numTeams, ppr, scoringFormat, starters: starters({ FLEX: 0 }) })
+      });
+      out.push({
+        name: `${numTeams}T ${scoringFormat} 3FLEX`,
+        format: fmt({ numTeams, ppr, scoringFormat, starters: starters({ FLEX: 3 }) })
+      });
+    }
+    // League TYPE at a fixed scoring format. Kept out of the scoring loop
+    // because leagueType does not interact with ppr in the demand model - if it
+    // ever does, this sweep will show it as a flat row and that is the signal.
+    for (const leagueType of ["redraft", "keeper", "dynasty"] as const) {
+      out.push({
+        name: `${numTeams}T PPR ${leagueType}`,
+        format: fmt({ numTeams, ppr: 1, scoringFormat: "PPR", leagueType })
+      });
     }
   }
   return out;

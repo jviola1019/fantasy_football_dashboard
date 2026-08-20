@@ -1,0 +1,979 @@
+
+> rae-reputation-arbitrage-engine@0.1.0 sensitivity:replacement
+> tsx scripts/replacement-sensitivity.ts
+
+# Replacement-level sensitivity sweep
+# generated 2026-08-20T13:51:45.976Z
+# baseline: depthCushion=1.2 superflexQbOccupancy=1
+# pool: 230 players (QB40 RB70 WR90 TE30)
+
+## 1. Replacement rank by cushion (all league shapes)
+
+shape                  cushion   QB   RB   WR   TE
+8T STD 1QB             1.00       8   20   20    8
+8T STD 1QB             1.10       9   22   22    9
+8T STD 1QB             1.20      10   24   24   10
+8T STD 1QB             1.30      10   26   26   10
+8T STD 1QB             1.40      11   28   28   11
+8T STD SFLEX           1.00      16   20   20    8
+8T STD SFLEX           1.10      18   22   22    9
+8T STD SFLEX           1.20      19   24   24   10
+8T STD SFLEX           1.30      21   26   26   10
+8T STD SFLEX           1.40      22   28   28   11
+8T STD 2QB             1.00      16   20   20    8
+8T STD 2QB             1.10      18   22   22    9
+8T STD 2QB             1.20      19   24   24   10
+8T STD 2QB             1.30      21   26   26   10
+8T STD 2QB             1.40      22   28   28   11
+8T STD 2TE             1.00       8   19   19   18
+8T STD 2TE             1.10       9   21   21   19
+8T STD 2TE             1.20      10   23   23   21
+8T STD 2TE             1.30      10   25   25   23
+8T STD 2TE             1.40      11   27   27   25
+8T STD noK             1.00       8   20   20    8
+8T STD noK             1.10       9   22   22    9
+8T STD noK             1.20      10   24   24   10
+8T STD noK             1.30      10   26   26   10
+8T STD noK             1.40      11   28   28   11
+8T STD 0FLEX           1.00       8   16   16    8
+8T STD 0FLEX           1.10       9   18   18    9
+8T STD 0FLEX           1.20      10   19   19   10
+8T STD 0FLEX           1.30      10   21   21   10
+8T STD 0FLEX           1.40      11   22   22   11
+8T STD 3FLEX           1.00       8   28   28    8
+8T STD 3FLEX           1.10       9   31   31    9
+8T STD 3FLEX           1.20      10   34   34   10
+8T STD 3FLEX           1.30      10   36   36   10
+8T STD 3FLEX           1.40      11   39   39   11
+8T HALF 1QB            1.00       8   20   20    8
+8T HALF 1QB            1.10       9   22   22    9
+8T HALF 1QB            1.20      10   23   25   10
+8T HALF 1QB            1.30      10   25   27   10
+8T HALF 1QB            1.40      11   27   29   11
+8T HALF SFLEX          1.00      16   20   20    8
+8T HALF SFLEX          1.10      18   22   22    9
+8T HALF SFLEX          1.20      19   23   25   10
+8T HALF SFLEX          1.30      21   25   27   10
+8T HALF SFLEX          1.40      22   27   29   11
+8T HALF 2QB            1.00      16   20   20    8
+8T HALF 2QB            1.10      18   22   22    9
+8T HALF 2QB            1.20      19   23   25   10
+8T HALF 2QB            1.30      21   25   27   10
+8T HALF 2QB            1.40      22   27   29   11
+8T HALF 2TE            1.00       8   19   20   17
+8T HALF 2TE            1.10       9   21   22   19
+8T HALF 2TE            1.20      10   23   24   21
+8T HALF 2TE            1.30      10   25   26   23
+8T HALF 2TE            1.40      11   26   27   24
+8T HALF noK            1.00       8   20   20    8
+8T HALF noK            1.10       9   22   22    9
+8T HALF noK            1.20      10   23   25   10
+8T HALF noK            1.30      10   25   27   10
+8T HALF noK            1.40      11   27   29   11
+8T HALF 0FLEX          1.00       8   16   16    8
+8T HALF 0FLEX          1.10       9   18   18    9
+8T HALF 0FLEX          1.20      10   19   19   10
+8T HALF 0FLEX          1.30      10   21   21   10
+8T HALF 0FLEX          1.40      11   22   22   11
+8T HALF 3FLEX          1.00       8   27   29    8
+8T HALF 3FLEX          1.10       9   29   32    9
+8T HALF 3FLEX          1.20      10   32   35   10
+8T HALF 3FLEX          1.30      10   35   38   10
+8T HALF 3FLEX          1.40      11   37   41   11
+8T PPR 1QB             1.00       8   20   20    8
+8T PPR 1QB             1.10       9   22   22    9
+8T PPR 1QB             1.20      10   23   25   10
+8T PPR 1QB             1.30      10   25   27   10
+8T PPR 1QB             1.40      11   27   29   11
+8T PPR SFLEX           1.00      16   20   20    8
+8T PPR SFLEX           1.10      18   22   22    9
+8T PPR SFLEX           1.20      19   23   25   10
+8T PPR SFLEX           1.30      21   25   27   10
+8T PPR SFLEX           1.40      22   27   29   11
+8T PPR 2QB             1.00      16   20   20    8
+8T PPR 2QB             1.10      18   22   22    9
+8T PPR 2QB             1.20      19   23   25   10
+8T PPR 2QB             1.30      21   25   27   10
+8T PPR 2QB             1.40      22   27   29   11
+8T PPR 2TE             1.00       8   19   20   17
+8T PPR 2TE             1.10       9   21   22   19
+8T PPR 2TE             1.20      10   23   24   21
+8T PPR 2TE             1.30      10   25   26   23
+8T PPR 2TE             1.40      11   26   27   24
+8T PPR noK             1.00       8   20   20    8
+8T PPR noK             1.10       9   22   22    9
+8T PPR noK             1.20      10   23   25   10
+8T PPR noK             1.30      10   25   27   10
+8T PPR noK             1.40      11   27   29   11
+8T PPR 0FLEX           1.00       8   16   16    8
+8T PPR 0FLEX           1.10       9   18   18    9
+8T PPR 0FLEX           1.20      10   19   19   10
+8T PPR 0FLEX           1.30      10   21   21   10
+8T PPR 0FLEX           1.40      11   22   22   11
+8T PPR 3FLEX           1.00       8   27   29    8
+8T PPR 3FLEX           1.10       9   29   32    9
+8T PPR 3FLEX           1.20      10   32   35   10
+8T PPR 3FLEX           1.30      10   35   38   10
+8T PPR 3FLEX           1.40      11   37   41   11
+8T PPR redraft         1.00       8   20   20    8
+8T PPR redraft         1.10       9   22   22    9
+8T PPR redraft         1.20      10   23   25   10
+8T PPR redraft         1.30      10   25   27   10
+8T PPR redraft         1.40      11   27   29   11
+8T PPR keeper          1.00       8   20   20    8
+8T PPR keeper          1.10       9   22   22    9
+8T PPR keeper          1.20      10   23   25   10
+8T PPR keeper          1.30      10   25   27   10
+8T PPR keeper          1.40      11   27   29   11
+8T PPR dynasty         1.00       8   20   20    8
+8T PPR dynasty         1.10       9   22   22    9
+8T PPR dynasty         1.20      10   23   25   10
+8T PPR dynasty         1.30      10   25   27   10
+8T PPR dynasty         1.40      11   27   29   11
+10T STD 1QB            1.00      10   25   25   10
+10T STD 1QB            1.10      11   28   28   11
+10T STD 1QB            1.20      12   30   30   12
+10T STD 1QB            1.30      13   33   33   13
+10T STD 1QB            1.40      14   35   35   14
+10T STD SFLEX          1.00      20   25   25   10
+10T STD SFLEX          1.10      22   28   28   11
+10T STD SFLEX          1.20      24   30   30   12
+10T STD SFLEX          1.30      26   33   33   13
+10T STD SFLEX          1.40      28   35   35   14
+10T STD 2QB            1.00      20   25   25   10
+10T STD 2QB            1.10      22   28   28   11
+10T STD 2QB            1.20      24   30   30   12
+10T STD 2QB            1.30      26   33   33   13
+10T STD 2QB            1.40      28   35   35   14
+10T STD 2TE            1.00      10   24   24   22
+10T STD 2TE            1.10      11   26   26   24
+10T STD 2TE            1.20      12   29   29   26
+10T STD 2TE            1.30      13   31   31   29
+10T STD 2TE            1.40      14   34   34   31
+10T STD noK            1.00      10   25   25   10
+10T STD noK            1.10      11   28   28   11
+10T STD noK            1.20      12   30   30   12
+10T STD noK            1.30      13   33   33   13
+10T STD noK            1.40      14   35   35   14
+10T STD 0FLEX          1.00      10   20   20   10
+10T STD 0FLEX          1.10      11   22   22   11
+10T STD 0FLEX          1.20      12   24   24   12
+10T STD 0FLEX          1.30      13   26   26   13
+10T STD 0FLEX          1.40      14   28   28   14
+10T STD 3FLEX          1.00      10   35   35   10
+10T STD 3FLEX          1.10      11   39   39   11
+10T STD 3FLEX          1.20      12   42   42   12
+10T STD 3FLEX          1.30      13   46   46   13
+10T STD 3FLEX          1.40      14   49   49   14
+10T HALF 1QB           1.00      10   24   26   10
+10T HALF 1QB           1.10      11   27   28   11
+10T HALF 1QB           1.20      12   29   31   12
+10T HALF 1QB           1.30      13   32   33   13
+10T HALF 1QB           1.40      14   34   36   14
+10T HALF SFLEX         1.00      20   24   26   10
+10T HALF SFLEX         1.10      22   27   28   11
+10T HALF SFLEX         1.20      24   29   31   12
+10T HALF SFLEX         1.30      26   32   33   13
+10T HALF SFLEX         1.40      28   34   36   14
+10T HALF 2QB           1.00      20   24   26   10
+10T HALF 2QB           1.10      22   27   28   11
+10T HALF 2QB           1.20      24   29   31   12
+10T HALF 2QB           1.30      26   32   33   13
+10T HALF 2QB           1.40      28   34   36   14
+10T HALF 2TE           1.00      10   24   25   22
+10T HALF 2TE           1.10      11   26   27   24
+10T HALF 2TE           1.20      12   28   29   26
+10T HALF 2TE           1.30      13   31   32   28
+10T HALF 2TE           1.40      14   33   34   31
+10T HALF noK           1.00      10   24   26   10
+10T HALF noK           1.10      11   27   28   11
+10T HALF noK           1.20      12   29   31   12
+10T HALF noK           1.30      13   32   33   13
+10T HALF noK           1.40      14   34   36   14
+10T HALF 0FLEX         1.00      10   20   20   10
+10T HALF 0FLEX         1.10      11   22   22   11
+10T HALF 0FLEX         1.20      12   24   24   12
+10T HALF 0FLEX         1.30      13   26   26   13
+10T HALF 0FLEX         1.40      14   28   28   14
+10T HALF 3FLEX         1.00      10   33   37   10
+10T HALF 3FLEX         1.10      11   37   40   11
+10T HALF 3FLEX         1.20      12   40   44   12
+10T HALF 3FLEX         1.30      13   43   48   13
+10T HALF 3FLEX         1.40      14   47   51   14
+10T PPR 1QB            1.00      10   24   26   10
+10T PPR 1QB            1.10      11   27   28   11
+10T PPR 1QB            1.20      12   29   31   12
+10T PPR 1QB            1.30      13   32   33   13
+10T PPR 1QB            1.40      14   34   36   14
+10T PPR SFLEX          1.00      20   24   26   10
+10T PPR SFLEX          1.10      22   27   28   11
+10T PPR SFLEX          1.20      24   29   31   12
+10T PPR SFLEX          1.30      26   32   33   13
+10T PPR SFLEX          1.40      28   34   36   14
+10T PPR 2QB            1.00      20   24   26   10
+10T PPR 2QB            1.10      22   27   28   11
+10T PPR 2QB            1.20      24   29   31   12
+10T PPR 2QB            1.30      26   32   33   13
+10T PPR 2QB            1.40      28   34   36   14
+10T PPR 2TE            1.00      10   24   25   22
+10T PPR 2TE            1.10      11   26   27   24
+10T PPR 2TE            1.20      12   28   29   26
+10T PPR 2TE            1.30      13   31   32   28
+10T PPR 2TE            1.40      14   33   34   31
+10T PPR noK            1.00      10   24   26   10
+10T PPR noK            1.10      11   27   28   11
+10T PPR noK            1.20      12   29   31   12
+10T PPR noK            1.30      13   32   33   13
+10T PPR noK            1.40      14   34   36   14
+10T PPR 0FLEX          1.00      10   20   20   10
+10T PPR 0FLEX          1.10      11   22   22   11
+10T PPR 0FLEX          1.20      12   24   24   12
+10T PPR 0FLEX          1.30      13   26   26   13
+10T PPR 0FLEX          1.40      14   28   28   14
+10T PPR 3FLEX          1.00      10   33   37   10
+10T PPR 3FLEX          1.10      11   37   40   11
+10T PPR 3FLEX          1.20      12   40   44   12
+10T PPR 3FLEX          1.30      13   43   48   13
+10T PPR 3FLEX          1.40      14   47   51   14
+10T PPR redraft        1.00      10   24   26   10
+10T PPR redraft        1.10      11   27   28   11
+10T PPR redraft        1.20      12   29   31   12
+10T PPR redraft        1.30      13   32   33   13
+10T PPR redraft        1.40      14   34   36   14
+10T PPR keeper         1.00      10   24   26   10
+10T PPR keeper         1.10      11   27   28   11
+10T PPR keeper         1.20      12   29   31   12
+10T PPR keeper         1.30      13   32   33   13
+10T PPR keeper         1.40      14   34   36   14
+10T PPR dynasty        1.00      10   24   26   10
+10T PPR dynasty        1.10      11   27   28   11
+10T PPR dynasty        1.20      12   29   31   12
+10T PPR dynasty        1.30      13   32   33   13
+10T PPR dynasty        1.40      14   34   36   14
+12T STD 1QB            1.00      12   30   30   12
+12T STD 1QB            1.10      13   33   33   13
+12T STD 1QB            1.20      14   36   36   14
+12T STD 1QB            1.30      16   39   39   16
+12T STD 1QB            1.40      17   42   42   17
+12T STD SFLEX          1.00      24   30   30   12
+12T STD SFLEX          1.10      26   33   33   13
+12T STD SFLEX          1.20      29   36   36   14
+12T STD SFLEX          1.30      31   39   39   16
+12T STD SFLEX          1.40      34   42   42   17
+12T STD 2QB            1.00      24   30   30   12
+12T STD 2QB            1.10      26   33   33   13
+12T STD 2QB            1.20      29   36   36   14
+12T STD 2QB            1.30      31   39   39   16
+12T STD 2QB            1.40      34   42   42   17
+12T STD 2TE            1.00      12   29   29   26
+12T STD 2TE            1.10      13   32   32   29
+12T STD 2TE            1.20      14   35   35   32
+12T STD 2TE            1.30      16   37   37   34
+12T STD 2TE            1.40      17   40   40   37
+12T STD noK            1.00      12   30   30   12
+12T STD noK            1.10      13   33   33   13
+12T STD noK            1.20      14   36   36   14
+12T STD noK            1.30      16   39   39   16
+12T STD noK            1.40      17   42   42   17
+12T STD 0FLEX          1.00      12   24   24   12
+12T STD 0FLEX          1.10      13   26   26   13
+12T STD 0FLEX          1.20      14   29   29   14
+12T STD 0FLEX          1.30      16   31   31   16
+12T STD 0FLEX          1.40      17   34   34   17
+12T STD 3FLEX          1.00      12   42   42   12
+12T STD 3FLEX          1.10      13   46   46   13
+12T STD 3FLEX          1.20      14   50   50   14
+12T STD 3FLEX          1.30      16   55   55   16
+12T STD 3FLEX          1.40      17   59   59   17
+12T HALF 1QB           1.00      12   29   31   12
+12T HALF 1QB           1.10      13   32   34   13
+12T HALF 1QB           1.20      14   35   37   14
+12T HALF 1QB           1.30      16   38   40   16
+12T HALF 1QB           1.40      17   41   43   17
+12T HALF SFLEX         1.00      24   29   31   12
+12T HALF SFLEX         1.10      26   32   34   13
+12T HALF SFLEX         1.20      29   35   37   14
+12T HALF SFLEX         1.30      31   38   40   16
+12T HALF SFLEX         1.40      34   41   43   17
+12T HALF 2QB           1.00      24   29   31   12
+12T HALF 2QB           1.10      26   32   34   13
+12T HALF 2QB           1.20      29   35   37   14
+12T HALF 2QB           1.30      31   38   40   16
+12T HALF 2QB           1.40      34   41   43   17
+12T HALF 2TE           1.00      12   28   29   26
+12T HALF 2TE           1.10      13   31   32   29
+12T HALF 2TE           1.20      14   34   35   31
+12T HALF 2TE           1.30      16   37   38   34
+12T HALF 2TE           1.40      17   40   41   37
+12T HALF noK           1.00      12   29   31   12
+12T HALF noK           1.10      13   32   34   13
+12T HALF noK           1.20      14   35   37   14
+12T HALF noK           1.30      16   38   40   16
+12T HALF noK           1.40      17   41   43   17
+12T HALF 0FLEX         1.00      12   24   24   12
+12T HALF 0FLEX         1.10      13   26   26   13
+12T HALF 0FLEX         1.20      14   29   29   14
+12T HALF 0FLEX         1.30      16   31   31   16
+12T HALF 0FLEX         1.40      17   34   34   17
+12T HALF 3FLEX         1.00      12   40   44   12
+12T HALF 3FLEX         1.10      13   44   48   13
+12T HALF 3FLEX         1.20      14   48   53   14
+12T HALF 3FLEX         1.30      16   52   57   16
+12T HALF 3FLEX         1.40      17   56   62   17
+12T PPR 1QB            1.00      12   29   31   12
+12T PPR 1QB            1.10      13   32   34   13
+12T PPR 1QB            1.20      14   35   37   14
+12T PPR 1QB            1.30      16   38   40   16
+12T PPR 1QB            1.40      17   41   43   17
+12T PPR SFLEX          1.00      24   29   31   12
+12T PPR SFLEX          1.10      26   32   34   13
+12T PPR SFLEX          1.20      29   35   37   14
+12T PPR SFLEX          1.30      31   38   40   16
+12T PPR SFLEX          1.40      34   41   43   17
+12T PPR 2QB            1.00      24   29   31   12
+12T PPR 2QB            1.10      26   32   34   13
+12T PPR 2QB            1.20      29   35   37   14
+12T PPR 2QB            1.30      31   38   40   16
+12T PPR 2QB            1.40      34   41   43   17
+12T PPR 2TE            1.00      12   28   29   26
+12T PPR 2TE            1.10      13   31   32   29
+12T PPR 2TE            1.20      14   34   35   31
+12T PPR 2TE            1.30      16   37   38   34
+12T PPR 2TE            1.40      17   40   41   37
+12T PPR noK            1.00      12   29   31   12
+12T PPR noK            1.10      13   32   34   13
+12T PPR noK            1.20      14   35   37   14
+12T PPR noK            1.30      16   38   40   16
+12T PPR noK            1.40      17   41   43   17
+12T PPR 0FLEX          1.00      12   24   24   12
+12T PPR 0FLEX          1.10      13   26   26   13
+12T PPR 0FLEX          1.20      14   29   29   14
+12T PPR 0FLEX          1.30      16   31   31   16
+12T PPR 0FLEX          1.40      17   34   34   17
+12T PPR 3FLEX          1.00      12   40   44   12
+12T PPR 3FLEX          1.10      13   44   48   13
+12T PPR 3FLEX          1.20      14   48   53   14
+12T PPR 3FLEX          1.30      16   52   57   16
+12T PPR 3FLEX          1.40      17   56   62   17
+12T PPR redraft        1.00      12   29   31   12
+12T PPR redraft        1.10      13   32   34   13
+12T PPR redraft        1.20      14   35   37   14
+12T PPR redraft        1.30      16   38   40   16
+12T PPR redraft        1.40      17   41   43   17
+12T PPR keeper         1.00      12   29   31   12
+12T PPR keeper         1.10      13   32   34   13
+12T PPR keeper         1.20      14   35   37   14
+12T PPR keeper         1.30      16   38   40   16
+12T PPR keeper         1.40      17   41   43   17
+12T PPR dynasty        1.00      12   29   31   12
+12T PPR dynasty        1.10      13   32   34   13
+12T PPR dynasty        1.20      14   35   37   14
+12T PPR dynasty        1.30      16   38   40   16
+12T PPR dynasty        1.40      17   41   43   17
+14T STD 1QB            1.00      14   35   35   14
+14T STD 1QB            1.10      15   39   39   15
+14T STD 1QB            1.20      17   42   42   17
+14T STD 1QB            1.30      18   46   46   18
+14T STD 1QB            1.40      20   49   49   20
+14T STD SFLEX          1.00      28   35   35   14
+14T STD SFLEX          1.10      31   39   39   15
+14T STD SFLEX          1.20      34   42   42   17
+14T STD SFLEX          1.30      36   46   46   18
+14T STD SFLEX          1.40      39   49   49   20
+14T STD 2QB            1.00      28   35   35   14
+14T STD 2QB            1.10      31   39   39   15
+14T STD 2QB            1.20      34   42   42   17
+14T STD 2QB            1.30      36   46   46   18
+14T STD 2QB            1.40      39   49   49   20
+14T STD 2TE            1.00      14   34   34   31
+14T STD 2TE            1.10      15   37   37   34
+14T STD 2TE            1.20      17   40   40   37
+14T STD 2TE            1.30      18   44   44   40
+14T STD 2TE            1.40      20   47   47   43
+14T STD noK            1.00      14   35   35   14
+14T STD noK            1.10      15   39   39   15
+14T STD noK            1.20      17   42   42   17
+14T STD noK            1.30      18   46   46   18
+14T STD noK            1.40      20   49   49   20
+14T STD 0FLEX          1.00      14   28   28   14
+14T STD 0FLEX          1.10      15   31   31   15
+14T STD 0FLEX          1.20      17   34   34   17
+14T STD 0FLEX          1.30      18   36   36   18
+14T STD 0FLEX          1.40      20   39   39   20
+14T STD 3FLEX          1.00      14   49   49   14
+14T STD 3FLEX          1.10      15   54   54   15
+14T STD 3FLEX          1.20      17   59   59   17
+14T STD 3FLEX          1.30      18   64   64   18
+14T STD 3FLEX          1.40      20   69   69   20
+14T HALF 1QB           1.00      14   34   36   14
+14T HALF 1QB           1.10      15   38   39   15
+14T HALF 1QB           1.20      17   41   43   17
+14T HALF 1QB           1.30      18   44   47   18
+14T HALF 1QB           1.40      20   48   50   20
+14T HALF SFLEX         1.00      28   34   36   14
+14T HALF SFLEX         1.10      31   38   39   15
+14T HALF SFLEX         1.20      34   41   43   17
+14T HALF SFLEX         1.30      36   44   47   18
+14T HALF SFLEX         1.40      39   48   50   20
+14T HALF 2QB           1.00      28   34   36   14
+14T HALF 2QB           1.10      31   38   39   15
+14T HALF 2QB           1.20      34   41   43   17
+14T HALF 2QB           1.30      36   44   47   18
+14T HALF 2QB           1.40      39   48   50   20
+14T HALF 2TE           1.00      14   33   34   31
+14T HALF 2TE           1.10      15   36   38   34
+14T HALF 2TE           1.20      17   40   41   37
+14T HALF 2TE           1.30      18   43   45   40
+14T HALF 2TE           1.40      20   46   48   43
+14T HALF noK           1.00      14   34   36   14
+14T HALF noK           1.10      15   38   39   15
+14T HALF noK           1.20      17   41   43   17
+14T HALF noK           1.30      18   44   47   18
+14T HALF noK           1.40      20   48   50   20
+14T HALF 0FLEX         1.00      14   28   28   14
+14T HALF 0FLEX         1.10      15   31   31   15
+14T HALF 0FLEX         1.20      17   34   34   17
+14T HALF 0FLEX         1.30      18   36   36   18
+14T HALF 0FLEX         1.40      20   39   39   20
+14T HALF 3FLEX         1.00      14   47   51   14
+14T HALF 3FLEX         1.10      15   51   56   15
+14T HALF 3FLEX         1.20      17   56   62   17
+14T HALF 3FLEX         1.30      18   61   67   18
+14T HALF 3FLEX         1.40      20   65   72   20
+14T PPR 1QB            1.00      14   34   36   14
+14T PPR 1QB            1.10      15   38   39   15
+14T PPR 1QB            1.20      17   41   43   17
+14T PPR 1QB            1.30      18   44   47   18
+14T PPR 1QB            1.40      20   48   50   20
+14T PPR SFLEX          1.00      28   34   36   14
+14T PPR SFLEX          1.10      31   38   39   15
+14T PPR SFLEX          1.20      34   41   43   17
+14T PPR SFLEX          1.30      36   44   47   18
+14T PPR SFLEX          1.40      39   48   50   20
+14T PPR 2QB            1.00      28   34   36   14
+14T PPR 2QB            1.10      31   38   39   15
+14T PPR 2QB            1.20      34   41   43   17
+14T PPR 2QB            1.30      36   44   47   18
+14T PPR 2QB            1.40      39   48   50   20
+14T PPR 2TE            1.00      14   33   34   31
+14T PPR 2TE            1.10      15   36   38   34
+14T PPR 2TE            1.20      17   40   41   37
+14T PPR 2TE            1.30      18   43   45   40
+14T PPR 2TE            1.40      20   46   48   43
+14T PPR noK            1.00      14   34   36   14
+14T PPR noK            1.10      15   38   39   15
+14T PPR noK            1.20      17   41   43   17
+14T PPR noK            1.30      18   44   47   18
+14T PPR noK            1.40      20   48   50   20
+14T PPR 0FLEX          1.00      14   28   28   14
+14T PPR 0FLEX          1.10      15   31   31   15
+14T PPR 0FLEX          1.20      17   34   34   17
+14T PPR 0FLEX          1.30      18   36   36   18
+14T PPR 0FLEX          1.40      20   39   39   20
+14T PPR 3FLEX          1.00      14   47   51   14
+14T PPR 3FLEX          1.10      15   51   56   15
+14T PPR 3FLEX          1.20      17   56   62   17
+14T PPR 3FLEX          1.30      18   61   67   18
+14T PPR 3FLEX          1.40      20   65   72   20
+14T PPR redraft        1.00      14   34   36   14
+14T PPR redraft        1.10      15   38   39   15
+14T PPR redraft        1.20      17   41   43   17
+14T PPR redraft        1.30      18   44   47   18
+14T PPR redraft        1.40      20   48   50   20
+14T PPR keeper         1.00      14   34   36   14
+14T PPR keeper         1.10      15   38   39   15
+14T PPR keeper         1.20      17   41   43   17
+14T PPR keeper         1.30      18   44   47   18
+14T PPR keeper         1.40      20   48   50   20
+14T PPR dynasty        1.00      14   34   36   14
+14T PPR dynasty        1.10      15   38   39   15
+14T PPR dynasty        1.20      17   41   43   17
+14T PPR dynasty        1.30      18   44   47   18
+14T PPR dynasty        1.40      20   48   50   20
+
+## 2. Effect of the cushion on player ordering vs the 1.2 baseline
+
+This is the decision-relevant question. Within a position the
+transform is monotonic in posRank, so intra-position order cannot
+move; only CROSS-position order can. Draft board, waiver ranking and
+trade grades all read this same ordering.
+
+shape                  cushion  inversionRate  top12churn  top24churn  maxAbsTVdelta
+8T STD 1QB             1.00    0.0350         0           0          20
+8T STD 1QB             1.10    0.0169         0           0          10
+8T STD 1QB             1.30    0.0169         0           0           8
+8T STD 1QB             1.40    0.0276         0           0          14
+8T STD SFLEX           1.00    0.0229         0           0          20
+8T STD SFLEX           1.10    0.0125         0           0          10
+8T STD SFLEX           1.30    0.0114         0           0          10
+8T STD SFLEX           1.40    0.0142         0           0          14
+8T STD 2QB             1.00    0.0229         0           0          20
+8T STD 2QB             1.10    0.0125         0           0          10
+8T STD 2QB             1.30    0.0114         0           0          10
+8T STD 2QB             1.40    0.0142         0           0          14
+8T STD 2TE             1.00    0.0249         1           1          20
+8T STD 2TE             1.10    0.0118         0           1          10
+8T STD 2TE             1.30    0.0139         0           1           8
+8T STD 2TE             1.40    0.0221         0           1          15
+8T STD noK             1.00    0.0350         0           0          20
+8T STD noK             1.10    0.0169         0           0          10
+8T STD noK             1.30    0.0169         0           0           8
+8T STD noK             1.40    0.0276         0           0          14
+8T STD 0FLEX           1.00    0.0317         0           0          20
+8T STD 0FLEX           1.10    0.0128         0           0          10
+8T STD 0FLEX           1.30    0.0183         0           0          10
+8T STD 0FLEX           1.40    0.0242         0           0          14
+8T STD 3FLEX           1.00    0.0369         0           1          20
+8T STD 3FLEX           1.10    0.0170         0           1          10
+8T STD 3FLEX           1.30    0.0131         0           1           6
+8T STD 3FLEX           1.40    0.0193         0           1          13
+8T HALF 1QB            1.00    0.0423         1           1          20
+8T HALF 1QB            1.10    0.0249         1           1          12
+8T HALF 1QB            1.30    0.0175         1           1           8
+8T HALF 1QB            1.40    0.0293         1           1          15
+8T HALF SFLEX          1.00    0.0315         0           1          20
+8T HALF SFLEX          1.10    0.0204         0           1          12
+8T HALF SFLEX          1.30    0.0115         0           0          10
+8T HALF SFLEX          1.40    0.0156         0           0          15
+8T HALF 2QB            1.00    0.0315         0           1          20
+8T HALF 2QB            1.10    0.0204         0           1          12
+8T HALF 2QB            1.30    0.0115         0           0          10
+8T HALF 2QB            1.40    0.0156         0           0          15
+8T HALF 2TE            1.00    0.0249         0           1          20
+8T HALF 2TE            1.10    0.0125         0           1          10
+8T HALF 2TE            1.30    0.0143         0           1           8
+8T HALF 2TE            1.40    0.0165         0           0          12
+8T HALF noK            1.00    0.0423         1           1          20
+8T HALF noK            1.10    0.0249         1           1          12
+8T HALF noK            1.30    0.0175         1           1           8
+8T HALF noK            1.40    0.0293         1           1          15
+8T HALF 0FLEX          1.00    0.0317         0           0          20
+8T HALF 0FLEX          1.10    0.0128         0           0          10
+8T HALF 0FLEX          1.30    0.0183         0           0          10
+8T HALF 0FLEX          1.40    0.0242         0           0          14
+8T HALF 3FLEX          1.00    0.0392         0           0          20
+8T HALF 3FLEX          1.10    0.0186         0           0          10
+8T HALF 3FLEX          1.30    0.0224         0           1           9
+8T HALF 3FLEX          1.40    0.0286         0           1          15
+8T PPR 1QB             1.00    0.0423         1           1          20
+8T PPR 1QB             1.10    0.0249         1           1          12
+8T PPR 1QB             1.30    0.0175         1           1           8
+8T PPR 1QB             1.40    0.0293         1           1          15
+8T PPR SFLEX           1.00    0.0315         0           1          20
+8T PPR SFLEX           1.10    0.0204         0           1          12
+8T PPR SFLEX           1.30    0.0115         0           0          10
+8T PPR SFLEX           1.40    0.0156         0           0          15
+8T PPR 2QB             1.00    0.0315         0           1          20
+8T PPR 2QB             1.10    0.0204         0           1          12
+8T PPR 2QB             1.30    0.0115         0           0          10
+8T PPR 2QB             1.40    0.0156         0           0          15
+8T PPR 2TE             1.00    0.0249         0           1          20
+8T PPR 2TE             1.10    0.0125         0           1          10
+8T PPR 2TE             1.30    0.0143         0           1           8
+8T PPR 2TE             1.40    0.0165         0           0          12
+8T PPR noK             1.00    0.0423         1           1          20
+8T PPR noK             1.10    0.0249         1           1          12
+8T PPR noK             1.30    0.0175         1           1           8
+8T PPR noK             1.40    0.0293         1           1          15
+8T PPR 0FLEX           1.00    0.0317         0           0          20
+8T PPR 0FLEX           1.10    0.0128         0           0          10
+8T PPR 0FLEX           1.30    0.0183         0           0          10
+8T PPR 0FLEX           1.40    0.0242         0           0          14
+8T PPR 3FLEX           1.00    0.0392         0           0          20
+8T PPR 3FLEX           1.10    0.0186         0           0          10
+8T PPR 3FLEX           1.30    0.0224         0           1           9
+8T PPR 3FLEX           1.40    0.0286         0           1          15
+8T PPR redraft         1.00    0.0423         1           1          20
+8T PPR redraft         1.10    0.0249         1           1          12
+8T PPR redraft         1.30    0.0175         1           1           8
+8T PPR redraft         1.40    0.0293         1           1          15
+8T PPR keeper          1.00    0.0423         1           1          20
+8T PPR keeper          1.10    0.0249         1           1          12
+8T PPR keeper          1.30    0.0175         1           1           8
+8T PPR keeper          1.40    0.0293         1           1          15
+8T PPR dynasty         1.00    0.0423         1           1          20
+8T PPR dynasty         1.10    0.0249         1           1          12
+8T PPR dynasty         1.30    0.0175         1           1           8
+8T PPR dynasty         1.40    0.0293         1           1          15
+10T STD 1QB            1.00    0.0288         0           0          17
+10T STD 1QB            1.10    0.0125         0           0           8
+10T STD 1QB            1.30    0.0139         0           0           9
+10T STD 1QB            1.40    0.0187         0           0          14
+10T STD SFLEX          1.00    0.0122         0           0          17
+10T STD SFLEX          1.10    0.0063         0           0           8
+10T STD SFLEX          1.30    0.0060         0           0           9
+10T STD SFLEX          1.40    0.0060         0           0          14
+10T STD 2QB            1.00    0.0122         0           0          17
+10T STD 2QB            1.10    0.0063         0           0           8
+10T STD 2QB            1.30    0.0060         0           0           9
+10T STD 2QB            1.40    0.0060         0           0          14
+10T STD 2TE            1.00    0.0223         0           0          17
+10T STD 2TE            1.10    0.0144         1           1          10
+10T STD 2TE            1.30    0.0094         0           0           8
+10T STD 2TE            1.40    0.0156         1           0          15
+10T STD noK            1.00    0.0288         0           0          17
+10T STD noK            1.10    0.0125         0           0           8
+10T STD noK            1.30    0.0139         0           0           9
+10T STD noK            1.40    0.0187         0           0          14
+10T STD 0FLEX          1.00    0.0288         0           0          17
+10T STD 0FLEX          1.10    0.0134         0           0           8
+10T STD 0FLEX          1.30    0.0114         0           0           8
+10T STD 0FLEX          1.40    0.0209         0           0          14
+10T STD 3FLEX          1.00    0.0188         0           1          17
+10T STD 3FLEX          1.10    0.0090         0           1           8
+10T STD 3FLEX          1.30    0.0088         0           1           9
+10T STD 3FLEX          1.40    0.0088         0           1          14
+10T HALF 1QB           1.00    0.0305         1           0          17
+10T HALF 1QB           1.10    0.0181         1           0          10
+10T HALF 1QB           1.30    0.0150         1           0          10
+10T HALF 1QB           1.40    0.0212         1           0          15
+10T HALF SFLEX         1.00    0.0139         0           0          17
+10T HALF SFLEX         1.10    0.0104         0           0          10
+10T HALF SFLEX         1.30    0.0082         0           1          10
+10T HALF SFLEX         1.40    0.0085         0           0          15
+10T HALF 2QB           1.00    0.0139         0           0          17
+10T HALF 2QB           1.10    0.0104         0           0          10
+10T HALF 2QB           1.30    0.0082         0           1          10
+10T HALF 2QB           1.40    0.0085         0           0          15
+10T HALF 2TE           1.00    0.0195         0           0          17
+10T HALF 2TE           1.10    0.0101         0           1           8
+10T HALF 2TE           1.30    0.0125         0           0          10
+10T HALF 2TE           1.40    0.0171         1           0          15
+10T HALF noK           1.00    0.0305         1           0          17
+10T HALF noK           1.10    0.0181         1           0          10
+10T HALF noK           1.30    0.0150         1           0          10
+10T HALF noK           1.40    0.0212         1           0          15
+10T HALF 0FLEX         1.00    0.0288         0           0          17
+10T HALF 0FLEX         1.10    0.0134         0           0           8
+10T HALF 0FLEX         1.30    0.0114         0           0           8
+10T HALF 0FLEX         1.40    0.0209         0           0          14
+10T HALF 3FLEX         1.00    0.0246         0           0          18
+10T HALF 3FLEX         1.10    0.0118         0           0           9
+10T HALF 3FLEX         1.30    0.0073         0           1           8
+10T HALF 3FLEX         1.40    0.0081         0           0          14
+10T PPR 1QB            1.00    0.0305         1           0          17
+10T PPR 1QB            1.10    0.0181         1           0          10
+10T PPR 1QB            1.30    0.0150         1           0          10
+10T PPR 1QB            1.40    0.0212         1           0          15
+10T PPR SFLEX          1.00    0.0139         0           0          17
+10T PPR SFLEX          1.10    0.0104         0           0          10
+10T PPR SFLEX          1.30    0.0082         0           1          10
+10T PPR SFLEX          1.40    0.0085         0           0          15
+10T PPR 2QB            1.00    0.0139         0           0          17
+10T PPR 2QB            1.10    0.0104         0           0          10
+10T PPR 2QB            1.30    0.0082         0           1          10
+10T PPR 2QB            1.40    0.0085         0           0          15
+10T PPR 2TE            1.00    0.0195         0           0          17
+10T PPR 2TE            1.10    0.0101         0           1           8
+10T PPR 2TE            1.30    0.0125         0           0          10
+10T PPR 2TE            1.40    0.0171         1           0          15
+10T PPR noK            1.00    0.0305         1           0          17
+10T PPR noK            1.10    0.0181         1           0          10
+10T PPR noK            1.30    0.0150         1           0          10
+10T PPR noK            1.40    0.0212         1           0          15
+10T PPR 0FLEX          1.00    0.0288         0           0          17
+10T PPR 0FLEX          1.10    0.0134         0           0           8
+10T PPR 0FLEX          1.30    0.0114         0           0           8
+10T PPR 0FLEX          1.40    0.0209         0           0          14
+10T PPR 3FLEX          1.00    0.0246         0           0          18
+10T PPR 3FLEX          1.10    0.0118         0           0           9
+10T PPR 3FLEX          1.30    0.0073         0           1           8
+10T PPR 3FLEX          1.40    0.0081         0           0          14
+10T PPR redraft        1.00    0.0305         1           0          17
+10T PPR redraft        1.10    0.0181         1           0          10
+10T PPR redraft        1.30    0.0150         1           0          10
+10T PPR redraft        1.40    0.0212         1           0          15
+10T PPR keeper         1.00    0.0305         1           0          17
+10T PPR keeper         1.10    0.0181         1           0          10
+10T PPR keeper         1.30    0.0150         1           0          10
+10T PPR keeper         1.40    0.0212         1           0          15
+10T PPR dynasty        1.00    0.0305         1           0          17
+10T PPR dynasty        1.10    0.0181         1           0          10
+10T PPR dynasty        1.30    0.0150         1           0          10
+10T PPR dynasty        1.40    0.0212         1           0          15
+12T STD 1QB            1.00    0.0232         0           0          17
+12T STD 1QB            1.10    0.0095         0           0           8
+12T STD 1QB            1.30    0.0119         0           1          13
+12T STD 1QB            1.40    0.0112         0           0          18
+12T STD SFLEX          1.00    0.0078         0           0          17
+12T STD SFLEX          1.10    0.0045         0           0           8
+12T STD SFLEX          1.30    0.0065         0           0          13
+12T STD SFLEX          1.40    0.0048         0           1          18
+12T STD 2QB            1.00    0.0078         0           0          17
+12T STD 2QB            1.10    0.0045         0           0           8
+12T STD 2QB            1.30    0.0065         0           0          13
+12T STD 2QB            1.40    0.0048         0           1          18
+12T STD 2TE            1.00    0.0197         1           1          17
+12T STD 2TE            1.10    0.0086         1           0           9
+12T STD 2TE            1.30    0.0095         1           1          13
+12T STD 2TE            1.40    0.0094         0           1          18
+12T STD noK            1.00    0.0232         0           0          17
+12T STD noK            1.10    0.0095         0           0           8
+12T STD noK            1.30    0.0119         0           1          13
+12T STD noK            1.40    0.0112         0           0          18
+12T STD 0FLEX          1.00    0.0283         0           0          17
+12T STD 0FLEX          1.10    0.0171         0           0          10
+12T STD 0FLEX          1.30    0.0158         0           0          13
+12T STD 0FLEX          1.40    0.0172         0           0          18
+12T STD 3FLEX          1.00    0.0110         0           1          16
+12T STD 3FLEX          1.10    0.0022         0           0           8
+12T STD 3FLEX          1.30    0.0074         1           1          13
+12T STD 3FLEX          1.40    0.0058         0           0          18
+12T HALF 1QB           1.00    0.0260         1           0          17
+12T HALF 1QB           1.10    0.0117         1           0           9
+12T HALF 1QB           1.30    0.0136         1           1          13
+12T HALF 1QB           1.40    0.0132         0           0          18
+12T HALF SFLEX         1.00    0.0101         0           1          17
+12T HALF SFLEX         1.10    0.0060         0           0           9
+12T HALF SFLEX         1.30    0.0078         0           1          13
+12T HALF SFLEX         1.40    0.0057         0           1          18
+12T HALF 2QB           1.00    0.0101         0           1          17
+12T HALF 2QB           1.10    0.0060         0           0           9
+12T HALF 2QB           1.30    0.0078         0           1          13
+12T HALF 2QB           1.40    0.0057         0           1          18
+12T HALF 2TE           1.00    0.0212         1           0          18
+12T HALF 2TE           1.10    0.0104         1           0           9
+12T HALF 2TE           1.30    0.0095         1           0          13
+12T HALF 2TE           1.40    0.0100         0           0          18
+12T HALF noK           1.00    0.0260         1           0          17
+12T HALF noK           1.10    0.0117         1           0           9
+12T HALF noK           1.30    0.0136         1           1          13
+12T HALF noK           1.40    0.0132         0           0          18
+12T HALF 0FLEX         1.00    0.0283         0           0          17
+12T HALF 0FLEX         1.10    0.0171         0           0          10
+12T HALF 0FLEX         1.30    0.0158         0           0          13
+12T HALF 0FLEX         1.40    0.0172         0           0          18
+12T HALF 3FLEX         1.00    0.0096         0           1          17
+12T HALF 3FLEX         1.10    0.0051         0           0           9
+12T HALF 3FLEX         1.30    0.0112         0           2          13
+12T HALF 3FLEX         1.40    0.0079         0           1          18
+12T PPR 1QB            1.00    0.0260         1           0          17
+12T PPR 1QB            1.10    0.0117         1           0           9
+12T PPR 1QB            1.30    0.0136         1           1          13
+12T PPR 1QB            1.40    0.0132         0           0          18
+12T PPR SFLEX          1.00    0.0101         0           1          17
+12T PPR SFLEX          1.10    0.0060         0           0           9
+12T PPR SFLEX          1.30    0.0078         0           1          13
+12T PPR SFLEX          1.40    0.0057         0           1          18
+12T PPR 2QB            1.00    0.0101         0           1          17
+12T PPR 2QB            1.10    0.0060         0           0           9
+12T PPR 2QB            1.30    0.0078         0           1          13
+12T PPR 2QB            1.40    0.0057         0           1          18
+12T PPR 2TE            1.00    0.0212         1           0          18
+12T PPR 2TE            1.10    0.0104         1           0           9
+12T PPR 2TE            1.30    0.0095         1           0          13
+12T PPR 2TE            1.40    0.0100         0           0          18
+12T PPR noK            1.00    0.0260         1           0          17
+12T PPR noK            1.10    0.0117         1           0           9
+12T PPR noK            1.30    0.0136         1           1          13
+12T PPR noK            1.40    0.0132         0           0          18
+12T PPR 0FLEX          1.00    0.0283         0           0          17
+12T PPR 0FLEX          1.10    0.0171         0           0          10
+12T PPR 0FLEX          1.30    0.0158         0           0          13
+12T PPR 0FLEX          1.40    0.0172         0           0          18
+12T PPR 3FLEX          1.00    0.0096         0           1          17
+12T PPR 3FLEX          1.10    0.0051         0           0           9
+12T PPR 3FLEX          1.30    0.0112         0           2          13
+12T PPR 3FLEX          1.40    0.0079         0           1          18
+12T PPR redraft        1.00    0.0260         1           0          17
+12T PPR redraft        1.10    0.0117         1           0           9
+12T PPR redraft        1.30    0.0136         1           1          13
+12T PPR redraft        1.40    0.0132         0           0          18
+12T PPR keeper         1.00    0.0260         1           0          17
+12T PPR keeper         1.10    0.0117         1           0           9
+12T PPR keeper         1.30    0.0136         1           1          13
+12T PPR keeper         1.40    0.0132         0           0          18
+12T PPR dynasty        1.00    0.0260         1           0          17
+12T PPR dynasty        1.10    0.0117         1           0           9
+12T PPR dynasty        1.30    0.0136         1           1          13
+12T PPR dynasty        1.40    0.0132         0           0          18
+14T STD 1QB            1.00    0.0087         0           0          18
+14T STD 1QB            1.10    0.0108         1           0          12
+14T STD 1QB            1.30    0.0077         1           0           9
+14T STD 1QB            1.40    0.0040         0           0          15
+14T STD SFLEX          1.00    0.0022         0           1          18
+14T STD SFLEX          1.10    0.0062         0           1          12
+14T STD SFLEX          1.30    0.0055         0           1           9
+14T STD SFLEX          1.40    0.0030         0           1          14
+14T STD 2QB            1.00    0.0022         0           1          18
+14T STD 2QB            1.10    0.0062         0           1          12
+14T STD 2QB            1.30    0.0055         0           1           9
+14T STD 2QB            1.40    0.0030         0           1          14
+14T STD 2TE            1.00    0.0088         0           0          18
+14T STD 2TE            1.10    0.0069         1           0          12
+14T STD 2TE            1.30    0.0059         0           1           9
+14T STD 2TE            1.40    0.0037         1           0          15
+14T STD noK            1.00    0.0087         0           0          18
+14T STD noK            1.10    0.0108         1           0          12
+14T STD noK            1.30    0.0077         1           0           9
+14T STD noK            1.40    0.0040         0           0          15
+14T STD 0FLEX          1.00    0.0154         0           0          18
+14T STD 0FLEX          1.10    0.0107         0           0          12
+14T STD 0FLEX          1.30    0.0016         0           0           6
+14T STD 0FLEX          1.40    0.0064         0           0          15
+14T STD 3FLEX          1.00    0.0032         0           0          18
+14T STD 3FLEX          1.10    0.0062         0           0          12
+14T STD 3FLEX          1.30    0.0050         0           1           6
+14T STD 3FLEX          1.40    0.0036         1           2          15
+14T HALF 1QB           1.00    0.0109         0           0          18
+14T HALF 1QB           1.10    0.0114         1           0          12
+14T HALF 1QB           1.30    0.0076         1           0           9
+14T HALF 1QB           1.40    0.0047         0           0          15
+14T HALF SFLEX         1.00    0.0040         0           0          18
+14T HALF SFLEX         1.10    0.0069         0           0          12
+14T HALF SFLEX         1.30    0.0058         0           1           9
+14T HALF SFLEX         1.40    0.0042         0           1          14
+14T HALF 2QB           1.00    0.0040         0           0          18
+14T HALF 2QB           1.10    0.0069         0           0          12
+14T HALF 2QB           1.30    0.0058         0           1           9
+14T HALF 2QB           1.40    0.0042         0           1          14
+14T HALF 2TE           1.00    0.0104         0           0          18
+14T HALF 2TE           1.10    0.0094         1           0          12
+14T HALF 2TE           1.30    0.0079         1           1           9
+14T HALF 2TE           1.40    0.0063         1           0          15
+14T HALF noK           1.00    0.0109         0           0          18
+14T HALF noK           1.10    0.0114         1           0          12
+14T HALF noK           1.30    0.0076         1           0           9
+14T HALF noK           1.40    0.0047         0           0          15
+14T HALF 0FLEX         1.00    0.0154         0           0          18
+14T HALF 0FLEX         1.10    0.0107         0           0          12
+14T HALF 0FLEX         1.30    0.0016         0           0           6
+14T HALF 0FLEX         1.40    0.0064         0           0          15
+14T HALF 3FLEX         1.00    0.0056         0           0          18
+14T HALF 3FLEX         1.10    0.0056         0           0          12
+14T HALF 3FLEX         1.30    0.0053         0           0           6
+14T HALF 3FLEX         1.40    0.0051         0           1          15
+14T PPR 1QB            1.00    0.0109         0           0          18
+14T PPR 1QB            1.10    0.0114         1           0          12
+14T PPR 1QB            1.30    0.0076         1           0           9
+14T PPR 1QB            1.40    0.0047         0           0          15
+14T PPR SFLEX          1.00    0.0040         0           0          18
+14T PPR SFLEX          1.10    0.0069         0           0          12
+14T PPR SFLEX          1.30    0.0058         0           1           9
+14T PPR SFLEX          1.40    0.0042         0           1          14
+14T PPR 2QB            1.00    0.0040         0           0          18
+14T PPR 2QB            1.10    0.0069         0           0          12
+14T PPR 2QB            1.30    0.0058         0           1           9
+14T PPR 2QB            1.40    0.0042         0           1          14
+14T PPR 2TE            1.00    0.0104         0           0          18
+14T PPR 2TE            1.10    0.0094         1           0          12
+14T PPR 2TE            1.30    0.0079         1           1           9
+14T PPR 2TE            1.40    0.0063         1           0          15
+14T PPR noK            1.00    0.0109         0           0          18
+14T PPR noK            1.10    0.0114         1           0          12
+14T PPR noK            1.30    0.0076         1           0           9
+14T PPR noK            1.40    0.0047         0           0          15
+14T PPR 0FLEX          1.00    0.0154         0           0          18
+14T PPR 0FLEX          1.10    0.0107         0           0          12
+14T PPR 0FLEX          1.30    0.0016         0           0           6
+14T PPR 0FLEX          1.40    0.0064         0           0          15
+14T PPR 3FLEX          1.00    0.0056         0           0          18
+14T PPR 3FLEX          1.10    0.0056         0           0          12
+14T PPR 3FLEX          1.30    0.0053         0           0           6
+14T PPR 3FLEX          1.40    0.0051         0           1          15
+14T PPR redraft        1.00    0.0109         0           0          18
+14T PPR redraft        1.10    0.0114         1           0          12
+14T PPR redraft        1.30    0.0076         1           0           9
+14T PPR redraft        1.40    0.0047         0           0          15
+14T PPR keeper         1.00    0.0109         0           0          18
+14T PPR keeper         1.10    0.0114         1           0          12
+14T PPR keeper         1.30    0.0076         1           0           9
+14T PPR keeper         1.40    0.0047         0           0          15
+14T PPR dynasty        1.00    0.0109         0           0          18
+14T PPR dynasty        1.10    0.0114         1           0          12
+14T PPR dynasty        1.30    0.0076         1           0           9
+14T PPR dynasty        1.40    0.0047         0           0          15
+
+worst ordering disturbance:  0.0423 at 8T HALF 1QB @ 1
+
+## 3. SUPERFLEX QB occupancy sensitivity
+
+Only superflex shapes are affected; 1QB and 2QB leagues have no
+SUPERFLEX slot, so the coefficient is inert there (asserted below).
+
+shape                  occ    QB   RB   WR   TE  inversionRate  top12churn
+8T STD SFLEX           0.80   17   25   25   10   0.0158         0
+8T STD SFLEX           0.90   18   24   24   10   0.0039         0
+8T STD SFLEX           0.95   19   24   24   10   0.0000         0
+8T STD SFLEX           1.00   19   24   24   10   0.0000         0
+8T HALF SFLEX          0.80   17   24   26   10   0.0169         0
+8T HALF SFLEX          0.90   18   24   25   10   0.0086         0
+8T HALF SFLEX          0.95   19   24   25   10   0.0044         0
+8T HALF SFLEX          1.00   19   23   25   10   0.0000         0
+8T PPR SFLEX           0.80   17   24   26   10   0.0169         0
+8T PPR SFLEX           0.90   18   24   25   10   0.0086         0
+8T PPR SFLEX           0.95   19   24   25   10   0.0044         0
+8T PPR SFLEX           1.00   19   23   25   10   0.0000         0
+10T STD SFLEX          0.80   22   31   31   12   0.0150         0
+10T STD SFLEX          0.90   23   31   31   12   0.0105         0
+10T STD SFLEX          0.95   23   30   30   12   0.0044         0
+10T STD SFLEX          1.00   24   30   30   12   0.0000         0
+10T HALF SFLEX         0.80   22   30   32   12   0.0151         0
+10T HALF SFLEX         0.90   23   30   31   12   0.0092         0
+10T HALF SFLEX         0.95   23   30   31   12   0.0092         0
+10T HALF SFLEX         1.00   24   29   31   12   0.0000         0
+10T PPR SFLEX          0.80   22   30   32   12   0.0151         0
+10T PPR SFLEX          0.90   23   30   31   12   0.0092         0
+10T PPR SFLEX          0.95   23   30   31   12   0.0092         0
+10T PPR SFLEX          1.00   24   29   31   12   0.0000         0
+12T STD SFLEX          0.80   26   37   37   14   0.0155         0
+12T STD SFLEX          0.90   27   37   37   14   0.0113         0
+12T STD SFLEX          0.95   28   36   36   14   0.0032         0
+12T STD SFLEX          1.00   29   36   36   14   0.0000         0
+12T HALF SFLEX         0.80   26   36   38   14   0.0163         0
+12T HALF SFLEX         0.90   27   36   38   14   0.0122         0
+12T HALF SFLEX         0.95   28   36   37   14   0.0082         0
+12T HALF SFLEX         1.00   29   35   37   14   0.0000         0
+12T PPR SFLEX          0.80   26   36   38   14   0.0163         0
+12T PPR SFLEX          0.90   27   36   38   14   0.0122         0
+12T PPR SFLEX          0.95   28   36   37   14   0.0082         0
+12T PPR SFLEX          1.00   29   35   37   14   0.0000         0
+14T STD SFLEX          0.80   30   44   44   17   0.0205         0
+14T STD SFLEX          0.90   32   43   43   17   0.0096         0
+14T STD SFLEX          0.95   33   42   42   17   0.0028         0
+14T STD SFLEX          1.00   34   42   42   17   0.0000         0
+14T HALF SFLEX         0.80   30   43   45   17   0.0214         0
+14T HALF SFLEX         0.90   32   42   44   17   0.0104         0
+14T HALF SFLEX         0.95   33   41   43   17   0.0030         0
+14T HALF SFLEX         1.00   34   41   43   17   0.0000         0
+14T PPR SFLEX          0.80   30   43   45   17   0.0214         0
+14T PPR SFLEX          0.90   32   42   44   17   0.0104         0
+14T PPR SFLEX          0.95   33   41   43   17   0.0030         0
+14T PPR SFLEX          1.00   34   41   43   17   0.0000         0
+
+## 4. Occupancy is inert where there is no SUPERFLEX slot
+violations: 0 (expected 0)
+
+## 5. Lowering occupancy MOVES demand, it does not destroy it
+
+shape                  occ    sum(QB+RB+WR+TE) at cushion 1.0
+8T STD SFLEX           0.80     64
+8T STD SFLEX           0.90     63
+8T STD SFLEX           0.95     64
+8T STD SFLEX           1.00     64
+8T HALF SFLEX          0.80     63
+8T HALF SFLEX          0.90     64
+8T HALF SFLEX          0.95     65
+8T HALF SFLEX          1.00     64
+8T PPR SFLEX           0.80     63
+8T PPR SFLEX           0.90     64
+8T PPR SFLEX           0.95     65
+8T PPR SFLEX           1.00     64
+10T STD SFLEX          0.80     80
+10T STD SFLEX          0.90     81
+10T STD SFLEX          0.95     80
+10T STD SFLEX          1.00     80
+10T HALF SFLEX         0.80     80
+10T HALF SFLEX         0.90     80
+10T HALF SFLEX         0.95     81
+10T HALF SFLEX         1.00     80
+10T PPR SFLEX          0.80     80
+10T PPR SFLEX          0.90     80
+10T PPR SFLEX          0.95     81
+10T PPR SFLEX          1.00     80
+
+## Verdict
+
+No observed-outcome target was available for either parameter, so
+neither is CALIBRATED. Both are MODEL ASSUMPTIONS whose influence is
+now measured and bounded by the numbers above.

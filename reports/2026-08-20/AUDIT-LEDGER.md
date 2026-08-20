@@ -124,3 +124,93 @@ Status values: `OPEN`, `IN-PROGRESS`, `FIXED`, `BLOCKED`, `CLOSED-VERIFIED`, `NO
 
 No merge, no deployment, no credential rotation, no history rewrite, no production
 database mutation, no destructive external write.
+
+---
+
+# Execution record
+
+## Finding ledger — final status
+
+| § | P | Finding | Status | Evidence |
+|---|---|---|---|---|
+| 3 | P1 | Model failure not disclosed beside the numbers | `FIXED` | Strategy B; `docs/model-presentation-decision.md`; `e2e/20-model-failure-disclosure.spec.ts` 14/14 desktop+mobile |
+| 4 | P1/P2 | PAR is an experiment, five leagues are development data | `FIXED` | PAR still not shipped; frozen protocol `holdout-protocol.md`; existing leagues declared development data |
+| 5 | P2 | Pseudo-replication unquantified | `FIXED` | `playerId`/`leagueId` now required; `curveSampleDiagnostics`; design effect **1.31** measured; three treatments compared; `par-dependence-analysis.md` |
+| 6 | P2 | Curve assumptions described as findings | `FIXED` | `docs/points-curve-assumptions.md` — 7-row assumption ledger, incl. the unrepresented-uncertainty gap |
+| 7 | P1 | PPR/HALF/STD unit consistency | `FIXED` | `WeeklyProjectionByFormat` to the sim boundary; position-aware fallback **measured**, not assumed; `simulation.scoringUnits.test.ts` 16/16 |
+| 7b | **P1 (new)** | Live projection path never matched a single player | `FIXED` | `sleeper:` namespace applied once in `snapshotToWeeklyProjections`; regression-tested |
+| 8 | P1 | Injury provenance stamped fresh from a cached snapshot | `FIXED` | composite `SourceMeta` bounded by the oldest input; `fetchLive.test.ts` 42/42 |
+| 9 | P1 | `injured-starter` evaluated on roster membership alone | `FIXED` | `InjuryEvidence` gate, fail-closed; emission never suppressed; unit + **PostgreSQL** coverage |
+| 10 | P2 | 31 PostgreSQL tests skipped in ordinary CI | `FIXED` | dedicated `postgres` job on pinned `postgres:17.5-alpine`, **fails if skipped**; 31/31 locally on real PG 17.11 |
+| 11 | P1 | Historical `DB_INIT_TOKEN` invalidation unverified | `BLOCKED` | no secret-manager access; runbook at `docs/runbooks/db-init-token-rotation.md`; replacement token generated in-session, persisted nowhere |
+| 12 | P2 | League-format defaults are assumptions | `FIXED` | sweep extended 48 → **96 shapes** (adds no-kicker, 0/3-FLEX, redraft/keeper/dynasty); `replacement-sensitivity.txt` |
+| 13 | — | Provenance classification | `FIXED` | 8-way epistemic classification + licensing/retention table appended to `docs/data-source-map.md` |
+| 14 | — | Security/auth clean-room + negative tests | `CLOSED-VERIFIED` | all seven categories already covered and passing — see below |
+| 15 | — | Supply chain + Node-20 action runtime | `FIXED` (scan) / `PLANNED` (runtime) | all gates green; migration plan below |
+| 16 | — | Stale test counts | `FIXED` | README count badge replaced with workflow badges; the 442 claim removed |
+| — | — | `/analytics` overflows horizontally at 320px | `OPEN (pre-existing)` | `scrollWidth` 372 vs 320, **identical on the pre-change tree**; culprits are the top bar, tab strip and a data table — none touched by this work |
+
+## §14 — negative tests, located and executed (not re-written)
+
+Every category the audit lists already had coverage. Verified by execution
+(89 passed / 22 skipped across auth, leagues, crypto, db):
+
+| required negative test | location |
+|---|---|
+| stale JWT after password change | `src/lib/auth/session.test.ts:38` |
+| two-session revocation is global | `session.test.ts:59` |
+| deleted-user token rejection | `session.test.ts:72` |
+| token with no version claim | `session.test.ts:79` |
+| token for a different user id | `session.test.ts:91` |
+| does not revoke other users' sessions | `session.test.ts:97` |
+| failed password change revokes nothing | `session.test.ts:113` |
+| cross-user league read / list / delete | `src/lib/leagues.test.ts:54,66,89` |
+| cross-account league id | `leagues.test.ts:140` |
+| cross-user ESPN credential read | `leagues.test.ts:153` |
+| cross-user notification dismissal | `src/lib/lifecycle/notifications.test.ts:184` |
+| cross-user report/league data (browser) | `e2e/07-no-shared-data.spec.ts:32` |
+| tampered ciphertext / auth tag / wrong key | `src/lib/crypto.test.ts:18,24,30` |
+| missing or malformed encryption key | `crypto.test.ts:36` |
+| parallel failed logins / throttle concurrency | `src/lib/auth/throttle.concurrency.test.ts` + `throttle.pg.integration.test.ts` |
+
+## §15 — Node-20 action runtime migration plan
+
+Not a blocker, and deliberately **not** executed in this audit: bumping every
+action major is a change whose only real verification is a CI run on the default
+branch, and doing it inside a P1 remediation would confound the two.
+
+| action | current | target | note |
+|---|---|---|---|
+| `actions/checkout` | `v4` (Node 20) | `v5` | mechanical |
+| `actions/setup-node` | `v4` (Node 20) | `v5` | mechanical; keep `node-version: 20` separate from the runtime bump |
+| `actions/upload-artifact` | `v4` (Node 20) | `v5` | check artifact-name uniqueness semantics |
+| `actions/dependency-review-action` | `v4` | `v5` | verify config keys unchanged |
+| `github/codeql-action/*` | `v3` | `v4` | **do last** — CodeQL majors change the SARIF/init contract |
+| `gitleaks/gitleaks-action` | `v2` | latest | verify the history-allowlist policy still applies |
+| `google/osv-scanner-action` | `v2.2.4` | latest v2 | already pinned to a patch |
+
+Sequence: one PR per action, `checkout` first, `codeql` last, each merged only on
+a green run. Do not batch — a batched bump makes a failure ambiguous.
+
+**Also review before 2026-11-11:** the single development-only exception
+`GHSA-9wv6-86v2-598j` (`path-to-regexp`). `npm run check:exceptions` fails the
+build once it lapses, which is the intended forcing function.
+
+## Executed command results
+
+| command | exit | result |
+|---|---|---|
+| `npm run typecheck` | 0 | PASS |
+| `npm run lint` | 0 | PASS |
+| `npm run test` (vitest) | 0 | PASS — 881 passed / 39 skipped |
+| `npm run build` | 0 | PASS |
+| `npm run e2e` (playwright + axe) | 0 | PASS — 219 passed / 1 skipped |
+| PostgreSQL integration (real PG 17.11) | 0 | PASS — 31/31 |
+| `npm run check:secrets` | 0 | PASS — 277 files, no secret-shaped literals |
+| `npm run check:exceptions` | 0 | PASS — 1 exception, none expired |
+| `npm run check:advisories` | 0 | PASS — no resolved version below a floor |
+| `npm audit --omit=dev --audit-level=moderate` | 0 | PASS — 0 vulnerabilities |
+| `gitleaks detect --redact -v` | 0 | PASS — 232 commits, no leaks |
+| `npm run check:projection-units` | 0 | PASS — every declared reception-neutral position verified identical |
+| `npm run sensitivity:replacement` | 0 | PASS — 96 league shapes, 0 ordering violations |
+| `npm run backtest:valuation` | 0 | executed; reports failure honestly |

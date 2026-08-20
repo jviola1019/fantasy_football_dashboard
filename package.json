@@ -27,7 +27,9 @@
     "check:freshness": "tsx scripts/check-cron-freshness.ts",
     "deploy": "next build",
     "sensitivity:replacement": "tsx scripts/replacement-sensitivity.ts",
-    "backtest:valuation": "tsx scripts/backtest-valuation.ts"
+    "backtest:valuation": "tsx scripts/backtest-valuation.ts",
+    "holdout:acquire": "tsx scripts/acquire-mfl-holdout.ts",
+    "holdout:evaluate": "tsx scripts/holdout-evaluate.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

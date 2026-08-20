@@ -290,3 +290,66 @@ CI bands and add a disclosure banner (`CI_MULTIPLIER`/`CI_LABEL`, lines 33–43)
   pattern in `fetchOpportunity` (`opportunity.ts:136`) / trending fetches
   (`envelope/load.ts:101`) ensure a single upstream failure never blocks the page;
   the affected metric simply declares itself missing.
+
+---
+
+# Audit 2026-08-20 §13 — epistemic classification, licensing, retention
+
+The sections above map *where* each number comes from. This section adds the two
+things §13 asks for that were missing: an explicit **epistemic class** for each
+decision-facing value, and per-source **attribution, licensing and retention**.
+
+## Epistemic classes
+
+Every decision-facing value is exactly one of:
+
+| class | meaning | may be presented as fact? |
+|---|---|---|
+| `provider-measured` | a real observation reported by an upstream (a score, a roster membership, a draft pick) | yes, with its freshness |
+| `derived` | a deterministic function of measured inputs (positional rank, standings order, FAAB ratio) | yes, with its inputs named |
+| `assumed` | a model parameter chosen by us, not fitted to an outcome | **only with the assumption stated** |
+| `simulated` | output of the seeded Monte Carlo | **never as a forecast** — see §3 |
+| `cached` | measured, but served from a snapshot older than the request | yes, with the snapshot's age |
+| `stale` | cached past its freshness contract | only with the staleness shown |
+| `fixture` | demo data | only with the FIXTURE badge |
+| `unavailable` | no usable source | render "—", never a number |
+
+## Classification of the decision-facing values
+
+| value | class | notes |
+|---|---|---|
+| Roster membership (Sleeper) | `provider-measured` | live rosters call, TTL 120s |
+| Player identity / position / team | `cached` | daily players snapshot |
+| **Injury / activity status** | `cached` → `stale` past 24h | **corrected by §8.** Was stamped `fresh, now, ttl 120` regardless of snapshot age. Now bounded by the older input, and `stale` blocks alert resolution (§9) |
+| Weekly projections (`pts_ppr` / `pts_half_ppr` / `pts_std`) | `provider-measured`, `cached` | **corrected by §7.** Carries all three variants; the unit is chosen at the simulation boundary from the league format. Cross-format substitution only for QB/K/DEF, where the three are provably identical — re-measurable via `npm run check:projection-units` |
+| FantasyPros ECR rank | `provider-measured`, `cached` | daily scrape |
+| `trueValue` | `derived` + `assumed` | derived from ECR rank, but via `positionReplacementRank`, which depends on the **assumed** `depthCushion = 1.2` and `superflexQbOccupancy = 1.0` |
+| Replacement rank | `derived` + `assumed` | same two assumptions; sensitivity across 96 league shapes in `reports/2026-08-20/replacement-sensitivity.txt` |
+| Playoff / championship percentages | **`simulated`** | **not a forecast.** Failed out-of-sample validation; presented as a band against the structural baseline (§3) |
+| League structural baseline (`P/N`) | `derived` | arithmetic about league shape; the one figure that cannot be wrong |
+| Confidence intervals on the sim | `simulated` | Monte-Carlo **sampling** error only — excludes model error, which is far larger |
+| Trending adds/drops | `provider-measured` | Sleeper waiver signal; applied to the market pool, not a set roster |
+| Snap-share opportunity | `provider-measured`, `cached` | nflverse cron snapshot |
+| Trade values | `provider-measured`, `cached` | FantasyCalc / KTC / DynastyProcess |
+| Bye weeks | `provider-measured` | verified current-season schedule; fails closed when unverified |
+| Points curve / PAR | `assumed` (structure) + `derived` (fit) | **not read by production.** Monotonicity is imposed, not observed — see `docs/points-curve-assumptions.md` |
+
+## Sources — attribution, licensing, retention
+
+| source | URL | retrieval | TTL / contract | fallback | failure behavior | attribution / licence | retention |
+|---|---|---|---|---|---|---|---|
+| Sleeper API | `api.sleeper.app` | daily cron (players, projections); per-request (league, rosters, state) | players warn 24h / expire 30h | previous snapshot | `infraNull` logs once, panel renders unavailable | free public API, no auth, no published licence; undocumented projections endpoint captured 2026-05-27 | snapshots pruned on a rolling window |
+| FantasyPros ECR | `fantasypros.com` | daily cron scrape | warn 24h / expire 30h | previous snapshot | rankings degrade to identity-only envelope | scraped consensus; no redistribution of raw rankings | rolling 7 days |
+| nflverse | `github.com/nflverse` | cron snapshot | warn 2d / expire 15d | previous snapshot | opportunity dropped from records, listed in `missingFields` | **CC-BY** — attribution required and given | snapshot table |
+| ESPN | `fantasy.espn.com` | per-request, cookie-encrypted | 300s | none | `unavailableSource` | private league data; credentials encrypted at rest | not snapshotted |
+| open-meteo | `open-meteo.com` | per-request | — | none | value omitted | free, CC-BY | not retained |
+| FantasyCalc / KTC / DynastyProcess | respective APIs | daily cron | — | prior snapshot | trade values render unavailable | free public endpoints | snapshot table |
+| **MyFantasyLeague** (new, audit §19) | `api.myfantasyleague.com/{year}/export` | one-off research pull, 2026-08-20 | n/a — archived, not live | n/a | acquisition aborts the league | free public API; requests carry an identifying User-Agent and are throttled; **429 is respected with exponential backoff** | archived to `reports/2026-08-20/holdout-data.jsonl.gz` for reproducibility of the frozen holdout; **not used at runtime and not shipped in the app bundle** |
+
+## Freshness is never inferred from a wrapper call
+
+The rule §13 states explicitly, now enforced in code: a request completing does
+not make its *contents* fresh. `materializeSleeperRoster` composes two upstreams
+of different ages and bounds the record's decision-relevant freshness by the
+**older** one; a missing snapshot yields `fetchedAt: null` rather than borrowing
+the roster call's timestamp. Pinned by `src/lib/leagues/fetchLive.test.ts`.

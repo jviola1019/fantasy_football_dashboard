@@ -14,7 +14,8 @@
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
   <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
-  <img alt="442 tests passing" src="https://img.shields.io/badge/tests-442%20passing-35c08a">
+  <a href="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml"><img alt="tests" src="https://img.shields.io/badge/tests-vitest%20%2B%20playwright%20%2B%20axe-35c08a"></a>
+  <a href="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml"><img alt="postgres integration" src="https://img.shields.io/badge/postgres-integration%20in%20CI-336791?logo=postgresql&logoColor=white"></a>
   <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
 </p>
 
@@ -287,10 +288,20 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 442 passing unit/integration tests; 6 live-API tests (Sleeper / ESPN / FantasyCalc integration,
-across 4 `*.live.test.ts` specs) are skipped unless `RAE_LIVE_TESTS=1` and the matching credentials are set.
-Playwright runs both a chromium and a mobile-chrome project. CI runs typecheck + lint + vitest + Playwright +
-Lighthouse on every push (`.github/workflows/ci.yml`).
+Test counts are deliberately NOT quoted here. The previous badge and this
+paragraph both claimed 442 tests, a number that had been wrong for months with no
+mechanism that would ever have corrected it (audit 2026-08-20 SS16). The CI badge
+above reports whether the suite passes, which is the fact that matters; the exact
+count for any given commit is in that run's log.
+
+Live-API tests (Sleeper / ESPN / FantasyCalc round-trips, `*.live.test.ts`) are
+skipped unless `RAE_LIVE_TESTS=1` and the matching credentials are set.
+PostgreSQL integration tests are gated on `RAE_PG_TEST_URL` and run in CI against
+a pinned `postgres:17.5-alpine` service; that job fails if they are skipped rather
+than executed, so they cannot silently stop running. Playwright runs both a
+chromium and a mobile-chrome project. CI runs typecheck + lint + vitest +
+PostgreSQL integration + Playwright + Lighthouse on every push
+(`.github/workflows/ci.yml`).
 
 ## Design philosophy
 
