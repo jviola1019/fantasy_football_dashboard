@@ -9,7 +9,10 @@ name: Security
 # a daily schedule so a newly published advisory fails without needing a new PR.
 on:
   pull_request:
-    branches: [main]
+    # `[main]` alone meant a STACKED remediation PR (one fix branch based on
+    # another) got no CI at all — it is not targeting main, so nothing ran and
+    # the PR looked clean because it was never checked. Audit 2026-08-20.
+    branches: [main, "fix/**"]
   push:
     branches: [main]
   schedule:
