@@ -185,6 +185,15 @@ function structurallyEligible(league: any, draft: any): { ok: boolean; reason: s
 async function main(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
 
+  // `--bundle-only` rebuilds the reproducible artifact from whatever is already
+  // archived, without fetching. Needed because the bundle is otherwise written
+  // only when a full run completes, and a run truncated by rate limiting still
+  // has to leave a committable, re-scorable artifact behind.
+  if (args.includes("--bundle-only")) {
+    bundle();
+    return;
+  }
+
   // `_manifest.json` and `_frame-*.json` are bookkeeping, not leagues. Counting
   // them as archived would inflate `kept` and stop the run short of target.
   const already = new Set(
