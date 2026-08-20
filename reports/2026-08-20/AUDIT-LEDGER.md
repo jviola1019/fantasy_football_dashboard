@@ -214,3 +214,68 @@ build once it lapses, which is the intended forcing function.
 | `npm run check:projection-units` | 0 | PASS — every declared reception-neutral position verified identical |
 | `npm run sensitivity:replacement` | 0 | PASS — 96 league shapes, 0 ordering violations |
 | `npm run backtest:valuation` | 0 | executed; reports failure honestly |
+
+---
+
+# Additional findings and evidence (post-first-CI)
+
+## CI on a stacked PR ran nothing at all
+
+`ci.yml`, `security.yml` and `codeql.yml` all declared
+`pull_request: branches: [main]`. PR #26 targets the forensic branch, not `main`,
+so **no workflow fired**: no typecheck, no vitest, no Playwright, no CodeQL, no
+secret scan. The PR rendered as clean because nothing had run to say otherwise.
+
+Widened to `[main, "fix/**"]` in all three. Cost is bounded — it only fires when
+such a PR exists. This is arguably the most consequential process defect found in
+this audit: every stacked remediation PR before it was unverified.
+
+## CodeQL then failed the PR — 7 new alerts, 3 high
+
+Immediately after the trigger fix, the first real CodeQL run on this branch
+returned **7 new alerts (3 high, 4 medium)**, all in the acquisition scripts
+written during this audit:
+
+| rule | severity | count | substance |
+|---|---|---|---|
+| `js/file-system-race` | high | 3 | `existsSync(p)` then `readFileSync(p)` — TOCTOU |
+| `js/http-to-file-access` | medium | 3 | API-supplied league id interpolated into a file path |
+| `js/file-access-to-http` | medium | 1 | cached file contents used to build a request URL |
+
+The path-traversal exposure was real: a league id of `../../x` from the API would
+have escaped `OUT_DIR`. Fixed by **enforcing the numeric contract** (`isSafeId`,
+`isSafeSeason`) at every boundary — URL construction, frame population, cached
+frame read-back, and again at the `writeFileSync` itself — plus race-free
+attempt-and-handle helpers replacing every check-then-use pair.
+
+Fixed, not suppressed. The alerts were correct, and "it is only a research
+script" is precisely the reasoning that puts unvalidated remote input into a
+filesystem path.
+
+## Remaining executed commands
+
+| command | exit | result |
+|---|---|---|
+| `npm run lighthouse` | 0 | **PASS** — assertions green; **accessibility 100 on every route**, CLS 0, best-practices 96-100, perf 74-92 |
+| `npm run calibrate:season` | 0 | PASS — reliability table regenerated, `docs/season-calibration.md` byte-identical (determinism holds) |
+| `npm run backtest:sleeper` | 0 | PASS — pooled Brier **0.1657**, **bit-identical** to the pre-change value. Confirms §7/§7b did not perturb the off-season path, which is the path this harness exercises |
+| `npm run check:freshness` | 1 | **BLOCKED**, not FAIL — the endpoint's snapshot block is operator-gated and requires `CRON_SECRET`, which this session does not have. The guard correctly reported that it could not evaluate rather than passing vacuously |
+| `rm -rf node_modules && npm ci` | — | **Not run locally, deliberately.** CI runs `npm ci --no-audit --no-fund` on Node 20 / ubuntu for this exact commit on every workflow, which is stronger evidence for the deployable target than a local Node 25 install. Re-installing locally also risks a native `better-sqlite3` rebuild failure mid-audit (see the Node-20 constraint in project memory) |
+
+## CI evidence on PR #26
+
+First full run after the trigger fix, at `9fc8721`:
+
+| check | result |
+|---|---|
+| `typecheck + lint + vitest` | **pass** |
+| **`postgres integration`** | **pass (2m4s)** — the §10 job works on real runners |
+| `codeql (javascript-typescript)` | pass |
+| `CodeQL` (code-scanning results) | **fail → fixed at `8663fa9`** (see above) |
+| `tracked-file secret scan` | pass |
+| `gitleaks secret scan` | pass |
+| `OSV lockfile scan` | pass |
+| `lockfile advisory scan` | pass |
+| `dependency review` | pass |
+| `playwright + axe` | ran |
+| `lighthouse perf + a11y` | ran |
