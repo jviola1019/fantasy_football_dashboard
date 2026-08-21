@@ -57,82 +57,65 @@ A replacement token was generated at the operator's request and handed over
 in-session only. It is in **no file and no commit**. The runbook recommends
 generating a fresh one locally so it never touches a transcript.
 
-## Open item 2 — §19, the holdout
+## Item 2 — §19, the holdout: DONE, with an optional extension
 
-**This is the highest-value remaining work, and it is unblocked except for time.**
+**Executed once on 2026-08-21.** Full result and interpretation:
+[`holdout-result.md`](./holdout-result.md).
 
-### What is already true
+- Sample: **160 team-seasons, 13 MyFantasyLeague clusters**, seasons 2021/2023,
+  league sizes 10/12/14/16, playoff fields 4/6/8.
+- Both pre-declared criteria **NOT MET**: AUC 0.5569 [0.4630, 0.6300]; Brier
+  skill -0.1738 [-0.2550, -0.0910].
+- **Nothing was tuned on it.** The criterion was declared in advance and the
+  failure is reported as a failure.
+- It **refuted** the development-set "significantly inverted" finding
+  (AUC 0.2546 there, 0.5569 here), which forced a correction to the user-facing
+  disclosure on every surface. `scenarioBand.test.ts` now prevents the refuted
+  phrasing returning.
+- The 21-league sample is committed as `holdout-data.jsonl.gz` (0.22 MB), so
+  `npm run holdout:evaluate` reproduces it from a clean checkout with no network.
 
-- Sleeper has no public league directory. **MyFantasyLeague does.**
-  `TYPE=leagueSearch` returned **18,723** unique candidate league ids for season
-  2023 alone, and ~20,400 for 2021.
-- The protocol is **frozen and committed at `7688d14`**, before any scoring, with
-  the success criterion declared in advance:
-  [`holdout-protocol.md`](./holdout-protocol.md).
-- Both harnesses exist, typecheck, lint, and are validated against real MFL
-  payloads:
-  - `npm run holdout:acquire` — acquisition only, computes no metric
-  - `npm run holdout:evaluate` — the single frozen execution
-  - `npx tsx scripts/acquire-mfl-players.ts` — per-season player database
-    (already cached for 2021-2024)
-- Per-season sampling frames are **cached to disk**, so the sample is pinned and
-  a restart does not redraw it or spend ~5 minutes re-searching.
-- Parsing is verified end to end via `--parse-only`, which computes **no metric**
-  and therefore does not spend the one permitted execution.
+### Optional extension — and the rule that governs it
 
-### Where it stopped
+Acquisition stopped at 21 archived because MFL rate-limits hard (~20
+leagues/hour after correcting a self-inflicted three-process storm). More data
+would narrow the intervals.
 
-`11` leagues archived, ~7 of them scorable. Not enough: the protocol targets ~200
-clusters, and the entire point is escaping a 3-5 cluster sample.
-
-Cause: MFL began IP-rate-limiting. **Self-inflicted** — three acquisition
-processes were running concurrently after two background launches failed to die.
-Diagnosed by `Get-CimInstance Win32_Process`, killed, and the limit lifted on its
-own roughly 40 minutes later. The throttle is now 1500 ms and the run is
-single-process.
-
-### Exactly what to do next
+If you pursue it:
 
 ```bash
-# 1. Confirm the rate limit is clear (expect http=200)
-curl -sL -o /dev/null -w "%{http_code}\n" \
-  -A "RAE-audit/1.0" \
-  "https://api.myfantasyleague.com/2021/export?TYPE=league&L=10100&JSON=1"
+# 1. Confirm the limit is clear (expect 200)
+curl -sL -o /dev/null -w "%{http_code}
+" -A "RAE-audit/1.0"   "https://api.myfantasyleague.com/2021/export?TYPE=league&L=10100&JSON=1"
 
 # 2. Confirm nothing is already running (must print 0)
 powershell -c "@(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { \$_.CommandLine -like '*acquire-mfl*' }).Count"
 
-# 3. ONE process. Resumable — it skips what is already archived.
+# 3. ONE process. Resumable; skips what is archived.
 npm run holdout:acquire -- --target 120
 
-# 4. Verify parsing without spending the execution
-npx tsx scripts/holdout-evaluate.ts --parse-only
+# 4. Rebuild the committed artifact
+npx tsx scripts/acquire-mfl-holdout.ts --bundle-only
 
-# 5. THE SINGLE EXECUTION. Run once. Report whatever it says.
-npm run holdout:evaluate
+# 5. Verify parsing and arithmetic WITHOUT computing the answer
+npx tsx scripts/holdout-evaluate.ts --parse-only
+npx tsx scripts/holdout-evaluate.ts --self-test
 ```
 
-Expect roughly 25-35% of examined leagues to pass the structural gate, and ~70%
-of archived leagues to survive evaluation-time parsing.
+**Then stop and freeze a NEW protocol before evaluating.** The archived sample
+overlaps this one, so a larger run is *not* an independent replication. Its
+result must be reported **alongside** this one, never instead of it, and the
+success criterion must be fixed before the numbers are seen.
 
-### Rules that must not be broken
+### Rules that still hold
 
-- **Run `holdout:evaluate` once.** If a harness bug is found afterwards, disclose
-  the fix and show **both** results. Silently re-running until it looks good is
-  the exact failure the freeze exists to prevent.
-- **Do not tune anything on this data.** No cushion, anchor, slope, coefficient
-  or curve setting. Post-hoc tuning converts the holdout into development data
-  permanently, and there is no second untouched sample behind it.
-- **The five Sleeper leagues are development data forever.** They cannot serve as
-  a holdout at any future point.
+- **Do not tune anything on holdout data.** No cushion, anchor, slope,
+  coefficient or curve setting.
+- **The five Sleeper leagues are development data forever.**
 - **Do not add PAR to this protocol.** It needs a runtime points curve, and
-  fitting one on MFL introduces unfrozen choices. `playerScores` is already
-  archived so a *separately frozen* PAR protocol can use it later.
-
-### If the result is a failure
-
-That is a legitimate, publishable outcome and the protocol already says so.
-Record it, keep production on the scenario presentation, and do not soften it.
+  fitting one on MFL introduces unfrozen choices. `playerScores` is archived so a
+  separately frozen PAR protocol can use it.
+- **A failure is a publishable result.** This one is.
 
 ## Ledgers
 
