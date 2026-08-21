@@ -519,19 +519,29 @@ function main(): void {
 
   // Protocol 2 scores the ENLARGED sample, so it reads the live acquisition
   // directory. Protocol 1 stays pinned to its committed bundle.
-  const { rows, leagues } = buildHoldoutRows("working");
+  // Amendment 2: the outcome is OBSERVED from the real bracket, not inferred
+  // from standings rank. Recorded pre-execution in holdout-protocol-2.md.
+  const { rows, leagues, rejected } = buildHoldoutRows("working", "bracket");
   const byLeague = groupByLeague(rows);
 
   if (dryRun) {
     console.log(`dry run — ${leagues.length} leagues parsed, ${rows.length} rows, ${byLeague.size} clusters. NO metric computed.`);
+    for (const [reason, n] of [...rejected].sort((a, b) => b[1] - a[1])) {
+      console.log(`  rejected ${String(n).padStart(3)} — ${reason}`);
+    }
     return;
   }
-  if (byLeague.size < MIN_LEAGUES && !force) {
+  // Protocol 2 §2 states the trigger in terms of ARCHIVED leagues, not scored
+  // clusters. Guarding on scored clusters was stricter than the protocol itself
+  // and would have blocked a run the protocol permits — the two are very
+  // different numbers once the structural filters and the ground-truth label
+  // exclusions have done their work (150 archived -> 68 scored).
+  const archived = leagues.length + [...rejected.values()].reduce((a, b) => a + b, 0);
+  if (archived < MIN_LEAGUES && !force) {
     console.error(
-      `Protocol 2 §2 sets the execution trigger at >= ${MIN_LEAGUES} leagues; ` +
-        `only ${byLeague.size} are available.\n` +
-        `Either keep acquiring, or pass --force if acquisition has TERMINATED ` +
-        `(the protocol permits running on whatever the frame yielded in that case).`
+      `Protocol 2 §2 sets the execution trigger at >= ${MIN_LEAGUES} ARCHIVED leagues; ` +
+        `only ${archived} are available.\n` +
+        `Either keep acquiring, or pass --force if acquisition has TERMINATED.`
     );
     process.exit(2);
   }
@@ -543,7 +553,16 @@ function main(): void {
   say();
   say(`**Executed** ${new Date().toISOString()} · **Protocol** [holdout-protocol-2.md](./holdout-protocol-2.md) (frozen \`77fb562\`)`);
   say();
+  say("> **Outcome label: OBSERVED bracket participation** (Amendment 2, recorded pre-execution). The inferred `standings rank <= P` label used by protocol 1 is wrong for 33% of leagues.");
+  say();
   say("> **Not an independent replication.** This sample CONTAINS protocol 1's leagues. Report alongside [`holdout-result.md`](./holdout-result.md), never instead of it. If this succeeds where protocol 1 failed, the honest reading is *underpowered*, not *the earlier result was wrong*.");
+  say();
+  say("| stage | leagues |");
+  say("|---|---|");
+  for (const [reason, n] of [...rejected].sort((a, b) => b[1] - a[1])) {
+    say(`| rejected — ${reason} | ${n} |`);
+  }
+  say(`| **scored** | **${leagues.length}** |`);
   say();
   say("| quantity | value |");
   say("|---|---|");
@@ -619,7 +638,14 @@ function main(): void {
       : "**Recalibration does not rescue skill.** Even with a monotone calibration map fitted out-of-fold, the forecast does not beat the league's own base rate. There is no signal being hidden by miscalibration."
   );
   say();
-  say("Note AUC is invariant to any monotone recalibration, so an unchanged AUC here is expected and correct, not a bug.");
+  say(
+    "Note on AUC here: a single monotone map preserves ranking, but this is " +
+      "leave-one-LEAGUE-out, so each league is mapped by a DIFFERENT function. " +
+      "Within a league the ordering is preserved; pooled across leagues it need " +
+      "not be, and isotonic pooling also creates ties that score 0.5. So a MOVED " +
+      "AUC here is expected, not a bug. An earlier version of this note claimed " +
+      "the opposite and was wrong."
+  );
   say();
 
   const ceiling = signalCeiling(byLeague);
@@ -662,11 +688,33 @@ function main(): void {
   say(`| effective n | ${power.effectiveN.toFixed(1)} |`);
   say(`| **minimum detectable AUC − 0.5** at 80% power | **${power.mde.toFixed(4)}** |`);
   say();
+  // The Hanley-McNeil MDE assumes the null AUC is 0.5. The cluster-permutation
+  // null here is NOT 0.5 — unequal league sizes and berth rates put it at
+  // aucPerm.nullMean. Measuring the observed effect against 0.5 overstates it
+  // and inverted this verdict in an earlier version of this report.
+  const effectVsPermNull = aucObs - aucPerm.nullMean;
   say(
-    `So this sample could detect an AUC of about **${(0.5 + power.mde).toFixed(3)}** or better. ` +
-      (Math.abs(aucObs - 0.5) < power.mde
-        ? "The observed effect is **smaller than that**, so a null here means *no effect large enough to matter was found* — it does not prove the effect is exactly zero."
-        : "The observed effect is larger than that, so this sample was adequately powered for it.")
+    `Against a **0.5** null this sample could detect an AUC of about ` +
+      `**${(0.5 + power.mde).toFixed(3)}** or better, and the observed ${aucObs.toFixed(4)} clears that.`
+  );
+  say();
+  say(
+    `But **0.5 is the wrong null here.** Within-league permutation holds each ` +
+      `league's berth count fixed, and unequal league sizes and berth rates put the ` +
+      `null at **${aucPerm.nullMean.toFixed(4)}**, not 0.5. The effect actually being ` +
+      `tested is therefore **${effectVsPermNull.toFixed(4)}**, not ` +
+      `${(aucObs - 0.5).toFixed(4)}.`
+  );
+  say();
+  say(
+    Math.abs(effectVsPermNull) < power.mde
+      ? `That is **smaller than the ${power.mde.toFixed(4)} minimum detectable effect**, so this ` +
+          `sample was **NOT adequately powered** for the effect present. A null here means ` +
+          `*no effect large enough to detect was found* — it does not show the effect is zero. ` +
+          `This is consistent with H1's p = ${aucPerm.p.toFixed(4)}: the permutation test and the ` +
+          `power calculation agree once both use the same null.`
+      : `That exceeds the ${power.mde.toFixed(4)} minimum detectable effect, so the sample was ` +
+          `adequately powered for it.`
   );
   say();
 
