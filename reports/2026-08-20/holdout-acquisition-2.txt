@@ -41,3 +41,4 @@ acquire-mfl-holdout — target 200 leagues, 21 already archived
   search "dynasty": +5800 (frame now 21235)
     ...examined 25 in 2022 (archived 97, 429s 1037, 2029 reqs)
   archived 100/200 (season 2022, fetched 28, 429s 1054)
+    ...examined 50 in 2022 (archived 104, 429s 1084, 2144 reqs)

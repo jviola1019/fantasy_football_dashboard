@@ -101,6 +101,17 @@ recalibrating rescues skill, the model had signal that miscalibration was
 hiding); minimum detectable AUC at 80% power (the number protocol 1 lacked);
 stratification by league size.
 
+**Execution sequence — in this order, and the order matters:**
+
+1. Wait for the trigger (>= 150 leagues, or acquisition ending).
+2. `npm run holdout:validate-labels` — validates the OUTCOME LABEL against real
+   playoff brackets, closing the vacuous self-check in protocol 1 §6. Run this
+   **before** scoring: if the label is wrong, every metric in both protocols is
+   wrong, and that has to be known first. Run it **after** acquisition, not
+   during — both hit the same MFL rate limit.
+3. `npx tsx scripts/holdout-evaluate-2.ts --self-test` then `--dry-run`.
+4. `npm run holdout:evaluate2` — the single permitted run.
+
 Run it with:
 
 ```bash
