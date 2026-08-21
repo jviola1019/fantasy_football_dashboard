@@ -25,7 +25,10 @@ import { DEFAULT_FORMAT, type LeagueFormat, type ScoringFormat } from "../src/li
 import type { PlayerMarketRecord } from "../src/lib/governance";
 
 const DATA_DIR = "reports/2026-08-20/holdout-data";
+/** Protocol 1's IMMUTABLE 21-league sample. Never re-bundled into. */
 const BUNDLE = "reports/2026-08-20/holdout-data.jsonl.gz";
+/** Protocol 2's frozen 150-league sample. */
+const BUNDLE_P2 = "reports/2026-08-20/holdout-data-p2.jsonl.gz";
 const PLAYERS_BUNDLE = "reports/2026-08-20/holdout-players.json.gz";
 const OUT = "reports/2026-08-20/holdout-result.md";
 
@@ -561,22 +564,32 @@ function clusterBootstrap(
 export type RawSource = "pinned" | "working";
 
 function loadRaw(source: RawSource = "pinned"): any[] {
-  if (source === "working" && existsSync(DATA_DIR)) {
-    const files = readdirSync(DATA_DIR)
-      .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
-      .sort();
-    if (files.length > 0) {
-      return files.map((f) => JSON.parse(readFileSync(join(DATA_DIR, f), "utf8")));
-    }
-  }
-  if (existsSync(BUNDLE)) {
-    return gunzipSync(readFileSync(BUNDLE))
+  const readBundle = (path: string): any[] =>
+    gunzipSync(readFileSync(path))
       .toString("utf8")
       .split("\n")
       .filter(Boolean)
       .map((l) => JSON.parse(l));
+
+  if (source === "working") {
+    // Live acquisition directory first; otherwise protocol 2's frozen bundle, so
+    // protocol 2 reproduces from a clean checkout exactly as protocol 1 does.
+    if (existsSync(DATA_DIR)) {
+      const files = readdirSync(DATA_DIR)
+        .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
+        .sort();
+      if (files.length > 0) {
+        return files.map((f) => JSON.parse(readFileSync(join(DATA_DIR, f), "utf8")));
+      }
+    }
+    if (existsSync(BUNDLE_P2)) return readBundle(BUNDLE_P2);
+    throw new Error("no protocol-2 sample — run `npm run holdout:acquire` first");
   }
-  throw new Error("no holdout data — run `npm run holdout:acquire` first");
+
+  // "pinned": protocol 1's immutable 21-league sample, and nothing else. It must
+  // never absorb later-acquired leagues.
+  if (existsSync(BUNDLE)) return readBundle(BUNDLE);
+  throw new Error("protocol 1's pinned bundle is missing");
 }
 
 /**

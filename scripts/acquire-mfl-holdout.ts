@@ -25,7 +25,13 @@ import { gzipSync } from "node:zlib";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const OUT_DIR = "reports/2026-08-20/holdout-data";
-const BUNDLE_PATH = "reports/2026-08-20/holdout-data.jsonl.gz";
+/**
+ * Protocol 2's frozen sample. NOT `holdout-data.jsonl.gz` — that path is protocol
+ * 1's pinned 21-league artifact, and bundling into it once already overwrote
+ * protocol 1's sample with 150 leagues, silently destroying its reproducibility.
+ * Each executed protocol keeps its own immutable bundle.
+ */
+const BUNDLE_PATH = "reports/2026-08-20/holdout-data-p2.jsonl.gz";
 /** Per-season player databases, bundled so the evaluation reproduces offline. */
 const PLAYERS_BUNDLE_PATH = "reports/2026-08-20/holdout-players.json.gz";
 const UA = "RAE-audit/1.0 (model validation research; contact jviola1@vols.utk.edu)";
