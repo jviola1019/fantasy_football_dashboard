@@ -211,3 +211,65 @@ preprocessing, no feature. The `features` field added to `Row` carries only
 pre-season draft quantities and was verified not to move protocol 1's numbers:
 re-run against the pinned bundle it reproduces 160 rows, 13 clusters, Brier
 0.2822, AUC 0.5569, CIs [0.4630, 0.6300] and [-0.2550, -0.0910] exactly.
+
+---
+
+# AMENDMENT 2 — the outcome label is corrected to ground truth
+
+**Recorded 2026-08-21, BEFORE protocol 2 was executed.** Protocol 2 has still
+never been run.
+
+## Why
+
+Protocol 1 §6's declared self-check was vacuous, so an external one was built.
+It validated all 150 archived leagues against their actual playoff brackets:
+
+| | |
+|---|---|
+| agree | 56 of 84 judgeable (66.7%) |
+| **disagree** | **28 (33.3%)** |
+| unjudgeable (no franchise ids) | 12 |
+
+The error is structured. 23 of 28 are off by exactly one team, 3 by two, 2 by
+three. And across all 86 leagues with an observed bracket, **the field size `P`
+was correct every single time** — `participants.length === declaredP` for 86 of
+86. Only the *identity* of the qualifiers was wrong. That is the signature of a
+division winner taking an automatic berth ahead of a better-record wildcard.
+
+## What changes
+
+§6's outcome label changes from **inferred** to **observed**:
+
+- was: `madePlayoffs = (standings rank <= P)`
+- now: `madePlayoffs = (franchise appears in the championship bracket)`
+
+Climatology moves with it — the per-league base rate becomes the observed berth
+count over N, not the declared `teamsInvolved` over N. Scoring against a baseline
+for a different question would be worse than the original error.
+
+A league with **no archived bracket observation is excluded**, never fallen back
+to the inferred label. Mixing the two would reintroduce the same 33% error inside
+a subset nobody could identify afterwards.
+
+## Why this is legitimate
+
+1. **Pre-execution.** Protocol 2 has not been run. Nothing is being changed after
+   seeing its result, because there is no result.
+2. **It is a correction toward ground truth, not a choice.** Replacing a proxy
+   with the observation it was proxying for cannot be tuned to favour an outcome.
+   There is no version of this that flatters the model on purpose.
+3. **It can only help the model.** Label noise attenuates measured performance
+   toward the null, so correcting it removes an excuse for failure rather than
+   manufacturing success. If the model still fails, that failure is harder to
+   explain away — which is the point.
+4. **Nothing else moves.** Hypotheses H1/H2/H3, the Holm correction, the success
+   criterion, the sampling frame, preprocessing and the production `SIM_BASE`
+   constants are all unchanged.
+
+## What does NOT change
+
+Protocol 1's reported result stands as reported, with the inferred label, at
+[`holdout-result.md`](./holdout-result.md). A corrected re-analysis of the same
+21-league sample sits **alongside** it at
+[`holdout-result-corrected.md`](./holdout-result-corrected.md). Neither replaces
+the other.

@@ -34,6 +34,8 @@ const PLAYERS_BUNDLE = "reports/2026-08-20/holdout-players.json.gz";
 const BRACKETS_STORE = "reports/2026-08-20/holdout-data/_brackets.json";
 const BRACKETS_BUNDLE = "reports/2026-08-20/holdout-brackets.json.gz";
 const OUT = "reports/2026-08-20/holdout-result.md";
+/** Corrected re-analysis output. NEVER overwrites the original result. */
+const OUT_CORRECTED = "reports/2026-08-20/holdout-result-corrected.md";
 
 /** Production SIM_BASE, unmodified (protocol §7). */
 const SEED = 20260513;
@@ -745,21 +747,50 @@ function main(): void {
     console.log(s);
   };
 
+  // `--label bracket` re-runs protocol 1 against the GROUND-TRUTH outcome and
+  // writes to a SEPARATE file. The original standings-label result is never
+  // overwritten: it is a reported result, and a corrected re-analysis sits
+  // alongside it rather than replacing it.
+  const labelSource: LabelSource = process.argv.includes("--label")
+    ? (process.argv[process.argv.indexOf("--label") + 1] as LabelSource)
+    : "standings";
+  const corrected = labelSource === "bracket";
+  const outPath = corrected ? OUT_CORRECTED : OUT;
+
   const raws = loadRaw();
-  say("# Holdout result — shipped valuation chain on untouched MyFantasyLeague data");
+  say(
+    corrected
+      ? "# Holdout result — protocol 1 RE-ANALYSED with the ground-truth outcome label"
+      : "# Holdout result — shipped valuation chain on untouched MyFantasyLeague data"
+  );
   say();
   say(`**Executed** ${new Date().toISOString()} · **Protocol** [holdout-protocol.md](./holdout-protocol.md) (frozen \`7688d14\`)`);
   say();
+  if (corrected) {
+    say(
+      "> **This is a CORRECTED RE-ANALYSIS, not protocol 1's reported result.** " +
+        "Protocol 1 inferred the outcome from `standings rank <= P`, which validation " +
+        "showed is wrong for 33% of leagues — division winners take an automatic berth " +
+        "ahead of a better-record wildcard. The field size P was right in all 86 " +
+        "checked leagues; which teams filled it was not. This run uses OBSERVED " +
+        "bracket participants instead. The original stands at " +
+        "[`holdout-result.md`](./holdout-result.md) and is not replaced."
+    );
+    say();
+  }
   say(`Archived leagues read: **${raws.length}**`);
   say();
 
-  const leagues: HoldoutLeague[] = [];
-  const rejected = new Map<string, number>();
-  for (const raw of raws) {
-    const { league, reason } = parseLeague(raw);
-    if (league) leagues.push(league);
-    else rejected.set(reason, (rejected.get(reason) ?? 0) + 1);
-  }
+  const { leagues, rejected } = (() => {
+    const ls: HoldoutLeague[] = [];
+    const rj = new Map<string, number>();
+    for (const raw of raws) {
+      const { league, reason } = parseLeague(raw, labelSource);
+      if (league) ls.push(league);
+      else rj.set(reason, (rj.get(reason) ?? 0) + 1);
+    }
+    return { leagues: ls, rejected: rj };
+  })();
 
   say("## Sample construction");
   say();
@@ -780,7 +811,7 @@ function main(): void {
 
   if (leagues.length < 2) {
     say("Fewer than two usable leagues — no claim can be made. Stopping.");
-    if (!parseOnly) writeFileSync(OUT, out.join("\n"));
+    if (!parseOnly) writeFileSync(outPath, out.join("\n"));
     return;
   }
 
@@ -822,15 +853,24 @@ function main(): void {
   say(`| structural rate (mean P/N) | ${structuralRate.toFixed(4)} |`);
   say();
   say(
-    "> **Self-check caveat, stated rather than hidden.** Protocol §6 declared a " +
-      "check that the observed rate equals the structural rate. Because the outcome " +
-      "label is DEFINED as `standings rank <= P`, that identity holds by " +
-      "construction and the check is therefore vacuous — it validates arithmetic, " +
-      "not the bracket read. A genuine check would compare against actual bracket " +
-      "participants (`TYPE=playoffBracket&BRACKET_ID=`), which was not acquired. " +
-      "The risk this leaves: if `P` is misread for some league shape, those teams " +
-      "are mislabeled. `P` is taken from the largest non-consolation bracket's " +
-      "`teamsInvolved`, which is the field size in every league inspected by hand."
+    corrected
+      ? "> **Self-check now CLOSED.** Protocol §6's declared check was vacuous — the " +
+          "label was defined from the standings rank, so the identity held by " +
+          "construction. This run does not infer the outcome at all: it uses the " +
+          "franchises that actually appear in the playoff bracket. Validation across " +
+          "150 leagues found the inferred label wrong for 33% of them (28 of 84 " +
+          "judgeable), with the field size P correct in all 86 checked cases and only " +
+          "the identity of the qualifiers wrong — the signature of division winners " +
+          "taking an automatic berth ahead of a better-record wildcard."
+      : "> **Self-check caveat, stated rather than hidden.** Protocol §6 declared a " +
+          "check that the observed rate equals the structural rate. Because the outcome " +
+          "label is DEFINED as `standings rank <= P`, that identity holds by " +
+          "construction and the check is therefore vacuous — it validates arithmetic, " +
+          "not the bracket read. A genuine check would compare against actual bracket " +
+          "participants (`TYPE=playoffBracket&BRACKET_ID=`), which was not acquired. " +
+          "The risk this leaves: if `P` is misread for some league shape, those teams " +
+          "are mislabeled. `P` is taken from the largest non-consolation bracket's " +
+          "`teamsInvolved`, which is the field size in every league inspected by hand."
   );
   say();
 
@@ -924,8 +964,8 @@ function main(): void {
     say();
   }
 
-  writeFileSync(OUT, out.join("\n"));
-  console.log(`\nWrote ${OUT}`);
+  writeFileSync(outPath, out.join("\n"));
+  console.log(`\nWrote ${outPath}`);
 }
 
 // Guarded: importing this module (the diagnostics do) must NOT execute the
