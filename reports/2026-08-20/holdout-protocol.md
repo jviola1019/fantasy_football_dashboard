@@ -212,3 +212,62 @@ there is no second untouched sample waiting behind it.
 - **The PAR candidate.** Explicitly out of scope, per §3 above.
 - **Causality.** This measures whether the chain ranks and calibrates. It does
   not explain why.
+
+---
+
+# AMENDMENT 1 — realized sample size
+
+**Recorded 2026-08-20, BEFORE the evaluation harness was run on any of this data.**
+No metric had been computed at the time of writing: parsing was verified with
+`--parse-only` and the metric arithmetic with `--self-test`, neither of which
+touches the holdout answer.
+
+## What changed, and what did not
+
+§5 set a target of **200 leagues**. The realized sample is smaller. The reason is
+**API rate limiting**, not selection:
+
+- MyFantasyLeague began returning HTTP 429 for a large fraction of requests —
+  136 of 312 (44%) by the end of the run. Each 429 costs up to 32s of backoff.
+- The initial cause was **self-inflicted**: three acquisition processes were left
+  running concurrently after two background launches failed to terminate. That
+  was diagnosed and corrected (single process, 1500 ms throttle), and the limit
+  did partially lift, but throughput remained roughly 20 archived leagues/hour.
+- Reaching 200 would have taken on the order of ten hours of continuous polling
+  against a free public API, which is not a reasonable load to impose.
+
+**Nothing about the selection rule changed.** The frame is still the same
+deterministic, sorted candidate list, walked in the same order. A truncated run
+therefore yields the **deterministic prefix** of the frozen frame — not a subset
+anyone chose. No league was included or excluded on the basis of anything but the
+structural filters in §5.
+
+Also unchanged: the architecture, the preprocessing, the outcome label, the
+scoring protocol, the metrics, and — most importantly — **the success criterion
+in §9**. None of those were touched, and none may be.
+
+## Consequence, stated plainly
+
+The realized cluster count is far below target. The bootstrap interval will be
+correspondingly wide, and this execution therefore **cannot** deliver the
+"many-cluster external validation" the protocol set out to obtain. What it can
+deliver is a genuine, untouched, out-of-platform test with a cluster count
+several times the development sample's.
+
+That is a real improvement and a real result. It is not the result that was
+wanted, and it will not be described as one.
+
+## One-shot accounting
+
+This execution **consumes the single permitted run of this protocol**.
+
+If more leagues are acquired later, evaluating them is a **new protocol**, which
+must be separately frozen and whose result must be reported **alongside** this
+one — never instead of it. The archived sample overlaps, so a later run is not an
+independent replication and must not be presented as one.
+
+## Prohibited, as before
+
+No parameter, coefficient, cushion, anchor, slope or curve setting may be
+adjusted and re-run on this data. The five Sleeper development leagues remain
+development data permanently.

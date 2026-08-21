@@ -6,3 +6,5 @@ acquire-mfl-holdout — target 120 leagues, 10 already archived
     ...examined 25 in 2021 (archived 15, 429s 20, 84 reqs)
     ...examined 50 in 2021 (archived 18, 429s 104, 222 reqs)
   archived 20/120 (season 2021, fetched 60, 429s 114)
+    ...examined 75 in 2021 (archived 21, 429s 136, 312 reqs)
+EXIT=127
