@@ -9,7 +9,7 @@
 | New fix branch | `fix/2026-08-20-audit-remediation` |
 | Audited SHA | `69634d33a1347486a1d61eec33bde4a10cad4a2d` |
 | Base SHA (merge-base with `main`) | `efb124bd7f5bf867f3fb29040d5cb1d680a6f7b3` |
-| Final SHA | see `git rev-parse HEAD` on the branch |
+| Final SHA | `880d53e` and later — see `git rev-parse HEAD` on the branch |
 | PR integration SHA | PR **#26** (draft) head; PR **#21** (draft) remains at `69634d3` |
 
 **Source SHA verified unmoved** at the start of work and again before this
@@ -163,7 +163,8 @@ Every change is on `fix/2026-08-20-audit-remediation`, which nothing depends on.
 - **PR #26** — OPEN, **draft**, targets the forensic branch so its diff is only
   this remediation.
 
-Both remain draft: §11 is BLOCKED and §19 is PARTIAL.
+Both remain draft: **§11 is BLOCKED**, and the holdout returned a failure the
+operator should read before merging.
 
 ## 32. Explicit confirmation
 

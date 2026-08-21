@@ -37,8 +37,12 @@ on a new branch, without weakening any gate.
 **Not done.**
 
 1. **§11 `DB_INIT_TOKEN` — `BLOCKED`.** Needs operator secret-manager access.
-2. **§19 holdout — `PARTIAL`.** Protocol frozen, harnesses built and validated;
-   acquisition incomplete.
+2. **§19 holdout — `EXECUTED`.** Ran once on 13 clusters / 160 team-seasons.
+   Both pre-declared criteria NOT MET. It also refuted the development-set
+   "significantly inverted" finding, which forced a correction to the
+   user-facing disclosure. See `holdout-result.md`. Optional future work:
+   acquire more MFL leagues and evaluate under a **separately frozen** protocol,
+   reported alongside — never instead of — this one.
 
 ## Open item 1 — §11, credential invalidation
 
