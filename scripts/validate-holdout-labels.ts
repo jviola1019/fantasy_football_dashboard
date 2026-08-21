@@ -42,7 +42,17 @@ function asArray<T>(v: T | T[] | undefined | null): T[] {
   return Array.isArray(v) ? v : [v];
 }
 
-const CONSOLATION = /consolation|toilet|loser|place|3rd|5th|7th/i;
+/**
+ * Consolation-bracket names to exclude when deriving P.
+ *
+ * `tiolet` is not a typo here — league 2021-10283 literally names its
+ * consolation bracket "Tiolet Bowl", and the original pattern missed it. That
+ * league happened to be unharmed (both brackets held 8 teams, so max() was still
+ * right), but a MISSPELLED consolation bracket larger than the championship
+ * bracket would silently inflate P and mislabel real teams. Widened, and the
+ * fragility recorded rather than left as luck.
+ */
+const CONSOLATION = /consolation|toilet|tiolet|loser|place|3rd|5th|7th|shit|sacko|punish/i;
 
 async function mfl(season: string, query: string): Promise<any | null> {
   if (!/^[0-9]{4}$/.test(season)) return null;
@@ -121,7 +131,9 @@ async function main(): Promise<void> {
 
   let checked = 0;
   let agreed = 0;
+  let unvalidatable = 0;
   const disagreements: string[] = [];
+  const mislabelled = new Set<string>();
 
   for (const f of chosen) {
     const raw = JSON.parse(readFileSync(join(DATA_DIR, f), "utf8"));
@@ -159,15 +171,30 @@ async function main(): Promise<void> {
       continue;
     }
     const actual = participantsOf(detail?.playoffBracket ?? detail);
+
+    // A bracket with NO extractable franchise ids cannot be judged either way —
+    // an unplayed bracket, or a payload shape this parser does not handle.
+    // Counting that as a DISAGREEMENT would inflate the error rate with parser
+    // failures, which the first version of this script did: it reported 4
+    // disagreements when 2 of them were simply unjudgeable.
+    if (actual.size === 0) {
+      unvalidatable += 1;
+      say(`| ${raw.season}-${raw.leagueId} | ${n} | ${p} | 0 | — | no franchise ids in bracket; cannot judge |`);
+      continue;
+    }
+
     // A bracket lists only the teams that PLAY in it; byes may not appear in
     // round one, so the real test is that the bracket's participants are a
     // SUBSET of the derived qualifiers, not set equality.
     const missing = [...actual].filter((id) => !derived.has(id));
-    const ok = actual.size > 0 && missing.length === 0;
+    const ok = missing.length === 0;
 
     checked += 1;
     if (ok) agreed += 1;
-    else disagreements.push(`${raw.season}-${raw.leagueId}: bracket has ${missing.join(",")} outside the derived top-${p}`);
+    else {
+      disagreements.push(`${raw.season}-${raw.leagueId}: bracket has ${missing.join(",")} outside the derived top-${p}`);
+      mislabelled.add(`${raw.season}-${raw.leagueId}`);
+    }
 
     say(
       `| ${raw.season}-${raw.leagueId} | ${n} | ${p} | ${actual.size} | ${ok ? "**yes**" : "**NO**"} | ` +
@@ -182,7 +209,12 @@ async function main(): Promise<void> {
     say("No league could be validated — bracket detail was unavailable for the whole sample.");
   } else {
     const rate = agreed / checked;
-    say(`**${agreed} of ${checked} leagues agree** (${(rate * 100).toFixed(1)}%).`);
+    say(`**${agreed} of ${checked} judgeable leagues agree** (${(rate * 100).toFixed(1)}%).`);
+    say();
+    say(
+      `${unvalidatable} further league(s) had no franchise ids in their bracket and are ` +
+        "counted **neither way** — they are parser/data gaps, not disagreements."
+    );
     say();
     if (disagreements.length === 0) {
       say(
@@ -212,6 +244,19 @@ async function main(): Promise<void> {
       "participants are a **subset** of the derived qualifiers, not set equality — " +
       "equality would fail on byes for reasons that are not errors."
   );
+
+  if (mislabelled.size > 0) {
+    say();
+    say("### Machine-readable exclusion list");
+    say();
+    say("```json");
+    say(JSON.stringify([...mislabelled].sort(), null, 1));
+    say("```");
+    writeFileSync(
+      "reports/2026-08-20/holdout-mislabelled.json",
+      JSON.stringify([...mislabelled].sort(), null, 1)
+    );
+  }
 
   writeFileSync(OUT, out.join("\n"));
   console.log(`\nWrote ${OUT}`);
