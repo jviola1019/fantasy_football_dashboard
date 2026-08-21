@@ -279,3 +279,50 @@ First full run after the trigger fix, at `9fc8721`:
 | `dependency review` | pass |
 | `playwright + axe` | ran |
 | `lighthouse perf + a11y` | ran |
+
+
+---
+
+# §19 — holdout EXECUTED
+
+Ran once on 2026-08-21, on the committed 21-league artifact. Full result and
+interpretation: [`holdout-result.md`](./holdout-result.md).
+
+| | |
+|---|---|
+| sample | **160 team-seasons, 13 clusters**, seasons 2021/2023 |
+| league sizes | 10, 12, 14, 16 |
+| playoff fields | 4, 6, 8 |
+| shipped chain | Brier **0.2822** · log loss 0.8004 · AUC **0.5569** · ECE 0.1613 |
+| structural climatology | Brier 0.2404 · log loss 0.6737 · ECE 0.0000 |
+| raw draft capital | AUC 0.5149 |
+| Brier skill | **-0.1738**, 95% CI **[-0.2550, -0.0910]** (4913 distinct resamples) |
+| AUC 95% CI | **[0.4630, 0.6300]** (4732 distinct resamples) |
+| criterion 1 — AUC CI above 0.5 | **NOT MET** |
+| criterion 2 — Brier skill CI above 0 | **NOT MET** |
+
+**Verdict: no positive external skill.** Nothing was tuned on this data.
+
+## The finding that required correcting earlier work
+
+| claim | development (3-5 clusters) | holdout (13 clusters) | verdict |
+|---|---|---|---|
+| ranking significantly **inverted** | AUC 0.2546 CI [0.1333, 0.4450] | AUC **0.5569** CI **[0.4630, 0.6300]** | **did NOT replicate** |
+| calibration worse than base rate | skill CI [-0.4588, -0.1320] | skill CI **[-0.2550, -0.0910]** | **replicated, significant** |
+
+The user-facing disclosure had been asserting "ranked teams worse than chance
+(AUC 0.25)". Better evidence refutes it, so it was rewritten on every surface and
+a test now prevents the phrasing returning. **Overstating a model's failure is
+still misstating it.**
+
+The calibration failure is the real one, and the reliability table shows the
+mechanism: forecasts spread 7%-92% while observed rates hug the 0.475 base rate.
+Twelve teams told ~7% qualified 42% of the time. That over-dispersion is exactly
+the harm §3 addressed — the holdout **vindicates Strategy B**.
+
+## Limitations
+
+13 clusters not the 200 targeted (Amendment 1 — API rate limiting, not
+selection); two seasons; PPR assumed for all MFL leagues; the §6 self-check is
+vacuous by construction and the harness says so; playoff qualification is coarse;
+one platform.

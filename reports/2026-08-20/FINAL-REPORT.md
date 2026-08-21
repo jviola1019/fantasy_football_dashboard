@@ -38,11 +38,13 @@ Two items are **not closed**:
 
 - **§11 `DB_INIT_TOKEN`** — `BLOCKED` on operator secret-manager access. A
   runbook is supplied; scanner success was never substituted for proof.
-- **§19 untouched holdout** — `PARTIAL`. The problem is *solved* (MyFantasyLeague
-  exposes a public league directory; Sleeper does not), the protocol is frozen
-  and committed before any scoring, both harnesses are built and validated
-  against real payloads — but acquisition is incomplete because MFL began IP
-  rate-limiting.
+- **§19 untouched holdout** — **EXECUTED**, at a smaller sample than targeted.
+  160 team-seasons across 13 MyFantasyLeague leagues the model had never seen.
+  Both pre-declared success criteria **NOT MET**: AUC 0.5569 [0.4630, 0.6300]
+  and Brier skill -0.1738 [-0.2550, -0.0910]. It also **refuted** a claim this
+  audit trail had been treating as established — the "significantly inverted"
+  ranking did not replicate — so the user-facing disclosure was rewritten to stop
+  asserting it.
 
 The most consequential *process* finding: **CI ran nothing at all on a stacked
 PR**. `pull_request: branches: [main]` meant a remediation PR based on another
@@ -111,8 +113,9 @@ in-session only — written to no file and no commit.
 Development results and the dependence analysis:
 [`par-dependence-analysis.md`](./par-dependence-analysis.md).
 
-Holdout: see [`holdout-protocol.md`](./holdout-protocol.md) (frozen `7688d14`)
-and, once executed, `holdout-result.md`.
+Holdout: [`holdout-protocol.md`](./holdout-protocol.md) (frozen `7688d14`,
+Amendment 1 recorded pre-execution) and [`holdout-result.md`](./holdout-result.md).
+160 team-seasons, 13 clusters, both criteria NOT MET, nothing tuned.
 
 ## 27. Accessibility evidence
 
@@ -125,8 +128,8 @@ and, once executed, `holdout-result.md`.
 ## 28. Residual risks
 
 1. `DB_INIT_TOKEN` may still be live. Unknown until the runbook is executed.
-2. The holdout is unexecuted; the shipped model's failure is still evidenced
-   only on 5 correlated development leagues.
+2. The holdout ran at 13 clusters, not the 200 targeted; intervals are wide and
+   the sample covers two seasons on one platform, with PPR assumed throughout.
 3. `/analytics` overflows horizontally at 320px — pre-existing, measured.
 4. Isotonic curve leading-gap defect — latent, recorded.
 5. MFL generalisation: a future holdout result is evidence about MFL redraft
@@ -148,7 +151,8 @@ Every change is on `fix/2026-08-20-audit-remediation`, which nothing depends on.
 ## 30. Human approvals still required
 
 1. Execute the `DB_INIT_TOKEN` runbook (§11).
-2. Complete acquisition and run `npm run holdout:evaluate` **once** (§19).
+2. (Optional) Acquire more MFL leagues and re-evaluate under a **separately
+   frozen** protocol — never presented as replacing this one (§19).
 3. Merge either PR.
 4. Any deployment.
 
