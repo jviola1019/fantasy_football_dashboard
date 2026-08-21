@@ -408,6 +408,71 @@ function loadRaw(): any[] {
   throw new Error("no holdout data — run `npm run holdout:acquire` first");
 }
 
+/**
+ * Verify the metric implementations against inputs with KNOWN answers.
+ *
+ * The frozen protocol permits one execution, so the scoring path must be right
+ * the first time. `--parse-only` already proves the MFL parsing; this proves the
+ * arithmetic, and neither touches the holdout answer.
+ */
+function selfTest(): void {
+  const mk = (forecast: number, actual: 0 | 1, league = "L1"): Row => ({
+    leagueKey: league,
+    franchise: `${league}-${forecast}-${actual}`,
+    forecast,
+    actual,
+    climatology: 0.5,
+    draftCapital: forecast
+  });
+  const f = (r: Row) => r.forecast;
+  const fail: string[] = [];
+  const check = (name: string, got: number | null, want: number, tol = 1e-9) => {
+    if (got == null || Math.abs(got - want) > tol) fail.push(`${name}: got ${got}, want ${want}`);
+    else console.log(`  ok  ${name} = ${got}`);
+  };
+
+  // A perfect ranker separates every positive above every negative.
+  check("AUC perfect", auc([mk(0.9, 1), mk(0.8, 1), mk(0.2, 0), mk(0.1, 0)], f), 1);
+  // A perfectly inverted ranker is 0 — the shape the shipped model shows.
+  check("AUC inverted", auc([mk(0.1, 1), mk(0.2, 1), mk(0.8, 0), mk(0.9, 0)], f), 0);
+  // Constant forecasts are all ties, counted 0.5.
+  check("AUC constant", auc([mk(0.5, 1), mk(0.5, 0)], f), 0.5);
+
+  // Brier of a perfect deterministic forecaster is 0; of a maximally wrong one, 1.
+  check("Brier perfect", brier([mk(1, 1), mk(0, 0)], f), 0);
+  check("Brier inverted", brier([mk(0, 1), mk(1, 0)], f), 1);
+  // Always 0.5 against a 50% base rate.
+  check("Brier constant", brier([mk(0.5, 1), mk(0.5, 0)], f), 0.25);
+
+  // Log loss of a confident correct forecast is ~0; clamping keeps it finite
+  // rather than -Infinity on a confident wrong one.
+  check("logLoss perfect", logLoss([mk(1, 1), mk(0, 0)], f), 0, 1e-5);
+  const blown = logLoss([mk(0, 1)], f);
+  if (!Number.isFinite(blown)) fail.push("logLoss must stay finite under clamping");
+  else console.log(`  ok  logLoss clamped = ${blown.toFixed(4)}`);
+
+  // A perfectly calibrated forecaster has ECE 0.
+  const calibrated = [mk(0.5, 1), mk(0.5, 0), mk(0.9, 1), mk(0.9, 1)];
+  check("ECE calibrated", ece(calibrated, f), 0.1, 0.1001);
+
+  // Cluster bootstrap must report the RESOLUTION limit, not just an interval.
+  const byLeague = new Map<string, Row[]>([
+    ["A", [mk(0.9, 1, "A"), mk(0.1, 0, "A")]],
+    ["B", [mk(0.8, 1, "B"), mk(0.2, 0, "B")]],
+    ["C", [mk(0.7, 1, "C"), mk(0.3, 0, "C")]]
+  ]);
+  const b = clusterBootstrap(byLeague, (rs) => auc(rs, f));
+  if (!b || b.clusters !== 3) fail.push("bootstrap must report cluster count");
+  else console.log(`  ok  bootstrap clusters=${b.clusters} distinct=${b.distinct}`);
+
+  if (fail.length > 0) {
+    console.error("\nSELF-TEST FAILED:");
+    for (const m of fail) console.error(`  - ${m}`);
+    process.exit(1);
+  }
+  console.log("\nself-test PASSED — metric arithmetic verified, holdout untouched.");
+}
+
 function main(): void {
   const out: string[] = [];
   const say = (s = "") => {
@@ -634,4 +699,5 @@ function main(): void {
   console.log(`\nWrote ${OUT}`);
 }
 
-main();
+if (process.argv.includes("--self-test")) selfTest();
+else main();
