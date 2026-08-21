@@ -9,7 +9,7 @@
 | New fix branch | `fix/2026-08-20-audit-remediation` |
 | Audited SHA | `69634d33a1347486a1d61eec33bde4a10cad4a2d` |
 | Base SHA (merge-base with `main`) | `efb124bd7f5bf867f3fb29040d5cb1d680a6f7b3` |
-| Final SHA | `880d53e` and later — see `git rev-parse HEAD` on the branch |
+| Final SHA | `6cd7425` (branch head at report time) |
 | PR integration SHA | PR **#26** (draft) head; PR **#21** (draft) remains at `69634d3` |
 
 **Source SHA verified unmoved** at the start of work and again before this
