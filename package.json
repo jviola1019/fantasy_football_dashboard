@@ -30,7 +30,8 @@
     "backtest:valuation": "tsx scripts/backtest-valuation.ts",
     "holdout:acquire": "tsx scripts/acquire-mfl-holdout.ts",
     "holdout:evaluate": "tsx scripts/holdout-evaluate.ts",
-    "holdout:diagnostics": "tsx scripts/holdout-diagnostics.ts"
+    "holdout:diagnostics": "tsx scripts/holdout-diagnostics.ts",
+    "holdout:evaluate2": "tsx scripts/holdout-evaluate-2.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
