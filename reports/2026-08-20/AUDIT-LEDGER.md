@@ -385,3 +385,50 @@ the trigger fix, `pull_request: branches: [main]` meant none of them fired.
 
 Both PRs remain **draft**. §11 is `BLOCKED` on operator action, and the holdout
 returned a failure the operator should read before merging.
+
+
+---
+
+# Post-hoc diagnostics + protocol 2 (requested follow-up)
+
+## Post-hoc statistical testing on the 13-cluster sample
+
+Run as **characterisation, not adjudication** — the criterion was fixed before
+scoring and failed; no later test can substitute for it. All p-values are cluster
+permutation (labels shuffled within league, never across).
+
+| test | statistic | null mean | p | reading |
+|---|---|---|---|---|
+| ANOVA F (forecast ~ outcome) | 2.2448 | 2.9338 | 0.5043 | no discrimination |
+| AUC (one-sided) | 0.5569 | **0.5620** | 0.5570 | no discrimination |
+| Hosmer-Lemeshow (parametric bootstrap) | 59.9253 | 34.2620 | **0.0183** | **significantly miscalibrated** |
+
+Two things worth recording:
+
+1. **The permutation null for AUC centres on 0.562, not 0.50.** Unequal cluster
+   sizes and berth rates shift it. So the observed 0.5569 — which looked mildly
+   above chance against a naive 0.5 — is *exactly at* chance against the correct
+   null.
+2. **The calibration test was wrong in its first version and was corrected before
+   reporting.** It used label permutation, which destroys calibration under the
+   null too, so the null statistic (60.57) was as large as the observed (59.93),
+   the test had no power, and it returned a falsely reassuring p = 0.46 that
+   contradicted the pre-declared Brier-skill interval. Replaced with a parametric
+   bootstrap whose null generates outcomes from the model's own forecasts.
+
+Stratified: **every league-size bucket scores worse than its own climatology**
+(10-team 0.2906 vs 0.2400 · 12-team 0.2805 vs 0.2421 · 14-team 0.2528 vs 0.2449 ·
+16-team 0.2916 vs 0.2344).
+
+Full report: [`holdout-diagnostics.md`](./holdout-diagnostics.md).
+
+## Protocol 2 — frozen, built, awaiting trigger
+
+[`holdout-protocol-2.md`](./holdout-protocol-2.md) frozen at `77fb562`, harness at
+`f431859`. Three Holm-corrected hypotheses (all three required), four
+non-adjudicating diagnostics including leave-one-league-out isotonic
+recalibration and a minimum-detectable-effect calculation. Execution trigger is
+150 leagues; the harness enforces it rather than relying on discipline.
+
+**Merge remains blocked** on two independent grounds: §11 is an unresolved P1,
+and the model has not validated.

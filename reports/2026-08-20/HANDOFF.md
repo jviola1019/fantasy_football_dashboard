@@ -75,7 +75,47 @@ generating a fresh one locally so it never touches a transcript.
 - The 21-league sample is committed as `holdout-data.jsonl.gz` (0.22 MB), so
   `npm run holdout:evaluate` reproduces it from a clean checkout with no network.
 
-### Optional extension — and the rule that governs it
+### Protocol 2 — FROZEN, awaiting its execution trigger
+
+A second, larger evaluation is **already designed, frozen and built**, because
+protocol 1's null could not distinguish "no signal" from "underpowered".
+
+| | |
+|---|---|
+| protocol | [`holdout-protocol-2.md`](./holdout-protocol-2.md), frozen `77fb562` |
+| harness | `scripts/holdout-evaluate-2.ts` (`npm run holdout:evaluate2`) |
+| trigger | **>= 150 leagues**, or acquisition terminating (`--force`) |
+| status | acquisition in progress; harness refuses to run early |
+
+Confirmatory family, **Holm-Bonferroni corrected together — all three required**:
+
+- **H1** AUC > 0.5 (cluster permutation)
+- **H2** Brier skill vs structural climatology > 0 (cluster bootstrap)
+- **H3** resolution − reliability > 0 — Murphy's "useful forecast" criterion,
+  which separates *badly scaled* from *uninformative*; H1 and H2 can both fail
+  for a forecast that is merely miscalibrated
+
+Diagnostics that report but **cannot adjudicate**: Murphy decomposition;
+**leave-one-league-out isotonic recalibration** (the decisive one — if
+recalibrating rescues skill, the model had signal that miscalibration was
+hiding); minimum detectable AUC at 80% power (the number protocol 1 lacked);
+stratification by league size.
+
+Run it with:
+
+```bash
+npx tsx scripts/holdout-evaluate-2.ts --self-test   # arithmetic, no verdict
+npx tsx scripts/holdout-evaluate-2.ts --dry-run     # sample shape, no metrics
+npm run holdout:evaluate2                            # THE single permitted run
+```
+
+**Protocol 2's sample CONTAINS protocol 1's leagues** — acquisition resumed from
+the same frozen frame. It is therefore not an independent replication, must be
+reported alongside protocol 1 rather than instead of it, and if it succeeds where
+protocol 1 failed the honest reading is *underpowered*, not *the earlier result
+was wrong*. It is the **last permitted run on this sample**.
+
+### Continuing acquisition — and the rule that governs it
 
 Acquisition stopped at 21 archived because MFL rate-limits hard (~20
 leagues/hour after correcting a self-inflicted three-process storm). More data
