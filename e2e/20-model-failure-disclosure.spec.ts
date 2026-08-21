@@ -99,6 +99,42 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     await expect(raw).toContainText(/not a forecast probability/i);
   });
 
+  test("the raw disclosure is operable by keyboard alone (audit SS20)", async ({ page }) => {
+    await gotoRoute(page, "/analytics");
+    const panel = page.locator("#nexus-simulator");
+    await panel.scrollIntoViewIfNeeded();
+    const raw = panel.locator("details.scenario-raw").first();
+    const summary = raw.locator("summary");
+    await expect(summary).toBeVisible();
+
+    // Focus without a mouse, and confirm the focus is actually visible rather
+    // than only programmatic — a summary with outline:none would pass a naive
+    // "is focused" check while being unusable.
+    await summary.focus();
+    await expect(summary).toBeFocused();
+    const outline = await summary.evaluate((el) => {
+      const cs = getComputedStyle(el, ":focus-visible");
+      return { width: cs.outlineWidth, style: cs.outlineStyle };
+    });
+    expect(outline.style).not.toBe("none");
+
+    // Enter toggles it open, then closed — native <details> semantics preserved.
+    await page.keyboard.press("Enter");
+    await expect(raw).toHaveAttribute("open", "");
+    await expect(raw.locator(".ci-list")).toBeVisible();
+    await page.keyboard.press("Enter");
+    await expect(raw).not.toHaveAttribute("open", "");
+  });
+
+  test("the notice is exposed to assistive tech as a note, not an alert", async ({ page }) => {
+    // role="note" is deliberate: this is a persistent property of the model, not
+    // a transient event, so it must not interrupt a screen reader every render.
+    await gotoRoute(page, "/analytics");
+    const notice = page.locator("#nexus-simulator .model-scenario-banner").first();
+    await expect(notice).toHaveAttribute("role", "note");
+    await expect(page.locator('[role="alert"].model-scenario-banner')).toHaveCount(0);
+  });
+
   test("no surface presents the simulation as calibrated or validated", async ({ page }) => {
     // Wording guard: the audit forbids these claims for this model.
     const banned = /\b(calibrated probabilit|validated forecast|predictive edge|expected true probability)/i;
