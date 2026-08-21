@@ -162,13 +162,33 @@ export const BAND_TONE: Record<ScenarioBand, "neutral" | "notable" | "extreme"> 
  */
 export const MODEL_FAILURE_HEADLINE = "Scenario — not a forecast";
 
+/**
+ * The wording is pinned to the STRONGEST available evidence, which as of
+ * 2026-08-20 is the external holdout — 160 team-seasons across 13 MyFantasyLeague
+ * leagues the model had never seen — not the 5 correlated development leagues.
+ *
+ * That distinction changed this string. The development sample said the model
+ * ranked teams *worse than chance* (AUC 0.2546, CI [0.1333, 0.4450], entirely
+ * below 0.5). The holdout does **not** reproduce that: AUC 0.5569 with a CI of
+ * [0.4630, 0.6300], which straddles 0.5. The apparent inversion was almost
+ * certainly an artifact of three effective clusters, and claiming it to users
+ * would now be asserting something better evidence has refuted.
+ *
+ * What the holdout *does* confirm, and significantly, is the part that matters
+ * for governance: the model is worse calibrated than the league's own base rate
+ * (Brier skill CI [-0.2550, -0.0910], entirely below zero). It has no
+ * demonstrated ability to tell teams apart, and its numbers are systematically
+ * off. Both are stated; neither is softened.
+ */
 export const MODEL_FAILURE_DETAIL =
-  "This model failed out-of-sample testing: across 30 team-seasons it ranked teams " +
-  "worse than chance (AUC 0.25, 95% CI [0.13, 0.45]) and scored worse than simply " +
-  "predicting the league's base rate. Use it to explore assumptions, not to predict.";
+  "Tested against 160 team-seasons from 13 leagues it had never seen, this model " +
+  "showed no measurable ability to tell teams apart (AUC 0.56, 95% CI [0.46, 0.63] " +
+  "— a coin flip is 0.50), and its numbers were significantly worse than simply " +
+  "using your league's own base rate (Brier skill 95% CI [-0.26, -0.09]). " +
+  "Use it to explore assumptions, not to predict.";
 
 /** Where a reader can check the claim. Never a bare assertion. */
-export const MODEL_FAILURE_EVIDENCE = "reports/2026-08-06/backtest-valuation.md";
+export const MODEL_FAILURE_EVIDENCE = "reports/2026-08-20/holdout-result.md";
 
 export interface ScenarioReading {
   band: ScenarioBand;

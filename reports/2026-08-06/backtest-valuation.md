@@ -9,6 +9,15 @@ the simulator that was validated was not the simulator the product uses.
 
 ## Headline
 
+> **PARTIALLY SUPERSEDED 2026-08-20.** The calibration half of this headline
+> replicated on an untouched external sample; the **inversion half did not**.
+> On 160 team-seasons across 13 MyFantasyLeague leagues the model had never
+> seen, AUC was **0.5569 [0.4630, 0.6300]** — straddling 0.5, not below it.
+> The significant inversion measured here is now attributed to small-sample
+> noise across 3-5 correlated clusters. Brier skill remained significantly
+> negative. See [`reports/2026-08-20/holdout-result.md`](../2026-08-20/holdout-result.md).
+> The numbers below are left exactly as they were measured.
+
 **The shipped playoff-odds model failed out-of-sample validation.** It scores
 *worse* than forecasting the league's base rate, and its ranking is inverted.
 

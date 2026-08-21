@@ -42,8 +42,10 @@ export function ModelScenarioNotice({
           !
         </span>
         <span>
-          <b>{MODEL_FAILURE_HEADLINE}.</b> Failed out-of-sample testing — ranked teams worse than
-          chance. Not calibrated.
+          {/* Kept in step with MODEL_FAILURE_DETAIL: the holdout refuted the
+              "worse than chance" reading, and confirmed the calibration one. */}
+          <b>{MODEL_FAILURE_HEADLINE}.</b> No measurable ability to tell teams apart on 13 unseen
+          leagues, and worse than your league&apos;s own base rate. Not calibrated.
         </span>
       </p>
     );

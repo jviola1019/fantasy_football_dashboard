@@ -145,6 +145,24 @@ Consequently:
 - RANK's 5-cluster interval (105 distinct values) is meaningfully better but
   still thin.
 
+## 5b. Postscript — the external holdout, run after this analysis
+
+The holdout described in [`holdout-protocol.md`](./holdout-protocol.md) was
+subsequently executed once. It bears directly on §4 above.
+
+RANK's *inversion* — the property that made `league-level` vs `cluster-weighted`
+look like it flipped a verdict — **did not replicate** on 160 team-seasons across
+13 unseen leagues: AUC **0.5569 [0.4630, 0.6300]**, straddling 0.5.
+
+So the aggregation sensitivity documented above was sensitivity in an estimate
+that was itself noise. That does not weaken the §5 argument — cluster-weighted is
+still the correct treatment on statistical grounds, chosen a priori — but it does
+mean the flipped "verdict" was never a real verdict in either direction. The
+resolution point stands and is reinforced: at 3 clusters, neither answer was
+estimable.
+
+Full result and interpretation: [`holdout-result.md`](./holdout-result.md).
+
 ## 6. Conclusions
 
 1. **PAR is not shipped, and this strengthens rather than weakens that call.**

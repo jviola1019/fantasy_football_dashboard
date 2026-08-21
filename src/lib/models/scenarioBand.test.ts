@@ -148,9 +148,29 @@ describe("the failure disclosure is a single source of truth", () => {
   });
 
   it("detail carries the measured evidence, not a vague hedge", () => {
-    expect(MODEL_FAILURE_DETAIL).toContain("worse than chance");
-    expect(MODEL_FAILURE_DETAIL).toContain("AUC 0.25");
-    expect(MODEL_FAILURE_DETAIL).toContain("[0.13, 0.45]");
+    // Pinned to the EXTERNAL holdout (160 team-seasons, 13 unseen leagues), not
+    // the 5 correlated development leagues.
+    expect(MODEL_FAILURE_DETAIL).toContain("160 team-seasons");
+    expect(MODEL_FAILURE_DETAIL).toContain("13 leagues it had never seen");
+    expect(MODEL_FAILURE_DETAIL).toContain("AUC 0.56");
+    expect(MODEL_FAILURE_DETAIL).toContain("[0.46, 0.63]");
+    expect(MODEL_FAILURE_DETAIL).toContain("Brier skill");
+    expect(MODEL_FAILURE_DETAIL).toContain("[-0.26, -0.09]");
+  });
+
+  it("does NOT repeat the 'worse than chance' claim the holdout refuted", () => {
+    // The development sample showed AUC 0.2546 with a CI entirely below 0.5 and
+    // that was reported as a significant inversion. The holdout does not
+    // reproduce it (AUC 0.5569, CI [0.4630, 0.6300] straddling 0.5), so the
+    // claim must not survive in user-facing copy. Overstating a model's failure
+    // is still misstating it.
+    expect(MODEL_FAILURE_DETAIL.toLowerCase()).not.toContain("worse than chance");
+    expect(MODEL_FAILURE_DETAIL).not.toContain("0.25");
+  });
+
+  it("still states the failure that DID replicate", () => {
+    // Calibration. Significantly worse than the league's own base rate.
+    expect(MODEL_FAILURE_DETAIL).toMatch(/worse than simply using your league's own base rate/);
   });
 
   it("never claims the model is calibrated, validated, or predictive", () => {

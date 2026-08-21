@@ -42,10 +42,12 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
 
       // It must say what it is, not hedge.
       await expect(notice).toContainText(/not a forecast/i);
-      await expect(notice).toContainText(/worse than chance/i);
+      // The claim is pinned to the EXTERNAL holdout, not the development set.
+      await expect(notice).toContainText(/160 team-seasons/i);
+      await expect(notice).toContainText(/never seen/i);
 
       // And it must point at reproducible evidence rather than asserting.
-      await expect(notice).toContainText(/backtest-valuation\.md/);
+      await expect(notice).toContainText(/holdout-result\.md/);
     });
   }
 
