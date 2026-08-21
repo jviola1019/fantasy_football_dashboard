@@ -30,6 +30,9 @@ const BUNDLE = "reports/2026-08-20/holdout-data.jsonl.gz";
 /** Protocol 2's frozen 150-league sample. */
 const BUNDLE_P2 = "reports/2026-08-20/holdout-data-p2.jsonl.gz";
 const PLAYERS_BUNDLE = "reports/2026-08-20/holdout-players.json.gz";
+/** Observed playoff-bracket participants, archived by acquire-mfl-brackets.ts. */
+const BRACKETS_STORE = "reports/2026-08-20/holdout-data/_brackets.json";
+const BRACKETS_BUNDLE = "reports/2026-08-20/holdout-brackets.json.gz";
 const OUT = "reports/2026-08-20/holdout-result.md";
 
 /** Production SIM_BASE, unmodified (protocol §7). */
@@ -87,6 +90,12 @@ export interface HoldoutLeague {
   /** franchiseId -> regular-season standings rank (1 = best). */
   standingsRank: Map<string, number>;
   totalPicks: number;
+  /**
+   * OBSERVED playoff qualifiers from the real bracket, when the label source is
+   * "bracket". Null under the inferred "standings" label. When present this is
+   * ground truth and overrides `playoffField` entirely.
+   */
+  qualifiers: Set<string> | null;
 }
 
 /**
@@ -179,7 +188,49 @@ function positionsFor(season: string): Record<string, string> {
   return map;
 }
 
-function parseLeague(raw: any): { league: HoldoutLeague | null; reason: string } {
+/**
+ * How the outcome is determined.
+ *
+ * `"standings"` — `standings rank <= P`, the INFERRED label used by protocols 1
+ * and 2 as frozen. Validation against real brackets showed it is wrong for 33%
+ * of leagues (28 of 84 judgeable), structured as division winners taking an
+ * automatic berth ahead of a better-record wildcard.
+ *
+ * `"bracket"` — OBSERVED participation in the actual playoff bracket. Ground
+ * truth rather than a proxy. A league with no archived observation is EXCLUDED
+ * rather than silently falling back to the inferred label this is meant to
+ * replace.
+ */
+export type LabelSource = "standings" | "bracket";
+
+interface BracketRecord {
+  bracketId: string;
+  declaredP: number;
+  participants: string[];
+}
+
+let bracketStore: Record<string, BracketRecord> | null = null;
+
+function brackets(): Record<string, BracketRecord> {
+  if (bracketStore) return bracketStore;
+  try {
+    bracketStore = JSON.parse(readFileSync(BRACKETS_STORE, "utf8")) as Record<string, BracketRecord>;
+  } catch {
+    try {
+      bracketStore = JSON.parse(
+        gunzipSync(readFileSync(BRACKETS_BUNDLE)).toString("utf8")
+      ) as Record<string, BracketRecord>;
+    } catch {
+      bracketStore = {};
+    }
+  }
+  return bracketStore;
+}
+
+function parseLeague(
+  raw: any,
+  labelSource: LabelSource = "standings"
+): { league: HoldoutLeague | null; reason: string } {
   const L = raw?.league?.league;
   if (!L) return { league: null, reason: "no league payload" };
 
@@ -262,6 +313,22 @@ function parseLeague(raw: any): { league: HoldoutLeague | null; reason: string }
   const standingsRank = new Map<string, number>();
   rows.forEach((r, i) => standingsRank.set(r.id, i + 1));
 
+  // Ground-truth label. A league with no archived observation is EXCLUDED, not
+  // quietly fallen back to the inferred label this is meant to replace —
+  // silently mixing the two would reintroduce exactly the 33% error being fixed.
+  let qualifiers: Set<string> | null = null;
+  if (labelSource === "bracket") {
+    const rec = brackets()[`${raw.season}-${raw.leagueId}`];
+    if (!rec || rec.participants.length === 0) {
+      return { league: null, reason: "no observed bracket participants" };
+    }
+    const known = rec.participants.filter((id) => standingsRank.has(id));
+    if (known.length === 0 || known.length >= numTeams) {
+      return { league: null, reason: "bracket participants unusable" };
+    }
+    qualifiers = new Set(known);
+  }
+
   const scoringFormat: ScoringFormat = "PPR"; // see limitations; MFL scoring is not parsed
   const format: LeagueFormat = {
     ...DEFAULT_FORMAT,
@@ -286,7 +353,8 @@ function parseLeague(raw: any): { league: HoldoutLeague | null; reason: string }
       playoffField: P,
       rosters,
       standingsRank,
-      totalPicks: overall
+      totalPicks: overall,
+      qualifiers
     },
     reason: "ok"
   };
@@ -392,8 +460,11 @@ export function scoreLeagues(leagues: HoldoutLeague[]): {
         leagueKey: lg.key,
         franchise,
         forecast: sim.playoffProbability / 100,
-        actual: rank <= lg.playoffField ? 1 : 0,
-        climatology: lg.playoffField / lg.format.numTeams,
+        // Observed qualifiers when available; the inferred rank rule otherwise.
+        actual: (lg.qualifiers ? lg.qualifiers.has(franchise) : rank <= lg.playoffField) ? 1 : 0,
+        // Climatology must match the label: with an observed field the base rate
+        // is the OBSERVED berth count, not the bracket's declared size.
+        climatology: (lg.qualifiers ? lg.qualifiers.size : lg.playoffField) / lg.format.numTeams,
         draftCapital: players.reduce((a, p) => a + (lg.totalPicks - p.pickNo), 0),
         features: draftFeatures(players, lg.totalPicks)
       });
@@ -441,16 +512,18 @@ function draftFeatures(
 }
 
 /** Load, parse and score in one call — the entry point diagnostics use. */
-export function buildHoldoutRows(source: RawSource = "pinned"): {
-  rows: Row[];
-  leagues: HoldoutLeague[];
-} {
+export function buildHoldoutRows(
+  source: RawSource = "pinned",
+  labelSource: LabelSource = "standings"
+): { rows: Row[]; leagues: HoldoutLeague[]; rejected: Map<string, number> } {
   const leagues: HoldoutLeague[] = [];
+  const rejected = new Map<string, number>();
   for (const raw of loadRaw(source)) {
-    const { league } = parseLeague(raw);
+    const { league, reason } = parseLeague(raw, labelSource);
     if (league) leagues.push(league);
+    else rejected.set(reason, (rejected.get(reason) ?? 0) + 1);
   }
-  return { rows: scoreLeagues(leagues).rows, leagues };
+  return { rows: scoreLeagues(leagues).rows, leagues, rejected };
 }
 
 // ── metrics ────────────────────────────────────────────────────────────────

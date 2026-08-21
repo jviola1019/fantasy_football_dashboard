@@ -1,0 +1,4 @@
+acquire-mfl-brackets — 150 leagues, 0 already archived
+
+  fetched 20 (archived 20, empty 1)
+  fetched 40 (archived 40, empty 5)
