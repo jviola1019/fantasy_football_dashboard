@@ -145,3 +145,69 @@ either way.
 - [The calibrated model-based concordance improved assessment of discriminative ability in patient clusters of limited sample size](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6551913/)
 - [Sample size and power analysis for ROC AUC differences: Obuchowski-McClish and Hanley-McNeil](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12924612/)
 - [Smooth isotonic regression: a new method to calibrate predictive models](https://pubmed.ncbi.nlm.nih.gov/22211175/)
+
+---
+
+# DISCLOSURE — an accidental interim look at the enlarged sample
+
+**Recorded 2026-08-21, before protocol 2 was executed.** This is written because
+concealing it would be the actual misconduct; an interim peek that nobody knows
+about is worth less than nothing.
+
+## What happened
+
+While adding the D3 draft-only features, I ran `holdout-evaluate.ts` intending a
+**determinism check** — confirming that adding fields to the `Row` type left
+protocol 1's numbers unchanged.
+
+It did not do that. `loadRaw()` preferred the live acquisition directory over the
+committed bundle, and that directory had grown from 21 leagues to 77 while
+acquisition ran. So the run scored **513 rows across 43 clusters**, not protocol
+1's 160 across 13. I saw the following before realising:
+
+```
+rows 513 · clusters 43
+Brier 0.2901 · log loss 0.8366 · AUC 0.5574 · ECE 0.1704
+AUC         95% CI [ 0.5107, 0.5979]
+Brier skill 95% CI [-0.2685, -0.1445]
+```
+
+## Why it matters
+
+That is an interim result on a superset of protocol 2's sample. Pre-registration
+exists precisely to stop an analyst seeing partial results and then making
+choices that bend toward them.
+
+Note in particular that the AUC interval there lies **entirely above 0.5**, where
+protocol 1's straddled it — exactly the "protocol 1 was underpowered" outcome
+protocol 2 was designed to test. I have seen that. It cannot be unseen.
+
+## Why the damage is bounded
+
+1. **The success criterion was already fixed** (§3) and cannot be changed. All
+   three hypotheses must survive Holm correction. Seeing an interim AUC does not
+   loosen that.
+2. **The stopping rule was already fixed** (§2): 150 leagues, or acquisition
+   terminating. My discretion over *when to stop* — the main channel through
+   which a peek biases a result — was pre-registered before the peek.
+3. **The interim numbers are recorded here**, so any later result can be checked
+   against them rather than presented as a first look.
+4. Even in the peeked numbers, **H2 fails badly** (Brier skill interval entirely
+   below zero). The all-three criterion was not close to being met.
+
+## What was changed as a result
+
+`holdout-evaluate.ts` now reads **only** its committed bundle (`RawSource =
+"pinned"`), so protocol 1's harness can never silently absorb later-acquired
+leagues. Protocol 2 explicitly requests the working set. This was a real
+reproducibility defect independent of the peek: before the fix, running
+`npm run holdout:evaluate` after any further acquisition would have reported a
+different number under protocol 1's name.
+
+## What was NOT changed
+
+No hypothesis, no threshold, no correction method, no stopping rule, no
+preprocessing, no feature. The `features` field added to `Row` carries only
+pre-season draft quantities and was verified not to move protocol 1's numbers:
+re-run against the pinned bundle it reproduces 160 rows, 13 clusters, Brier
+0.2822, AUC 0.5569, CIs [0.4630, 0.6300] and [-0.2550, -0.0910] exactly.

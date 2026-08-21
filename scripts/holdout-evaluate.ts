@@ -318,6 +318,32 @@ export interface Row {
   actual: 0 | 1;
   climatology: number;
   draftCapital: number;
+  /**
+   * Draft-only features for the D3 "signal ceiling" diagnostic (protocol 2 §4).
+   *
+   * All are computable before week 1 and contain no outcome information, so
+   * fitting on them cannot leak. They exist to answer a question the model's own
+   * failure cannot: is ANY draft-derived predictor better than the base rate, or
+   * is the task itself close to unpredictable?
+   *
+   * Adding fields here does not affect any protocol-1 metric — the forecast,
+   * outcome and climatology columns are untouched — and that invariance was
+   * verified by re-running and comparing.
+   */
+  features: {
+    /** Sum over picks of (totalPicks - pickNo). Higher = earlier overall draft slot. */
+    draftCapital: number;
+    /** Fraction of the franchise's first five picks spent on QB or TE. */
+    earlyQbTeShare: number;
+    /** Best (lowest) positional rank the franchise holds anywhere. */
+    bestPositionalRank: number;
+    /** Mean positional rank across the roster — overall draft quality. */
+    meanPositionalRank: number;
+    /** Count of top-12-at-position players held. */
+    eliteCount: number;
+    /** Shannon entropy of the positional mix — balanced vs concentrated. */
+    positionalEntropy: number;
+  };
 }
 
 /**
@@ -365,7 +391,8 @@ export function scoreLeagues(leagues: HoldoutLeague[]): {
         forecast: sim.playoffProbability / 100,
         actual: rank <= lg.playoffField ? 1 : 0,
         climatology: lg.playoffField / lg.format.numTeams,
-        draftCapital: players.reduce((a, p) => a + (lg.totalPicks - p.pickNo), 0)
+        draftCapital: players.reduce((a, p) => a + (lg.totalPicks - p.pickNo), 0),
+        features: draftFeatures(players, lg.totalPicks)
       });
     }
     if (leagueRows.length === 0) continue;
@@ -376,10 +403,47 @@ export function scoreLeagues(leagues: HoldoutLeague[]): {
   return { rows, byLeague };
 }
 
+/**
+ * Draft-only features (protocol 2 D3). Pre-season by construction: every input
+ * is a pick number or a positional rank, both fixed before week 1.
+ */
+function draftFeatures(
+  players: Array<{ position: Pos; adpRank: number; pickNo: number }>,
+  totalPicks: number
+): Row["features"] {
+  const byPick = [...players].sort((a, b) => a.pickNo - b.pickNo);
+  const firstFive = byPick.slice(0, 5);
+  const counts = new Map<Pos, number>();
+  for (const p of players) counts.set(p.position, (counts.get(p.position) ?? 0) + 1);
+
+  let entropy = 0;
+  for (const c of counts.values()) {
+    const q = c / players.length;
+    if (q > 0) entropy -= q * Math.log(q);
+  }
+
+  return {
+    draftCapital: players.reduce((a, p) => a + (totalPicks - p.pickNo), 0),
+    earlyQbTeShare:
+      firstFive.length === 0
+        ? 0
+        : firstFive.filter((p) => p.position === "QB" || p.position === "TE").length /
+          firstFive.length,
+    bestPositionalRank: players.length === 0 ? 999 : Math.min(...players.map((p) => p.adpRank)),
+    meanPositionalRank:
+      players.length === 0 ? 999 : players.reduce((a, p) => a + p.adpRank, 0) / players.length,
+    eliteCount: players.filter((p) => p.adpRank <= 12).length,
+    positionalEntropy: entropy
+  };
+}
+
 /** Load, parse and score in one call — the entry point diagnostics use. */
-export function buildHoldoutRows(): { rows: Row[]; leagues: HoldoutLeague[] } {
+export function buildHoldoutRows(source: RawSource = "pinned"): {
+  rows: Row[];
+  leagues: HoldoutLeague[];
+} {
   const leagues: HoldoutLeague[] = [];
-  for (const raw of loadRaw()) {
+  for (const raw of loadRaw(source)) {
     const { league } = parseLeague(raw);
     if (league) leagues.push(league);
   }
@@ -481,8 +545,23 @@ function clusterBootstrap(
 
 // ── main ───────────────────────────────────────────────────────────────────
 
-function loadRaw(): any[] {
-  if (existsSync(DATA_DIR)) {
+/**
+ * Where to read leagues from.
+ *
+ * `"pinned"` reads ONLY the committed bundle. Protocol 1's sample is frozen at
+ * the 21 leagues archived when it ran, so its harness must never silently pick
+ * up leagues acquired later — otherwise `npm run holdout:evaluate` reports a
+ * different number under the same protocol name every time the working
+ * directory grows. That is not hypothetical: it happened during this audit, and
+ * a run intended as a determinism check silently scored 43 clusters instead of
+ * 13. Disclosed in the ledger.
+ *
+ * `"working"` reads the live acquisition directory and is what protocol 2 uses.
+ */
+export type RawSource = "pinned" | "working";
+
+function loadRaw(source: RawSource = "pinned"): any[] {
+  if (source === "working" && existsSync(DATA_DIR)) {
     const files = readdirSync(DATA_DIR)
       .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
       .sort();
@@ -514,7 +593,15 @@ function selfTest(): void {
     forecast,
     actual,
     climatology: 0.5,
-    draftCapital: forecast
+    draftCapital: forecast,
+    features: {
+      draftCapital: 0,
+      earlyQbTeShare: 0,
+      bestPositionalRank: 1,
+      meanPositionalRank: 1,
+      eliteCount: 0,
+      positionalEntropy: 0
+    }
   });
   const f = (r: Row) => r.forecast;
   const fail: string[] = [];

@@ -280,7 +280,20 @@ function outcomeIcc(byLeague: Map<string, Row[]>): number {
 
 function selfTest(): void {
   const mk = (f: number, a: 0 | 1, lg = "L1"): Row => ({
-    leagueKey: lg, franchise: `${lg}-${f}-${a}`, forecast: f, actual: a, climatology: 0.5, draftCapital: f
+    leagueKey: lg,
+    franchise: `${lg}-${f}-${a}`,
+    forecast: f,
+    actual: a,
+    climatology: 0.5,
+    draftCapital: f,
+    features: {
+      draftCapital: 0,
+      earlyQbTeShare: 0,
+      bestPositionalRank: 1,
+      meanPositionalRank: 1,
+      eliteCount: 0,
+      positionalEntropy: 0
+    }
   });
   const fails: string[] = [];
   const ck = (name: string, got: number, want: number, tol = 1e-9) => {
@@ -339,7 +352,9 @@ function main(): void {
   const out: string[] = [];
   const say = (s = "") => { out.push(s); console.log(s); };
 
-  const { rows, leagues } = buildHoldoutRows();
+  // Protocol 2 scores the ENLARGED sample, so it reads the live acquisition
+  // directory. Protocol 1 stays pinned to its committed bundle.
+  const { rows, leagues } = buildHoldoutRows("working");
   const byLeague = groupByLeague(rows);
 
   if (dryRun) {

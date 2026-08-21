@@ -239,7 +239,9 @@ function main(): void {
     console.log(s);
   };
 
-  const { rows, leagues } = buildHoldoutRows();
+  // Pinned to protocol 1's frozen 21-league bundle: these diagnostics
+  // characterise THAT result, not a later, larger sample.
+  const { rows, leagues } = buildHoldoutRows("pinned");
   if (rows.length === 0) {
     say("No holdout rows — run `npm run holdout:acquire` first.");
     writeFileSync(OUT, out.join("\n"));
