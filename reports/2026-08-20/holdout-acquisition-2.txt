@@ -1,0 +1,6 @@
+acquire-mfl-holdout — target 200 leagues, 21 already archived
+
+
+=== season 2021 ===
+  frame for 2021: 20477 ids (cached)
+    ...examined 25 in 2021 (archived 22, 429s 0, 53 reqs)

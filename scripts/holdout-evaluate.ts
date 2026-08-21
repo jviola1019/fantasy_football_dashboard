@@ -71,7 +71,7 @@ function minLimit(limit: string | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-interface HoldoutLeague {
+export interface HoldoutLeague {
   key: string;
   season: number;
   leagueId: string;
@@ -311,13 +311,79 @@ function record(p: { playerId: string; position: Pos }, trueValue: number): Play
   } as PlayerMarketRecord;
 }
 
-interface Row {
+export interface Row {
   leagueKey: string;
   franchise: string;
   forecast: number;
   actual: 0 | 1;
   climatology: number;
   draftCapital: number;
+}
+
+/**
+ * Score every league into rows. Exported so the post-hoc diagnostics run on the
+ * SAME construction — a second implementation could drift and would then be
+ * characterising a different model than the one that was evaluated.
+ */
+export function scoreLeagues(leagues: HoldoutLeague[]): {
+  rows: Row[];
+  byLeague: Map<string, Row[]>;
+} {
+  const rows: Row[] = [];
+  const byLeague = new Map<string, Row[]>();
+
+  for (const lg of leagues) {
+    const leagueRows: Row[] = [];
+    const rosterSlots = Math.max(
+      1,
+      Object.values(lg.format.starters).reduce((a, b) => a + b, 0)
+    );
+    for (const [franchise, players] of lg.rosters) {
+      const rank = lg.standingsRank.get(franchise);
+      if (rank == null) continue;
+      const records = players.map((p) =>
+        record(
+          p,
+          ecrToTrueValue(p.adpRank, p.adpRank, positionReplacementRank(p.position, lg.format))
+        )
+      );
+      const sim = runNexusSimulation(records, {
+        seed: SEED,
+        iterations: ITERATIONS,
+        rosterSlots,
+        riskTolerance: RISK_TOLERANCE,
+        scoringFormat: lg.format.scoringFormat,
+        numTeams: lg.format.numTeams,
+        playoffTeams: lg.playoffField,
+        regularSeasonWeeks: Math.max(1, (lg.format.playoffWeekStart ?? 15) - 1),
+        // Off-season structural path — the path a pre-draft user sees.
+        weeklyProjections: null
+      });
+      leagueRows.push({
+        leagueKey: lg.key,
+        franchise,
+        forecast: sim.playoffProbability / 100,
+        actual: rank <= lg.playoffField ? 1 : 0,
+        climatology: lg.playoffField / lg.format.numTeams,
+        draftCapital: players.reduce((a, p) => a + (lg.totalPicks - p.pickNo), 0)
+      });
+    }
+    if (leagueRows.length === 0) continue;
+    byLeague.set(lg.key, leagueRows);
+    rows.push(...leagueRows);
+  }
+
+  return { rows, byLeague };
+}
+
+/** Load, parse and score in one call — the entry point diagnostics use. */
+export function buildHoldoutRows(): { rows: Row[]; leagues: HoldoutLeague[] } {
+  const leagues: HoldoutLeague[] = [];
+  for (const raw of loadRaw()) {
+    const { league } = parseLeague(raw);
+    if (league) leagues.push(league);
+  }
+  return { rows: scoreLeagues(leagues).rows, leagues };
 }
 
 // ── metrics ────────────────────────────────────────────────────────────────
@@ -564,49 +630,7 @@ function main(): void {
   }
 
   // --- score ---------------------------------------------------------------
-  const rows: Row[] = [];
-  const byLeague = new Map<string, Row[]>();
-
-  for (const lg of leagues) {
-    const leagueRows: Row[] = [];
-    const rosterSlots = Math.max(
-      1,
-      Object.values(lg.format.starters).reduce((a, b) => a + b, 0)
-    );
-    for (const [franchise, players] of lg.rosters) {
-      const rank = lg.standingsRank.get(franchise);
-      if (rank == null) continue;
-      const records = players.map((p) =>
-        record(
-          p,
-          ecrToTrueValue(p.adpRank, p.adpRank, positionReplacementRank(p.position, lg.format))
-        )
-      );
-      const sim = runNexusSimulation(records, {
-        seed: SEED,
-        iterations: ITERATIONS,
-        rosterSlots,
-        riskTolerance: RISK_TOLERANCE,
-        scoringFormat: lg.format.scoringFormat,
-        numTeams: lg.format.numTeams,
-        playoffTeams: lg.playoffField,
-        regularSeasonWeeks: Math.max(1, (lg.format.playoffWeekStart ?? 15) - 1),
-        // Off-season structural path — the path a pre-draft user sees.
-        weeklyProjections: null
-      });
-      leagueRows.push({
-        leagueKey: lg.key,
-        franchise,
-        forecast: sim.playoffProbability / 100,
-        actual: rank <= lg.playoffField ? 1 : 0,
-        climatology: lg.playoffField / lg.format.numTeams,
-        draftCapital: players.reduce((a, p) => a + (lg.totalPicks - p.pickNo), 0)
-      });
-    }
-    if (leagueRows.length === 0) continue;
-    byLeague.set(lg.key, leagueRows);
-    rows.push(...leagueRows);
-  }
+  const { rows, byLeague } = scoreLeagues(leagues);
 
   const nClusters = byLeague.size;
   const observedRate = rows.reduce((a, r) => a + r.actual, 0) / rows.length;
@@ -731,5 +755,10 @@ function main(): void {
   console.log(`\nWrote ${OUT}`);
 }
 
-if (process.argv.includes("--self-test")) selfTest();
-else main();
+// Guarded: importing this module (the diagnostics do) must NOT execute the
+// evaluation. Only a direct invocation runs anything.
+const invokedDirectly = (process.argv[1] ?? "").split("\\").join("/").endsWith("holdout-evaluate.ts");
+if (invokedDirectly) {
+  if (process.argv.includes("--self-test")) selfTest();
+  else main();
+}

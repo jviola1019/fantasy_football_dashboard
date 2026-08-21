@@ -29,7 +29,8 @@
     "sensitivity:replacement": "tsx scripts/replacement-sensitivity.ts",
     "backtest:valuation": "tsx scripts/backtest-valuation.ts",
     "holdout:acquire": "tsx scripts/acquire-mfl-holdout.ts",
-    "holdout:evaluate": "tsx scripts/holdout-evaluate.ts"
+    "holdout:evaluate": "tsx scripts/holdout-evaluate.ts",
+    "holdout:diagnostics": "tsx scripts/holdout-diagnostics.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
