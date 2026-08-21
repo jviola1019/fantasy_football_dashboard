@@ -431,6 +431,76 @@ function selfTest(): void {
   }
   console.log("  ok  isotonic calibration map is monotone");
 
+  // D2 is the DECISIVE diagnostic, so monotonicity alone is not enough. It must
+  // actually recover skill that miscalibration is hiding, AND must not invent
+  // skill where there is none. Both directions are checked, because a
+  // recalibrator that only ever improves things would be useless as evidence.
+  {
+    const feat = {
+      draftCapital: 0,
+      earlyQbTeShare: 0,
+      bestPositionalRank: 1,
+      meanPositionalRank: 1,
+      eliteCount: 0,
+      positionalEntropy: 0
+    };
+
+    // Perfectly DISCRIMINATING but badly MISCALIBRATED: it ranks every qualifier
+    // above every non-qualifier, but squashes its numbers into [0.42, 0.61], so
+    // raw Brier skill is poor. Recalibration should rescue it.
+    const hidden: Row[] = [];
+    for (let lg = 0; lg < 6; lg += 1) {
+      for (let i = 0; i < 6; i += 1) {
+        const q = i < 3;
+        hidden.push({
+          leagueKey: `L${lg}`,
+          franchise: `L${lg}-${i}`,
+          forecast: q ? 0.58 + i * 0.005 : 0.42 + i * 0.005,
+          actual: q ? 1 : 0,
+          climatology: 0.5,
+          draftCapital: 0,
+          features: feat
+        });
+      }
+    }
+    const rawSkill = brierSkill(hidden);
+    const rec = looRecalibration(groupByLeague(hidden));
+    if (!(rec.skill > rawSkill)) {
+      fails.push(`D2 must recover hidden skill: raw ${rawSkill.toFixed(4)} -> ${rec.skill.toFixed(4)}`);
+    } else {
+      console.log(`  ok  D2 recovers hidden skill (${rawSkill.toFixed(4)} -> ${rec.skill.toFixed(4)})`);
+    }
+    // A monotone map cannot reorder, so AUC must be untouched. A change here
+    // would mean the recalibration is reordering and is therefore wrong.
+    if (Math.abs(auc(rec.rows) - auc(hidden)) > 1e-9) {
+      fails.push("D2 must not change AUC (monotone maps preserve ranking)");
+    } else {
+      console.log("  ok  D2 leaves AUC unchanged (monotone map preserves ranking)");
+    }
+
+    // Pure noise: recalibration must NOT manufacture skill.
+    const noise: Row[] = [];
+    for (let lg = 0; lg < 6; lg += 1) {
+      for (let i = 0; i < 6; i += 1) {
+        noise.push({
+          leagueKey: `N${lg}`,
+          franchise: `N${lg}-${i}`,
+          forecast: 0.3 + ((lg * 7 + i * 13) % 40) / 100,
+          actual: i % 2 === 0 ? 1 : 0,
+          climatology: 0.5,
+          draftCapital: 0,
+          features: feat
+        });
+      }
+    }
+    const noiseRec = looRecalibration(groupByLeague(noise));
+    if (noiseRec.skill > 0.05) {
+      fails.push(`D2 manufactured skill from noise: ${noiseRec.skill.toFixed(4)}`);
+    } else {
+      console.log(`  ok  D2 does not manufacture skill from noise (${noiseRec.skill.toFixed(4)})`);
+    }
+  }
+
   if (fails.length > 0) {
     console.error("\nSELF-TEST FAILED:");
     for (const f of fails) console.error("  - " + f);
