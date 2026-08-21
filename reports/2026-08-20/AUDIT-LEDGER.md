@@ -326,3 +326,37 @@ the harm §3 addressed — the holdout **vindicates Strategy B**.
 selection); two seasons; PPR assumed for all MFL leagues; the §6 self-check is
 vacuous by construction and the harness says so; playoff qualification is coarse;
 one platform.
+
+## §22 clean-room re-verification (final tree)
+
+| check | result |
+|---|---|
+| `origin/fix/2026-08-06-forensic-remediation` | `69634d33a134…` — **UNMOVED** from the audited SHA |
+| `origin/main` | `efb124bd7f58…` — unmoved |
+| working tree | clean |
+| PR #21 | OPEN, **draft** |
+| PR #26 | OPEN, **draft** |
+| `TODO` / `FIXME` in `src` (non-test) | **0** |
+| `.skip` in `src` | all env-gated integration/live suites; PG now runs in CI |
+| `new Date().toISOString()` | audited; the roster-record site is the §8 fix, the rest are cron/HTTP fetch stamps where "now" is correct |
+| `leagues[0]` | all sites are the active-league cookie fallback (the closed F-010 finding), not silent first-league selection |
+| `pts_ppr` | no false-provenance claim survives; the last one, in `data-source-map.md`, was corrected |
+| `.gitleaksignore` | **13 entries, all 4-field exact `commit:path:rule:line` fingerprints, zero wildcards** — a narrowly-scoped allowlist, not class suppression. This is also precisely why gitleaks passing is not evidence the historical `DB_INIT_TOKEN` is dead (§11) |
+
+## Stop-condition audit (§21)
+
+| condition | triggered? |
+|---|---|
+| source SHA moved during implementation | no — verified twice |
+| production model still presented as validated | no — Strategy B, and the disclosure was corrected again when the holdout refuted part of it |
+| scoring units still inconsistent | no |
+| stale injury evidence can resolve an alert | no — fail-closed, tested on SQLite and PostgreSQL |
+| future PAR validation reuses development data as holdout | no — forbidden by the frozen protocol and by the handoff |
+| Postgres cannot be exercised | no — 31/31 locally and green in CI |
+| **historical credential invalidation needs unavailable operator access** | **YES → reported `BLOCKED`, with a runbook** |
+| production credentials required | no |
+| mandatory CI/security gates red | no — CodeQL failed once, was fixed, and passes |
+| destructive action without approval | none taken |
+
+Exactly one stop condition is triggered, and §21's required response — return
+`BLOCKED` rather than claim completion — is what this report does.
