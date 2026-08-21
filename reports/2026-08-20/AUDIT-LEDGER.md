@@ -360,3 +360,28 @@ one platform.
 
 Exactly one stop condition is triggered, and §21's required response — return
 `BLOCKED` rather than claim completion — is what this report does.
+
+## Final CI state — PR #26 @ `b796491`
+
+**13 / 13 checks pass. Zero failures, zero pending.**
+
+| check | result |
+|---|---|
+| `typecheck + lint + vitest` | pass |
+| `playwright + axe` | pass |
+| `lighthouse perf + a11y` | pass |
+| **`postgres integration`** | **pass** — the §10 job, on a pinned `postgres:17.5-alpine`, with the skip-detector armed |
+| `CodeQL` (code-scanning results) | pass — the 7 alerts it raised earlier are fixed, not suppressed |
+| `codeql (javascript-typescript)` | pass |
+| `tracked-file secret scan` | pass |
+| `gitleaks secret scan` | pass |
+| `OSV lockfile scan` | pass |
+| `lockfile advisory scan` | pass |
+| `dependency review` | pass |
+| `Vercel` / `Vercel Preview Comments` | pass |
+
+Note this is the first time any of these ran on a stacked remediation PR — before
+the trigger fix, `pull_request: branches: [main]` meant none of them fired.
+
+Both PRs remain **draft**. §11 is `BLOCKED` on operator action, and the holdout
+returned a failure the operator should read before merging.
