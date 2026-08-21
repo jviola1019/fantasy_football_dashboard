@@ -26,6 +26,8 @@ import { gzipSync } from "node:zlib";
 
 const OUT_DIR = "reports/2026-08-20/holdout-data";
 const BUNDLE_PATH = "reports/2026-08-20/holdout-data.jsonl.gz";
+/** Per-season player databases, bundled so the evaluation reproduces offline. */
+const PLAYERS_BUNDLE_PATH = "reports/2026-08-20/holdout-players.json.gz";
 const UA = "RAE-audit/1.0 (model validation research; contact jviola1@vols.utk.edu)";
 
 /** Frozen frame (protocol §5). */
@@ -362,6 +364,35 @@ function bundle(): void {
   writeFileSync(BUNDLE_PATH, gz);
   console.log(
     `\nbundled ${files.length} leagues -> ${BUNDLE_PATH} (${(gz.length / 1e6).toFixed(2)} MB)`
+  );
+  bundlePlayers();
+}
+
+/**
+ * Bundle the per-season player databases alongside the leagues.
+ *
+ * Without this the holdout does NOT reproduce from a clean checkout: the loose
+ * `_players-{season}.json` files live in the gitignored working directory, and
+ * the evaluator resolves every drafted player's position from them. Missing
+ * them, every league is rejected for "no player database for season" and the
+ * result silently becomes empty. Caught by actually testing the claim rather
+ * than asserting it.
+ */
+function bundlePlayers(): void {
+  const bySeason: Record<string, Record<string, string>> = {};
+  for (const f of readdirSync(OUT_DIR)) {
+    const m = /^_players-([0-9]{4})\.json$/.exec(f);
+    if (!m) continue;
+    const map = readJsonOrNull<Record<string, string>>(join(OUT_DIR, f));
+    if (map) bySeason[m[1]!] = map;
+  }
+  const seasons = Object.keys(bySeason);
+  if (seasons.length === 0) return;
+  const gz = gzipSync(Buffer.from(JSON.stringify(bySeason), "utf8"), { level: 9 });
+  writeFileSync(PLAYERS_BUNDLE_PATH, gz);
+  console.log(
+    `bundled player databases for ${seasons.sort().join(", ")} -> ${PLAYERS_BUNDLE_PATH} ` +
+      `(${(gz.length / 1e6).toFixed(2)} MB)`
   );
 }
 

@@ -26,6 +26,7 @@ import type { PlayerMarketRecord } from "../src/lib/governance";
 
 const DATA_DIR = "reports/2026-08-20/holdout-data";
 const BUNDLE = "reports/2026-08-20/holdout-data.jsonl.gz";
+const PLAYERS_BUNDLE = "reports/2026-08-20/holdout-players.json.gz";
 const OUT = "reports/2026-08-20/holdout-result.md";
 
 /** Production SIM_BASE, unmodified (protocol §7). */
@@ -139,13 +140,38 @@ function playoffField(brackets: any): number | null {
  */
 const playerPositions = new Map<string, Record<string, string>>();
 
+/** Loaded lazily from the committed bundle when the loose files are absent. */
+let bundledPlayers: Record<string, Record<string, string>> | null = null;
+
 function positionsFor(season: string): Record<string, string> {
   const cached = playerPositions.get(season);
   if (cached) return cached;
-  const path = join(DATA_DIR, `_players-${season}.json`);
-  const map = existsSync(path)
-    ? (JSON.parse(readFileSync(path, "utf8")) as Record<string, string>)
-    : {};
+
+  let map: Record<string, string> = {};
+  try {
+    // Working set first.
+    map = JSON.parse(readFileSync(join(DATA_DIR, `_players-${season}.json`), "utf8")) as Record<
+      string,
+      string
+    >;
+  } catch {
+    // Fall back to the committed bundle. Without this the holdout does NOT
+    // reproduce from a clean checkout: the loose files are gitignored, so every
+    // league is rejected for "no player database for season" and the result
+    // silently becomes empty. Found by actually deleting the working directory
+    // and re-running, rather than by asserting the claim.
+    if (bundledPlayers == null) {
+      try {
+        bundledPlayers = JSON.parse(
+          gunzipSync(readFileSync(PLAYERS_BUNDLE)).toString("utf8")
+        ) as Record<string, Record<string, string>>;
+      } catch {
+        bundledPlayers = {};
+      }
+    }
+    map = bundledPlayers[season] ?? {};
+  }
+
   playerPositions.set(season, map);
   return map;
 }
@@ -507,9 +533,15 @@ function main(): void {
   say(`| **scored** | **${leagues.length}** |`);
   say();
 
+  // A diagnostic mode must never touch the result file. `--parse-only` used to
+  // fall through to this write and OVERWROTE a completed run's 185-line report
+  // with a stub — exactly the quiet destruction of evidence this audit exists to
+  // prevent. Found by doing it.
+  const parseOnly = process.argv.includes("--parse-only");
+
   if (leagues.length < 2) {
     say("Fewer than two usable leagues — no claim can be made. Stopping.");
-    writeFileSync(OUT, out.join("\n"));
+    if (!parseOnly) writeFileSync(OUT, out.join("\n"));
     return;
   }
 
