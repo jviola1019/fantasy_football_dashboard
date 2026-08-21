@@ -225,6 +225,101 @@ function looRecalibration(byLeague: Map<string, Row[]>): { rows: Row[]; brier: n
 }
 
 /**
+ * D3 — signal ceiling.
+ *
+ * Leave-one-league-out logistic regression on DRAFT-ONLY features. Every input
+ * is a pick number or a positional rank, both fixed before week 1, so nothing
+ * leaks. The question it answers is the one the model's own failure cannot:
+ * is ANY draft-derived predictor better than the base rate, or is predicting a
+ * fantasy season from its draft close to impossible?
+ *
+ * If this ceiling is also near chance, the shipped model is failing at a task
+ * that may not be achievable — which is a materially different conclusion from
+ * "the model is bad".
+ *
+ * Fitted by gradient descent on standardised features with a small ridge
+ * penalty. Standardisation uses TRAINING-fold statistics only.
+ */
+function signalCeiling(byLeague: Map<string, Row[]>): {
+  auc: number;
+  brier: number;
+  skill: number;
+  weights: Array<{ name: string; weight: number }>;
+} | null {
+  const keys = [...byLeague.keys()];
+  if (keys.length < 3) return null;
+
+  const names: Array<keyof Row["features"]> = [
+    "draftCapital",
+    "earlyQbTeShare",
+    "bestPositionalRank",
+    "meanPositionalRank",
+    "eliteCount",
+    "positionalEntropy"
+  ];
+  const vec = (r: Row) => names.map((n) => r.features[n]);
+
+  const held: Row[] = [];
+  const lastWeights: number[] = [];
+
+  for (const holdKey of keys) {
+    const train = keys.filter((k) => k !== holdKey).flatMap((k) => byLeague.get(k)!);
+    const test = byLeague.get(holdKey)!;
+    if (train.length < 20) continue;
+
+    const X = train.map(vec);
+    const y = train.map((r) => r.actual);
+    const d = names.length;
+
+    // Standardise on the TRAINING fold only.
+    const mu = Array.from({ length: d }, (_, j) => mean(X.map((x) => x[j]!)));
+    const sd = Array.from({ length: d }, (_, j) => {
+      const m = mu[j]!;
+      const v = mean(X.map((x) => (x[j]! - m) ** 2));
+      return v > 1e-12 ? Math.sqrt(v) : 1;
+    });
+    const z = (x: number[]) => x.map((v, j) => (v - mu[j]!) / sd[j]!);
+
+    const w = new Array(d).fill(0);
+    let b = Math.log(Math.max(1e-6, mean(y)) / Math.max(1e-6, 1 - mean(y)));
+    const lr = 0.1;
+    const ridge = 1e-3;
+    for (let iter = 0; iter < 800; iter += 1) {
+      const gw = new Array(d).fill(0);
+      let gb = 0;
+      for (let i = 0; i < X.length; i += 1) {
+        const xi = z(X[i]!);
+        let logit = b;
+        for (let j = 0; j < d; j += 1) logit += w[j]! * xi[j]!;
+        const pHat = 1 / (1 + Math.exp(-logit));
+        const err = pHat - y[i]!;
+        for (let j = 0; j < d; j += 1) gw[j] += err * xi[j]!;
+        gb += err;
+      }
+      for (let j = 0; j < d; j += 1) w[j] -= lr * (gw[j]! / X.length + ridge * w[j]!);
+      b -= lr * (gb / X.length);
+    }
+    lastWeights.length = 0;
+    lastWeights.push(...w);
+
+    for (const r of test) {
+      const xi = z(vec(r));
+      let logit = b;
+      for (let j = 0; j < d; j += 1) logit += w[j]! * xi[j]!;
+      held.push({ ...r, forecast: 1 / (1 + Math.exp(-logit)) });
+    }
+  }
+
+  if (held.length === 0) return null;
+  return {
+    auc: auc(held),
+    brier: brier(held, (r) => r.forecast),
+    skill: brierSkill(held),
+    weights: names.map((n, j) => ({ name: n as string, weight: lastWeights[j] ?? 0 }))
+  };
+}
+
+/**
  * D4 — minimum detectable effect for AUC at 80% power, alpha 0.05 one-sided,
  * inflated by the design effect implied by cluster size.
  *
@@ -456,6 +551,36 @@ function main(): void {
   say();
   say("Note AUC is invariant to any monotone recalibration, so an unchanged AUC here is expected and correct, not a bug.");
   say();
+
+  const ceiling = signalCeiling(byLeague);
+  say("### D3 — signal ceiling: can ANY draft-only predictor beat the base rate?");
+  say();
+  if (!ceiling) {
+    say("Too few clusters to cross-validate a ceiling model.");
+  } else {
+    say("Leave-one-league-out logistic regression on pre-season draft features only.");
+    say();
+    say("| forecaster | AUC | Brier | skill vs climatology |");
+    say("|---|---|---|---|");
+    say(`| shipped chain | ${aucObs.toFixed(4)} | ${brier(rows, (r) => r.forecast).toFixed(4)} | ${skillObs.toFixed(4)} |`);
+    say(`| **draft-feature ceiling (LOLO)** | **${ceiling.auc.toFixed(4)}** | ${ceiling.brier.toFixed(4)} | **${ceiling.skill.toFixed(4)}** |`);
+    say(`| structural climatology | 0.5 | ${brier(rows, (r) => r.climatology).toFixed(4)} | 0 |`);
+    say();
+    say(
+      ceiling.skill > 0
+        ? "**A draft-only model CAN beat the base rate.** The task is achievable, so the shipped chain is underperforming an attainable ceiling rather than attempting the impossible."
+        : "**Even a fitted draft-only model does not beat the base rate.** Predicting playoff qualification from draft order alone appears close to unachievable on this sample — which reframes the shipped model's failure: it is failing at a task that may not be winnable, not merely failing badly."
+    );
+    say();
+    say("Standardised coefficients from the final fold (direction only, not inference):");
+    say();
+    say("| feature | weight |");
+    say("|---|---|");
+    for (const w of [...ceiling.weights].sort((a, b) => Math.abs(b.weight) - Math.abs(a.weight))) {
+      say(`| ${w.name} | ${w.weight.toFixed(4)} |`);
+    }
+    say();
+  }
 
   const power = minimumDetectableAuc(rows, byLeague);
   say("### D4 — power / minimum detectable effect");
