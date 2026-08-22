@@ -182,3 +182,80 @@ within position it subtracts some.**
    could support a genuine edge — but it needs its own frozen protocol, not a
    post-hoc claim from a table I have already seen.
 4. **Nothing was tuned**, and the protocol forbids a re-run on this sample.
+
+---
+
+# CORRECTION — the "QB lead" was my own artifact, and is retracted
+
+**Recorded 2026-08-21, after the result above was written.**
+
+The interpretation above says of quarterbacks: *"The edge says quarterbacks are
+the least underpriced group; the outcomes say they are the most underpriced by
+far."*
+
+**That is wrong, and it was my error, not the model's.**
+
+## What the data actually says
+
+Mean **raw** within-league points z-score, across every scored drafted player in
+the archived sample — no draft-cost adjustment at all:
+
+| position | n | mean raw pointsZ |
+|---|---|---|
+| DEF | 3,362 | +0.7642 |
+| **QB** | **10,227** | **+0.7551** |
+| K | 5,120 | +0.5662 |
+| RB | 24,001 | −0.0646 |
+| WR | 34,208 | −0.0913 |
+| TE | 18,695 | −0.3335 |
+
+Quarterbacks simply **score more fantasy points** than other positions. That is
+not news; it is why replacement level exists and why VBD was invented.
+
+## Why that produced a spurious +1.16
+
+Protocol 3 §5 fits `expected(overallRank)` **position-blind** — one curve over
+all positions. So a position that scores more raw points than average will
+mechanically show a positive residual at every draft slot, and a position that
+scores less will show a negative one. Compare:
+
+| position | mean raw pointsZ | mean residual |
+|---|---|---|
+| QB | +0.7551 | +1.1550 |
+| DEF | +0.7642 | +0.2756 |
+| K | +0.5662 | +0.3669 |
+| WR | −0.0913 | −0.1848 |
+| RB | −0.0646 | −0.2915 |
+| TE | −0.3335 | −0.3056 |
+
+The residual ordering tracks the raw-points ordering. **The residual is measuring
+positional scoring level, not mispricing.**
+
+## What this changes
+
+1. **The "open lead" is retracted.** There is no evidence here that the market
+   underprices quarterbacks. I should not have written that, and anyone reading
+   the earlier text should disregard that paragraph.
+2. **H1 and H3 are contaminated more deeply than first stated.** The original
+   interpretation blamed K/DEF edge magnitude. The fuller explanation is that the
+   position-blind cost curve makes *every* cross-position comparison confounded by
+   positional scoring level.
+3. **H2 is the only clean test in protocol 3** — it holds position fixed, so the
+   confound cannot operate. H2 is the one that **failed, in the inverted
+   direction** (−0.0480, CI [−0.0757, −0.0197]).
+
+So the protocol's verdict is unchanged and, if anything, firmer: the single
+trustworthy hypothesis says the edge is inverted within position. The two that
+"passed" should not have been counted as evidence in either direction.
+
+## Why the design still did its job
+
+Protocol 3 pre-registered H2 precisely because "the edge might only be a
+positional signal" was the obvious failure mode. It was pre-registered as
+confirmatory, not as a diagnostic, and success required **all three** — so a
+protocol built around the contaminated tests alone would have been reported as a
+success. The all-three rule is what stopped an artifact being sold as a finding.
+
+The lesson for the next protocol is concrete: **fit the expected-cost curve
+within position, or include position as a covariate.** A position-blind baseline
+cannot support any cross-position claim.

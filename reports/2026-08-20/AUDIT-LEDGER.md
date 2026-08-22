@@ -525,9 +525,19 @@ consensus ECR, a strong baseline this test does not knock down. What is shown is
 that RAE's adjustment on top of consensus does not add value, and within position
 subtracts some.
 
-## Open lead, deliberately not chased
+## Retracted lead — the QB result was my own artifact
 
-Quarterbacks beat their draft cost by **+1.16 sd** — large, real, and unexplained
-by the current model. It is the first thing in this audit that looks like it
-could support a genuine edge. It needs its own frozen protocol, not a post-hoc
-claim from a table already seen.
+An earlier version of this ledger called the +1.16 sd quarterback residual a
+promising lead. **It is retracted.** Measured directly, QBs have a mean raw
+within-league points z-score of **+0.7551** — they simply score more than other
+positions. Protocol 3 fits the expected-cost curve **position-blind**, so any
+high-scoring position shows a positive residual mechanically. The residual
+ordering by position tracks the raw-points ordering almost exactly.
+
+This deepens rather than softens the verdict: H1 and H3 are confounded by
+positional scoring level, so **H2 — which holds position fixed — is the only
+clean test in protocol 3, and it failed in the inverted direction.**
+
+Concrete lesson for any successor protocol: fit the cost curve **within
+position**, or carry position as a covariate. A position-blind baseline cannot
+support a cross-position claim.
