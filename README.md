@@ -159,6 +159,20 @@ npm run calibrate:season         # synthetic self-consistency check
 npm run backtest:sleeper         # season-sim backtest on real weekly scores
 ```
 
+### Gated suites (skipped in CI by design)
+
+Live-network, Postgres and Lighthouse suites need real credentials, a real
+database or a browser, so CI skips them. They were executed on 2026-08-22 and the
+results — including a live test that could never have passed, and the hype-axis
+asymmetry it exposed — are in
+[`reports/2026-08-20/gated-suite-verification.md`](reports/2026-08-20/gated-suite-verification.md).
+
+```bash
+RAE_LIVE_TESTS=1 npx vitest run src/lib/schedule/schedule.live.test.ts src/lib/trade/values.live.test.ts
+RAE_PG_TEST_URL=postgres://... npx vitest run src/db/postgres.integration.test.ts
+npm run lighthouse
+```
+
 ### Frozen holdout protocols
 
 Four protocols were each **frozen and committed before any metric was computed**,
