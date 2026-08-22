@@ -541,3 +541,125 @@ clean test in protocol 3, and it failed in the inverted direction.**
 Concrete lesson for any successor protocol: fit the cost curve **within
 position**, or carry position as a covariate. A position-blind baseline cannot
 support a cross-position claim.
+
+---
+
+# Protocol 4 — the first signal that passed
+
+Frozen `0cd6c2d` before any metric existed; harness frozen `8816b69`; executed
+once at `2e88a22`. Protocol: [holdout-protocol-4.md](./holdout-protocol-4.md).
+Result: [holdout-result-4.md](./holdout-result-4.md).
+
+## Why this question
+
+Protocols 1–3 kept failing for one reason, and it was structural rather than a
+tuning problem: **every predictor in RAE's valuation is a monotone function of
+consensus rank.** A model assembled from the market's own opinion is the market.
+That single fact explains protocol 1, protocol 2's D3 losing to the base rate
+even when fitted directly to the answer, and protocol 3's inverted within-position
+result all at once.
+
+The only escape is information consensus has not priced. RAE collects exactly one
+such signal and had never used it in valuation: **nflverse opportunity**. It is
+independent of ADP structurally — ADP freezes at the draft, usage updates weekly.
+
+## What was tested
+
+Does usage through week 8 predict weeks 9–17 **beyond what points already scored
+through week 8 predict**? The baseline is production to date, not a stale ADP,
+because a week-9 waiver decision has eight weeks of results available and
+choosing the weaker opponent would have been rigging the test.
+
+nflverse 2021–2024 (CC-BY), RB/WR/TE, **958 player-seasons over 452 distinct
+players** — roughly ten times protocol 3's 43 clusters.
+
+| id | hypothesis | statistic | 95% CI | Holm |
+|---|---|---|---|---|
+| H1 | usage adds over production | **0.2289** | [0.1636, 0.2943] | reject null |
+| H2 | the same test **within position** | **0.2259** | [0.1652, 0.2884] | reject null |
+| H3 | higher usage wins at matched production | **0.5749** | [0.5496, 0.5948] | reject null |
+
+All three cleared Holm correction, which protocol 4 §6 declared in advance as the
+success criterion.
+
+**H2 is the load-bearing row.** Protocol 3's retracted quarterback finding was
+manufactured by a position-blind baseline, so protocol 4 standardised features
+within (season, position) and re-tested the entire claim within position. The
+estimate did not move — 0.2259 against a pooled 0.2289. That is the signature of
+an effect that is not positional composition.
+
+## The four limits, stated with the finding rather than beneath it
+
+1. **The gain is modest.** Out of fold, points-to-date alone reaches Spearman
+   0.7342; adding usage reaches 0.7479 — **+0.0137**. Significant is not large,
+   and the confirmatory table read alone would oversell it.
+2. **p < 0.0002 is the bootstrap floor** (1/5001; zero of 5000 resamples fell at
+   or below the null), not a vanishingly small number.
+3. **Part of it is mechanical.** In PPR a reception is itself a point, so this is
+   partly volume persisting rather than latent talent being uncovered. Still
+   useful for a start/sit or waiver call; not a claim about hidden skill.
+4. **In-season only.** Nothing here licenses a pre-season draft change, where no
+   usage exists by definition. Protocols 1–3 tested that regime and it failed.
+   Both results stand; they concern different regimes.
+
+## What shipped, and what deliberately did not
+
+**Shipped:** opportunity now carries a validation state, which CLAUDE.md requires
+and it previously lacked entirely. `OpportunityEvidenceNotice` renders on the
+waiver panel on first paint, in a green variant so a reader pattern-matching on
+"red box = warning" does not misread a positive result. It never shows the
+headline alone: the copy carries the real magnitude (0.734 → 0.748, described as
+small) and the scope limit as body text, not a footnote. Six e2e tests assert the
+limits travel with the claim, because for a result that PASSED the failure mode
+is an overstated headline rather than a buried warning.
+
+**Deliberately not shipped: any weight change.** Protocol 4 §8 forbids tuning a
+weight on this data and forbids shipping on a diagnostic alone, so the D1
+regression coefficients were not read off into the waiver formula. The existing
+weight stands; what changed is that it is now evidenced rather than asserted.
+Setting a better weight requires protocol 5 with its own held-out split.
+
+`opportunityValidation()` also keeps `out-of-scope-preseason` distinct from
+unavailable — "we have no data" and "we tested this and the answer does not apply
+here" are different claims, and the pre-season waiver note now makes the second.
+
+---
+
+# Security — a green check that was not coverage
+
+Reading the gitleaks job **log** rather than its check mark showed it reported
+success while scanning only the pushed commit range: **"29 commits scanned"** in
+a repository of 299. A secret committed before the current branch could never
+fail it, so that green mark was evidence about the diff, not the repository.
+
+Added `gitleaks FULL-HISTORY secret scan` to `security.yml`, which walks all
+history and honours `.gitleaksignore`, so the thirteen adjudicated findings stay
+suppressed by exact fingerprint while any new finding — including one in an old
+commit — fails.
+
+**Verified by log, not by check mark:** `275 commits scanned`, 5.52 MB,
+`no leaks found`.
+
+A history scan confirmed no production credential is committed anywhere: the only
+matches are localhost `rae_test` Postgres URLs for ephemeral CI service
+containers, and placeholder values in `.env.example`. `.env` has never been
+committed (0 commits touch it).
+
+[`docs/runbooks/secret-rotation.md`](../../docs/runbooks/secret-rotation.md)
+covers all four secrets. Its central point is that they are **not** alike:
+`AUTH_SECRET`, `DB_INIT_TOKEN` and `CRON_SECRET` are authenticators and cost only
+a redeploy, while `CREDENTIAL_ENCRYPTION_KEY` is a single unversioned AES-256-GCM
+key with no key id in the payload and no dual-read path — **rotating it makes
+every stored ESPN credential permanently undecryptable.** Re-encryption must come
+first, and RAE has no re-encryption command today, so writing one is the
+prerequisite rather than an optional extra.
+
+The runbook also insists on the two steps usually skipped: verify the **old**
+value is now **rejected** (confirming the new one works proves only that it was
+accepted), and burn the old plaintext by SHA-256 into `BURNED_SECRET_HASHES`.
+
+**Still `BLOCKED`, and still not claimed as done:** the actual rotation. CI proves
+the repository is clean; it cannot prove a live credential was invalidated,
+because that happens in a secret store this session has no authorized access to.
+Fresh 256-bit values were generated and handed to the operator directly and were
+written to no file, no commit, and no report — including this one.
