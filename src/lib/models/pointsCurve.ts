@@ -41,6 +41,155 @@ export interface PointsObservation {
   adpRank: number;
   /** Total regular-season fantasy points actually scored. */
   seasonPoints: number;
+  /**
+   * Platform player id. REQUIRED (audit 2026-08-20 §5).
+   *
+   * Without it this type could not express the thing that most needed
+   * measuring. The backtest pools observations from every earlier league, so one
+   * NFL player-season appears once per league that drafted them — the ADP rank
+   * differs but the OUTCOME is literally the same number. Nothing in the old
+   * shape could tell a 500-observation fit built from 500 distinct players from
+   * one built from 100 players counted five times, and the second carries
+   * roughly a fifth of the evidence.
+   */
+  playerId: string;
+  /** Source league. REQUIRED — it is the cluster these observations share. */
+  leagueId: string;
+}
+
+/**
+ * How repeated player-seasons are handled when fitting.
+ *
+ * The choice is made on statistical grounds BEFORE any untouched validation
+ * (audit §5), never by picking whichever scores best on the development sample.
+ *
+ * - `league-level` — one observation per (league, player, season). The previous
+ *   behaviour. Treats a player drafted in five leagues as five independent
+ *   pieces of evidence about their scoring, which they are not: the outcome is
+ *   one draw from one NFL season. It overstates precision roughly in proportion
+ *   to how many leagues share a player, and it silently over-weights the popular
+ *   players who appear in every league — exactly the top of the draft, which is
+ *   where the curve's shape matters most.
+ *
+ * - `player-season` — collapse to one observation per (player, season), using
+ *   the MEDIAN ADP rank across leagues. Statistically clean on the outcome side,
+ *   but it discards real information: ADP genuinely is league-specific, and a
+ *   player taken RB8 in one league and RB20 in another is evidence about BOTH
+ *   ranks. Median also hides that disagreement rather than representing it.
+ *
+ * - `cluster-weighted` (default) — keep every league-level row, but weight each
+ *   by `1 / k` where `k` is the number of leagues containing that player-season.
+ *   Each distinct NFL outcome therefore contributes total weight exactly 1,
+ *   however many leagues drafted the player, while its league-specific ADP
+ *   information is retained at every rank it was actually drafted at.
+ *
+ * `cluster-weighted` is the default because it is the only one of the three that
+ * fixes the dependence problem without throwing away data: it matches the total
+ * evidence to the number of independent outcomes (like `player-season`) while
+ * preserving the rank spread (like `league-level`). This is the standard
+ * cluster-weighting treatment for repeated measures on the same unit, and the
+ * argument for it does not depend on any score it produces.
+ */
+export type CurveAggregation = "league-level" | "player-season" | "cluster-weighted";
+
+export interface BuildCurveOptions {
+  aggregation?: CurveAggregation;
+}
+
+/**
+ * Dependence diagnostics for one fit (audit §5).
+ *
+ * `effectiveObservations` is the count of DISTINCT NFL player-seasons. It is the
+ * honest denominator: repeated rows carry the same outcome draw, so they cannot
+ * add independent information about it. `designEffect` is raw / effective — how
+ * far a naive count overstates the evidence.
+ */
+export interface CurveSampleDiagnostics {
+  rawObservations: number;
+  uniquePlayerSeasons: number;
+  /** Rows that are a repeat of a player-season already counted. */
+  duplicatedPlayerSeasons: number;
+  /** Distinct player-seasons appearing in more than one league. */
+  playerSeasonsInMultipleLeagues: number;
+  leagues: number;
+  seasons: number[];
+  designEffect: number;
+  perPosition: Partial<
+    Record<
+      DemandPosition,
+      {
+        rawObservations: number;
+        effectiveObservations: number;
+        distinctRanks: number;
+        designEffect: number;
+      }
+    >
+  >;
+}
+
+/** Identity of one NFL player-season, independent of which league saw it. */
+function playerSeasonKey(o: PointsObservation): string {
+  return `${o.season}:${o.playerId}`;
+}
+
+/**
+ * Measure how much of a fit's apparent sample is repetition.
+ *
+ * Reported rather than acted on: pseudo-replication is not automatically wrong
+ * here — ADP really is league-specific — but correlated rows must not be
+ * presented as independent evidence.
+ */
+export function curveSampleDiagnostics(
+  observations: readonly PointsObservation[]
+): CurveSampleDiagnostics {
+  const seen = new Map<string, Set<string>>();
+  const leagues = new Set<string>();
+  const seasons = new Set<number>();
+  const perPos = new Map<
+    DemandPosition,
+    { raw: number; keys: Set<string>; ranks: Set<number> }
+  >();
+
+  for (const o of observations) {
+    const key = playerSeasonKey(o);
+    leagues.add(o.leagueId);
+    seasons.add(o.season);
+    const inLeagues = seen.get(key);
+    if (inLeagues) inLeagues.add(o.leagueId);
+    else seen.set(key, new Set([o.leagueId]));
+
+    let bucket = perPos.get(o.position);
+    if (!bucket) {
+      bucket = { raw: 0, keys: new Set(), ranks: new Set() };
+      perPos.set(o.position, bucket);
+    }
+    bucket.raw += 1;
+    bucket.keys.add(key);
+    bucket.ranks.add(o.adpRank);
+  }
+
+  const raw = observations.length;
+  const unique = seen.size;
+  const perPosition: CurveSampleDiagnostics["perPosition"] = {};
+  for (const [position, b] of perPos) {
+    perPosition[position] = {
+      rawObservations: b.raw,
+      effectiveObservations: b.keys.size,
+      distinctRanks: b.ranks.size,
+      designEffect: b.keys.size > 0 ? b.raw / b.keys.size : 0
+    };
+  }
+
+  return {
+    rawObservations: raw,
+    uniquePlayerSeasons: unique,
+    duplicatedPlayerSeasons: raw - unique,
+    playerSeasonsInMultipleLeagues: [...seen.values()].filter((s) => s.size > 1).length,
+    leagues: leagues.size,
+    seasons: [...seasons].sort((a, b) => a - b),
+    designEffect: unique > 0 ? raw / unique : 0,
+    perPosition
+  };
 }
 
 /** Expected season points at each 1-based positional rank, best first. */
@@ -50,8 +199,14 @@ export interface PointsCurve {
   byPosition: PositionCurve;
   /** Seasons the curve was fitted on — the leakage audit trail. */
   seasons: number[];
-  /** Observations used, per position. */
+  /**
+   * EFFECTIVE observations per position — total fitting weight, not row count.
+   * Under `cluster-weighted` these are fractional and sum to the number of
+   * distinct player-seasons, which is the honest figure to quote (audit §5).
+   */
   counts: Partial<Record<DemandPosition, number>>;
+  /** Which dependence treatment produced this curve. Recorded, never inferred. */
+  aggregation: CurveAggregation;
 }
 
 /**
@@ -112,12 +267,20 @@ export function isotonicDecreasing(values: number[], weights?: number[]): number
  * being scored. The caller filters; this records what it was given so the
  * filtering is auditable rather than assumed.
  */
-export function buildPointsCurve(observations: readonly PointsObservation[]): PointsCurve {
-  const grouped = new Map<DemandPosition, Map<number, number[]>>();
+export function buildPointsCurve(
+  observations: readonly PointsObservation[],
+  options: BuildCurveOptions = {}
+): PointsCurve {
+  const aggregation = options.aggregation ?? "cluster-weighted";
+  const rows = prepareRows(observations, aggregation);
+
+  // Weighted sums per (position, rank), so a row's influence is its weight
+  // rather than its mere existence.
+  const grouped = new Map<DemandPosition, Map<number, { sum: number; weight: number }>>();
   const seasons = new Set<number>();
 
-  for (const o of observations) {
-    if (!Number.isFinite(o.seasonPoints) || o.adpRank < 1) continue;
+  for (const { observation: o, weight } of rows) {
+    if (!Number.isFinite(o.seasonPoints) || o.adpRank < 1 || weight <= 0) continue;
     seasons.add(o.season);
     let byRank = grouped.get(o.position);
     if (!byRank) {
@@ -125,8 +288,12 @@ export function buildPointsCurve(observations: readonly PointsObservation[]): Po
       grouped.set(o.position, byRank);
     }
     const bucket = byRank.get(o.adpRank);
-    if (bucket) bucket.push(o.seasonPoints);
-    else byRank.set(o.adpRank, [o.seasonPoints]);
+    if (bucket) {
+      bucket.sum += o.seasonPoints * weight;
+      bucket.weight += weight;
+    } else {
+      byRank.set(o.adpRank, { sum: o.seasonPoints * weight, weight });
+    }
   }
 
   const byPosition: PositionCurve = {};
@@ -142,21 +309,75 @@ export function buildPointsCurve(observations: readonly PointsObservation[]): Po
     let lastMean = 0;
     for (let rank = 1; rank <= maxRank; rank += 1) {
       const bucket = byRank.get(rank);
-      if (bucket && bucket.length > 0) {
-        lastMean = bucket.reduce((a, b) => a + b, 0) / bucket.length;
+      if (bucket && bucket.weight > 0) {
+        lastMean = bucket.sum / bucket.weight;
         means.push(lastMean);
-        weights.push(bucket.length);
-        total += bucket.length;
+        weights.push(bucket.weight);
+        total += bucket.weight;
       } else {
         means.push(lastMean);
         weights.push(0);
       }
     }
     byPosition[position] = isotonicDecreasing(means, weights);
-    counts[position] = total;
+    // Rounded because a cluster-weighted total is fractional; it reports
+    // EFFECTIVE observations, which is the number that should be quoted.
+    counts[position] = Math.round(total * 100) / 100;
   }
 
-  return { byPosition, seasons: [...seasons].sort(), counts };
+  return { byPosition, seasons: [...seasons].sort(), counts, aggregation };
+}
+
+interface WeightedRow {
+  observation: PointsObservation;
+  weight: number;
+}
+
+/**
+ * Apply the chosen aggregation, producing the weighted rows the fit consumes.
+ *
+ * Every mode gives one distinct NFL player-season a TOTAL weight of at most 1,
+ * except `league-level`, which is retained only so the previous behaviour stays
+ * reproducible for comparison.
+ */
+function prepareRows(
+  observations: readonly PointsObservation[],
+  aggregation: CurveAggregation
+): WeightedRow[] {
+  if (aggregation === "league-level") {
+    return observations.map((observation) => ({ observation, weight: 1 }));
+  }
+
+  const byPlayerSeason = new Map<string, PointsObservation[]>();
+  for (const o of observations) {
+    const key = playerSeasonKey(o);
+    const bucket = byPlayerSeason.get(key);
+    if (bucket) bucket.push(o);
+    else byPlayerSeason.set(key, [o]);
+  }
+
+  if (aggregation === "player-season") {
+    // One row per player-season at the MEDIAN ADP rank across leagues. Robust to
+    // a single league's outlier draft, at the cost of discarding the spread.
+    const out: WeightedRow[] = [];
+    for (const group of byPlayerSeason.values()) {
+      const ranks = group.map((o) => o.adpRank).sort((a, b) => a - b);
+      const mid = Math.floor(ranks.length / 2);
+      const medianRank =
+        ranks.length % 2 === 1 ? ranks[mid]! : Math.round((ranks[mid - 1]! + ranks[mid]!) / 2);
+      out.push({ observation: { ...group[0]!, adpRank: medianRank }, weight: 1 });
+    }
+    return out;
+  }
+
+  // cluster-weighted: every league-level row survives, carrying 1/k of the
+  // player-season's single unit of evidence.
+  const out: WeightedRow[] = [];
+  for (const group of byPlayerSeason.values()) {
+    const w = 1 / group.length;
+    for (const observation of group) out.push({ observation, weight: w });
+  }
+  return out;
 }
 
 /**

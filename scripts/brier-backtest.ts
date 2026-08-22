@@ -51,7 +51,7 @@
 import { brierScore, kFoldCV, reliabilityDiagram, expectedCalibrationError } from "../src/lib/stats/distribution";
 import type { BrierForecast } from "../src/lib/stats/distribution";
 import { fitLogisticCV } from "../src/lib/stats/logistic";
-import { writeFileSync, readFileSync, existsSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const NFLVERSE_URL_2025_WEEK =
@@ -196,6 +196,21 @@ async function fetchSleeperProspective(): Promise<{
 }
 
 // ── Forecast builders ───────────────────────────────────────────────────────
+
+/**
+ * Read a file WITHOUT an existsSync pre-check.
+ *
+ * `existsSync(p)` then `readFileSync(p)` is a time-of-check/time-of-use race
+ * (CodeQL js/file-system-race) — the file can disappear between the two calls.
+ * One syscall in a try/catch has no window to race in.
+ */
+function readIfPresent(path: string): string | null {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+}
 
 function buildProspectiveForecasts(
   rows: ProspectiveRow[],
@@ -416,8 +431,8 @@ async function main() {
     } else {
       // Source 3: local season-aggregate
       console.log("  → Trying local C:/tmp/nfl_stats_2025.csv...");
-      if (existsSync(LOCAL_2025_SEASON)) {
-        const csv = readFileSync(LOCAL_2025_SEASON, "utf8");
+      const csv = readIfPresent(LOCAL_2025_SEASON);
+      if (csv != null) {
         const parsed = parseCsv(csv);
         if (parsed.rows.length > 0) {
           console.log(`  → Local 2025 season-aggregate (${parsed.rows.length} rows).`);

@@ -9,6 +9,15 @@ the simulator that was validated was not the simulator the product uses.
 
 ## Headline
 
+> **PARTIALLY SUPERSEDED 2026-08-20.** The calibration half of this headline
+> replicated on an untouched external sample; the **inversion half did not**.
+> On 160 team-seasons across 13 MyFantasyLeague leagues the model had never
+> seen, AUC was **0.5569 [0.4630, 0.6300]** — straddling 0.5, not below it.
+> The significant inversion measured here is now attributed to small-sample
+> noise across 3-5 correlated clusters. Brier skill remained significantly
+> negative. See [`reports/2026-08-20/holdout-result.md`](../2026-08-20/holdout-result.md).
+> The numbers below are left exactly as they were measured.
+
 **The shipped playoff-odds model failed out-of-sample validation.** It scores
 *worse* than forecasting the league's base rate, and its ranking is inverted.
 
@@ -199,6 +208,23 @@ banner surfaces:
 ---
 
 # UPDATE 2026-08-18 — points-above-replacement built and scored
+
+> **SUPERSEDED 2026-08-20 — read this section as a historical record.**
+>
+> The conclusion below ("PAR's interval **includes 0.5**. Replacing the transform
+> removes a measurable defect.") does not survive the dependence analysis in
+> [`reports/2026-08-20/par-dependence-analysis.md`](../2026-08-20/par-dependence-analysis.md).
+>
+> Two things changed. First, the curve fit had no player identity, so repeated
+> player-seasons across leagues were counted as independent evidence; under the
+> cluster-weighted treatment chosen on a-priori statistical grounds, PAR's AUC CI
+> becomes [0.3750, 0.4583] — **entirely below 0.5**, the same verdict as the
+> shipped model. Second, and more fundamentally, the PAR interval is a percentile
+> of **nine distinct bootstrap values** (3 clusters), so whether it straddles 0.5
+> is an artifact in either direction.
+>
+> The operative conclusion is unchanged and, if anything, firmer: **PAR is not
+> shipped.** The numbers below are left exactly as they were measured.
 
 The indicated fix from the section above was implemented and backtested. Both
 forecasters run through the **identical** production simulation, so the only

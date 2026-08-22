@@ -21,16 +21,22 @@ interface Props {
  */
 export function TopCommandBar({ mode, freshness, leagueOptions = [], activeLeagueId = null }: Props) {
   return (
+    // `flex-wrap` is load-bearing at 320px. The right-hand cluster — league
+    // switcher, Mock draft / Sign in, and the live/fixture badge — is 248px on
+    // its own, which pushed the document 52px wider than the viewport on EVERY
+    // route, not just /analytics as previously recorded. Wrapping to a second
+    // row fixes it without hiding anything: hiding the mode badge was not an
+    // option, because CLAUDE.md requires the fixture/live state to stay visible.
     <header
       aria-label="RAE command bar"
-      className="sticky top-0 z-20 flex items-center gap-3 border-b border-border bg-background/85 px-3 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:px-4"
+      className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background/85 px-3 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:flex-nowrap sm:px-4"
     >
       <SidebarTrigger className="text-muted-foreground" />
       <Separator orientation="vertical" className="h-6" />
       <div className="flex items-baseline gap-2">
         <span className="text-xl font-extrabold tracking-[0.14em] text-rae-blue">RAE</span>
         <span className="hidden text-[9px] uppercase leading-tight tracking-[0.16em] text-muted-foreground md:inline">
-          Reputation Arbitrage Engine
+          Roster Analytics Engine
         </span>
       </div>
 

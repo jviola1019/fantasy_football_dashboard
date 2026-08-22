@@ -13,7 +13,7 @@
 // Usage:
 //   npx tsx scripts/brier-season-sim.ts
 //   RAE_BACKTEST_FORECASTS=./data/playoff-forecasts-2025.json npx tsx scripts/brier-season-sim.ts
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import {
   runSyntheticCalibration,
   scoreForecasts,
@@ -32,11 +32,15 @@ function fmt(x: number): string {
 function loadRealForecasts(): BrierForecast[] | null {
   const path = process.env.RAE_BACKTEST_FORECASTS;
   if (!path) return null;
-  if (!existsSync(path)) {
-    console.error(`RAE_BACKTEST_FORECASTS set but file not found: ${path}`);
+  // Single read, no existsSync pre-check (CodeQL js/file-system-race).
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    console.error(`RAE_BACKTEST_FORECASTS set but file could not be read: ${path}`);
     process.exit(1);
   }
-  const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  const raw = JSON.parse(text) as unknown;
   if (!Array.isArray(raw)) throw new Error("forecasts file must be a JSON array");
   return raw.map((r, i) => {
     const o = r as { prob?: unknown; outcome?: unknown };

@@ -93,6 +93,17 @@
   --red: #eb5f54;
   --blue: #5a9fc4;
   --purple: #8b7be0;
+  /* Audit 2026-08-20 SS3/SS20. The model-failure notice paints a 7% red tint over
+     --panel-2, lifting its effective background to #272632 — and --red (#eb5f54)
+     measures only 4.46:1 there, which axe correctly failed as a serious
+     WCAG 2 AA violation. These two are measured against that tinted ground
+     rather than against the flat panel:
+       --notice-red   #f0736a on #272632 = 5.23:1  (on #18222f = 5.63:1)
+       --band-extreme #9d90e8 on #18222f = 5.80:1  (--purple was 4.59:1, no margin)
+     --red itself is deliberately left alone; it is tuned for the flat panel and
+     is used by unrelated components. */
+  --notice-red: #f0736a;
+  --band-extreme: #9d90e8;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
   --panel-shadow: 0 2px 16px rgba(90, 159, 196, 0.08);
   --sidebar-w: 56px;
@@ -1633,4 +1644,205 @@ td small { color: var(--muted); }
 
 @media (max-width: 700px) {
   .trade-sides { grid-template-columns: 1fr; }
+}
+
+/* ── Model scenario disclosure + bands (audit 2026-08-20 §3, Strategy B) ─────
+   The season-simulation model failed out-of-sample validation, so its output is
+   presented as a scenario band against the league's structural baseline rather
+   than as a forecast percentage. These styles keep the disclosure legible
+   ADJACENT to the numbers rather than behind a tab, and readable at 320px. */
+
+.model-scenario-banner {
+  border: 1px solid rgba(235, 95, 84, 0.38);
+  border-left: 3px solid var(--red);
+  background: rgba(235, 95, 84, 0.07);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-3);
+}
+
+.model-scenario-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--notice-red);
+}
+
+.model-scenario-body {
+  margin: 4px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--cream);
+}
+
+.model-scenario-evidence {
+  margin: 4px 0 0;
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono, ui-monospace), monospace;
+  overflow-wrap: anywhere;
+}
+
+.model-scenario-inline {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: var(--space-2) 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--cream);
+}
+
+.model-scenario-inline b {
+  color: var(--notice-red);
+}
+
+/* Validated variant (protocol 4). The other notices in this system all retract a
+   claim; this one reports a signal that PASSED, so it needs a distinct colour or
+   a reader pattern-matching on "red box = warning" would misread it.
+
+   Contrast measured, not assumed: --green #35c08a over the composite background
+   (#18222f panel + 7% green tint = ~#1a2d36) is 6.1:1, above the 4.5:1 AA
+   threshold for the 12px head text. */
+.model-scenario-banner.is-validated {
+  border-color: rgba(53, 192, 138, 0.38);
+  border-left-color: var(--green);
+  background: rgba(53, 192, 138, 0.07);
+}
+
+.model-scenario-banner.is-validated .model-scenario-head {
+  color: var(--green);
+}
+
+.model-scenario-inline.is-validated b {
+  color: var(--green);
+}
+
+.model-scenario-inline.is-validated .model-scenario-flag,
+.model-scenario-banner.is-validated .model-scenario-flag {
+  background: var(--green);
+}
+
+/* Non-decorative: it is the only visual cue that the block is a warning, so it
+   keeps AA contrast rather than being a faint glyph. */
+.model-scenario-flag {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.scenario-outlook {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.scenario-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Single column at narrow widths so nothing truncates; the baseline number and
+   the band label each get a full line. */
+.scenario-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-2);
+}
+
+.scenario-row-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.scenario-row-baseline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.scenario-row-baseline-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.scenario-row-baseline-tag {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.scenario-row-band {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Tone is DISTANCE FROM BASELINE, not good vs bad — an uncalibrated model has no
+   standing to tell the user that above-baseline is good news. Both tails share a
+   colour for that reason. */
+.scenario-band-neutral { color: var(--muted); }
+.scenario-band-notable { color: var(--amber); }
+.scenario-band-extreme { color: var(--band-extreme); }
+
+.scenario-explainer {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.scenario-raw > summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--blue);
+  padding: 6px 0;
+  /* Touch target (audit: 18-target-size.spec.ts). */
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.scenario-raw > summary:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (min-width: 560px) {
+  .scenario-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    row-gap: 2px;
+  }
+  .scenario-row-label { grid-column: 1; }
+  .scenario-row-baseline { grid-column: 1; }
+  .scenario-row-band { grid-column: 2; text-align: right; }
 }

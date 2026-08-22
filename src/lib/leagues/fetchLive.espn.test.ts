@@ -16,8 +16,7 @@ vi.mock("../espn/league", () => ({
   getScoreboard: vi.fn(),
   getDraft: vi.fn(),
   getTransactions: vi.fn(),
-  getFreeAgents: vi.fn(),
-  getNews: vi.fn()
+  getFreeAgents: vi.fn()
 }));
 
 // Stub the leagues data access so fetchLeagueLive resolves a fake league

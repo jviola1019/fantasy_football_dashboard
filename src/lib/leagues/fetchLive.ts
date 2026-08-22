@@ -15,6 +15,12 @@ import type { EspnTeam } from "../espn/schemas";
 import { unavailableSource, type SourceMeta } from "../governance";
 import { parseEspnFormat, parseSleeperFormat, type LeagueFormat } from "../trade/format";
 import { getDb, type Db } from "../../db";
+import {
+  classifyInjuryEvidence,
+  describeInjuryEvidence,
+  PLAYERS_SNAPSHOT_CONTRACT,
+  type InjuryEvidence
+} from "./injuryEvidence";
 
 export interface LiveLeagueSnapshot {
   league: LeagueRecord;
@@ -50,6 +56,19 @@ export interface LiveLeagueSnapshot {
    * used as the backup draft-state signal. Null for ESPN / when no draft_id.
    */
   draftStatus: string | null;
+  /**
+   * How much is actually known about injury/activity status for this snapshot
+   * (audit 2026-08-20 §8/§9).
+   *
+   * Roster membership and injury status come from DIFFERENT upstreams with
+   * different ages: membership from the live rosters call, status from the daily
+   * players snapshot. A single freshness value cannot describe both, and the
+   * lifecycle engine must not resolve an injury alert on the strength of a
+   * readable roster. For ESPN this is `verified` on a successful fetch, because
+   * ESPN returns `injuryStatus` INLINE with the roster payload rather than from a
+   * separately-aged snapshot — see fetchEspnLive.
+   */
+  injuryEvidence: InjuryEvidence;
 }
 
 /**
@@ -205,7 +224,8 @@ export async function fetchLeagueLive(
       format: null,
       myFaabRemainingRatio: null,
       leagueRawData: null,
-      draftStatus: null
+      draftStatus: null,
+      injuryEvidence: { state: "unavailable", reason: "ESPN credentials missing" }
     };
   }
   return fetchEspnLive(league, creds);
@@ -235,7 +255,12 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       format,
       myFaabRemainingRatio: null,
       leagueRawData,
-      draftStatus: null
+      draftStatus: null,
+      // No roster at all: status is not merely stale, it is unknown.
+      injuryEvidence: {
+        state: "unavailable",
+        reason: info.source.failure ?? rosters.source.failure ?? "no rosters returned"
+      }
     };
   }
   if (!snapshot) {
@@ -251,13 +276,28 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       format,
       myFaabRemainingRatio: null,
       leagueRawData,
-      draftStatus: null
+      draftStatus: null,
+      // The snapshot IS the injury source. Without it there is no status at all.
+      injuryEvidence: classifyInjuryEvidence(null)
     };
   }
 
   const playersMap: SleeperPlayersMap = snapshot.players;
   const sleeperRosters: SleeperRoster[] = rosters.data;
   const leagueUsers = users.data ?? [];
+
+  // Audit 2026-08-20 §8: the snapshot's OWN age decides what can be claimed
+  // about injury status. `snapshot.fetchedAt` was in scope here before and was
+  // simply dropped on the floor.
+  const rosterFetchedAt = rosters.source.fetchedAt
+    ? new Date(rosters.source.fetchedAt)
+    : new Date();
+  const injuryEvidence = classifyInjuryEvidence(snapshot.fetchedAt);
+  const provenance = {
+    rosterFetchedAt,
+    playersSnapshotFetchedAt: snapshot.fetchedAt,
+    injuryEvidence
+  };
 
   // Resolve the user's roster_id via stored Sleeper username; fall back to
   // the first roster when the username is absent or unresolvable.
@@ -267,11 +307,11 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     null;
 
   const allRosters = sleeperRosters.map((r) =>
-    materializeSleeperRoster(r, playersMap, league)
+    materializeSleeperRoster(r, playersMap, league, provenance)
   );
   const myRosterRow = sleeperRosters.find((r) => r.roster_id === myTeamId);
   const myRoster = myRosterRow
-    ? materializeSleeperRoster(myRosterRow, playersMap, league)
+    ? materializeSleeperRoster(myRosterRow, playersMap, league, provenance)
     : [];
 
   const myFaabRemainingRatio = myRosterRow
@@ -296,36 +336,118 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     format,
     myFaabRemainingRatio,
     leagueRawData,
-    draftStatus
+    draftStatus,
+    injuryEvidence
   };
 }
 
-function materializeSleeperRoster(
+/** The two upstreams a Sleeper roster record is composed from. */
+export interface SleeperRosterProvenance {
+  /** When the live rosters call returned — governs MEMBERSHIP only. */
+  rosterFetchedAt: Date;
+  /** When the daily players snapshot was taken — governs identity + injury status. */
+  playersSnapshotFetchedAt: Date | null;
+  /** Derived from the snapshot age; the decision-relevant part. */
+  injuryEvidence: InjuryEvidence;
+}
+
+/** Roster membership is a live read; 2 minutes is a genuine TTL for it. */
+const ROSTER_TTL_SECONDS = 120;
+
+/**
+ * Materialize one Sleeper roster into records with HONEST composite provenance.
+ *
+ * Audit 2026-08-20 §8. Every record used to be stamped
+ * `fetchedAt: now, ttlSeconds: 120, freshness: "fresh", validation: "valid"` —
+ * but the `injury_status`, position and team on it all came from the daily
+ * players snapshot, whose age was discarded by the caller. A roster read now
+ * plus a snapshot from 36 hours ago produced a record asserting a two-minute-old
+ * injury status. Consumers (`sources[0]`) then reported that assertion to the
+ * user as source freshness.
+ *
+ * Now `sources` is ordered [composite, membership, player-metadata]:
+ *
+ *  - `sources[0]` is the DECISION source, and is bounded by the OLDEST
+ *    decision-relevant input — that is the whole invariant. Its freshness is the
+ *    worse of the two, its `fetchedAt` the earlier of the two, its `ttlSeconds`
+ *    the smaller of the two.
+ *  - `sources[1]` and `sources[2]` retain each input's own timestamp so nothing
+ *    is lost by the composition.
+ */
+export function materializeSleeperRoster(
   roster: SleeperRoster,
   playersMap: SleeperPlayersMap,
-  league: LeagueRecord
+  league: LeagueRecord,
+  provenance: SleeperRosterProvenance
 ): PlayerMarketRecord[] {
+  const { rosterFetchedAt, playersSnapshotFetchedAt, injuryEvidence } = provenance;
+
+  const membership: SourceMeta = {
+    source: `Sleeper roster ${league.externalLeagueId} (membership)`,
+    fetchedAt: rosterFetchedAt.toISOString(),
+    ttlSeconds: ROSTER_TTL_SECONDS,
+    freshness: "fresh",
+    confidence: 0.85,
+    validation: "valid",
+    missingFields: [],
+    assumptions: ["Live Sleeper rosters call — proves who is on the roster, nothing more."],
+    failure: null
+  };
+
+  const metadata: SourceMeta = {
+    source: "Sleeper players snapshot (identity, position, injury status)",
+    fetchedAt: playersSnapshotFetchedAt ? playersSnapshotFetchedAt.toISOString() : null,
+    ttlSeconds: PLAYERS_SNAPSHOT_CONTRACT.warnAfterSeconds,
+    freshness:
+      injuryEvidence.state === "verified"
+        ? "fresh"
+        : injuryEvidence.state === "stale"
+          ? "stale"
+          : "missing",
+    confidence: injuryEvidence.state === "verified" ? 0.85 : 0.4,
+    validation: injuryEvidence.state === "unavailable" ? "not-run" : "valid",
+    missingFields: injuryEvidence.state === "unavailable" ? ["status"] : [],
+    assumptions: [describeInjuryEvidence(injuryEvidence)],
+    failure:
+      injuryEvidence.state === "unavailable"
+        ? `injury/activity status not verifiable — ${injuryEvidence.reason}`
+        : null
+  };
+
+  // The composite can never be fresher than its oldest important input.
+  const oldest =
+    playersSnapshotFetchedAt && playersSnapshotFetchedAt < rosterFetchedAt
+      ? playersSnapshotFetchedAt
+      : rosterFetchedAt;
+  const composite: SourceMeta = {
+    source: `Sleeper roster ${league.externalLeagueId} + players snapshot`,
+    // A missing snapshot means the record's status half has NO timestamp; the
+    // composite must not borrow the roster's.
+    fetchedAt: playersSnapshotFetchedAt ? oldest.toISOString() : null,
+    ttlSeconds: Math.min(ROSTER_TTL_SECONDS, PLAYERS_SNAPSHOT_CONTRACT.warnAfterSeconds),
+    freshness: metadata.freshness,
+    confidence: Math.min(membership.confidence, metadata.confidence),
+    validation: metadata.validation,
+    missingFields: metadata.missingFields,
+    assumptions: [
+      "Sleeper identity + roster; no market metrics.",
+      "Composite record: roster membership and injury status come from different upstreams; this freshness is bounded by the older one.",
+      describeInjuryEvidence(injuryEvidence)
+    ],
+    failure: metadata.failure
+  };
+
   const ids = roster.players ?? [];
   const records: PlayerMarketRecord[] = [];
   for (const id of ids) {
     const player = playersMap[id];
     if (!player) continue;
-    const record = sleeperPlayerToRecord(id, player, {
-      source: {
-        source: `Sleeper roster ${league.externalLeagueId}`,
-        fetchedAt: new Date().toISOString(),
-        ttlSeconds: 120,
-        freshness: "fresh",
-        confidence: 0.85,
-        validation: "valid",
-        missingFields: [],
-        assumptions: ["Sleeper identity + roster; no market metrics."],
-        failure: null
-      }
-    });
+    const record = sleeperPlayerToRecord(id, player, { source: composite });
     if (record) records.push(record);
   }
-  return records;
+  // sources[0] stays the decision source (DraftIntelligence + runNexusSimulation
+  // read it); the per-input entries are appended so provenance is not lost.
+  return records.map((r) => ({ ...r, sources: [...r.sources, membership, metadata] }));
 }
 
 async function fetchEspnLive(
@@ -357,7 +479,11 @@ async function fetchEspnLive(
       format,
       myFaabRemainingRatio: null,
       leagueRawData: espnRawData,
-      draftStatus: null
+      draftStatus: null,
+      injuryEvidence: {
+        state: "unavailable",
+        reason: result.source.failure ?? "no teams returned"
+      }
     };
   }
 
@@ -412,6 +538,31 @@ async function fetchEspnLive(
       myTeam as unknown as Record<string, unknown> | null
     ),
     leagueRawData: espnRawData,
-    draftStatus: null
+    draftStatus: null,
+    // ESPN returns `injuryStatus` inline on each roster entry, so its age is the
+    // age of THIS call — not of a separately-refreshed snapshot. A successful
+    // fetch therefore does carry verified injury evidence.
+    injuryEvidence: espnInjuryEvidence(result.source)
   };
+}
+
+/**
+ * ESPN injury evidence from the roster call's own SourceMeta.
+ *
+ * Unlike Sleeper there is no second upstream to bound: status ships with the
+ * roster. But a served-from-cache or degraded ESPN response must not be promoted
+ * to `verified`, so the call's declared freshness still governs.
+ */
+function espnInjuryEvidence(source: SourceMeta): InjuryEvidence {
+  if (source.fetchedAt == null) {
+    return { state: "unavailable", reason: "ESPN response carried no fetch timestamp" };
+  }
+  const ageSeconds = Math.max(0, (Date.now() - new Date(source.fetchedAt).getTime()) / 1000);
+  if (source.freshness === "fresh") {
+    return { state: "verified", fetchedAt: source.fetchedAt, ageSeconds };
+  }
+  if (source.freshness === "stale") {
+    return { state: "stale", fetchedAt: source.fetchedAt, ageSeconds };
+  }
+  return { state: "unavailable", reason: `ESPN roster freshness "${source.freshness}"` };
 }

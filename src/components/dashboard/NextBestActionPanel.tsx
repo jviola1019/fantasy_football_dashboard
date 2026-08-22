@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { PlayerMarketRecord } from "@/lib/governance";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
 
 type Tone = "risk" | "sell" | "buy" | "add" | "draft";
@@ -55,7 +55,7 @@ export function NextBestActionPanel({
   }
 
   // 2. Sell-high: market hype running ahead of value.
-  const scored = market.map((p) => ({ p, hype: Math.round(p.trendingMomentum), edge: reputationEdge(p) }));
+  const scored = market.map((p) => ({ p, hype: Math.round(p.trendingMomentum), edge: scarcityGap(p) }));
   const sell = scored.filter((x) => x.hype - x.edge > 15).sort((a, b) => b.hype - b.edge - (a.hype - a.edge))[0];
   if (sell) {
     actions.push({
@@ -88,7 +88,7 @@ export function NextBestActionPanel({
       title: `${isPre ? "Draft target" : "Top market"}: ${target.name}`,
       detail: anyUsage
         ? `${Math.round(target.opportunity)}% snap usage · value ${Math.round(target.trueValue)}`
-        : `value ${Math.round(target.trueValue)} · edge ${reputationEdge(target) >= 0 ? "+" : ""}${reputationEdge(target)}`,
+        : `value ${Math.round(target.trueValue)} · edge ${scarcityGap(target) >= 0 ? "+" : ""}${scarcityGap(target)}`,
       href: isPre ? "/draft" : "/waivers",
       cta: isPre ? "Draft" : "Waivers",
       tone: isPre ? "draft" : "add"

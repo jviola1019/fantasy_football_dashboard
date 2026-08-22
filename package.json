@@ -1,5 +1,5 @@
 {
-  "name": "rae-reputation-arbitrage-engine",
+  "name": "rae-roster-analytics-engine",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -19,6 +19,7 @@
     "lighthouse": "lhci autorun",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
     "check:advisories": "tsx scripts/check-lockfile-advisories.ts",
+    "check:projection-units": "tsx scripts/check-projection-units.ts",
     "check:exceptions": "tsx scripts/check-vuln-exceptions.ts",
     "smoke": "tsx scripts/smoke-vercel.ts",
     "calibrate:season": "tsx scripts/brier-season-sim.ts",
@@ -26,7 +27,18 @@
     "check:freshness": "tsx scripts/check-cron-freshness.ts",
     "deploy": "next build",
     "sensitivity:replacement": "tsx scripts/replacement-sensitivity.ts",
-    "backtest:valuation": "tsx scripts/backtest-valuation.ts"
+    "backtest:valuation": "tsx scripts/backtest-valuation.ts",
+    "holdout:acquire": "tsx scripts/acquire-mfl-holdout.ts",
+    "holdout:evaluate": "tsx scripts/holdout-evaluate.ts",
+    "holdout:diagnostics": "tsx scripts/holdout-diagnostics.ts",
+    "holdout:evaluate2": "tsx scripts/holdout-evaluate-2.ts",
+    "holdout:validate-labels": "tsx scripts/validate-holdout-labels.ts",
+    "holdout:acquire-brackets": "tsx scripts/acquire-mfl-brackets.ts",
+    "holdout:evaluate3": "tsx scripts/holdout-evaluate-3.ts",
+    "holdout:acquire-usage": "tsx scripts/acquire-nflverse-usage.ts",
+    "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts",
+    "verify:rotation": "tsx scripts/verify-rotation.ts",
+    "reencrypt:credentials": "tsx scripts/reencrypt-credentials.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

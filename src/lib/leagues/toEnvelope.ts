@@ -12,6 +12,7 @@ import {
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
 import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
+import type { WeeklyProjectionByFormat } from "./scoringPoints";
 
 /**
  * Stamp the FREE nflverse opportunity score (snap share, 0-100) onto records by
@@ -47,8 +48,12 @@ export interface BuildEnvelopeOptions {
   trendingAdds?: Map<string, number>;
   /** Optional Sleeper trending-drops map. */
   trendingDrops?: Map<string, number>;
-  /** Weekly projected pts_ppr keyed by sleeper player_id. Off-season / pre-cron: absent. */
-  weeklyProjections?: Record<string, number> | null;
+  /**
+   * Weekly projections keyed by sleeper player_id, carrying all three scoring
+   * variants (audit 2026-08-20 §7) so the unit is chosen at the simulation
+   * boundary rather than here. Off-season / pre-cron: absent.
+   */
+  weeklyProjections?: Record<string, WeeklyProjectionByFormat> | null;
   /** Metadata about the weekly projection snapshot (season, week, fetchedAt). */
   weeklyProjectionsMeta?: { season: string; week: number; fetchedAt: string } | null;
   /**

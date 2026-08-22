@@ -1,6 +1,7 @@
 import type { CommandMetrics } from "@/lib/derivedMetrics";
 import { PanelCard } from "../ui/PanelCard";
 import { fmt } from "@/lib/utils";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 
 /**
  * League Health overview tile — the team-state KPI strip extracted verbatim from
@@ -19,12 +20,12 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
 
   const cards = [
     valuesUnavailable
-      ? { label: "Reputation Edge", value: "—", sub: "Value data unavailable", color: "neu" }
+      ? { label: EDGE_LABELS.metricNameTitle, value: "—", sub: "Value data unavailable", color: "neu" }
       : {
-          label: "Reputation Edge",
-          value: fmt(metrics.reputationEdge, 1),
+          label: EDGE_LABELS.metricNameTitle,
+          value: fmt(metrics.scarcityGap, 1),
           sub: "Avg True – Market Value",
-          color: metrics.reputationEdge >= 0 ? "pos" : "neg"
+          color: metrics.scarcityGap >= 0 ? "pos" : "neg"
         },
     valuesUnavailable
       ? { label: "Market Inefficiency", value: "—", sub: "Value data unavailable", color: "neu" }

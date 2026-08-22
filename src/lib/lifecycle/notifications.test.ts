@@ -9,6 +9,7 @@ import {
 } from "./notifications";
 import type { PlayerMarketRecord } from "../governance";
 import type { ByeSchedule, VerifiedByeSchedule } from "../schedule/byeSchedule";
+import { classifyInjuryEvidence, type InjuryEvidence } from "../leagues/injuryEvidence";
 
 /** Verified schedule fixture — never a real season table (audit F-002). */
 const VERIFIED_BYES: VerifiedByeSchedule = {
@@ -285,6 +286,114 @@ describe("lifecycle notifications", () => {
     it("caps the returned history", async () => {
       for (let i = 0; i < 5; i += 1) await upsertNotification(bye("user-a", `k${i}`), db);
       expect(await listNotificationsForUser("user-a", { limit: 2, includeDismissed: true }, db)).toHaveLength(2);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Audit 2026-08-20 §9 — injury evidence gates RESOLUTION, never EMISSION
+// ---------------------------------------------------------------------------
+
+describe("injured-starter reconcilability requires trustworthy injury evidence", () => {
+  const NOW = new Date("2026-08-20T12:00:00.000Z");
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3600 * 1000);
+  const healthyRoster = [p("rb1", "RB", "ATL"), p("wr1", "WR", "BUF")];
+
+  const evaluate = (injuryEvidence?: InjuryEvidence, injuredStarters: PlayerMarketRecord[] = []) =>
+    evaluateLifecycleRules({
+      userId: "user-a",
+      leagueId: "L1",
+      roster: healthyRoster,
+      byeSchedule: VERIFIED_BYES,
+      injuredStarters,
+      injuryEvidence
+    });
+
+  const VERIFIED: InjuryEvidence = classifyInjuryEvidence(hoursAgo(1), NOW);
+  const STALE: InjuryEvidence = classifyInjuryEvidence(hoursAgo(36), NOW);
+  const MISSING: InjuryEvidence = classifyInjuryEvidence(null, NOW);
+  const DOWN: InjuryEvidence = { state: "unavailable", reason: "upstream 503" };
+
+  it("fresh healthy status → family IS evaluated, so an old alert may resolve", () => {
+    expect(evaluate(VERIFIED).evaluated).toContain("injured-starter");
+  });
+
+  it("stale healthy status → family NOT evaluated, so an old alert MUST NOT resolve", () => {
+    // The defect: a 36h-old snapshot makes every player look healthy, and the
+    // engine used to accept that as proof the injury was over.
+    expect(STALE.state).toBe("stale");
+    expect(evaluate(STALE).evaluated).not.toContain("injured-starter");
+  });
+
+  it("missing status → family NOT evaluated", () => {
+    expect(MISSING.state).toBe("unavailable");
+    expect(evaluate(MISSING).evaluated).not.toContain("injured-starter");
+  });
+
+  it("source unavailable → family NOT evaluated", () => {
+    expect(evaluate(DOWN).evaluated).not.toContain("injured-starter");
+  });
+
+  it("FAILS CLOSED: a caller that supplies no evidence cannot resolve alerts", () => {
+    // Omitting the field must not grant the authority by default.
+    expect(evaluate(undefined).evaluated).not.toContain("injured-starter");
+  });
+
+  it("an empty roster still cannot resolve, even with verified evidence", () => {
+    // Both conditions are required: readable roster AND trustworthy status.
+    const { evaluated } = evaluateLifecycleRules({
+      userId: "user-a",
+      leagueId: "L1",
+      roster: [],
+      byeSchedule: VERIFIED_BYES,
+      injuryEvidence: VERIFIED
+    });
+    expect(evaluated).not.toContain("injured-starter");
+  });
+
+  it("gating resolution does not disable the other families", () => {
+    const { evaluated } = evaluateLifecycleRules({
+      userId: "user-a",
+      leagueId: "L1",
+      roster: healthyRoster,
+      byeSchedule: VERIFIED_BYES,
+      faabRemainingRatio: 0.05,
+      injuryEvidence: MISSING
+    });
+    expect(evaluated).toContain("stacked-bye-week");
+    expect(evaluated).toContain("faab-depleted");
+    expect(evaluated).not.toContain("injured-starter");
+  });
+
+  describe("EMISSION is never suppressed — a known injury is still reported", () => {
+    const injured = [p("rb1", "RB", "ATL", { status: "out" })];
+
+    it("fresh injured → a current alert", () => {
+      const { drafted } = evaluate(VERIFIED, injured);
+      const alert = drafted.find((n) => n.rule === "injured-starter");
+      expect(alert).toBeDefined();
+      expect(alert!.message).toContain("is listed as out");
+      expect(alert!.message).not.toMatch(/as of the last verified update/);
+    });
+
+    it("stale injured → still emitted, but explicitly labeled stale", () => {
+      const { drafted } = evaluate(STALE, injured);
+      const alert = drafted.find((n) => n.rule === "injured-starter");
+      expect(alert).toBeDefined();
+      expect(alert!.message).toMatch(/as of the last verified update/);
+      expect(alert!.message).toMatch(/36\.0h old/);
+      expect(alert!.message).toMatch(/Confirm on your platform/);
+    });
+
+    it("missing evidence → an injury the caller found is still surfaced", () => {
+      // Suppressing it would hide a real risk behind a provenance problem.
+      expect(evaluate(MISSING, injured).drafted.some((n) => n.rule === "injured-starter")).toBe(true);
+    });
+
+    it("dedup key is stable across evidence states so staleness does not double-alert", () => {
+      const fresh = evaluate(VERIFIED, injured).drafted.find((n) => n.rule === "injured-starter");
+      const stale = evaluate(STALE, injured).drafted.find((n) => n.rule === "injured-starter");
+      expect(fresh!.dedupKey).toBe(stale!.dedupKey);
     });
   });
 });

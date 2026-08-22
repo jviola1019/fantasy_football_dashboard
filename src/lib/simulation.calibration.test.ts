@@ -86,8 +86,17 @@ describe("season simulation — calibration properties", () => {
 
   it("real weekly projections drive the odds (stronger projections → better odds)", () => {
     const params = { seed: 20260601, iterations: 2500, rosterSlots: ROSTER_SLOTS, riskTolerance: 0.5 };
-    const goodProj = new Map(fixturePlayers.map((p) => [p.id, 18])); // ~18 pts/starter (well above avg)
-    const badProj = new Map(fixturePlayers.map((p) => [p.id, 7])); // ~7 pts/starter (well below avg)
+    // All three scoring variants set to the same value so this test isolates the
+    // projection LEVEL from the format-selection behavior covered by
+    // simulation.scoringUnits.test.ts (audit 2026-08-20 §7).
+    const flat = (pts: number, position: string) => ({
+      ppr: pts,
+      halfPpr: pts,
+      standard: pts,
+      position
+    });
+    const goodProj = new Map(fixturePlayers.map((p) => [p.id, flat(18, p.position)])); // well above avg
+    const badProj = new Map(fixturePlayers.map((p) => [p.id, flat(7, p.position)])); // well below avg
     const good = runNexusSimulation(fixturePlayers, { ...params, weeklyProjections: goodProj }).playoffProbability;
     const bad = runNexusSimulation(fixturePlayers, { ...params, weeklyProjections: badProj }).playoffProbability;
     expect(good).toBeGreaterThan(bad);

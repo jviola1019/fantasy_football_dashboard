@@ -100,7 +100,7 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
 
   // dashboard — a tiled OVERVIEW (progressive disclosure): League Health + League
   // Pulse + Top Insights + Next Best Actions, each linking into the deep routes.
-  const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + d.commandMetrics.reputationEdge * 1.4)));
+  const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + d.commandMetrics.scarcityGap * 1.4)));
   return (
     <>
       <SeasonNotice envelope={envelope} hasPlayers={d.players.length > 0} />

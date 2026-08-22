@@ -9,6 +9,7 @@ import {
 } from "./notifications";
 import type { PlayerMarketRecord } from "../governance";
 import type { ByeSchedule, VerifiedByeSchedule } from "../schedule/byeSchedule";
+import type { InjuryEvidence } from "../leagues/injuryEvidence";
 
 /**
  * Lifecycle reconciliation against REAL Postgres (audit P1 §6, §16).
@@ -75,6 +76,22 @@ function p(id: string, position: PlayerMarketRecord["position"], team: string): 
 }
 
 const STACKED_ROSTER = [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB"), p("qb1", "QB", "BUF")];
+
+/**
+ * Injury-evidence fixtures (audit 2026-08-20 SS9). Resolution of an
+ * `injured-starter` alert requires VERIFIED evidence; stale or missing status
+ * must leave the alert alone.
+ */
+const FRESH_INJURY_EVIDENCE: InjuryEvidence = {
+  state: "verified",
+  fetchedAt: "2026-08-20T11:00:00.000Z",
+  ageSeconds: 3600
+};
+const STALE_INJURY_EVIDENCE: InjuryEvidence = {
+  state: "stale",
+  fetchedAt: "2026-08-19T00:00:00.000Z",
+  ageSeconds: 36 * 3600
+};
 const CLEAN_ROSTER = [p("rb1", "RB", "ATL"), p("rb2", "RB", "DAL"), p("qb1", "QB", "BUF")];
 
 pg("Postgres lifecycle reconciliation", () => {
@@ -170,9 +187,11 @@ pg("Postgres lifecycle reconciliation", () => {
     expect(await statusOf("pg-a", byeKey("PL1"))).toBe("active");
   });
 
-  it("keeps the NOT IN filter correct when several keys are live at once", async () => {
-    // Exercises the bound-array path: three open injury keys, two still true.
-    const injured = [p("i1", "RB", "ATL"), p("i2", "WR", "BUF"), p("i3", "TE", "DAL")];
+  it("does NOT resolve an injury alert when injury evidence is stale (SS9)", async () => {
+    // The audit's core scenario, proved against the real production driver: a
+    // players-snapshot outage makes every player look healthy. Resolving on that
+    // turns an upstream failure into false reassurance.
+    const injured = [p("s1", "RB", "ATL")];
     await reconcileLifecycleNotifications(
       {
         userId: "pg-a",
@@ -182,7 +201,49 @@ pg("Postgres lifecycle reconciliation", () => {
           leagueId: "PL1",
           roster: STACKED_ROSTER,
           byeSchedule: VERIFIED_BYES,
-          injuredStarters: injured
+          injuredStarters: injured,
+          injuryEvidence: FRESH_INJURY_EVIDENCE
+        })
+      },
+      db
+    );
+    expect(await statusOf("pg-a", "injury:PL1:s1")).toBe("active");
+
+    // Now the roster reads healthy, but only because the snapshot is 36h old.
+    const out = await reconcileLifecycleNotifications(
+      {
+        userId: "pg-a",
+        leagueId: "PL1",
+        evaluation: evaluateLifecycleRules({
+          userId: "pg-a",
+          leagueId: "PL1",
+          roster: STACKED_ROSTER,
+          byeSchedule: VERIFIED_BYES,
+          injuredStarters: [],
+          injuryEvidence: STALE_INJURY_EVIDENCE
+        })
+      },
+      db
+    );
+
+    expect(out.resolved).toBe(0);
+    expect(out.skipped).toContain("injured-starter");
+    expect(await statusOf("pg-a", "injury:PL1:s1")).toBe("active");
+  });
+
+  it("DOES resolve once injury evidence is verified again (SS9)", async () => {
+    const injured = [p("v1", "WR", "BUF")];
+    await reconcileLifecycleNotifications(
+      {
+        userId: "pg-a",
+        leagueId: "PL1",
+        evaluation: evaluateLifecycleRules({
+          userId: "pg-a",
+          leagueId: "PL1",
+          roster: STACKED_ROSTER,
+          byeSchedule: VERIFIED_BYES,
+          injuredStarters: injured,
+          injuryEvidence: FRESH_INJURY_EVIDENCE
         })
       },
       db
@@ -197,7 +258,47 @@ pg("Postgres lifecycle reconciliation", () => {
           leagueId: "PL1",
           roster: STACKED_ROSTER,
           byeSchedule: VERIFIED_BYES,
-          injuredStarters: [injured[0]!, injured[2]!]
+          injuredStarters: [],
+          injuryEvidence: FRESH_INJURY_EVIDENCE
+        })
+      },
+      db
+    );
+
+    expect(out.resolved).toBe(1);
+    expect(await statusOf("pg-a", "injury:PL1:v1")).toBe("resolved");
+  });
+
+  it("keeps the NOT IN filter correct when several keys are live at once", async () => {
+    // Exercises the bound-array path: three open injury keys, two still true.
+    const injured = [p("i1", "RB", "ATL"), p("i2", "WR", "BUF"), p("i3", "TE", "DAL")];
+    await reconcileLifecycleNotifications(
+      {
+        userId: "pg-a",
+        leagueId: "PL1",
+        evaluation: evaluateLifecycleRules({
+          userId: "pg-a",
+          leagueId: "PL1",
+          roster: STACKED_ROSTER,
+          byeSchedule: VERIFIED_BYES,
+          injuredStarters: injured,
+          injuryEvidence: FRESH_INJURY_EVIDENCE
+        })
+      },
+      db
+    );
+
+    const out = await reconcileLifecycleNotifications(
+      {
+        userId: "pg-a",
+        leagueId: "PL1",
+        evaluation: evaluateLifecycleRules({
+          userId: "pg-a",
+          leagueId: "PL1",
+          roster: STACKED_ROSTER,
+          byeSchedule: VERIFIED_BYES,
+          injuredStarters: [injured[0]!, injured[2]!],
+          injuryEvidence: FRESH_INJURY_EVIDENCE
         })
       },
       db

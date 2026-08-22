@@ -106,8 +106,33 @@ d("Sleeper live integration — completed league (post-draft)", () => {
     const topDropId = [...drops.entries()].sort((a, b) => b[1] - a[1])[0]![0];
     const riser = trendingMomentumFromProxy({ id: `sleeper:${topAddId}` }, adds, drops, addsMax, dropsMax);
     const faller = trendingMomentumFromProxy({ id: `sleeper:${topDropId}` }, adds, drops, addsMax, dropsMax);
-    expect(riser).toBeGreaterThan(20);
-    expect(faller).toBeLessThan(-20);
+
+    // These used to assert `riser > 20` and `faller < -20`. The second was
+    // ARITHMETICALLY IMPOSSIBLE on some real days, and this test caught it:
+    // `trendingMomentumFromProxy` divides by a SINGLE global denominator
+    // (max of both sides) so the sign stays meaningful, which means the top
+    // dropper's score is capped at -(dropsMax / globalMax) * 100. Measured
+    // 2026-08-22, live: addsMax 54,901 vs dropsMax 10,104, a ratio of 0.184 —
+    // so the most-dropped player in the NFL could not score below -18, and
+    // `< -20` could never pass no matter how healthy the axis was.
+    //
+    // A magnitude threshold here tests the market's daily add/drop ratio, not
+    // RAE. So assert the INVARIANTS instead, which is both scale-free and
+    // stricter: each extreme must reach exactly the floor/ceiling the
+    // normalisation allows. A bug that crushed the axis toward zero — the
+    // "hype reads flat" failure this test exists for — still fails.
+    const globalMax = Math.max(addsMax, dropsMax, 1);
+    expect(riser, "top-added player must reach the normalisation ceiling").toBe(
+      Math.round((adds.get(topAddId)! - (drops.get(topAddId) ?? 0)) / globalMax * 100)
+    );
+    expect(faller, "top-dropped player must reach the normalisation floor").toBe(
+      Math.round(((adds.get(topDropId) ?? 0) - drops.get(topDropId)!) / globalMax * 100)
+    );
+    // Direction, which is the claim the panel actually makes.
+    expect(riser, "the top-added player must read as rising").toBeGreaterThan(0);
+    expect(faller, "the top-dropped player must read as falling").toBeLessThan(0);
+    // And the axis must be genuinely two-sided, not a rounding artifact.
+    expect(riser - faller, "the hype axis must span a usable range").toBeGreaterThan(25);
 
     // Across the trending pool there is genuine two-sided movement.
     const pool = new Set([...adds.keys(), ...drops.keys()]);

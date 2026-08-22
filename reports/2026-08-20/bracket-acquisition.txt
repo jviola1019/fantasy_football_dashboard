@@ -1,0 +1,18 @@
+acquire-mfl-brackets — 150 leagues, 0 already archived
+
+  fetched 20 (archived 20, empty 1)
+  fetched 40 (archived 40, empty 5)
+  fetched 60 (archived 60, empty 9)
+  fetched 80 (archived 80, empty 12)
+  fetched 100 (archived 100, empty 16)
+
+--- summary ---
+leagues archived        : 102
+with observed qualifiers: 86
+empty (no observation)  : 16
+no usable bracket       : 48
+participants == declared: 86 / 86
+bundle                  : reports/2026-08-20/holdout-brackets.json.gz (0.00 MB)
+
+No metric was computed.
+EXIT=0

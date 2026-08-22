@@ -4,7 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    # `[main]` alone meant a STACKED remediation PR (one fix branch based on
+    # another) got no CI at all — it is not targeting main, so nothing ran and
+    # the PR looked clean because it was never checked. Audit 2026-08-20.
+    branches: [main, "fix/**"]
 
 # Least privilege: no job here needs write access to anything (audit F-006).
 permissions:
@@ -32,6 +35,73 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx eslint .
       - run: npx vitest run
+
+  postgres:
+    # Audit 2026-08-20 SS10. Without this job, 31 integration tests covering the
+    # PRODUCTION database driver are silently skipped on every run:
+    #   src/db/postgres.integration.test.ts                13
+    #   src/lib/auth/throttle.pg.integration.test.ts       11
+    #   src/lib/lifecycle/reconcile.pg.integration.test.ts  7
+    # These are not duplicates of the SQLite coverage. The ON CONFLICT upsert,
+    # the quoted camelCase identifiers, the timestamp mapping and the NOT IN
+    # bound-array path all differ between drivers, and the throttle concurrency
+    # tests depend on real transactional semantics that better-sqlite3 cannot
+    # reproduce. A commit-message claim of a manual local run is not a gate.
+    name: postgres integration
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Pinned to a specific minor so a silent upstream bump cannot change
+        # behaviour under us. Recorded in reports/2026-08-20/AUDIT-LEDGER.md
+        # alongside the version this was developed against locally (17.11).
+        image: postgres:17.5-alpine
+        env:
+          POSTGRES_USER: rae
+          POSTGRES_PASSWORD: rae_ci_password
+          POSTGRES_DB: rae_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rae -d rae_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      RAE_PG_TEST_URL: postgres://rae:rae_ci_password@127.0.0.1:5432/rae_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Record the Postgres version actually exercised
+        run: |
+          node -e "
+            const postgres = require('postgres');
+            const sql = postgres(process.env.RAE_PG_TEST_URL, { max: 1 });
+            sql\`select version()\`
+              .then((r) => { console.log(r[0].version); return sql.end(); })
+              .catch((e) => { console.error(e); process.exit(1); });
+          "
+      - name: Run the PostgreSQL integration suites
+        run: npx vitest run src/db/postgres.integration.test.ts src/lib/auth/throttle.pg.integration.test.ts src/lib/lifecycle/reconcile.pg.integration.test.ts --reporter=verbose
+      - name: Fail if the suites were skipped rather than executed
+        # The failure mode this guards: RAE_PG_TEST_URL not reaching the runner
+        # turns every one of these into describe.skip, and the job goes green
+        # having tested nothing. That is the exact condition SS10 exists to end.
+        run: |
+          npx vitest run src/db/postgres.integration.test.ts src/lib/auth/throttle.pg.integration.test.ts src/lib/lifecycle/reconcile.pg.integration.test.ts --reporter=json --outputFile=pg-results.json
+          node -e "
+            const r = require('./pg-results.json');
+            const passed = r.numPassedTests ?? 0;
+            const skipped = (r.numPendingTests ?? 0) + (r.numTodoTests ?? 0);
+            console.log('passed=' + passed + ' skipped=' + skipped);
+            if (skipped > 0) { console.error('PostgreSQL suites were SKIPPED - the service was not reachable.'); process.exit(1); }
+            if (passed < 25) { console.error('Expected at least 25 PostgreSQL tests, saw ' + passed + '.'); process.exit(1); }
+          "
 
   e2e:
     name: playwright + axe
