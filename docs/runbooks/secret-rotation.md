@@ -78,6 +78,23 @@ For each secret, in this order:
    rotation happened; step 4 only proves the new value was accepted. Replay the
    previous token against the same endpoint and require a 401/403.
 
+   `npm run verify:rotation` does exactly this:
+
+   ```bash
+   RAE_VERIFY_BASE_URL=https://<your-app>.vercel.app \
+     OLD_DB_INIT_TOKEN=... OLD_CRON_SECRET=... npm run verify:rotation
+   ```
+
+   It reads secrets from the environment only — never argv, which lands in shell
+   history and process listings — never prints them, and exits non-zero if a
+   previous credential still authenticates. Supplying no `OLD_*` value exits 2
+   rather than passing: an absent check is not evidence.
+
+   The default run only sends credentials the server should reject, so it
+   mutates nothing. `--check-new` additionally confirms a new value is accepted,
+   and covers the cron route only — `init-db` applies DDL, and a production
+   database mutation is a deliberate decision, not a side effect of verifying.
+
 6. **Burn the old value** so it cannot be reintroduced. Append its SHA-256 to
    `BURNED_SECRET_HASHES` in `src/lib/security/docSecrets.ts`; `npm run
    check:secrets` then fails if the plaintext ever reappears in a tracked file.
@@ -101,6 +118,7 @@ because invalidation happens in a secret store the repository has no access to.
 | Tracked files are scanned each run | **YES** — `check:secrets` |
 | Known-burned plaintexts fail if reintroduced | **YES** — `BURNED_SECRET_HASHES` |
 | A live credential was actually revoked | **NO** — requires the secret store |
+| Rotation performed 2026-08-22 | **ATTESTED by the owner, not verified here** — run step 5 to upgrade it |
 
 Do not report a rotation as complete on the strength of a green CI run. The
 evidence for rotation is step 5.

@@ -1,5 +1,12 @@
 // Data-contract freshness evaluation for cron snapshots. Pure + unit-tested; the
 // CLI that loads real snapshots lives in scripts/check-cron-freshness.ts.
+//
+// NOT the same function as `evaluateFreshness` in `src/lib/governance.ts`, which
+// shares this name but answers the UI question — a two-state TTL check for an
+// envelope badge. This one is the CRON CONTRACT: three states, and `expired` is
+// a violation rather than a cosmetic staleness. The signatures are incompatible
+// so the compiler rejects the wrong import; this note saves the reader finding
+// that out by experiment.
 
 export type FreshnessVerdict = "fresh" | "stale" | "expired" | "missing";
 

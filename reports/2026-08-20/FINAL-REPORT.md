@@ -36,8 +36,14 @@ off-season path while the UI announced "Live week-N projections".
 
 Two items are **not closed**:
 
-- **§11 `DB_INIT_TOKEN`** — `BLOCKED` on operator secret-manager access. A
-  runbook is supplied; scanner success was never substituted for proof.
+- **§11 `DB_INIT_TOKEN`** — **ROTATED, operator-attested 2026-08-22.** The owner
+  reports rotating the RAE secrets in Vercel, which closes the operator action
+  this was blocked on. It is recorded as **attested, not verified**: confirming a
+  rotation requires authenticated access to the secret store, which this session
+  never had, and scanner success was never substituted for proof. The one command
+  that would upgrade it — `npm run verify:rotation`, which asserts the PREVIOUS
+  values are now rejected — ships in this branch and is runnable only by the owner,
+  who alone holds the old values.
 - **§19 untouched holdout** — **EXECUTED**, at a smaller sample than targeted.
   160 team-seasons across 13 MyFantasyLeague leagues the model had never seen.
   Both pre-declared success criteria **NOT MET**: AUC 0.5569 [0.4630, 0.6300]

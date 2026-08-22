@@ -1,8 +1,7 @@
 import { EspnClient } from "./client";
-import { EspnLeagueResponseSchema, EspnNewsResponseSchema } from "./schemas";
+import { EspnLeagueResponseSchema } from "./schemas";
 
 const LEAGUE_TTL = 300;
-const NEWS_TTL = 600;
 
 export interface EspnLeagueRef {
   leagueId: string;
@@ -88,11 +87,3 @@ export function getFreeAgents(
   });
 }
 
-export function getNews(client: EspnClient) {
-  return client.fetchJson({
-    url: client.newsUrl(),
-    schema: EspnNewsResponseSchema,
-    source: "ESPN fantasy news",
-    ttlSeconds: NEWS_TTL
-  });
-}

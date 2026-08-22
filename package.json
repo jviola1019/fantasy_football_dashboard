@@ -36,7 +36,8 @@
     "holdout:acquire-brackets": "tsx scripts/acquire-mfl-brackets.ts",
     "holdout:evaluate3": "tsx scripts/holdout-evaluate-3.ts",
     "holdout:acquire-usage": "tsx scripts/acquire-nflverse-usage.ts",
-    "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts"
+    "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts",
+    "verify:rotation": "tsx scripts/verify-rotation.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

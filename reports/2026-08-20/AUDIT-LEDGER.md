@@ -663,3 +663,43 @@ the repository is clean; it cannot prove a live credential was invalidated,
 because that happens in a secret store this session has no authorized access to.
 Fresh 256-bit values were generated and handed to the operator directly and were
 written to no file, no commit, and no report — including this one.
+
+---
+
+# §11 rotation — attested 2026-08-22
+
+The repository owner reports rotating the RAE secrets in Vercel. That closes the
+operator action §11 was blocked on.
+
+**Recorded as attested, not verified.** This session has no authorized access to
+the secret store, so it cannot observe the change and does not claim to. The
+distinction is the point: a green CI run proves the *repository* is clean and
+says nothing about whether a live credential was invalidated.
+
+What would upgrade attested to verified is one command, now shipping in this
+branch as `npm run verify:rotation`:
+
+```bash
+RAE_VERIFY_BASE_URL=https://<your-app>.vercel.app \
+  OLD_DB_INIT_TOKEN=... OLD_CRON_SECRET=... npm run verify:rotation
+```
+
+It replays the **previous** credentials against `POST /api/admin/init-db` and
+`GET /api/cron/lifecycle-check` and requires a 401/403. That is the only direct
+evidence a rotation took effect — confirming the new value works proves only that
+it was accepted, which is a weaker claim than most rotation checklists admit.
+
+Design constraints, because a verification tool that leaks the credential it is
+checking would be worse than no tool:
+
+- secrets are read from the **environment only** — never argv, which lands in
+  shell history and process listings — and are never printed, not even truncated;
+- it **refuses plaintext http**, since sending a retiring credential in the clear
+  would leak the very value being retired;
+- supplying no `OLD_*` value exits **2**, not 0 — an absent check is not a pass;
+- the default run only sends credentials the server should reject, so it mutates
+  nothing. `--check-new` covers the cron route alone; `init-db` applies DDL, and
+  a production database mutation is a deliberate decision rather than a side
+  effect of verifying.
+
+Only the owner can run it, because only the owner holds the previous values.

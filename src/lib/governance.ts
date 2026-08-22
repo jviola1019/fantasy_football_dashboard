@@ -102,6 +102,18 @@ export const RAEEnvelopeSchema = z.object({
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 
+/**
+ * Two-state TTL freshness for the UI envelope: is this value still inside its
+ * TTL, or is it stale/missing?
+ *
+ * NOT the same function as `evaluateFreshness` in `src/lib/ops/freshness.ts`,
+ * which shares this name but answers a different question — the cron data
+ * contract, with a three-state warn/expire verdict. The two are deliberately
+ * separate: a UI badge going stale is cosmetic, while an expired cron snapshot
+ * is a contract violation. Their signatures are incompatible, so the compiler
+ * rejects an import of the wrong one; this note is so a reader does not have to
+ * discover that by trying it.
+ */
 export function evaluateFreshness(fetchedAt: string | null, ttlSeconds: number, now = new Date()): FreshnessState {
   if (!fetchedAt) return "missing";
   const fetched = Date.parse(fetchedAt);

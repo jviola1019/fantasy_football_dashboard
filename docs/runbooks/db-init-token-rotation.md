@@ -1,6 +1,26 @@
 # Operator runbook — verify and rotate `DB_INIT_TOKEN`
 
-**Audit** §11 · **Status** `BLOCKED` on operator action · **Written** 2026-08-20
+**Audit** §11 · **Status** **ROTATED — operator-attested 2026-08-22** · **Written** 2026-08-20
+
+> **Update 2026-08-22.** The repository owner reports rotating the RAE secrets in
+> Vercel. That closes the operator action this runbook was blocked on.
+>
+> This session did **not** independently verify it and does not claim to: verifying
+> a rotation requires authenticated access to the secret store, which remains
+> `BLOCKED` here. The status above is therefore **attested**, not **verified** —
+> a distinction this runbook exists to preserve.
+>
+> The evidence that would upgrade it to verified is one command, runnable by the
+> owner, who is the only party holding the previous values:
+>
+> ```bash
+> RAE_VERIFY_BASE_URL=https://<your-app>.vercel.app \
+>   OLD_DB_INIT_TOKEN=... OLD_CRON_SECRET=... npm run verify:rotation
+> ```
+>
+> It asserts the PREVIOUS values are now rejected (403), which is the only direct
+> proof a rotation took effect. Confirming the new value works proves only that it
+> was accepted.
 
 ## Why this exists
 

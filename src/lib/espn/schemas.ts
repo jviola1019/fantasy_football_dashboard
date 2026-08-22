@@ -127,20 +127,13 @@ export const EspnLeagueResponseSchema = z
   .passthrough();
 export type EspnLeagueResponse = z.infer<typeof EspnLeagueResponseSchema>;
 
-export const EspnNewsItemSchema = z
-  .object({
-    id: z.union([z.string(), z.number()]).nullable().optional(),
-    headline: z.string().nullable().optional(),
-    description: z.string().nullable().optional(),
-    published: z.string().nullable().optional(),
-    type: z.string().nullable().optional(),
-    categories: z.array(z.record(z.string(), z.unknown())).nullable().optional()
-  })
-  .passthrough();
-
-export const EspnNewsResponseSchema = z
-  .object({
-    feed: z.array(EspnNewsItemSchema).nullable().optional(),
-    articles: z.array(EspnNewsItemSchema).nullable().optional()
-  })
-  .passthrough();
+// ESPN news schemas live in ./news.ts, which owns the only news path RAE
+// actually uses (fetchEspnNews, called by /api/cron/news-refresh).
+//
+// A SECOND pair of news schemas used to live here under the SAME exported name,
+// EspnNewsResponseSchema, with a materially looser contract: both `feed` and
+// `articles` were optional, so it validated `{}` as a successful news response
+// while the news.ts version correctly rejects it. Two same-named exports with
+// different strictness meant an import site could not tell which contract it had
+// got. The pair here was reachable only from a dead `getNews`, so both were
+// removed rather than renamed — audit 2026-08-22.
