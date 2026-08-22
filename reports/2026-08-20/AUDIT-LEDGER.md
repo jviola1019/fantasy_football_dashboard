@@ -1,7 +1,7 @@
 # Audit 2026-08-20 — remediation ledger
 
 **Repository** `jviola1019/fantasy_football_dashboard` ·
-**Product** RAE — Reputation Arbitrage Engine
+**Product** RAE — Roster Analytics Engine (renamed 2026-08-22; see below)
 
 | | |
 |---|---|
@@ -148,7 +148,7 @@ database mutation, no destructive external write.
 | 14 | — | Security/auth clean-room + negative tests | `CLOSED-VERIFIED` | all seven categories already covered and passing — see below |
 | 15 | — | Supply chain + Node-20 action runtime | `FIXED` (scan) / `PLANNED` (runtime) | all gates green; migration plan below |
 | 16 | — | Stale test counts | `FIXED` | README count badge replaced with workflow badges; the 442 claim removed |
-| — | — | `/analytics` overflows horizontally at 320px | `OPEN (pre-existing)` | `scrollWidth` 372 vs 320, **identical on the pre-change tree**; culprits are the top bar, tab strip and a data table — none touched by this work |
+| — | — | ~~`/analytics` overflows horizontally at 320px~~ | **FIXED 2026-08-22** | It was never just `/analytics`: **every route** overflowed by the same 52px (`scrollWidth` 372 vs 320). One element explained all of it — the command bar's right-hand cluster at 248px. Fixed by letting the bar wrap below `sm`, hiding nothing. 24 new tests (12 routes × 320/360px) |
 
 ## §14 — negative tests, located and executed (not re-written)
 
@@ -668,8 +668,14 @@ written to no file, no commit, and no report — including this one.
 
 # §11 rotation — attested 2026-08-22
 
-The repository owner reports rotating the RAE secrets in Vercel. That closes the
-operator action §11 was blocked on.
+The repository owner reports rotating **`DB_INIT_TOKEN`** in Vercel. That closes
+the operator action §11 was blocked on.
+
+**Scope, stated precisely.** `DB_INIT_TOKEN` only. `CREDENTIAL_ENCRYPTION_KEY`
+was deliberately **not** rotated — the correct call, since it would have
+destroyed every stored ESPN credential. `AUTH_SECRET` and `CRON_SECRET` are not
+reported as rotated and are treated as unrotated. Writing "the secrets were
+rotated" would have overstated what happened.
 
 **Recorded as attested, not verified.** This session has no authorized access to
 the secret store, so it cannot observe the change and does not claim to. The
@@ -703,3 +709,118 @@ checking would be worse than no tool:
   effect of verifying.
 
 Only the owner can run it, because only the owner holds the previous values.
+
+---
+
+# RESOLVED — the product name asserted the refuted claim
+
+**Raised 2026-08-22, and RESOLVED the same day by the owner choosing option 2.**
+The section below is kept as written, in the present tense it was raised in, so
+the reasoning that led to the decision stays legible. The outcome is recorded
+immediately after it.
+
+Protocol 3 tested the reputation edge on 115 real drafts and found it does not
+identify mispriced players; within position it was inverted. This audit therefore
+removed the arbitrage language from panel copy, replaced the headline with
+"Positional scarcity — not a market edge", and added an e2e guard so the refuted
+phrasing cannot return.
+
+**The product is still called the Reputation Arbitrage Engine**, and that
+tagline renders on every page:
+
+| location | text |
+|---|---|
+| `src/app/layout.tsx:36` | browser title, `RAE — Reputation Arbitrage Engine` |
+| `src/components/shell/TopCommandBar.tsx:33` | sticky header, all app routes |
+| `src/components/shell/RouteSidebar.tsx:51` | sidebar, all app routes |
+| `src/components/Onboarding.tsx:15` | the first thing a new user reads |
+
+So the strongest claim RAE makes about itself is the one its own holdout refuted,
+and it is made in the largest type on the page.
+
+The e2e guard does not catch this. Its banned pattern is
+`(arbitrage play|exploit inefficien|mispriced)` — narrow enough that the product
+name passes. That narrowness was never written down as a decision, which is why
+it is being written down now: the guard protects panel copy and was never
+intended to adjudicate the product's name.
+
+**Why this was not fixed here.** Renaming a product is a branding decision with
+consequences well outside an audit's remit — repository name, deployment, any
+existing users' expectations. Changing it unilaterally would be exactly the kind
+of scope expansion this audit has otherwise refused. It is recorded as an open
+decision for the owner rather than quietly actioned or quietly ignored.
+
+**The options, with the honest trade-off:**
+
+1. **Keep the name, treat it as a proper noun.** Defensible — "RAE" is what the
+   product is called, and the panels no longer make the claim. The cost is that
+   a first-time reader meets the claim on the onboarding screen before ever
+   seeing the disclosure.
+2. **Keep RAE, retire the expansion.** Drop "Reputation Arbitrage Engine" and let
+   the initialism stand alone, or re-expand it to something the evidence
+   supports. Cheapest change that removes the assertion; four call sites.
+3. **Rename outright.** Highest cost, and only worth it if the name is not yet
+   load-bearing anywhere external.
+
+Option 2 is the smallest change that stops the product asserting a refuted
+finding, and it does not touch the repository name or any URL.
+
+---
+
+# RESOLVED 2026-08-22 — the product was renamed, and a dead guard was found doing it
+
+## The rename
+
+**RAE — Reputation Arbitrage Engine → RAE — Roster Analytics Engine.**
+
+Owner decision, taken after the open item above was raised. The initialism is
+unchanged, so no repository name, URL, or deployment target moves; what goes is
+the expansion that asserted a claim protocol 3 refuted.
+
+Changed on the product surface — browser title, sticky header, route sidebar,
+onboarding screen, README, banner SVG, and the `package.json` name (private, so
+the rename is free). Historical audit reports under `reports/audit-2026-06-09/`
+were **left alone**: they are dated records of what the product was called then,
+and editing them would be rewriting history to look better.
+
+## The guard that was never working
+
+Widening the wording guard to cover the bare word revealed that **the guard had
+never worked at all**.
+
+```
+    const banned = /<0x08>(arbitrage play|exploit inefficien|mispriced)/i;
+```
+
+That leading byte is a literal **backspace** (0x08), not the two characters
+`\` and `b`. The regex therefore required a backspace character immediately
+before the word, which no rendered page contains — so `not.toMatch(banned)`
+passed unconditionally. **The test asserted nothing from the moment it was
+written**, in commit `5fe271e`, the very commit whose message was "stop claiming
+arbitrage the product cannot demonstrate."
+
+This is the failure mode the audit exists to catch: a green check that is
+evidence of nothing. It is exactly the same shape as the gitleaks job that
+passed while scanning 29 commits of 299, and it was found the same way — by
+looking at what the check actually did rather than at its result.
+
+**What the repaired guard immediately caught**, which the dead one had let
+through for its entire life: `/analytics` still had a **tab labelled
+"Arbitrage"**. The earlier remediation replaced the KPI labels and the eyebrow
+copy but missed the tab, and nothing failed. It is now `EDGE_LABELS.gapsTab` =
+"Scarcity Gaps", single-sourced with the other honest replacements, and the
+internal `arbitrageCount` is renamed `largeGapCount`.
+
+**Repairs made to the guard itself:**
+
+- the regex is byte-clean, and every tracked `.ts`/`.tsx` file was scanned for
+  stray control bytes (0x07, 0x08, 0x0b, 0x0c) — **zero found elsewhere**;
+- it now asserts **on itself** — `expect("Arbitrage Opps").toMatch(banned)` — so
+  a future dead regex fails loudly instead of passing silently;
+- coverage widened from four routes to seven plus the onboarding screen, which
+  is where the product name was most prominent and which the guard had never
+  visited;
+- disclosure blocks are excluded from the scan, and only those. Their job is to
+  name the refuted claim in order to deny it — "does not identify mispriced
+  players" needs the word to say anything — so banning it there would force the
+  retraction to be vaguer than the claim it retracts.

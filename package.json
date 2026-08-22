@@ -1,5 +1,5 @@
 {
-  "name": "rae-reputation-arbitrage-engine",
+  "name": "rae-roster-analytics-engine",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -37,7 +37,8 @@
     "holdout:evaluate3": "tsx scripts/holdout-evaluate-3.ts",
     "holdout:acquire-usage": "tsx scripts/acquire-nflverse-usage.ts",
     "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts",
-    "verify:rotation": "tsx scripts/verify-rotation.ts"
+    "verify:rotation": "tsx scripts/verify-rotation.ts",
+    "reencrypt:credentials": "tsx scripts/reencrypt-credentials.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

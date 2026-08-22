@@ -33,11 +33,35 @@ affected user must re-enter their `ESPN_S2` / `SWID` cookies.
 operator with access to the old value leaving. Routine hygiene is not a reason to
 destroy stored credentials.
 
-If you must rotate it while preserving stored credentials, the supported order is
-to **re-encrypt first**: with the old key still live, decrypt each stored payload
-and re-seal it under the new key in the same transaction, then swap the env var.
-RAE has no built-in re-encryption command today; writing one is the prerequisite,
-not an optional extra.
+To rotate it while preserving stored credentials, **re-encrypt first**, then
+swap the env var. That order is not a style preference: setting the new key
+before re-encrypting strands every existing row, because the app would try to
+read old ciphertext with a key that cannot decrypt it.
+
+```bash
+# 1. Dry run. Writes nothing; reports what it would do.
+OLD_CREDENTIAL_ENCRYPTION_KEY=... NEW_CREDENTIAL_ENCRYPTION_KEY=...   npm run reencrypt:credentials
+
+# 2. Commit, once the dry run reports every row verified.
+OLD_CREDENTIAL_ENCRYPTION_KEY=... NEW_CREDENTIAL_ENCRYPTION_KEY=...   npm run reencrypt:credentials -- --apply
+
+# 3. ONLY NOW set CREDENTIAL_ENCRYPTION_KEY to the new value, and redeploy.
+```
+
+How it protects the data:
+
+- **dry run by default** — a production database mutation is never the default
+  behaviour of a script you ran to see what it does;
+- **round-trip verified before writing** — each row is re-sealed and then
+  decrypted again with the new key and compared to the original, in memory.
+  Writing first and verifying after is the mistake the script exists to prevent;
+- **all-or-nothing** — every row is prepared and verified before any write. A
+  half-migrated table is the worst outcome: some rows readable under the old key,
+  some under the new, and no single value of the env var that works for both;
+- **no secret is printed** — not the keys, not the plaintext, not a preview.
+
+If any row fails, the run aborts having written nothing. The usual cause is that
+`OLD_CREDENTIAL_ENCRYPTION_KEY` is not the key those rows were sealed with.
 
 ## Rotation procedure
 
@@ -118,7 +142,9 @@ because invalidation happens in a secret store the repository has no access to.
 | Tracked files are scanned each run | **YES** — `check:secrets` |
 | Known-burned plaintexts fail if reintroduced | **YES** — `BURNED_SECRET_HASHES` |
 | A live credential was actually revoked | **NO** — requires the secret store |
-| Rotation performed 2026-08-22 | **ATTESTED by the owner, not verified here** — run step 5 to upgrade it |
+| `DB_INIT_TOKEN` rotated 2026-08-22 | **ATTESTED by the owner, not verified here** — run step 5 to upgrade it |
+| `CREDENTIAL_ENCRYPTION_KEY` | **NOT rotated.** Rotatable now via `npm run reencrypt:credentials`, which must run **before** the env var is swapped |
+| `AUTH_SECRET`, `CRON_SECRET` | **not reported as rotated** — treat as unrotated |
 
 Do not report a rotation as complete on the strength of a green CI run. The
 evidence for rotation is step 5.

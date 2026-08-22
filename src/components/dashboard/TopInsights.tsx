@@ -1,18 +1,18 @@
 "use client";
 
 import type { PlayerMarketRecord } from "@/lib/governance";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
 
 /**
  * Top Insights overview tile — the biggest market mispricings (largest
  * |true − market| gaps) from the market pool, using the canonical
- * `reputationEdge`. The plan's missing overview element; no new data — it reads
+ * `scarcityGap`. The plan's missing overview element; no new data — it reads
  * the same pool/metric the Market Intelligence panel does.
  */
 export function TopInsights({ market }: { market: PlayerMarketRecord[] }) {
   const ranked = [...market]
-    .map((p) => ({ p, e: reputationEdge(p) }))
+    .map((p) => ({ p, e: scarcityGap(p) }))
     .filter((x) => Number.isFinite(x.e))
     .sort((a, b) => Math.abs(b.e) - Math.abs(a.e))
     .slice(0, 6);

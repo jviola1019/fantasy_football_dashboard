@@ -14,7 +14,7 @@ import {
   chaosScore
 } from "./derivedMetrics";
 import { runNexusSimulation } from "./simulation";
-import { reputationEdge, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
+import { scarcityGap, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
 import type { PlayerMarketRecord } from "./governance";
 
 const sim = runNexusSimulation(fixturePlayers, {
@@ -36,10 +36,10 @@ const sim = runNexusSimulation(fixturePlayers, {
  */
 describe("derivedMetrics — statistical properties", () => {
   describe("per-player formulas", () => {
-    it("reputationEdge: determinism + bounded", () => {
+    it("scarcityGap: determinism + bounded", () => {
       for (const p of fixturePlayers) {
-        const a = reputationEdge(p);
-        const b = reputationEdge(p);
+        const a = scarcityGap(p);
+        const b = scarcityGap(p);
         expect(a).toBe(b);
         // Formula: trueValue - perceivedValue + ownLev*0.18 - frag*0.08
         // Inputs are 0..100 (or ±100 for ownership), so bound is wide but finite.
@@ -48,10 +48,10 @@ describe("derivedMetrics — statistical properties", () => {
       }
     });
 
-    it("reputationEdge: monotonic in trueValue (sensitivity)", () => {
+    it("scarcityGap: monotonic in trueValue (sensitivity)", () => {
       const p = fixturePlayers[0]!;
-      const before = reputationEdge(p);
-      const after = reputationEdge({ ...p, trueValue: p.trueValue + 10 });
+      const before = scarcityGap(p);
+      const after = scarcityGap({ ...p, trueValue: p.trueValue + 10 });
       expect(after).toBeGreaterThan(before);
     });
 
@@ -97,13 +97,13 @@ describe("derivedMetrics — statistical properties", () => {
       const base = deriveCommandMetrics(fixturePlayers);
       const up = deriveCommandMetrics(lifted);
       expect(up.leagueAdvantage).toBeGreaterThanOrEqual(base.leagueAdvantage);
-      expect(up.reputationEdge).toBeGreaterThan(base.reputationEdge);
+      expect(up.scarcityGap).toBeGreaterThan(base.scarcityGap);
     });
 
-    it("deriveMarketMetrics: arbitrageCount in [0, n]", () => {
+    it("deriveMarketMetrics: largeGapCount in [0, n]", () => {
       const m = deriveMarketMetrics(fixturePlayers);
-      expect(m.arbitrageCount).toBeGreaterThanOrEqual(0);
-      expect(m.arbitrageCount).toBeLessThanOrEqual(fixturePlayers.length);
+      expect(m.largeGapCount).toBeGreaterThanOrEqual(0);
+      expect(m.largeGapCount).toBeLessThanOrEqual(fixturePlayers.length);
       expect(["Inefficient", "Efficient"]).toContain(m.marketRegime);
     });
 
@@ -216,7 +216,7 @@ describe("derivedMetrics — statistical properties", () => {
       const rows = deriveStartSitEdge(fixturePlayers);
       expect(rows.length).toBeGreaterThan(0);
       for (const r of rows) {
-        // The function ranks by reputationEdge (which can favor a player even
+        // The function ranks by scarcityGap (which can favor a player even
         // when their trueValue is lower than the same-position best), so edge
         // can legitimately be negative. We only assert the value is consistent.
         expect(Number.isFinite(r.value)).toBe(true);

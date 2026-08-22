@@ -162,11 +162,49 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     // The panels previously said "Find edges. Exploit inefficiencies.",
     // "ARBITRAGE PLAYS" and "Arbitrage Opps". Protocol 3 refuted the claim
     // behind all three.
-    const banned = /(arbitrage play|exploit inefficien|mispriced)/i;
-    for (const route of ["/analytics", "/waivers", "/draft", "/players"]) {
+    // GUARD REPAIR 2026-08-22. This regex used to begin with a literal
+    // BACKSPACE byte (0x08) where a word-boundary escape was intended: one
+    // control character instead of the two characters backslash and b. It
+    // therefore required a backspace before the word and could never match, so
+    // this test passed vacuously from the moment it was written, in the very
+    // commit (5fe271e) that claimed to stop the product claiming arbitrage.
+    //
+    // The bare word is now banned as well. It was previously excluded so the
+    // product's own NAME could pass -- RAE was the "Reputation Arbitrage
+    // Engine", so the largest type on every page asserted the exact claim
+    // protocol 3 refuted. Renamed to Roster Analytics Engine on 2026-08-22.
+    const banned = /(arbitrage|exploit inefficien|mispriced)/i;
+    // Prove the guard is LIVE rather than vacuous: it must match a string it
+    // is supposed to catch. A dead regex is what this repair exists to prevent.
+    expect("Arbitrage Opps", "banned pattern must actually match").toMatch(banned);
+    // The ONBOARDING route is checked too, and separately, because it has no
+    // app command bar for gotoRoute to wait on -- and because it is where the
+    // product name was displayed most prominently of all.
+    // The DISCLOSURE blocks are excluded from the scan, and only those. Their
+    // entire job is to name the refuted claim in order to deny it -- "this
+    // score does not identify mispriced players" must keep the word
+    // "mispriced" to say anything at all. Banning the word there would force
+    // the retraction to be vaguer than the claim it retracts.
+    //
+    // Everywhere else the ban is absolute: any assertion of arbitrage,
+    // mispricing or exploitable inefficiency fails.
+    const assertedText = async () =>
+      page.evaluate(() => {
+        const clone = document.body.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll(".model-scenario-banner, .model-scenario-inline").forEach((n) => n.remove());
+        return clone.innerText || clone.textContent || "";
+      });
+
+    await page.goto("/");
+    await expect(page.locator("h1, h2").first()).toBeVisible();
+    expect(
+      await assertedText(),
+      "the onboarding screen must not claim arbitrage"
+    ).not.toMatch(banned);
+
+    for (const route of ["/analytics", "/waivers", "/draft", "/players", "/trades", "/reports"]) {
       await gotoRoute(page, route);
-      const body = await page.locator("body").innerText();
-      expect(body, `${route} must not claim arbitrage`).not.toMatch(banned);
+      expect(await assertedText(), `${route} must not claim arbitrage`).not.toMatch(banned);
     }
   });
 

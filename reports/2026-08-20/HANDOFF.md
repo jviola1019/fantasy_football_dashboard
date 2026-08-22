@@ -1,211 +1,165 @@
-# Handoff — audit 2026-08-20 remediation
+# HANDOFF — audit 2026-08-20 remediation
 
-Resume point for the next session. Written to be actionable without re-reading
-the whole conversation.
+**Updated** 2026-08-22 · **Branch** `fix/2026-08-20-audit-remediation` · **PR**
+[#26](https://github.com/jviola1019/fantasy_football_dashboard/pull/26) (draft)
 
-## Context-reset packet
+> This file was rewritten on 2026-08-22 because it had gone stale in a way that
+> would have misled a resuming session: it still described protocol 2 as "frozen,
+> awaiting its execution trigger" when protocols 2, 3 **and** 4 had all been
+> executed and reported. A handoff that is confidently wrong is worse than none.
 
-**Objective.** Remediate the 2026-08-18 forensic audit of
-`fix/2026-08-06-forensic-remediation` @ `69634d33a1347486a1d61eec33bde4a10cad4a2d`,
-on a new branch, without weakening any gate.
+## Objective
 
-**Branch state**
+Execute the 23-section forensic remediation brief against
+`69634d33a1347486a1d61eec33bde4a10cad4a2d` without modifying `main`, without
+weakening any gate, and without claiming completion where evidence is absent.
 
-| | |
-|---|---|
-| audited source SHA | `69634d33a1347486a1d61eec33bde4a10cad4a2d` — **verified unmoved** at start and at end |
-| base / merge-base | `main` / `efb124bd7f5bf867f3fb29040d5cb1d680a6f7b3` |
-| working branch | `fix/2026-08-20-audit-remediation` |
-| draft PR | **#26** → `fix/2026-08-06-forensic-remediation` (stacked, so its diff is only this work) |
-| umbrella PR | **#21** → `main`, still **draft**, body updated |
+## State: done
 
-**Done (all gates green, all committed).**
+- **§1–§8** identity, branch, capability inventory — all determined by execution.
+- **§9–§10** five P1 findings fixed, including one in **no brief**: the live
+  weekly-projection path had never matched a single player (key-namespace
+  mismatch), so every simulation silently used the off-season path while the UI
+  announced "Live week-N projections".
+- **§11** `DB_INIT_TOKEN` — **ROTATED, operator-attested 2026-08-22**. That
+  secret **only**; see below for what was deliberately not rotated.
+- **Product renamed** 2026-08-22: *Reputation Arbitrage Engine* → **Roster
+  Analytics Engine**, after protocol 3 refuted the claim the old name made. The
+  initialism is unchanged, so no repo/URL/deploy target moved.
+- **A wording guard was found dead** and repaired — see below. It had never
+  matched anything since the commit that introduced it.
+- **§12** sensitivity 48 → 96 league shapes.
+- **§13** epistemic classification + licensing/retention.
+- **§14** verified by executing the existing negative tests, not rewriting them.
+- **§15** scan gates green; Node-20 action-runtime migration **planned, not
+  executed** — deliberately. See below.
+- **§16** README de-brittled; PR #21 metadata corrected.
+- **§19** untouched holdout — **EXECUTED, four times, under four separately
+  frozen protocols.** See below.
+- **§22** clean-room re-verification of the final tree.
+- CI trigger widened so stacked `fix/**` PRs are actually verified. The first
+  real CodeQL run afterwards failed the PR with 7 alerts (3 high) in this audit's
+  own new scripts — all genuine, all fixed rather than suppressed.
+- Full-history secret scanning added after the existing gitleaks job was found
+  passing while scanning 29 commits of 299.
 
-- §7 + §7b scoring-unit consistency and the dead live-projection path
-- §8 injury/status composite provenance
-- §9 injury-evidence gate on negative reconciliation
-- §3 Strategy B model presentation
-- §10 PostgreSQL in CI, with a skip-detector
-- §5 pseudo-replication measured; §6 curve assumptions documented
-- §12 sensitivity 48 → 96 league shapes
-- §13 epistemic classification + licensing/retention
-- §14 verified by executing the existing negative tests
-- §15 scan gates green; Node-20 runtime migration **planned**
-- §16 README de-brittled; PR #21 metadata corrected
-- CI trigger widened so stacked `fix/**` PRs are actually verified
+## The four holdout protocols
 
-**Not done.**
+Each was frozen and committed **before** any metric was computed. Index:
+[`README.md`](./README.md).
 
-1. **§11 `DB_INIT_TOKEN` — `BLOCKED`.** Needs operator secret-manager access.
-2. **§19 holdout — `EXECUTED`.** Ran once on 13 clusters / 160 team-seasons.
-   Both pre-declared criteria NOT MET. It also refuted the development-set
-   "significantly inverted" finding, which forced a correction to the
-   user-facing disclosure. See `holdout-result.md`. Optional future work:
-   acquire more MFL leagues and evaluate under a **separately frozen** protocol,
-   reported alongside — never instead of — this one.
+| # | question | verdict |
+|---|---|---|
+| 1 | does the shipped season model hold out of sample? | **FAILED** both criteria |
+| 2 | does it hold on a larger external holdout? | **FAILED**; refuted our own "inverted" claim |
+| 3 | does the reputation edge find mispriced players? | **FAILED**; within position, inverted |
+| 4 | does in-season opportunity add over production? | **PASSED**, all three Holm-corrected |
 
-## Open item 1 — §11, credential invalidation
+**Protocol 4 is the only pass**, and four limits travel with it: the out-of-fold
+gain is **+0.0137** (0.7342 → 0.7479), `p < 0.0002` is the bootstrap floor rather
+than a tiny number, part of the effect is mechanical because a PPR reception is
+itself a point, and the scope is **in-season only**. Protocols 1–3 tested the
+pre-season regime and it failed; both results stand because they concern
+different regimes.
 
-`BLOCKED` on human action, not on work. Everything needed is in
-[`docs/runbooks/db-init-token-rotation.md`](../../docs/runbooks/db-init-token-rotation.md).
+**No weight was changed on protocol 4's evidence.** §8 of that protocol forbids
+tuning a weight on the data and forbids shipping on a diagnostic alone, so the D1
+regression coefficients were deliberately not read into the waiver formula.
 
-The decisive step is Step 4: POST the **old** token at `/api/admin/init-db` on a
-preview deployment and require `401`/`403`. Anything else — including gitleaks
-passing — is not proof the credential is dead.
+## Open items
 
-A replacement token was generated at the operator's request and handed over
-in-session only. It is in **no file and no commit**. The runbook recommends
-generating a fresh one locally so it never touches a transcript.
+### 1. §11 — `DB_INIT_TOKEN` rotation is ATTESTED, not VERIFIED
 
-## Item 2 — §19, the holdout: DONE, with an optional extension
+The owner reports rotating **`DB_INIT_TOKEN`** in Vercel on 2026-08-22. That
+closes the operator action.
 
-**Executed once on 2026-08-21.** Full result and interpretation:
-[`holdout-result.md`](./holdout-result.md).
+**Scope, precisely:** that secret only. `CREDENTIAL_ENCRYPTION_KEY` was
+deliberately **not** rotated, which is correct. `AUTH_SECRET` and `CRON_SECRET`
+are not reported as rotated and should be treated as unrotated.
 
-- Sample: **160 team-seasons, 13 MyFantasyLeague clusters**, seasons 2021/2023,
-  league sizes 10/12/14/16, playoff fields 4/6/8.
-- Both pre-declared criteria **NOT MET**: AUC 0.5569 [0.4630, 0.6300]; Brier
-  skill -0.1738 [-0.2550, -0.0910].
-- **Nothing was tuned on it.** The criterion was declared in advance and the
-  failure is reported as a failure.
-- It **refuted** the development-set "significantly inverted" finding
-  (AUC 0.2546 there, 0.5569 here), which forced a correction to the user-facing
-  disclosure on every surface. `scenarioBand.test.ts` now prevents the refuted
-  phrasing returning.
-- The 21-league sample is committed as `holdout-data.jsonl.gz` (0.22 MB), so
-  `npm run holdout:evaluate` reproduces it from a clean checkout with no network.
+It is recorded as **attested**, because this session has no authorized access to
+the secret store and cannot observe the change. The distinction is deliberate: a
+green CI run proves the *repository* is clean and says nothing about whether a
+live credential was invalidated.
 
-### Protocol 2 — FROZEN, awaiting its execution trigger
-
-A second, larger evaluation is **already designed, frozen and built**, because
-protocol 1's null could not distinguish "no signal" from "underpowered".
-
-| | |
-|---|---|
-| protocol | [`holdout-protocol-2.md`](./holdout-protocol-2.md), frozen `77fb562` |
-| harness | `scripts/holdout-evaluate-2.ts` (`npm run holdout:evaluate2`) |
-| trigger | **>= 150 leagues**, or acquisition terminating (`--force`) |
-| status | acquisition in progress; harness refuses to run early |
-
-Confirmatory family, **Holm-Bonferroni corrected together — all three required**:
-
-- **H1** AUC > 0.5 (cluster permutation)
-- **H2** Brier skill vs structural climatology > 0 (cluster bootstrap)
-- **H3** resolution − reliability > 0 — Murphy's "useful forecast" criterion,
-  which separates *badly scaled* from *uninformative*; H1 and H2 can both fail
-  for a forecast that is merely miscalibrated
-
-Diagnostics that report but **cannot adjudicate**: Murphy decomposition;
-**leave-one-league-out isotonic recalibration** (the decisive one — if
-recalibrating rescues skill, the model had signal that miscalibration was
-hiding); minimum detectable AUC at 80% power (the number protocol 1 lacked);
-stratification by league size.
-
-**Execution sequence — in this order, and the order matters:**
-
-1. Wait for the trigger (>= 150 leagues, or acquisition ending).
-2. `npm run holdout:validate-labels` — validates the OUTCOME LABEL against real
-   playoff brackets, closing the vacuous self-check in protocol 1 §6. Run this
-   **before** scoring: if the label is wrong, every metric in both protocols is
-   wrong, and that has to be known first. Run it **after** acquisition, not
-   during — both hit the same MFL rate limit.
-3. `npx tsx scripts/holdout-evaluate-2.ts --self-test` then `--dry-run`.
-4. `npm run holdout:evaluate2` — the single permitted run.
-
-Run it with:
+**To upgrade attested → verified**, the owner runs (only they hold the old
+values):
 
 ```bash
-npx tsx scripts/holdout-evaluate-2.ts --self-test   # arithmetic, no verdict
-npx tsx scripts/holdout-evaluate-2.ts --dry-run     # sample shape, no metrics
-npm run holdout:evaluate2                            # THE single permitted run
+RAE_VERIFY_BASE_URL=https://<your-app>.vercel.app \
+  OLD_DB_INIT_TOKEN=... OLD_CRON_SECRET=... npm run verify:rotation
 ```
 
-**Protocol 2's sample CONTAINS protocol 1's leagues** — acquisition resumed from
-the same frozen frame. It is therefore not an independent replication, must be
-reported alongside protocol 1 rather than instead of it, and if it succeeds where
-protocol 1 failed the honest reading is *underpowered*, not *the earlier result
-was wrong*. It is the **last permitted run on this sample**.
+It requires a 401/403 from the **previous** credentials. Confirming the new value
+works proves only that it was accepted, which is the weaker claim.
 
-### Continuing acquisition — and the rule that governs it
+`CREDENTIAL_ENCRYPTION_KEY` remains **correctly unrotated**.
+`src/lib/crypto.ts` uses a single unversioned AES-256-GCM key with no key id and
+no dual-read path, so rotating it would make every stored ESPN credential
+permanently undecryptable. Writing a re-encryption command is the prerequisite
+for ever rotating it. See
+[`docs/runbooks/secret-rotation.md`](../../docs/runbooks/secret-rotation.md).
 
-Acquisition stopped at 21 archived because MFL rate-limits hard (~20
-leagues/hour after correcting a self-inflicted three-process storm). More data
-would narrow the intervals.
+### 2. §15 — Node-20 action runtime migration
 
-If you pursue it:
+**Planned, deliberately not executed.** Every action in use is already on a
+Node-20-compatible major (`checkout@v4`, `setup-node@v4`, `upload-artifact@v4`),
+so nothing is broken. The plan is one PR per action, `checkout` first and
+`codeql` last, each merged only on a green run — batching makes a failure
+ambiguous. Doing it inside a P1 remediation would confound the two changes.
 
-```bash
-# 1. Confirm the limit is clear (expect 200)
-curl -sL -o /dev/null -w "%{http_code}
-" -A "RAE-audit/1.0"   "https://api.myfantasyleague.com/2021/export?TYPE=league&L=10100&JSON=1"
+### 3. Expiring exception
 
-# 2. Confirm nothing is already running (must print 0)
-powershell -c "@(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { \$_.CommandLine -like '*acquire-mfl*' }).Count"
+`GHSA-9wv6-86v2-598j` (`path-to-regexp`, development-only) lapses **2026-11-11**.
+`npm run check:exceptions` fails the build once it does, which is the intended
+forcing function.
 
-# 3. ONE process. Resumable; skips what is archived.
-npm run holdout:acquire -- --target 120
+### 4. A dead guard was found — check the others the same way
 
-# 4. Rebuild the committed artifact
-npx tsx scripts/acquire-mfl-holdout.ts --bundle-only
+`e2e/20-model-failure-disclosure.spec.ts` contained
+`/<0x08>(arbitrage play|...)/i` — a literal **backspace byte** where a
+word-boundary escape was intended. The regex could never match, so the test
+passed unconditionally from the commit that introduced it (`5fe271e`), whose
+message was "stop claiming arbitrage the product cannot demonstrate."
 
-# 5. Verify parsing and arithmetic WITHOUT computing the answer
-npx tsx scripts/holdout-evaluate.ts --parse-only
-npx tsx scripts/holdout-evaluate.ts --self-test
-```
+Repaired, and it now asserts on itself so a future dead regex fails loudly. All
+tracked `.ts`/`.tsx` files were scanned for stray control bytes: **zero found
+elsewhere**. The repaired guard immediately caught a real miss — an
+`/analytics` tab still labelled "Arbitrage".
 
-**Then stop and freeze a NEW protocol before evaluating.** The archived sample
-overlaps this one, so a larger run is *not* an independent replication. Its
-result must be reported **alongside** this one, never instead of it, and the
-success criterion must be fixed before the numbers are seen.
+**Lesson for a successor:** a passing wording guard proves nothing until you have
+seen it fail. Prefer guards that assert on themselves.
 
-### Rules that still hold
+### 5. Known cosmetic issue
 
-- **Do not tune anything on holdout data.** No cushion, anchor, slope,
-  coefficient or curve setting.
-- **The five Sleeper leagues are development data forever.**
-- **Do not add PAR to this protocol.** It needs a runtime points curve, and
-  fitting one on MFL introduces unfrozen choices. `playerScores` is archived so a
-  separately frozen PAR protocol can use it.
-- **A failure is a publishable result.** This one is.
+~~`/analytics` overflows horizontally at 320px.~~ **FIXED 2026-08-22.**
 
-## Ledgers
+Writing a test for it showed the recorded description was wrong: **every route**
+overflowed by the same 52px, not just `/analytics`. It had survived because the
+only overflow test covered one route (`/dashboard`) and stopped at 390px.
 
-- Findings + capability inventory + command results:
-  [`AUDIT-LEDGER.md`](./AUDIT-LEDGER.md)
-- Model decision + usability tradeoff:
-  [`docs/model-presentation-decision.md`](../../docs/model-presentation-decision.md)
-- Dependence analysis:
-  [`par-dependence-analysis.md`](./par-dependence-analysis.md)
-- Curve assumptions:
-  [`docs/points-curve-assumptions.md`](../../docs/points-curve-assumptions.md)
+One element caused all of it — the command bar's right-hand cluster (league
+switcher + Mock draft/Sign in + mode badge) is 248px wide, which does not fit
+beside the sidebar trigger and logo at 320px. The bar now wraps below `sm`.
+Nothing is hidden: hiding the live/fixture badge would have violated the
+governance rules. `e2e/23` covers 12 routes at 320px and 360px.
 
-## Known-open, deliberately not fixed here
+## Next candidate work
 
-- **`/analytics` horizontal overflow at 320px** (`scrollWidth` 372 vs 320).
-  Measured **identical** on the pre-change tree, so it is pre-existing. Culprits
-  are the top command bar's right cluster, the panel tab strip, and a data table.
-- **Node-20 action runtime.** One PR per action, `checkout` first, `codeql` last,
-  never batched — a batched bump makes a failure ambiguous.
-- **`GHSA-9wv6-86v2-598j`** (`path-to-regexp`, dev-only) expires **2026-11-11**.
-  `npm run check:exceptions` fails the build when it lapses, which is the
-  intended forcing function.
-- **Isotonic curve, leading-gap defect.** If positional rank 1 were ever absent,
-  it would inherit `lastMean = 0` and put a spurious zero at the top of the
-  curve. Has not occurred (rank 1 is always drafted); recorded rather than
-  assumed away.
+**Protocol 5**: set the opportunity weight properly. Protocol 4 established that
+opportunity belongs in the model but explicitly forbade deriving a weight from
+that data. A weight needs its own pre-registered protocol with its own held-out
+split, carrying the same guards: cluster on the repeated unit, standardise within
+position, use a permutation null, and require the whole pre-registered family
+under Holm correction.
 
-## Local environment notes
+## Standing constraints
 
-- Isolated PostgreSQL **17.11** cluster at `127.0.0.1:55432`, data dir
-  `C:\tmp\rae-pgtest`, db `rae_test`, role `raetest`. Created for this audit;
-  entirely separate from the operator's service on 5432, which is password-gated
-  and was never touched. Start it with
-  `pg_ctl -D C:\tmp\rae-pgtest\data start` if the machine has rebooted.
-  Tests need `RAE_PG_TEST_URL=postgres://raetest:raetestpw@127.0.0.1:55432/rae_test`.
-- Node 25.8.2 / npm 11.11.1 locally; CI is Node 20.
-
-## Nothing was authorized and taken
-
-No merge, no deployment, no credential rotation, no history rewrite, no
-production database mutation, no destructive external write. Both PRs remain
-**draft**.
+- Never modify `main`; never force-push; never rewrite history.
+- Human approval required before: production deployment, merge, credential
+  rotation, production database mutation, deleting data, destructive external
+  writes.
+- **Never merge automatically.** PR stays **draft** while any P1 is unresolved.
+- Never weaken a test, security check, accessibility gate, type rule, model
+  warning, or provenance disclosure to obtain green CI.
+- Return `BLOCKED` rather than claiming completion.

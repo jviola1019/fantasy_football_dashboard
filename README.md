@@ -1,12 +1,20 @@
 <p align="center">
-  <img src=".github/assets/rae-banner.svg" alt="RAE — Reputation Arbitrage Engine" width="100%">
+  <img src=".github/assets/rae-banner.svg" alt="RAE — Roster Analytics Engine" width="100%">
 </p>
 
-<h1 align="center">RAE — Reputation Arbitrage Engine</h1>
+<h1 align="center">RAE — Roster Analytics Engine</h1>
 
 <p align="center">
   <b>Quant fantasy-football intelligence.</b><br>
   Honest data, no fabrication — every number is derived from a real source or an explicitly-labeled demo fixture.
+</p>
+
+<p align="center">
+  <sub><b>Renamed 2026-08-22.</b> RAE was the <i>Reputation Arbitrage Engine</i>.
+  A frozen out-of-sample test on 115 real drafts found the reputation edge does
+  not identify mispriced players — within a position it was inverted — so the
+  product no longer claims an arbitrage it cannot demonstrate.
+  Evidence: <a href="reports/2026-08-20/holdout-result-3.md">holdout-result-3.md</a>.</sub>
 </p>
 
 <p align="center">
@@ -151,6 +159,28 @@ npm run calibrate:season         # synthetic self-consistency check
 npm run backtest:sleeper         # season-sim backtest on real weekly scores
 ```
 
+### Frozen holdout protocols
+
+Four protocols were each **frozen and committed before any metric was computed**,
+then executed once. Index and verdicts:
+[`reports/2026-08-20/README.md`](reports/2026-08-20/README.md).
+
+```bash
+npm run holdout:evaluate         # protocol 1 — shipped season model
+npm run holdout:evaluate2        # protocol 2 — larger external holdout
+npm run holdout:evaluate3        # protocol 3 — the reputation edge
+npm run holdout:acquire-usage    # protocol 4 — fetch/archive nflverse usage data
+npm run holdout:evaluate4        # protocol 4 — does opportunity add over production?
+npm run holdout:evaluate4 -- --self-test   # arithmetic only; never touches the data
+```
+
+Each reproduces from a committed archive with no network. **Protocol 4 is the only
+one that passed** — in-season opportunity adds beyond points scored to date
+(partial ρ 0.2289, holding within position, 452 players). Its out-of-fold gain is
+**+0.0137** and its scope is **in-season only**; see
+[`holdout-result-4.md`](reports/2026-08-20/holdout-result-4.md) before relying on
+it.
+
 **Read [`reports/2026-08-06/backtest-valuation.md`](reports/2026-08-06/backtest-valuation.md)
 before trusting any probability this app displays.** The shipped valuation chain
 fails out-of-sample: Brier 0.3098 against a 0.2400 climatology baseline, AUC
@@ -160,10 +190,17 @@ the league base rate. The simulation declares this in its own assumptions.
 ### Operations
 
 ```bash
-npm run smoke           # smoke-check a Vercel deployment
-npm run check:freshness # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
-npm run deploy          # currently aliases `next build` — see below
+npm run smoke            # smoke-check a Vercel deployment
+npm run check:freshness  # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
+npm run verify:rotation  # prove a rotated secret's PREVIOUS value is now rejected
+npm run deploy           # currently aliases `next build` — see below
 ```
+
+`verify:rotation` reads secrets from the environment only, never prints them, and
+refuses plaintext http. It asserts the **old** credential returns 401/403, which
+is the only direct evidence a rotation took effect — confirming the new value
+works proves only that it was accepted. Full procedure:
+[`docs/runbooks/secret-rotation.md`](docs/runbooks/secret-rotation.md).
 
 `npm run deploy` currently aliases build validation. Wire it to Vercel, Docker, or another deployment target once production infrastructure is selected.
 

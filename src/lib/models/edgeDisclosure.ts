@@ -1,7 +1,7 @@
 /**
  * Disclosure for the reputation edge, after protocol 3 measured it.
  *
- * Audit 2026-08-21 §19/protocol 3. `reputationEdge` is the quantity this product
+ * Audit 2026-08-21 §19/protocol 3. `scarcityGap` is the quantity this product
  * is named for, and until protocol 3 nothing had ever tested it. Tested on 115
  * MyFantasyLeague drafts — 21,714 player-season-league rows, 1,211 distinct
  * player-seasons, all inference clustered on player-season:
@@ -64,5 +64,22 @@ export const EDGE_LABELS = {
   gapCountLabel: "Large Gaps",
   gapCountSub: "Scarcity gaps, not proven bargains",
   /** was: "Edge" */
-  column: "Scarcity gap"
+  column: "Scarcity gap",
+  /**
+   * was: "Arbitrage" — a TAB on /analytics, and the last user-visible place the
+   * refuted claim survived. It was missed when the other labels were replaced
+   * because the wording guard that should have caught it was itself broken
+   * (a literal backspace byte in its regex made it match nothing). Repairing
+   * that guard surfaced this immediately.
+   */
+  gapsTab: "Scarcity Gaps",
+  /**
+   * was: "Reputation Edge" / "Reputation Edges" — a KPI label, a panel title, an
+   * onboarding bullet and a tooltip. The 2026-08-21 pass replaced the COLUMN
+   * header but left these, so the product went on naming the quantity after the
+   * mechanism protocol 3 refuted. Renamed with the product on 2026-08-22.
+   */
+  metricName: "Scarcity gap",
+  metricNameTitle: "Scarcity Gap",
+  panelTitle: "Scarcity Gaps"
 } as const;

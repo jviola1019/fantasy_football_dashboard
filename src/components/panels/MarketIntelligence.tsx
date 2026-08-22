@@ -11,7 +11,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import type { SimulationResult } from "@/lib/simulation";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
-import { reputationEdge, confidenceInterval } from "@/lib/models";
+import { scarcityGap, confidenceInterval } from "@/lib/models";
 import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
 import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
@@ -26,7 +26,7 @@ type Props = {
   envelope?: RAEEnvelope;
 };
 
-const TABS = ["Market Pulse", "Liquidity Flow", "Sentiment", "Arbitrage", "Trends", "Price Discovery"] as const;
+const TABS = ["Market Pulse", "Liquidity Flow", "Sentiment", EDGE_LABELS.gapsTab, "Trends", "Price Discovery"] as const;
 
 export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Market Pulse");
@@ -76,10 +76,10 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
             </div>
           </>
         )}
-        {activeTab === "Arbitrage" && (
+        {activeTab === EDGE_LABELS.gapsTab && (
           <TopInefficiencies
             label={EDGE_LABELS.largeGaps}
-            players={marketMetrics.topInefficiencies.filter((p) => Math.abs(reputationEdge(p)) >= 8)}
+            players={marketMetrics.topInefficiencies.filter((p) => Math.abs(scarcityGap(p)) >= 8)}
           />
         )}
         {activeTab === "Liquidity Flow" && (
@@ -124,7 +124,7 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
     // (0-100-ish), not percentages — show the raw index, no "%".
     { label: "Market Inefficiency", value: fmt(metrics.inefficiencyPct, 1), sub: "Avg market mispricing index", color: "neu" },
     { label: "Liquidity Score", value: `${fmt(liq, 1)}/10`, sub: liq >= 6.5 ? "High" : liq >= 3.5 ? "Moderate" : "Low", color: liq >= 6.5 ? "pos" : "neu" },
-    { label: EDGE_LABELS.gapCountLabel, value: String(metrics.arbitrageCount), sub: EDGE_LABELS.gapCountSub, color: "neu" },
+    { label: EDGE_LABELS.gapCountLabel, value: String(metrics.largeGapCount), sub: EDGE_LABELS.gapCountSub, color: "neu" },
     { label: "Aggregate Value", value: valueIndex, sub: "Roster value index (ECR)", color: "neu" },
     { label: "Volatility Index", value: fmt(metrics.priceDiscoveryPct, 1), sub: "Avg week-to-week variance", color: "neu" },
     { label: "Market Regime", value: regimeKnown ? metrics.marketRegime : "—", sub: !regimeKnown ? "No market data" : metrics.marketRegime === "Inefficient" ? "Favorable for exploitation" : "Efficiently priced", color: !regimeKnown ? "neu" : metrics.marketRegime === "Inefficient" ? "neg" : "pos" },
@@ -171,7 +171,7 @@ function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players:
             </tr>
           ) : (
             players.map((p) => {
-              const edge = reputationEdge(p);
+              const edge = scarcityGap(p);
               const ci = confidenceInterval(p.trueValue, p.confidence);
               return (
                 <tr key={p.id}>
@@ -229,7 +229,7 @@ type BoardSort = "value" | "usage" | "edge";
 function ValueUsageBoard({ players }: { players: PlayerMarketRecord[] }) {
   // Replaces the old clustered position-grid. A clean, sortable leaderboard:
   // every row carries the player's TRUE value (ECR-derived) bar, a USAGE bar
-  // (nflverse snap share, when cached), and the reputation EDGE — so you can
+  // (nflverse snap share, when cached), and the scarcity GAP — so you can
   // rank by what matters and read value/usage/mispricing at a glance instead of
   // squinting at a wall of tinted squares. All three signals are real; usage
   // bars simply don't render when the snap-share source isn't integrated.
@@ -242,7 +242,7 @@ function ValueUsageBoard({ players }: { players: PlayerMarketRecord[] }) {
       p,
       value: Math.max(0, Math.min(100, p.trueValue)),
       usage: Math.max(0, Math.min(100, p.opportunity)),
-      edge: reputationEdge(p)
+      edge: scarcityGap(p)
     }));
     scored.sort((a, b) =>
       key === "edge" ? b.edge - a.edge : key === "usage" ? b.usage - a.usage : b.value - a.value
@@ -311,7 +311,7 @@ function ValueUsageBoard({ players }: { players: PlayerMarketRecord[] }) {
         ))}
       </ol>
       <p className="small-note">
-        True value (ECR-derived) with a snap-share usage bar when available, and reputation edge (true − market, adjusted).
+        True value (ECR-derived) with a snap-share usage bar when available, and the scarcity gap (true − market, adjusted).
         {anyUsage ? "" : " Usage bars appear once nflverse snap data is cached."}
       </p>
     </div>

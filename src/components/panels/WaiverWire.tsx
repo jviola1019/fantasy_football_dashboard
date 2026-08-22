@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
 import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { OpportunityEvidenceNotice } from "@/components/model/OpportunityEvidenceNotice";
@@ -24,7 +24,7 @@ interface RankedFreeAgent {
 }
 
 export function WaiverWire({ players, envelope }: Props) {
-  // The Edge column derives from reputationEdge() which mixes trueValue +
+  // The Edge column derives from scarcityGap() which mixes trueValue +
   // perceivedValue + ownershipLeverage * 0.18 - fragility * 0.08. The
   // fragility term is zero pre-injury-adapter (always), so the Edge value
   // is meaningful only when opportunity is also populated (which it isn't
@@ -163,7 +163,7 @@ function rankFreeAgents(
 
   return [...players]
     .map((player) => {
-      const edge = reputationEdge(player);
+      const edge = scarcityGap(player);
       // Importance is driven by the player's own VALUE (the best available
       // player is the most important pickup); undervaluation (edge) and
       // in-season opportunity add to it only when those signals are real; a thin

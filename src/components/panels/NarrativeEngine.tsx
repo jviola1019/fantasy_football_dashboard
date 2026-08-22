@@ -2,7 +2,7 @@
 
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
 
 type Props = {
@@ -21,7 +21,7 @@ interface NarrRow {
  * Narrative Engine, rebuilt as a single focused, actionable view: HYPE vs.
  * VALUE. Every player is scored by the gap between how the market is trending on
  * them (hype = trendingMomentum) and what they're actually worth (edge =
- * reputationEdge, true − market). Two boards fall out of that one number:
+ * scarcityGap, true − market). Two boards fall out of that one number:
  *   - SELL-HIGH: hype running ahead of value → sell into the story.
  *   - BUY-LOW:   value the market is sleeping on → buy the dip.
  *
@@ -44,7 +44,7 @@ export function NarrativeEngine({ players, envelope }: Props) {
 
   const ranked: NarrRow[] = players.map((p) => {
     const hype = withHype ? Math.round(p.trendingMomentum) : 0;
-    const edge = reputationEdge(p);
+    const edge = scarcityGap(p);
     return { p, hype, edge, gap: hype - edge };
   });
 

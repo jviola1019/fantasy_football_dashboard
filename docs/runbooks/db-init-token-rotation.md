@@ -2,8 +2,14 @@
 
 **Audit** §11 · **Status** **ROTATED — operator-attested 2026-08-22** · **Written** 2026-08-20
 
-> **Update 2026-08-22.** The repository owner reports rotating the RAE secrets in
-> Vercel. That closes the operator action this runbook was blocked on.
+> **Update 2026-08-22.** The repository owner reports rotating **`DB_INIT_TOKEN`**
+> in Vercel. That closes the operator action this runbook was blocked on.
+>
+> Scope, stated precisely because "the secrets were rotated" would overstate it:
+> `DB_INIT_TOKEN` **only**. `CREDENTIAL_ENCRYPTION_KEY` was deliberately **NOT**
+> rotated, which is the correct call — it would have destroyed every stored ESPN
+> credential. `AUTH_SECRET` and `CRON_SECRET` are not reported as rotated and
+> should be treated as unrotated.
 >
 > This session did **not** independently verify it and does not claim to: verifying
 > a rotation requires authenticated access to the secret store, which remains

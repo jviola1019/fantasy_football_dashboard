@@ -1,6 +1,6 @@
 import type { PlayerMarketRecord } from "../governance";
 import type { LeagueFormat } from "../trade/format";
-import { reputationEdge } from "../models";
+import { scarcityGap } from "../models";
 import { tiersByPosition } from "./tiers";
 import { targetsFromFormat } from "./rosterTargets";
 
@@ -79,7 +79,7 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
       const reasons: string[] = [];
       const have = myCounts[player.position] ?? 0;
       const need = Math.max(0, (targets[player.position] ?? 0) - have);
-      const edge = reputationEdge(player);
+      const edge = scarcityGap(player);
       const opportunity = player.opportunity;
       const fragilityPenalty = player.fragility * 0.25;
 
@@ -119,7 +119,7 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
           reasons.push("depth pick / stash");
         } else if (edge > 8) {
           category = "Value";
-          reasons.push(`reputation edge +${edge.toFixed(1)}`);
+          reasons.push(`scarcity gap +${edge.toFixed(1)}`);
         }
       }
 

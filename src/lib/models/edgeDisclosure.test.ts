@@ -80,3 +80,27 @@ describe("no surface may re-assert the refuted claim", () => {
     expect(EDGE_LABELS.gapCountSub.toLowerCase()).toContain("not proven");
   });
 });
+
+describe("EDGE_LABELS after the 2026-08-22 rename", () => {
+  it("contains no refuted vocabulary in any user-visible label", () => {
+    // The product was renamed from "Reputation Arbitrage Engine" because
+    // protocol 3 refuted the claim. These labels are the surfaces that carried
+    // the same vocabulary, and a single-source guard is what stops it creeping
+    // back one call site at a time — which is exactly how "Reputation Edge"
+    // survived the first pass.
+    const banned = /(arbitrage|reputation|mispriced|exploit inefficien)/i;
+    for (const [key, value] of Object.entries(EDGE_LABELS)) {
+      expect(value, `EDGE_LABELS.${key} uses refuted vocabulary`).not.toMatch(banned);
+    }
+  });
+
+  it("names the quantity consistently across every surface", () => {
+    // A KPI tile, a panel title and a column header that disagree read as three
+    // different metrics.
+    expect(EDGE_LABELS.metricName.toLowerCase()).toContain("scarcity gap");
+    expect(EDGE_LABELS.metricNameTitle.toLowerCase()).toContain("scarcity gap");
+    expect(EDGE_LABELS.panelTitle.toLowerCase()).toContain("scarcity gap");
+    expect(EDGE_LABELS.column.toLowerCase()).toContain("scarcity gap");
+    expect(EDGE_LABELS.gapsTab.toLowerCase()).toContain("scarcity gap");
+  });
+});

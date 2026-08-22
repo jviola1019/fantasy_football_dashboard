@@ -4,7 +4,7 @@
 import type { RAEEnvelope } from "@/lib/governance";
 import { deriveAppData } from "@/lib/envelope/derive";
 import { deriveOutcomeDistribution } from "@/lib/derivedMetrics";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { fmt } from "@/lib/utils";
 import { PanelGrid, PanelRow } from "@/components/shell/PanelGrid";
 import { PanelCard } from "@/components/ui/PanelCard";
@@ -12,11 +12,12 @@ import { GovernancePanel } from "@/components/governance/GovernancePanel";
 import { ModelScenarioNotice } from "@/components/model/ModelScenarioNotice";
 import { AuditInfoTooltip } from "@/components/governance/AuditInfoTooltip";
 import { DataLineagePopover } from "@/components/governance/DataLineagePopover";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 
 /**
  * Weekly / governance report: the season outlook (seeded sim), the full model-
  * governance summary (source, freshness, confidence, validation, assumptions,
- * missing fields), and the reputation-edge leaderboard. Every figure is real or
+ * missing fields), and the scarcity-gap leaderboard. Every figure is real or
  * shown as unavailable — no fabricated numbers.
  */
 export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
@@ -24,7 +25,7 @@ export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
   const dist = deriveOutcomeDistribution(d.sim);
 
   const edges = [...d.players]
-    .map((p) => ({ p, e: reputationEdge(p) }))
+    .map((p) => ({ p, e: scarcityGap(p) }))
     .sort((a, b) => Math.abs(b.e) - Math.abs(a.e))
     .slice(0, 6);
 
@@ -92,12 +93,12 @@ export function ReportsView({ envelope }: { envelope: RAEEnvelope }) {
       </PanelRow>
 
       <PanelRow cols={1}>
-        <PanelCard id="report-edges" titleId="re-title" title="Reputation Edges" eyebrow="Biggest true-vs-market gaps.">
+        <PanelCard id="report-edges" titleId="re-title" title={EDGE_LABELS.panelTitle} eyebrow="Biggest true-vs-market gaps.">
           <p className="small-note">
             Edge = true − market value (adjusted for ownership leverage + fragility).{" "}
             <DataLineagePopover
-              metric="Reputation edge"
-              source="FantasyPros consensus (true/market) via reputationEdge()"
+              metric={EDGE_LABELS.metricName}
+              source="FantasyPros consensus (true/market) via scarcityGap()"
               note="Updated by the daily rankings cron; shown as — when rankings are uncached."
             />
           </p>

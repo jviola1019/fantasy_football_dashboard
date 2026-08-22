@@ -1,7 +1,19 @@
 # Model direction — what the evidence says to build next
 
 **Date** 2026-08-21 · **Author role** quant / data analyst / full-stack ·
-**Status** recommendation, nothing shipped
+**Status** **SUPERSEDED IN PART — its recommendation was executed on 2026-08-22**
+
+> **Outcome (added 2026-08-22).** The protocol 4 recommended below was frozen,
+> executed once, and **PASSED** all three pre-registered hypotheses under Holm
+> correction — the first positive result in the audit. Evidence:
+> [`holdout-result-4.md`](../reports/2026-08-20/holdout-result-4.md).
+>
+> Read the "model changes this would justify" section below **with the limits
+> the result actually carries**: the out-of-fold gain is +0.0137, and the scope
+> is **in-season only**. In particular, protocol 4 §8 forbids deriving a weight
+> from that data, so the re-weighting floated below was deliberately **not**
+> shipped — only the disclosure was. Setting a weight needs its own
+> pre-registered protocol with its own held-out split.
 
 Three frozen protocols have now been executed against real, untouched data. This
 document reads them together, states the structural diagnosis they point to, and

@@ -7,7 +7,7 @@ import { recommend, type Recommendation } from "@/lib/draft/recommend";
 import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { derivePositionGrades } from "@/lib/derivedMetrics";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs } from "../ui/PanelTabs";
 
@@ -209,9 +209,9 @@ function LiveBoard({
                 <td>{p.position}</td>
                 <td>{p.team ?? "—"}</td>
                 <td>{Math.round(p.trueValue)}</td>
-                <td className={reputationEdge(p) >= 0 ? "pos-text" : "neg-text"}>
-                  {reputationEdge(p) >= 0 ? "+" : ""}
-                  {reputationEdge(p)}
+                <td className={scarcityGap(p) >= 0 ? "pos-text" : "neg-text"}>
+                  {scarcityGap(p) >= 0 ? "+" : ""}
+                  {scarcityGap(p)}
                 </td>
                 <td className="draft-actions">
                   <button

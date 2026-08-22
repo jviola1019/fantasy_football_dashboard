@@ -188,6 +188,14 @@ permanent stance on numeric display.
 - The disclosure `<summary>` has a visible focus ring and a 24px minimum target.
 - Screenshots at 320 / 390 / 768 / 1440: `reports/2026-08-20/screens/`.
 
+### Pre-existing issue found, not introduced — SINCE FIXED (2026-08-22)
+
+> **Update.** This was fixed on 2026-08-22, and writing a test for it showed the
+> description below was understated: **every route** overflowed by the same 52px,
+> not just `/analytics`. The single cause was the command bar's right-hand
+> cluster; the bar now wraps below `sm` and nothing is hidden. `e2e/23` covers
+> 12 routes at 320px and 360px. The original note is kept below as written.
+
 ### Pre-existing issue found, not introduced
 
 `/analytics` overflows horizontally at 320px (`scrollWidth` 372 vs `clientWidth`

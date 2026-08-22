@@ -38,7 +38,7 @@ export function LeaguePulse({ players, marketEdge }: { players: PlayerMarketReco
       controls={
         <span
           className="league-pulse-edge-pill"
-          title="Market Edge index: your roster's average reputation edge (consensus value minus market price) rescaled so 50 = neutral. Above 50 = the market underprices your roster; below 50 = overprices. Same model as League Health's Avg Edge."
+          title="Market Edge index: your roster's average scarcity gap (consensus value minus market price) rescaled so 50 = neutral. Above 50 = the market underprices your roster; below 50 = overprices. Same model as League Health's Avg Edge."
         >
           <span className="league-pulse-edge-val">{marketEdge}</span>
           <span className="league-pulse-edge-lbl">Market Edge · 50 = neutral</span>

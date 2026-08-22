@@ -48,7 +48,7 @@ export function RouteSidebar() {
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-extrabold tracking-[0.14em] text-foreground">RAE</span>
             <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
-              Reputation Arbitrage Engine
+              Roster Analytics Engine
             </span>
           </div>
         </Link>

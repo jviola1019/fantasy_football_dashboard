@@ -37,8 +37,11 @@ off-season path while the UI announced "Live week-N projections".
 Two items are **not closed**:
 
 - **§11 `DB_INIT_TOKEN`** — **ROTATED, operator-attested 2026-08-22.** The owner
-  reports rotating the RAE secrets in Vercel, which closes the operator action
-  this was blocked on. It is recorded as **attested, not verified**: confirming a
+  reports rotating **`DB_INIT_TOKEN`** in Vercel, which closes the operator
+  action this was blocked on. That secret **only**: `CREDENTIAL_ENCRYPTION_KEY`
+  was deliberately not rotated (correctly — it would have destroyed every stored
+  ESPN credential), and `AUTH_SECRET`/`CRON_SECRET` are not reported as rotated
+  and are treated as unrotated. It is recorded as **attested, not verified**: confirming a
   rotation requires authenticated access to the secret store, which this session
   never had, and scanner success was never substituted for proof. The one command
   that would upgrade it — `npm run verify:rotation`, which asserts the PREVIOUS
@@ -152,7 +155,7 @@ reporting errors found and disclosed in protocol 2, and the third in protocol 3.
    and are excluded rather than guessed.
 4. Protocol 3 does not test `ownershipLeverage` or `fragility` (weights 0.18 and
    0.08) — no historical values exist for MFL leagues.
-3. `/analytics` overflows horizontally at 320px — pre-existing, measured.
+3. ~~`/analytics` overflows horizontally at 320px~~ — **FIXED 2026-08-22**, and it was every route, not one. See the ledger.
 4. Isotonic curve leading-gap defect — latent, recorded.
 5. MFL generalisation: a future holdout result is evidence about MFL redraft
    leagues, not about Sleeper/ESPN populations.
@@ -172,11 +175,29 @@ Every change is on `fix/2026-08-20-audit-remediation`, which nothing depends on.
 
 ## 30. Human approvals still required
 
-1. Execute the `DB_INIT_TOKEN` runbook (§11).
-2. (Optional) Acquire more MFL leagues and re-evaluate under a **separately
-   frozen** protocol — never presented as replacing this one (§19).
-3. Merge either PR.
-4. Any deployment.
+*Updated 2026-08-22.*
+
+1. ~~Execute the `DB_INIT_TOKEN` runbook (§11).~~ **Done — `DB_INIT_TOKEN`
+   rotated, operator-attested 2026-08-22.** To upgrade attested → verified, run
+   `npm run verify:rotation` with the previous value, which only the owner holds.
+   **`AUTH_SECRET` and `CRON_SECRET` are not reported as rotated** and should be
+   treated as unrotated.
+2. ~~(Optional) Acquire more MFL leagues and re-evaluate under a separately
+   frozen protocol (§19).~~ **Done — protocols 2, 3 and 4 were each separately
+   frozen and executed. Protocol 4 PASSED.**
+3. ~~Decide the product name.~~ **Decided 2026-08-22 — renamed to
+   *RAE — Roster Analytics Engine*.** The old expansion asserted, in the largest
+   type on every page, the claim protocol 3 refuted. The initialism is unchanged,
+   so no repository name, URL or deploy target moved. Renaming it also exposed
+   that the wording guard meant to prevent exactly this had never worked — see
+   the ledger.
+4. ~~Decide on `CREDENTIAL_ENCRYPTION_KEY`.~~ **Decided — deliberately NOT
+   rotated, which is correct.** It is a single unversioned AES-256-GCM key with
+   no dual-read path, so rotating it would have destroyed every stored ESPN
+   credential. Writing a re-encryption command remains the prerequisite for ever
+   rotating it.
+5. Merge either PR.
+6. Any deployment.
 
 ## 31. Draft PR state
 
@@ -185,8 +206,13 @@ Every change is on `fix/2026-08-20-audit-remediation`, which nothing depends on.
 - **PR #26** — OPEN, **draft**, targets the forensic branch so its diff is only
   this remediation.
 
-Both remain draft: **§11 is BLOCKED**, and the holdout returned a failure the
-operator should read before merging.
+Both remain draft, and **nothing was merged automatically**.
+
+The original reason — §11 blocked — is now closed by the owner's attested
+rotation. What remains for the operator to read before merging is the model
+evidence itself: protocols 1–3 returned failures, protocol 4 returned the audit's
+only pass, and the open product-name decision in §30.3 concerns a claim the
+product still makes about itself on every page.
 
 ## 32. Explicit confirmation
 

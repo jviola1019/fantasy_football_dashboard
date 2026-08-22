@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   // Template so every route gets a distinct tab title (WCAG 2.4.2 — audit
   // 2026-07-08 F-10); pages set `metadata.title` to just their name.
   title: {
-    default: "RAE — Reputation Arbitrage Engine",
+    default: "RAE — Roster Analytics Engine",
     template: "%s — RAE"
   },
   description: "Behavioral-market intelligence operating system for fantasy football."
