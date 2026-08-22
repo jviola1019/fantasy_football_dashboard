@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { reputationEdge } from "@/lib/models";
+import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { PanelCard } from "../ui/PanelCard";
 import { DataUnavailable } from "../ui/DataUnavailable";
 
@@ -69,6 +71,10 @@ export function WaiverWire({ players, envelope }: Props) {
         />
       }
     >
+      {/* The Edge column below is edge-derived; protocol 3 found it does not
+          identify mispriced players and is inverted within position. */}
+      {showEdge ? <EdgeDisclosureNotice variant="banner" /> : null}
+
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Ranked free agents table">
           <div className="section-label">
@@ -81,7 +87,7 @@ export function WaiverWire({ players, envelope }: Props) {
                 <th>Position</th>
                 <th>Team</th>
                 <th>Value</th>
-                {showEdge ? <th>Edge</th> : null}
+                {showEdge ? <th>{EDGE_LABELS.column}</th> : null}
                 <th>Scarcity</th>
                 <th>Score</th>
               </tr>

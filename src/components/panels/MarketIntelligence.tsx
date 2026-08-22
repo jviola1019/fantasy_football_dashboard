@@ -12,6 +12,8 @@ import type { SimulationResult } from "@/lib/simulation";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
 import { reputationEdge, confidenceInterval } from "@/lib/models";
+import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
 import { fmt, surname } from "@/lib/utils";
 
@@ -49,9 +51,13 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
       id="market-intelligence"
       titleId="mi-title"
       title="Market Intelligence"
-      eyebrow="Find edges. Exploit inefficiencies."
+      eyebrow={EDGE_LABELS.marketEyebrow}
       source={envelope?.sourceState}
     >
+      {/* Adjacent to the numbers, on first paint — the SS3 precedent. Protocol 3
+          measured this score and it does not identify mispriced players. */}
+      <EdgeDisclosureNotice variant="banner" />
+
       <MarketKPIRow metrics={marketMetrics} players={players} />
 
       <PanelTabs
@@ -72,7 +78,7 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
         )}
         {activeTab === "Arbitrage" && (
           <TopInefficiencies
-            label="ARBITRAGE PLAYS — |edge| ≥ 8"
+            label={EDGE_LABELS.largeGaps}
             players={marketMetrics.topInefficiencies.filter((p) => Math.abs(reputationEdge(p)) >= 8)}
           />
         )}
@@ -118,7 +124,7 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
     // (0-100-ish), not percentages — show the raw index, no "%".
     { label: "Market Inefficiency", value: fmt(metrics.inefficiencyPct, 1), sub: "Avg market mispricing index", color: "neu" },
     { label: "Liquidity Score", value: `${fmt(liq, 1)}/10`, sub: liq >= 6.5 ? "High" : liq >= 3.5 ? "Moderate" : "Low", color: liq >= 6.5 ? "pos" : "neu" },
-    { label: "Arbitrage Opps", value: String(metrics.arbitrageCount), sub: "High-edge plays", color: metrics.arbitrageCount > 3 ? "pos" : "neu" },
+    { label: EDGE_LABELS.gapCountLabel, value: String(metrics.arbitrageCount), sub: EDGE_LABELS.gapCountSub, color: "neu" },
     { label: "Aggregate Value", value: valueIndex, sub: "Roster value index (ECR)", color: "neu" },
     { label: "Volatility Index", value: fmt(metrics.priceDiscoveryPct, 1), sub: "Avg week-to-week variance", color: "neu" },
     { label: "Market Regime", value: regimeKnown ? metrics.marketRegime : "—", sub: !regimeKnown ? "No market data" : metrics.marketRegime === "Inefficient" ? "Favorable for exploitation" : "Efficiently priced", color: !regimeKnown ? "neu" : metrics.marketRegime === "Inefficient" ? "neg" : "pos" },
@@ -153,7 +159,7 @@ function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players:
             <th>Position</th>
             <th>Market</th>
             <th>True</th>
-            <th>Edge</th>
+            <th>{EDGE_LABELS.column}</th>
             <th>Owned %</th>
             <th>Trend</th>
           </tr>

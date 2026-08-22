@@ -137,6 +137,39 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     await expect(page.locator('[role="alert"].model-scenario-banner')).toHaveCount(0);
   });
 
+  test("edge-derived panels disclose the protocol-3 finding on first paint", async ({ page }) => {
+    // Protocol 3 measured the reputation edge: it does not identify mispriced
+    // players, and within a position it is inverted. Draft and waiver rankings
+    // are presented as ADVICE, so the disclosure has to be visible without
+    // interaction — the same rule §3 applied to the season simulator.
+    for (const [route, panel] of [
+      ["/analytics", "#market-intelligence"],
+      ["/waivers", "#waiver-wire"]
+    ] as const) {
+      await gotoRoute(page, route);
+      const p = page.locator(panel);
+      await p.scrollIntoViewIfNeeded();
+      await expect(p).toBeVisible({ timeout: 20_000 });
+      const notice = p.locator(".model-scenario-banner").first();
+      await expect(notice, `${panel} must disclose the edge finding`).toBeVisible();
+      await expect(notice).toContainText(/positional scarcity/i);
+      await expect(notice).toContainText(/not a market edge/i);
+      await expect(notice).toContainText(/holdout-result-3\.md/);
+    }
+  });
+
+  test("no surface claims arbitrage or mispricing any more", async ({ page }) => {
+    // The panels previously said "Find edges. Exploit inefficiencies.",
+    // "ARBITRAGE PLAYS" and "Arbitrage Opps". Protocol 3 refuted the claim
+    // behind all three.
+    const banned = /(arbitrage play|exploit inefficien|mispriced)/i;
+    for (const route of ["/analytics", "/waivers", "/draft", "/players"]) {
+      await gotoRoute(page, route);
+      const body = await page.locator("body").innerText();
+      expect(body, `${route} must not claim arbitrage`).not.toMatch(banned);
+    }
+  });
+
   test("no surface presents the simulation as calibrated or validated", async ({ page }) => {
     // Wording guard: the audit forbids these claims for this model.
     const banned = /\b(calibrated probabilit|validated forecast|predictive edge|expected true probability)/i;
