@@ -180,3 +180,69 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     }
   });
 });
+
+test.describe("protocol 4 — the validated signal is disclosed with its limits", () => {
+  // Every other notice in this file guards a RETRACTION. This one guards a
+  // signal that passed, which is the harder case: the failure mode is not a
+  // hidden warning but an overstated headline. So these tests assert the limits
+  // travel with the claim, not merely that the claim appears.
+
+  test("the waiver panel shows the validated-opportunity notice on first paint", async ({ page }) => {
+    await gotoRoute(page, "/waivers");
+    const panel = page.locator("#waiver-wire");
+    await panel.scrollIntoViewIfNeeded();
+    await expect(panel).toBeVisible({ timeout: 20_000 });
+
+    const notice = panel.locator(".model-scenario-banner.is-validated").first();
+    await expect(notice, "the validated variant must actually render").toBeVisible();
+    await expect(notice).toContainText(/validated in-season signal/i);
+    await expect(notice).toContainText(/holdout-result-4\.md/);
+    // Not behind a disclosure widget, same rule as every other notice here.
+    await expect(notice.locator("xpath=ancestor::details")).toHaveCount(0);
+  });
+
+  test("the notice states the real magnitude, not just the verdict", async ({ page }) => {
+    await gotoRoute(page, "/waivers");
+    const notice = page.locator("#waiver-wire .model-scenario-banner.is-validated").first();
+    await expect(notice).toBeVisible({ timeout: 20_000 });
+    const text = await notice.innerText();
+    // 0.734 -> 0.748 out of fold. A reader must be able to see how small it is.
+    expect(text, "must quote the baseline it improves on").toMatch(/0\.734/);
+    expect(text, "must quote the improved figure").toMatch(/0\.748/);
+    expect(text, "must not oversell").toMatch(/small/i);
+  });
+
+  test("the scope limit is present, so nobody reads it as a draft claim", async ({ page }) => {
+    await gotoRoute(page, "/waivers");
+    const notice = page.locator("#waiver-wire .model-scenario-banner.is-validated").first();
+    await expect(notice).toBeVisible({ timeout: 20_000 });
+    await expect(notice).toContainText(/in-season only/i);
+    // Protocols 1-3 tested the pre-season regime and it failed; the notice must
+    // say so rather than leaving the reader to assume it generalises.
+    await expect(notice).toContainText(/pre-season valuation was tested/i);
+  });
+
+  test("the validated notice is a note, not an alert, and is exposed as one", async ({ page }) => {
+    await gotoRoute(page, "/waivers");
+    const notice = page.locator("#waiver-wire .model-scenario-banner.is-validated").first();
+    await expect(notice).toBeVisible({ timeout: 20_000 });
+    await expect(notice).toHaveAttribute("role", "note");
+  });
+
+  test("the retracted and the validated notice appear together", async ({ page }) => {
+    // Showing either alone would misrepresent what drives the waiver ranking.
+    await gotoRoute(page, "/waivers");
+    const panel = page.locator("#waiver-wire");
+    await expect(panel).toBeVisible({ timeout: 20_000 });
+    await expect(panel.locator(".model-scenario-banner.is-validated")).toHaveCount(1);
+    await expect(panel.locator(".model-scenario-banner:not(.is-validated)")).toHaveCount(1);
+  });
+
+  test("the validated notice never claims a draft or market edge", async ({ page }) => {
+    await gotoRoute(page, "/waivers");
+    const notice = page.locator("#waiver-wire .model-scenario-banner.is-validated").first();
+    await expect(notice).toBeVisible({ timeout: 20_000 });
+    const text = await notice.innerText();
+    expect(text).not.toMatch(/\b(arbitrage|mispriced|guarantee|beat the market)\b/i);
+  });
+});
