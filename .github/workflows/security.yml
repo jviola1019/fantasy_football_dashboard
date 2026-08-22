@@ -100,6 +100,46 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  gitleaks-history:
+    name: gitleaks FULL-HISTORY secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Audit 2026-08-21. The `gitleaks` job above passes on push events while
+      # scanning only the PUSHED COMMIT RANGE: its own log recorded
+      # "29 commits scanned" against a repository of 299. A secret committed
+      # before the current branch could therefore never fail CI, which makes a
+      # green check on that job evidence about the diff, not about the
+      # repository.
+      #
+      # This job scans ALL history explicitly. It honours .gitleaksignore, so
+      # the thirteen already-adjudicated findings recorded there stay
+      # suppressed by exact fingerprint while any NEW finding — including one in
+      # an old commit — fails.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          VERSION=8.24.3
+          curl -sSfL -o /tmp/gitleaks.tar.gz             "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks version
+      - name: Scan every commit
+        run: |
+          set -euo pipefail
+          # No --log-opts: with fetch-depth 0 and no range, gitleaks walks the
+          # entire history. --redact keeps any finding out of the public log.
+          /tmp/gitleaks detect             --source=.             --redact             --exit-code=1             --report-format=sarif             --report-path=gitleaks-history.sarif             --log-level=info
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-history-sarif
+          path: gitleaks-history.sarif
+          if-no-files-found: ignore
+
   doc-secrets:
     name: tracked-file secret scan
     runs-on: ubuntu-latest
