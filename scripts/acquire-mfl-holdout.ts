@@ -190,6 +190,30 @@ function structurallyEligible(league: any, draft: any): { ok: boolean; reason: s
   return { ok: true, reason: `${n} franchises, ${picks.length} picks` };
 }
 
+/**
+ * The contract a fetched league must satisfy before it is archived to disk.
+ *
+ * CodeQL flags network data reaching the filesystem (js/http-to-file-access).
+ * The destination path was already constrained to validated numerics; this adds
+ * the half that actually protects the DATA: a response is archived only if it
+ * carries the fields the holdout protocols read. Without it, an MFL error page
+ * or a truncated body would be written as `<season>-<league>.json` and then
+ * parsed as a league by a later protocol run, silently contaminating a sample
+ * that is supposed to be frozen.
+ */
+function isArchivableLeague(raw: RawLeague): boolean {
+  if (!/^[0-9]{4}$/.test(String(raw.season))) return false;
+  if (!/^[0-9]{1,12}$/.test(String(raw.leagueId))) return false;
+  // Standings are what the outcome label is derived from; without them the
+  // record is useless to every protocol.
+  const standings = raw.leagueStandings as { leagueStandings?: unknown } | null | undefined;
+  if (!standings || typeof standings !== "object" || !standings.leagueStandings) return false;
+  // A league body must exist and identify itself.
+  const league = raw.league as { league?: { id?: unknown } } | null | undefined;
+  if (!league || typeof league !== "object" || !league.league) return false;
+  return true;
+}
+
 async function main(): Promise<void> {
   mkdirSync(OUT_DIR, { recursive: true });
 
@@ -312,6 +336,14 @@ async function main(): Promise<void> {
       // several hundred lines away.
       if (!/^[0-9]{4}-[0-9]{1,12}$/.test(key)) {
         manifest.push({ season, leagueId, kept: false, reason: "unsafe league id" });
+        continue;
+      }
+      // CONTENT contract, not just a path contract (CodeQL js/http-to-file-access).
+      // The path was already safe; this checks the BODY before it is archived, so
+      // an error page or a truncated response cannot be written and then parsed
+      // as a league by a later protocol run.
+      if (!isArchivableLeague(raw)) {
+        manifest.push({ season, leagueId, kept: false, reason: "response failed the archive contract" });
         continue;
       }
       writeFileSync(join(OUT_DIR, `${key}.json`), JSON.stringify(raw));
