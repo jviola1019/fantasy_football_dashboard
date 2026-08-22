@@ -33,7 +33,8 @@
     "holdout:diagnostics": "tsx scripts/holdout-diagnostics.ts",
     "holdout:evaluate2": "tsx scripts/holdout-evaluate-2.ts",
     "holdout:validate-labels": "tsx scripts/validate-holdout-labels.ts",
-    "holdout:acquire-brackets": "tsx scripts/acquire-mfl-brackets.ts"
+    "holdout:acquire-brackets": "tsx scripts/acquire-mfl-brackets.ts",
+    "holdout:evaluate3": "tsx scripts/holdout-evaluate-3.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
