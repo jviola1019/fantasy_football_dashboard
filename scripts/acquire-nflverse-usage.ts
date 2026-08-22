@@ -17,7 +17,15 @@ const BUNDLE = "reports/2026-08-20/nflverse-usage.json.gz";
 const UA = "RAE-audit/1.0 (model validation research; contact jviola1@vols.utk.edu)";
 
 /** Frozen in protocol 4 §3. */
-const SEASONS = ["2021", "2022", "2023", "2024"];
+const SEASONS = [
+  // Protocol 5 evaluation set — never touched by protocol 4.
+  "2017", "2018", "2019",
+  // 2020 is excluded from protocol 5's PRIMARY (COVID) but acquired so the
+  // pre-registered D3 diagnostic can add it back.
+  "2020",
+  // Protocol 4's set, reused as protocol 5's FIT set.
+  "2021", "2022", "2023", "2024"
+];
 
 const BASE = "https://github.com/nflverse/nflverse-data/releases/download";
 
