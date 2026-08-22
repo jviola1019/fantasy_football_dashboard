@@ -38,7 +38,8 @@
     "holdout:acquire-usage": "tsx scripts/acquire-nflverse-usage.ts",
     "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts",
     "verify:rotation": "tsx scripts/verify-rotation.ts",
-    "reencrypt:credentials": "tsx scripts/reencrypt-credentials.ts"
+    "reencrypt:credentials": "tsx scripts/reencrypt-credentials.ts",
+    "holdout:evaluate5": "tsx scripts/holdout-evaluate-5.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
