@@ -15,7 +15,7 @@
  *
  *   npm run holdout:evaluate
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { runNexusSimulation } from "../src/lib/simulation";
@@ -649,22 +649,34 @@ function loadRaw(source: RawSource = "pinned"): any[] {
   if (source === "working") {
     // Live acquisition directory first; otherwise protocol 2's frozen bundle, so
     // protocol 2 reproduces from a clean checkout exactly as protocol 1 does.
-    if (existsSync(DATA_DIR)) {
-      const files = readdirSync(DATA_DIR)
+    // No existsSync pre-checks: attempt the operation and handle failure
+    // (CodeQL js/file-system-race — the path can change between check and use).
+    let files: string[] = [];
+    try {
+      files = readdirSync(DATA_DIR)
         .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
         .sort();
-      if (files.length > 0) {
-        return files.map((f) => JSON.parse(readFileSync(join(DATA_DIR, f), "utf8")));
-      }
+    } catch {
+      files = [];
     }
-    if (existsSync(BUNDLE_P2)) return readBundle(BUNDLE_P2);
+    if (files.length > 0) {
+      return files.map((f) => JSON.parse(readFileSync(join(DATA_DIR, f), "utf8")));
+    }
+    try {
+      return readBundle(BUNDLE_P2);
+    } catch {
+      /* fall through to the error below */
+    }
     throw new Error("no protocol-2 sample — run `npm run holdout:acquire` first");
   }
 
   // "pinned": protocol 1's immutable 21-league sample, and nothing else. It must
   // never absorb later-acquired leagues.
-  if (existsSync(BUNDLE)) return readBundle(BUNDLE);
-  throw new Error("protocol 1's pinned bundle is missing");
+  try {
+    return readBundle(BUNDLE);
+  } catch {
+    throw new Error("protocol 1's pinned bundle is missing");
+  }
 }
 
 /**

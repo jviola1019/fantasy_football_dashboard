@@ -56,8 +56,21 @@ function readJsonOrNull<T>(path: string): T | null {
   }
 }
 
+/**
+ * Every value interpolated into an MFL query string must be a bare identifier.
+ *
+ * League ids and bracket ids reach this script by being read out of a file, so
+ * CodeQL flags the flow into `fetch` (js/file-access-to-http). Enforcing a
+ * numeric contract at the SINK — rather than trusting each call site — makes the
+ * flow safe by construction: nothing that is not digits can reach the URL.
+ */
+const SAFE_QUERY = /^[A-Za-z_]+=[A-Za-z0-9_]+(&[A-Za-z_]+=[A-Za-z0-9_]+)*$/;
+
 async function mfl(season: string, query: string): Promise<any | null> {
   if (!/^[0-9]{4}$/.test(season)) return null;
+  // Reject anything that is not a plain key=value query of identifier chars.
+  // A league id read from disk cannot smuggle a path, host or extra parameter.
+  if (!SAFE_QUERY.test(query)) return null;
   const url = `https://api.myfantasyleague.com/${season}/export?${query}&JSON=1`;
   for (let attempt = 0; attempt <= 5; attempt += 1) {
     await sleep(THROTTLE_MS);
