@@ -113,9 +113,19 @@ in-session only — written to no file and no commit.
 Development results and the dependence analysis:
 [`par-dependence-analysis.md`](./par-dependence-analysis.md).
 
-Holdout: [`holdout-protocol.md`](./holdout-protocol.md) (frozen `7688d14`,
-Amendment 1 recorded pre-execution) and [`holdout-result.md`](./holdout-result.md).
-160 team-seasons, 13 clusters, both criteria NOT MET, nothing tuned.
+Three holdout protocols, each frozen before scoring, each executed once:
+
+| protocol | sample | verdict |
+|---|---|---|
+| 1 — season odds, inferred label | 13 clusters / 160 rows | NOT VALIDATED |
+| 1 — corrected, ground-truth label | 13 clusters / 160 rows | NOT VALIDATED (unchanged) |
+| 2 — enlarged, ground-truth label | 68 clusters / 800 rows | NOT VALIDATED |
+| **3 — the reputation edge** | **1,211 player-seasons** | **NOT DEMONSTRATED** |
+
+Protocol 3 is the one with product consequences: the edge does not identify
+mispriced players and is **inverted within position**, which is exactly what a
+draft board orders on. See the ledger for the full ledger of results, the two
+reporting errors found and disclosed in protocol 2, and the third in protocol 3.
 
 ## 27. Accessibility evidence
 
@@ -128,8 +138,14 @@ Amendment 1 recorded pre-execution) and [`holdout-result.md`](./holdout-result.m
 ## 28. Residual risks
 
 1. `DB_INIT_TOKEN` may still be live. Unknown until the runbook is executed.
-2. The holdout ran at 13 clusters, not the 200 targeted; intervals are wide and
-   the sample covers two seasons on one platform, with PPR assumed throughout.
+2. Protocol 2 ran at 68 clusters, not the 200 targeted, and D4 showed it could
+   not resolve the ~0.02 AUC effect actually present. PPR is assumed for all MFL
+   leagues; MFL scoring rules are not parsed.
+3. The outcome label was wrong for 33% of leagues under the inferred rule. Fixed
+   to observed bracket participation, but 12 leagues had no observable bracket
+   and are excluded rather than guessed.
+4. Protocol 3 does not test `ownershipLeverage` or `fragility` (weights 0.18 and
+   0.08) — no historical values exist for MFL leagues.
 3. `/analytics` overflows horizontally at 320px — pre-existing, measured.
 4. Isotonic curve leading-gap defect — latent, recorded.
 5. MFL generalisation: a future holdout result is evidence about MFL redraft

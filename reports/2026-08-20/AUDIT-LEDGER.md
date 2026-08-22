@@ -432,3 +432,102 @@ recalibration and a minimum-detectable-effect calculation. Execution trigger is
 
 **Merge remains blocked** on two independent grounds: §11 is an unresolved P1,
 and the model has not validated.
+
+---
+
+# Protocols 2 and 3 — executed, and what they changed in the product
+
+## Protocol 2 — enlarged holdout, ground-truth labels
+
+150 archived leagues → **68 clusters, 800 rows**. Outcome label corrected to
+**observed bracket participation** (Amendment 2, recorded pre-execution) after
+validation found the inferred label wrong for 33% of leagues.
+
+| id | hypothesis | statistic | p | Holm | reject? |
+|---|---|---|---|---|---|
+| H1 | AUC > 0.5 | 0.5867 (perm null 0.5661) | 0.1010 | 0.0167 | no |
+| H2 | Brier skill > 0 | −0.1632 | 1.0000 | 0.0250 | no |
+| H3 | resolution − reliability > 0 | −0.0289 | 1.0000 | 0.0500 | no |
+
+**NOT VALIDATED.** Nothing tuned.
+
+Diagnostics: miscalibration (0.0381) is **4×** informativeness (0.0093);
+out-of-fold recalibration recovers skill −0.1632 → −0.0076 without beating
+climatology; and a logistic regression fitted **directly** to the outcome on
+draft-only features reaches only AUC 0.5379 / skill −0.0391.
+
+**Two reporting errors, found and fixed before recording; confirmatory numbers
+byte-identical across both runs, both disclosed.** The AUC-invariance note was
+wrong for leave-one-*league*-out, and the power calculation used a 0.5 null while
+the test used 0.5661 — which had inverted the conclusion from "underpowered" to
+"adequately powered".
+
+## Protocol 3 — the reputation edge, tested for the first time
+
+Target chosen after scanning the codebase: `trueValue` drives draft tiers, keeper
+valuation, waiver priority and every ranking shown, and **none of it had ever
+been validated**. 115 leagues, 21,714 rows, **1,211 distinct player-seasons**,
+clustered on player-season.
+
+| id | hypothesis | statistic | 95% CI | reject? |
+|---|---|---|---|---|
+| H1 | edge predicts beating draft cost | +0.0579 | [0.0181, 0.0979] | **yes** |
+| **H2** | **same, WITHIN position** | **−0.0480** | **[−0.0757, −0.0197]** | **no — INVERTED** |
+| H3 | concordance at matched cost | 0.5316 | [0.5168, 0.5465] | **yes** |
+
+**NOT DEMONSTRATED.** H2 is the hypothesis that separates "we find mispriced
+players" from "draft scarce positions earlier", and it fails in the wrong
+direction. Same-position concordance is 0.5097 — chance.
+
+The cross-position result is roster arithmetic, not inefficiency:
+
+| position | mean edge | mean residual |
+|---|---|---|
+| K | 45.03 | +0.3669 |
+| DEF | 39.33 | +0.2756 |
+| **QB** | **−0.37** | **+1.1550** |
+
+Quarterbacks have the **lowest** edge and by far the **highest** outperformance —
+the exact opposite of the mechanism's prediction.
+
+And the arbitrage step earns nothing: `trueValue` alone correlates 0.0628 with
+beating draft cost versus 0.0579 for `trueValue − perceivedValue`. **Subtracting
+the consensus rank — the entire named mechanism — makes it slightly worse.**
+
+A third closed-form/design mismatch was disclosed here too: D3's
+minimum-detectable-correlation contradicts H1's bootstrap, and D3 is the wrong
+one (it assumes independent observations while being fed a cluster count).
+
+## Product consequence — the §3 rule applied where §3 did not reach
+
+Playoff percentages were already presented as scenarios. **Draft and waiver
+rankings are presented as advice**, which makes an unsupported claim there worse.
+Three UI assertions were refuted by protocol 3 and have been corrected:
+
+| was | now |
+|---|---|
+| "Find edges. Exploit inefficiencies." | "Positional scarcity and market context." |
+| "ARBITRAGE PLAYS — \|edge\| ≥ 8" | "LARGEST SCARCITY GAPS — \|gap\| ≥ 8" |
+| "Arbitrage Opps" / "High-edge plays" | "Large Gaps" / "Scarcity gaps, not proven bargains" |
+| "Edge" column | "Scarcity gap" |
+
+The KPI also no longer turns green on a high count — highlighting "more
+opportunities" was the interface asserting the very claim the data refutes.
+
+`EdgeDisclosureNotice` renders on first paint in Market Intelligence and Waiver
+Wire. Wording is single-source in `src/lib/models/edgeDisclosure.ts`;
+`edgeDisclosure.test.ts` (13 tests) forbids the refuted phrasing returning, and
+e2e asserts both that the notice is visible without interaction and that no route
+says arbitrage/exploit/mispriced.
+
+**Not claimed:** that the rankings are worse than nothing. `perceivedValue` is
+consensus ECR, a strong baseline this test does not knock down. What is shown is
+that RAE's adjustment on top of consensus does not add value, and within position
+subtracts some.
+
+## Open lead, deliberately not chased
+
+Quarterbacks beat their draft cost by **+1.16 sd** — large, real, and unexplained
+by the current model. It is the first thing in this audit that looks like it
+could support a genuine edge. It needs its own frozen protocol, not a post-hoc
+claim from a table already seen.
