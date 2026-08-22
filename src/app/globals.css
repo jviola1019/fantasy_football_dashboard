@@ -1702,6 +1702,32 @@ td small { color: var(--muted); }
   color: var(--notice-red);
 }
 
+/* Validated variant (protocol 4). The other notices in this system all retract a
+   claim; this one reports a signal that PASSED, so it needs a distinct colour or
+   a reader pattern-matching on "red box = warning" would misread it.
+
+   Contrast measured, not assumed: --green #35c08a over the composite background
+   (#18222f panel + 7% green tint = ~#1a2d36) is 6.1:1, above the 4.5:1 AA
+   threshold for the 12px head text. */
+.model-scenario-banner.is-validated {
+  border-color: rgba(53, 192, 138, 0.38);
+  border-left-color: var(--green);
+  background: rgba(53, 192, 138, 0.07);
+}
+
+.model-scenario-banner.is-validated .model-scenario-head {
+  color: var(--green);
+}
+
+.model-scenario-inline.is-validated b {
+  color: var(--green);
+}
+
+.model-scenario-inline.is-validated .model-scenario-flag,
+.model-scenario-banner.is-validated .model-scenario-flag {
+  background: var(--green);
+}
+
 /* Non-decorative: it is the only visual cue that the block is a warning, so it
    keeps AA contrast rather than being a faint glyph. */
 .model-scenario-flag {

@@ -11,7 +11,7 @@
  *   npm run holdout:evaluate4 -- --self-test   # arithmetic, no verdict
  *   npm run holdout:evaluate4 -- --dry-run     # sample shape, no metrics
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 

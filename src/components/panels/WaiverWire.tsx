@@ -6,6 +6,8 @@ import { derivePanelState } from "@/lib/panelState";
 import { reputationEdge } from "@/lib/models";
 import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
 import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
+import { OpportunityEvidenceNotice } from "@/components/model/OpportunityEvidenceNotice";
+import { OPPORTUNITY_SCOPE_LIMIT } from "@/lib/models/opportunityEvidence";
 import { PanelCard } from "../ui/PanelCard";
 import { DataUnavailable } from "../ui/DataUnavailable";
 
@@ -73,7 +75,11 @@ export function WaiverWire({ players, envelope }: Props) {
     >
       {/* The Edge column below is edge-derived; protocol 3 found it does not
           identify mispriced players and is inverted within position. */}
+      {/* Both notices, together and in this order. The edge score is the retracted
+          one and opportunity is the validated one, so showing either alone would
+          misrepresent what is driving the ranking. */}
       {showEdge ? <EdgeDisclosureNotice variant="banner" /> : null}
+      {showEdge ? <OpportunityEvidenceNotice variant="banner" /> : null}
 
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Ranked free agents table">
@@ -122,7 +128,7 @@ export function WaiverWire({ players, envelope }: Props) {
           {!showEdge ? (
             <p className="small-note">
               Edge/opportunity hidden — in-season opportunity data not integrated yet. Ranking uses
-              player value + position scarcity (both real).
+              player value + position scarcity (both real). {OPPORTUNITY_SCOPE_LIMIT}
             </p>
           ) : null}
         </div>
