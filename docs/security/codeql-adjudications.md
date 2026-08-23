@@ -137,3 +137,56 @@ not an advisory-database scan and must not be read as one — a green result mea
 "no resolved version below a declared floor", not "no known vulnerabilities".
 That distinction is the same class of error this audit has been cataloguing, so
 it is written down rather than assumed understood.
+
+---
+
+## Alerts #8, #10, #11, #15, #16 — `js/http-to-file-access` / `js/file-access-to-http` (MEDIUM) — OPEN, mitigated
+
+**Adjudicated** 2026-08-23. **Not dismissed** — recorded as open, with the
+mitigation and the reason the rule still fires.
+
+| # | rule | location |
+|---|---|---|
+| 8 | `js/file-access-to-http` | `scripts/acquire-mfl-holdout.ts:133` |
+| 10 | `js/http-to-file-access` | `scripts/acquire-mfl-holdout.ts:349` |
+| 11 | `js/http-to-file-access` | `scripts/acquire-mfl-holdout.ts:362` |
+| 15 | `js/http-to-file-access` | `scripts/acquire-nflverse-usage.ts:114` |
+| 16 | `js/http-to-file-access` | `scripts/acquire-nflverse-usage.ts:120` |
+
+### Why they are open
+
+Both files are **offline holdout-acquisition scripts**. They exist to download
+public research data (nflverse CSV releases, MyFantasyLeague public league JSON)
+and archive it so a frozen protocol reproduces from a clean checkout. Downloading
+remote content and writing it to disk is not incidental to them; it is their
+entire purpose, so the rule will match for as long as they exist.
+
+### What was done about them
+
+The earlier decision on these was to **add response validation at each write
+site**, not to dismiss. That was done and is still in place:
+
+- `acquire-nflverse-usage.ts` — `isExpectedCsv()` checks the header against
+  `REQUIRED_COLUMNS` before `writeFileSync`. A redirect page, an error body or a
+  truncated download is rejected rather than archived.
+- `acquire-mfl-holdout.ts` — the path was already constrained to validated
+  numerics; `isArchivableLeague()` adds a CONTENT contract, so an error page
+  cannot be written and then parsed as a league by a later protocol run. Cached
+  entries are **re-validated on read**, because trusting a file because we wrote
+  it once is how a validated boundary quietly becomes an unvalidated one.
+
+CodeQL still reports the dataflow: the rule matches remote-content-reaches-file
+regardless of intervening validation, because it cannot see that the validator
+constrains the content.
+
+### The point of writing this down
+
+**The CodeQL *workflow* is green while the CodeQL *analysis* carries five open
+alerts.** Those are two different things, and confusing them is instance #3 in
+this audit's list of checks that pass without checking — reported green four
+times before anyone looked at the alerts rather than the job. Anyone reading a
+green CI badge on this repository should read this file too.
+
+Neither dismissal nor closure is done here: dismissing a CodeQL alert is an
+owner action, and these are recorded so the decision stays with the owner
+instead of being made silently by whoever was passing through.
