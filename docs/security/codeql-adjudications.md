@@ -67,3 +67,73 @@ If `isBurned()` were ever repurposed to check a **user-supplied password** — o
 if `BURNED_SECRET_HASHES` came to hold digests of low-entropy, human-chosen
 values — the rule would apply and the dismissal must be revoked. Anyone changing
 this function should re-read this entry first.
+
+---
+
+# Dependabot adjudications
+
+Same standing rule: a genuine finding gets fixed. This section records the ones
+where the *classification* was wrong, with the evidence that established it.
+
+## `path-to-regexp` GHSA-9wv6-86v2-598j (HIGH) — dev scope, not runtime
+
+**Adjudicated** 2026-08-23. Dependabot labels this alert `scope: runtime` on
+this repository. That label is wrong here, and it is the only runtime-flagged
+advisory not already at or above its patched version.
+
+### The situation
+
+Pushing this branch surfaced **46 open alerts on the default branch** — 3
+critical, 24 high, 16 moderate, 3 low. Checking each runtime-flagged package
+against what this branch actually resolves:
+
+| package | patched at | this branch | verdict |
+|---|---|---|---|
+| `next-auth` | 5.0.0-beta.32 | **5.0.0-beta.32** | clear |
+| `@auth/core` | 0.41.3 | **0.41.3** | clear |
+| `next` | 16.2.11 | **16.3.1** | clear |
+| `postcss` | 8.5.18 | **8.5.26** | clear |
+| `nanoid` | 3.3.18 | **3.3.18** | clear |
+| `sharp` | 0.35.0 | **0.35.3** | clear |
+| `path-to-regexp` | 6.3.0 | **6.1.0** | see below |
+
+The alerts are open against `main`, which is behind this branch. Six of the
+seven are already resolved here.
+
+### Why `path-to-regexp` is not a runtime exposure
+
+Two independent checks, both run rather than reasoned:
+
+```
+$ npm ls path-to-regexp --omit=dev
+rae-roster-analytics-engine@0.1.0
+`-- (empty)
+```
+
+No production dependency reaches it. It enters the tree only through
+`@vercel/config` → `@vercel/routing-utils`, and `@vercel/config` is a
+**devDependency** used by `vercel.ts` at configuration time.
+
+The one occurrence in the production build is a different copy entirely:
+
+```
+$ grep -o '.\{120\}path-to-regexp/.\{80\}' .next/server/chunks/...
+… __nccwpck_require__.ab="/ROOT/node_modules/next/dist/compiled/path-to-regexp/" …
+```
+
+That is Next.js's **own vendored copy**, and Next is at 16.3.1, above its floor.
+
+### What is NOT claimed
+
+That the dev tree is clean. It is not, and `HANDOFF.md` has said so for some
+time: the `lhci` / `puppeteer` / `drizzle-kit` chains carry findings, and the
+gate is informational for dev scope by explicit policy.
+
+### The gate's scope, stated
+
+`npm run check:advisories` guards a **floor list of five packages**
+(`next`, `next-auth`, `@auth/core`, `postcss`, `sharp`) and passed here. It is
+not an advisory-database scan and must not be read as one — a green result means
+"no resolved version below a declared floor", not "no known vulnerabilities".
+That distinction is the same class of error this audit has been cataloguing, so
+it is written down rather than assumed understood.
