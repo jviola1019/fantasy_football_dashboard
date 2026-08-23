@@ -190,3 +190,56 @@ green CI badge on this repository should read this file too.
 Neither dismissal nor closure is done here: dismissing a CodeQL alert is an
 owner action, and these are recorded so the decision stays with the owner
 instead of being made silently by whoever was passing through.
+
+---
+
+## Follow-up 2026-08-23 — the structural fix helped, and did NOT clear the alert
+
+Recorded because the outcome contradicts what the change was expected to do, and
+a prediction that missed is worth more written down than quietly dropped.
+
+### What was changed
+
+`acquire-nflverse-usage.ts` used to run `writeFileSync(dest, text)`, where `text`
+is the HTTP response body. The header check validated the body and then wrote
+the body, which is why the dataflow survived it.
+
+The archive is now **rebuilt from parsed cells** — `reserialize()` parses the
+CSV, keeps only the columns a harness actually reads, and re-emits them. Nothing
+unvalidated is persisted, and the file is smaller.
+
+Both frozen protocols were re-run to prove the committed archives are untouched:
+protocol 4 reproduces **958 player-seasons / 452 players** with 0.2289 / 0.2259
+/ 0.5749; protocol 5 reproduces **694 / 392** with w = 0.7613.
+
+### What CodeQL did with it
+
+**It still flags the write.** A new alert (#18) appears at the new
+`writeFileSync(dest, archived)` line. Dataflow through a parser is still
+dataflow: CodeQL does not treat `parseCsv` as a sanitiser, and there is no
+reason it should — a parser preserves the values it reads.
+
+So the security posture genuinely improved (only validated, needed columns reach
+disk) while the alert count did not. **Those are different things, and claiming
+the first as the second is exactly the kind of overstatement this audit has
+spent its life removing.**
+
+### Why these are accepted rather than chased further
+
+The same reasoning was applied to `acquire-mfl-holdout.ts` and rejected as
+disproportionate. Its archive is already an explicitly-constructed typed record
+(`RawLeague`, nine named fields), and the remaining taint is inside nested MFL
+sub-payloads that **protocol 3 traverses dynamically**. Re-shaping those to
+satisfy a static analyser would risk a frozen protocol's reproducibility for a
+medium-severity finding in a script that never runs in production.
+
+The standing rule in this file is that a genuine finding gets fixed. The
+judgement here is that the **rule's threat model does not apply**: these are
+offline research scripts whose entire purpose is downloading public data and
+archiving it, the paths come from frozen literal lists rather than from any
+response, the bodies are content-validated before use, and cached files are
+re-validated on read.
+
+That is the documented basis for dismissal — not convenience, and not a green
+badge.
+

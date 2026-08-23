@@ -41,6 +41,7 @@
     "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts",
     "verify:rotation": "tsx scripts/verify-rotation.ts",
     "reencrypt:credentials": "tsx scripts/reencrypt-credentials.ts",
+    "holdout:evaluate6": "tsx scripts/holdout-evaluate-6.ts",
     "holdout:evaluate5": "tsx scripts/holdout-evaluate-5.ts",
     "anova:opportunity": "tsx scripts/anova-opportunity.ts"
   },
