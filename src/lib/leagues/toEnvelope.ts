@@ -12,6 +12,7 @@ import {
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
 import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
+import { perGame, type SeasonStatsMap } from "../sleeper/seasonStats";
 import { evaluateFreshness } from "../ops/freshness";
 import { SNAPSHOT_CONTRACT } from "../ops/snapshotContracts";
 import type { WeeklyProjectionByFormat } from "./scoringPoints";
@@ -87,6 +88,16 @@ export interface BuildEnvelopeOptions {
    * difference between a role proxy and a historical curiosity.
    */
   opportunityFetchedAt?: Date | string | null;
+  /**
+   * Season-to-date actuals by Sleeper player_id, from the stats-refresh cron.
+   *
+   * The half of the validated model that did not exist until 2026-08-23.
+   * Stamped onto records as `pointsPerGame` / `touchesPerGame` so
+   * `rankInSeason` can apply protocol 5's combination. Absent before kickoff
+   * and before the cron's first run, in which case the fields stay null and the
+   * in-season board says so rather than ranking on half the model.
+   */
+  seasonStats?: SeasonStatsMap | null;
 }
 
 /**
@@ -114,6 +125,31 @@ function deriveLeagueMeta(
   return { draftState, season: resolveEspnSeasonMirror(snapshot.league.season, draftState) };
 }
 
+/**
+ * Stamp season-to-date RATE stats onto records by Sleeper player_id.
+ *
+ * Per game, matching protocols 4 and 5 — a player who missed six weeks has a
+ * smaller season total for a reason that says nothing about their rate.
+ * `perGame` returns null when games played is unknown or zero, and a null rate
+ * stays null: `rankInSeason` drops the player rather than scoring them on half
+ * the model.
+ */
+function withSeasonRates(
+  records: PlayerMarketRecord[],
+  stats: SeasonStatsMap | null
+): PlayerMarketRecord[] {
+  if (!stats) return records;
+  return records.map((r) => {
+    // Records built from Sleeper carry the platform id; FantasyPros-only rows
+    // do not, and get nothing rather than a guessed match.
+    const line = stats[r.id] ?? null;
+    if (!line) return r;
+    const rate = perGame(line);
+    if (!rate) return r;
+    return { ...r, pointsPerGame: rate.points, touchesPerGame: rate.touches };
+  });
+}
+
 export function buildLiveEnvelope({
   snapshot,
   rankings,
@@ -126,7 +162,8 @@ export function buildLiveEnvelope({
   playersSnapshot,
   currentSeason,
   opportunityScores,
-  opportunityFetchedAt
+  opportunityFetchedAt,
+  seasonStats
 }: BuildEnvelopeOptions): RAEEnvelope {
   const season0 = currentSeason ?? String(snapshot.league.season);
   const { draftState, season } = deriveLeagueMeta(snapshot, season0);
@@ -185,7 +222,7 @@ export function buildLiveEnvelope({
     return {
       mode: "live",
       generatedAt: new Date().toISOString(),
-      records: withOpportunity(snapshot.myRoster, oppScores),
+      records: withSeasonRates(withOpportunity(snapshot.myRoster, oppScores), seasonStats ?? null),
       sourceState: degradedSourceState(snapshot.source, rankingsSource),
       leagueFormat: snapshot.format,
       weeklyProjections: weeklyProjections ?? null,
@@ -261,7 +298,7 @@ export function buildLiveEnvelope({
   return {
     mode: "live",
     generatedAt: new Date().toISOString(),
-    records: withOpportunity(enriched, oppScores),
+    records: withSeasonRates(withOpportunity(enriched, oppScores), seasonStats ?? null),
     sourceState: {
       source: `${snapshot.source.source} + ${rankingsSource.source}${opportunityActive ? " + nflverse snaps" : ""}`,
       fetchedAt: rankingsSource.fetchedAt,

@@ -578,3 +578,52 @@ does not measure scaled SVG user units. The labels moved out to an HTML legend.
 
 `typecheck` 0 · `lint` 0 · **vitest 1092 passed / 39 skipped** · `build` clean ·
 draft spec **18/18** · chart audit **59/59** · layout audit **120/120**.
+
+---
+
+## The two non-10 areas (2026-08-23, later)
+
+### Model — the validated half is now shipped
+
+The refutation of protocols 1–3 **stands and was not re-litigated**. What
+changed is the other half: protocols 4 and 5 validated in-season usage twice,
+and it could not be shipped because RAE had usage and **no points-to-date
+anywhere**. The dossier's own words: *"validated for a model RAE has not built."*
+
+Built: `season_stats_snapshots` on both drivers · `/api/cron/stats-refresh`
+(empty-write guard, season resolved from Sleeper state) · `inSeasonScore.ts`
+(`z(pts/g) + 0.7613·z(touch/g)`, standardised within position) · `InSeasonBoard`
+on `/waivers`, kept **separate** from the refuted edge table below it.
+
+**The fidelity gate caught a real defect on its first run.** It failed at 0.0204
+against protocol 5's published 0.0195. One cause was a genuine bug in the
+shipped model — a sample sd where the validated harness used a population sd,
+which changes the pooled ranking across cohorts of different sizes — and one was
+a defect in the check. The tolerance was never widened. Now 0.0195 vs 0.0195,
+difference 0.000006, and it runs in CI.
+
+Without that gate RAE would have shipped a model that *resembled* the validated
+one. That gap is where "validated" quietly stops being true.
+
+### Performance — the estimator was the problem
+
+`numberOfRuns: 1`. A single sample of a metric whose local spread was 90/82/78.
+Now five runs with a **median** assertion, plus a `lighthouse-variance` CI step
+that prints each run, the median and the spread, flagging any category whose
+spread reaches 5 points. Reports upload as an artifact.
+
+Optimisation deliberately comes second: tuning against a number you cannot
+measure is how you chase noise.
+
+### Fixture catalog grew 8 → 14
+
+The in-season board standardises within position and protocol 5 skipped cohorts
+below five, so with three RBs and two WRs it could only ever render its empty
+state. **The threshold was not lowered to flatter the demo** — five is what was
+validated. The catalog grew instead, with every new `sleeperId` verified against
+the live players API.
+
+Two tests failed as a result and **neither was a regression**: one asserted the
+fixture count as a magic number in a test about imagery, and one assumed a QB
+would survive into a top-8 that now holds six stronger players. Both were fixed
+to assert their intent.

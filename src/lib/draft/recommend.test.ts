@@ -33,15 +33,21 @@ describe("draft recommend()", () => {
   });
 
   it("tags need vs stash vs value categories", () => {
+    // The limit covers the whole pool. With a filled QB target and a catalog
+    // that now holds six more skill players, no QB survives into a top EIGHT --
+    // which is the recommender working, not failing. The claim under test is
+    // how a QB is CATEGORISED when it appears, so the test must guarantee one
+    // appears rather than assume it.
     const result = recommend(
       {
         available: fixturePlayers,
         myRoster: fixturePlayers.filter((p) => p.position === "QB").slice(0, 1),
         targets: { QB: 1, RB: 4, WR: 5, TE: 1 }
       },
-      8
+      fixturePlayers.length
     );
     const qb = result.find((r) => r.player.position === "QB");
+    expect(qb, "the pool contains quarterbacks, so one must be categorised").toBeDefined();
     // QB target is filled, so QB picks are either Stash (depth) or Run (last in tier — tier-cliff override is correct).
     expect(["Stash", "Run"]).toContain(qb?.category);
     const rb = result.find((r) => r.player.position === "RB");

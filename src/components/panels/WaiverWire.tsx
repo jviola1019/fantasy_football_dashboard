@@ -1,5 +1,6 @@
 "use client";
 
+import { InSeasonBoard } from "./sections/InSeasonBoard";
 import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
@@ -79,6 +80,12 @@ export function WaiverWire({ players, envelope }: Props) {
           misrepresent what is driving the ranking. */}
       {showEdge ? <EdgeDisclosureNotice variant="banner" /> : null}
       {showEdge ? <OpportunityEvidenceNotice variant="banner" /> : null}
+
+      {/* The validated ranking goes FIRST and stays separate. The table below is
+          ordered partly by `scarcityGap`, which protocol 3 refuted; folding the
+          two together would produce a third ordering neither result covers, and
+          a reader could not tell which part they were trusting. */}
+      <InSeasonBoard players={players} />
 
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Ranked free agents table">

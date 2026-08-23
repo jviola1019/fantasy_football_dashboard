@@ -9,6 +9,7 @@ import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
 import { type WeeklyProjectionByFormat } from "@/lib/leagues/scoringPoints";
+import { getLatestSeasonStatsSnapshot } from "@/lib/sleeper/seasonStatsSnapshot";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
 import { infraNull } from "./infraNull";
 import { buildLeagueUniverse, UNIVERSE_LIMIT } from "@/lib/leagues/buildUniverse";
@@ -118,6 +119,13 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             getLatestPlayersSnapshot().catch(infraNull("players")),
             getLatestOpportunitySnapshot("nfl").catch(infraNull("opportunity"))
           ]);
+
+        // Season-to-date actuals, keyed by the season Sleeper itself reports.
+        // Keyed by SEASON deliberately: last year's totals are not this year's
+        // points-to-date, and reading them as such is the P0-5 error.
+        const seasonStats = nflState?.data?.season
+          ? await getLatestSeasonStatsSnapshot(nflState.data.season).catch(infraNull("season-stats"))
+          : null;
         const trendingAdds = buildTrendingMap(trendingAddsResult?.data ?? null);
         const trendingDrops = buildTrendingMap(trendingDropsResult?.data ?? null);
         const rankingsSource = rankings
@@ -188,7 +196,11 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             opportunityScores: oppSnapshot?.scores ?? null,
             // P0-5: the age travels WITH the scores. Dropping it here is what let
             // a snapshot of any age be presented as current usage.
-            opportunityFetchedAt: oppSnapshot?.fetchedAt ?? null
+            opportunityFetchedAt: oppSnapshot?.fetchedAt ?? null,
+            // The other half of the validated model. Null until the
+            // stats-refresh cron has run; `rankInSeason` then declines to rank
+            // rather than ranking on half the model.
+            seasonStats: seasonStats?.stats ?? null
           }),
           leagueOptions,
           activeLeagueId

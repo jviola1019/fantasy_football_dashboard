@@ -50,6 +50,25 @@ export const PlayerMarketRecordSchema = z.object({
    * Optional in the schema so previously stored snapshots keep parsing.
    */
   byeWeek: z.number().int().min(1).max(22).nullable().optional(),
+  /**
+   * Season-to-date PPR points PER GAME, and (receptions + carries) per game.
+   *
+   * The half of the validated model that did not exist until 2026-08-23.
+   * Protocols 4 and 5 established that in-season usage predicts rest-of-season
+   * scoring BEYOND points already scored — and RAE had usage and no
+   * points-to-date, so the one signal that survived out-of-sample testing could
+   * not be ranked on. See `src/lib/models/inSeasonScore.ts`.
+   *
+   * PER GAME, because both protocols normalised that way: a player who missed
+   * six weeks has a smaller season total for a reason that says nothing about
+   * their rate.
+   *
+   * NULLABLE and never defaulted. Zero points is a real result; unknown is not,
+   * and `rankInSeason` drops a player missing either rather than scoring them
+   * on half the model.
+   */
+  pointsPerGame: z.number().nullable().optional(),
+  touchesPerGame: z.number().nonnegative().nullable().optional(),
   imageUrl: z.string().url(),
   imageSource: z.string()
 });
