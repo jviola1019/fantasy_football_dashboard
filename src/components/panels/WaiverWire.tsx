@@ -79,6 +79,14 @@ export function WaiverWire({ players, envelope }: Props) {
           one and opportunity is the validated one, so showing either alone would
           misrepresent what is driving the ranking. */}
       {showEdge ? <EdgeDisclosureNotice variant="banner" /> : null}
+      {/* EXACTLY ONE validated BANNER on this panel.
+          This one carries the evidence — 958 player-seasons, 452 players, the
+          out-of-fold move from 0.734 to 0.748. The in-season board below adds
+          the LIMITS specific to the shipped ranking (the weight, that its
+          magnitude did not generalise, that it is a ranking and not a
+          forecast) in its own block rather than as a second banner. Two
+          banners saying overlapping things is the "repetition is not
+          disclosure" error the per-panel source badges were removed for. */}
       {showEdge ? <OpportunityEvidenceNotice variant="banner" /> : null}
 
       {/* The validated ranking goes FIRST and stays separate. The table below is

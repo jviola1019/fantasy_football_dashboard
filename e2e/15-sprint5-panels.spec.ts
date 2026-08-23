@@ -165,10 +165,14 @@ test.describe("feature interactions", () => {
     await gotoRoute(page, "/waivers");
     const ww = page.locator("#waiver-wire");
     await ww.scrollIntoViewIfNeeded();
-    const rowsBefore = await ww.locator("tbody tr").count();
+    // Scoped to the FREE-AGENT table. The panel now also hosts the validated
+    // in-season board, so a bare `tbody` under `#waiver-wire` is ambiguous --
+    // and an ambiguous locator in strict mode is a test that stops testing.
+    const faTable = ww.getByRole("region", { name: /ranked free agents table/i });
+    const rowsBefore = await faTable.locator("tbody tr").count();
     await ww.getByRole("searchbox", { name: /search free agents/i }).fill("zzzznotaplayer");
-    await expect(ww.locator("tbody")).toContainText(/No free agents match/i);
+    await expect(faTable.locator("tbody")).toContainText(/No free agents match/i);
     await ww.getByRole("searchbox", { name: /search free agents/i }).fill("");
-    await expect(ww.locator("tbody tr")).toHaveCount(rowsBefore);
+    await expect(faTable.locator("tbody tr")).toHaveCount(rowsBefore);
   });
 });

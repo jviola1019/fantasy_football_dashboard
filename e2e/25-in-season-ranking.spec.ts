@@ -73,10 +73,18 @@ test.describe("validated in-season ranking", () => {
   });
 
   test("announces a positive result in the positive palette, not the failure one", async ({ page }) => {
-    // The notice component has a `is-validated` variant. Without it, the one
-    // model that worked announced itself in warning colours — miscolouring a
-    // result is miscommunicating it.
-    await expect(page.locator("#in-season-board .model-scenario-banner.is-validated")).toHaveCount(1);
+    // The one model that worked must not announce itself in warning colours —
+    // miscolouring a result is miscommunicating it.
+    await expect(page.locator("#in-season-board .in-season-note")).toHaveCount(1);
+  });
+
+  test("adds a limits block WITHOUT adding a second validated banner", async ({ page }) => {
+    // The waiver panel carries exactly one validated banner, holding the
+    // evidence. This block holds the limits specific to the shipped ranking.
+    // Two banners saying overlapping things is repetition, not disclosure —
+    // the same error the per-panel source badges were removed for.
+    await expect(page.locator("#waiver-wire .model-scenario-banner.is-validated")).toHaveCount(1);
+    await expect(page.locator("#in-season-board .model-scenario-banner")).toHaveCount(0);
   });
 
   test("stays separate from the refuted edge ranking below it", async ({ page }) => {

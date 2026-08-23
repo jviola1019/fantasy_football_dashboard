@@ -52,18 +52,18 @@ export function InSeasonBoard({ players }: { players: PlayerMarketRecord[] }) {
 
       {/* The claim and its limits in the same block. This is the model most
           easily overstated, because it is the one that worked. */}
-      {/* `is-validated` — the POSITIVE variant. Without it this rendered in the
-          failure palette, so the one model in the product that survived
-          out-of-sample testing was announcing itself in warning colours.
-          Miscolouring a result is miscommunicating it. */}
-      <aside className="model-scenario-banner is-validated" role="note" aria-label="In-season ranking evidence">
-        <p className="model-scenario-head">
-          <span className="model-scenario-flag" aria-hidden="true">
-            ✓
-          </span>
+      {/* Its OWN class, not `model-scenario-banner`. The panel already carries
+          one validated banner with the evidence (958 player-seasons, the
+          out-of-fold move from 0.734 to 0.748); this block carries the LIMITS
+          specific to the shipped ranking. Same information, one banner.
+          Positive palette, because the one model that survived out-of-sample
+          testing must not announce itself in warning colours. */}
+      <aside className="in-season-note" role="note" aria-label="In-season ranking limits">
+        <p className="in-season-note-head">
+          <span aria-hidden="true">✓ </span>
           {IN_SEASON_DISCLOSURE.headline}
         </p>
-        <p className="model-scenario-body">{IN_SEASON_DISCLOSURE.body}</p>
+        <p className="muted-note">{IN_SEASON_DISCLOSURE.body}</p>
         <ul className="gov-assume-list">
           {IN_SEASON_DISCLOSURE.limits.map((l) => (
             <li key={l}>{l}</li>
