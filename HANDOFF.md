@@ -329,12 +329,16 @@ Recorded OPEN there, deliberately not changed unilaterally:
 - **Landing page 6-card 3x2 grid** is the exact "Claude-generated card grid" CLAUDE.md forbids, and
   the page shows no product visual. Recommendation written; it is a marketing redesign, not a defect.
 - **/dashboard dead space**: LEAGUE HEALTH 140px unused (38% of body), NEXT BEST ACTIONS 110px (42%);
-  CHAOS EXPOSURE is orphaned alone on row 2 of a 4-column KPI grid.
+  CHAOS EXPOSURE is orphaned alone on row 2 of a 4-column KPI grid. **Partly addressed 2026-08-22**:
+  the route was re-ranked (Next Best Actions is now the full-width first row), so the tile
+  proportions have changed and these measurements are stale. The KPI orphan is unmeasured since.
 - **News article age is never surfaced** (captured and used for weighting, zero UI references), so a
   user cannot tell if a trending signal is 2h or 20h old. Snapshot is daily — a Vercel Hobby cron cap.
-- **LEAGUE PULSE bars are coloured by position while red is the risk colour**, so a 2nd-ranked player
-  renders a full red bar.
-- **derivedMetrics position grades** use a hardcoded slot list — no SUPERFLEX, no K.
+- ~~**LEAGUE PULSE bars are coloured by position while red is the risk colour**~~ — **CLOSED.**
+  `PULSE_BAR_COLOR` is `var(--blue)`; position is carried by `PositionBadge`, which it always was.
+  This entry was stale: it stayed listed as OPEN after the fix landed.
+- ~~**derivedMetrics position grades** use a hardcoded slot list~~ — **CLOSED.** `derivedMetrics.ts`
+  derives slots from the league format and handles SUPERFLEX and K. Also stale.
 - Docs are the least trustworthy artifact: `FINAL_AUDIT.md` cites a `lifecycle/trades` lib that
   **does not exist**; [docs/account-isolation.md:11](docs/account-isolation.md#L11) and
   [settings/account/page.tsx:27](src/app/(app)/settings/account/page.tsx#L27) both describe JWT
@@ -370,3 +374,89 @@ Production deploy · **ESPN credential rotation (recommended — the cookies wer
 transcript, so they should be considered exposed)** · enabling `dependabot_security_updates` and
 `automated-security-fixes` · branch ruleset · deleting the stale `audit/2026-06-09` branch ·
 merging the PR.
+
+---
+
+## Hierarchy pass + P0-4 / P0-5 / P4 (2026-08-22 → 23)
+
+Full detail in [reports/2026-08-20/REMEDIATION-PLAN.md](reports/2026-08-20/REMEDIATION-PLAN.md).
+
+### Design — the deferred findings, executed
+
+The design audit's verdict was *"the information is almost always present — the
+failure is hierarchy, not honesty."* All five deferred findings are closed except
+the chart-palette half of D-5.
+
+- **D-6 · a type scale now exists.** There was none: 264 sites across four
+  unreconciled systems, 78% of CSS type in the 8–11px band. Twelve sizes become
+  eight (9 → 44px), Tailwind's ladder overridden so `text-xs` and
+  `var(--text-xs)` mean the same thing, and `typeScale.test.ts` fails the build
+  if a raw `px` size reappears.
+- **D-8 · every route has a visible `<h1>`** (they were all `sr-only`) and solid
+  amber is now reserved for the primary action — the loudest object on
+  `/dashboard` used to be a non-interactive season chip.
+- **D-7 · `/analytics` went from 28 boxed regions to 10**, `/draft` 13 → 6.
+  One border level per panel; the selectable player cards keep theirs because
+  there a border is a real affordance.
+- **D-9 · tabs name the region they control.** Five panels had `role="tab"` with
+  no `tabpanel` and no `aria-controls` anywhere. axe treats `aria-controls` as
+  advisory, so this passed every scan for the component's whole life.
+- **Removed rather than added:** six duplicate provenance badges per route, and
+  a `FIXTURE FIXTURE` double-label in the command bar.
+
+### P0-4 · the season-simulation "confidence bands"
+
+Reproduced with `npm run measure:bands` before changing anything. The audit's
+"~30× too narrow, ECE 28–30pp" was **overstated**: the real figures are **11.1×**
+and **16.13pp**, and are recorded corrected.
+
+The defect the report missed is worse: **the interval did not contain its own
+point estimate** — `Playoffs 69.6% [68.1 – 69.6]`. The point came from one
+full-iteration run, the band from 20 shorter replicates; nothing forced them to
+agree. A test claimed to cover exactly this and could not fail, because it
+compared the interval to its own bootstrap mean rather than to the number on
+screen. **Eighth instance of the green-check-that-isn't-checking class.**
+
+Renamed to `ReplicationRange`, re-centred on the displayed estimate, and the
+unmeasured `widen()` multipliers (×1.5 / ×2.5) are deleted.
+
+### P0-5 · a stale opportunity snapshot presented as current
+
+`fetchedAt` was dropped at the load boundary, so opportunity activated on
+**presence alone** — a snapshot of any age was stamped onto every record,
+removed from `missingFields`, and described as coming "from the latest season's
+games". `/api/health` already evaluated this exact snapshot against a declared
+contract; the operator surface knew and the user surface did not. The contract
+is now shared, expired snapshots are withheld, stale ones are labelled, and the
+age is always stated. **No new thresholds were invented.**
+
+### P4 · dead code removed
+
+Each symbol was confirmed to have exactly one occurrence — its own definition —
+before deletion: `SESSION_VERSION_CLAIM`, `espnRosterEntryToRecord`,
+`src/lib/espn/index.ts`, and 8 uncalled Sleeper wrappers.
+
+### Gates at this point
+
+`typecheck` 0 · `lint` 0 · **vitest 946 passed / 39 skipped** · `build` clean ·
+**Playwright 331 passed / 1 skipped / 0 failed** (exit code captured directly,
+not through a pipe) · axe 0 serious/critical on all routes.
+
+One regression was introduced and caught by the gate, not by reading the diff:
+`.route-header-num` used `--blue` at `opacity: 0.75`, which composites to
+4.13:1 at 11px and failed axe on all seven routes. **Opacity is a contrast
+change wearing a costume.**
+
+### Still open
+
+- **D-5 chart palette** — ~40 off-token colour literals in chart series. Needs a
+  visual-diff pass; a colour regression is invisible to every gate here.
+- **P1-1 … P1-6** and **P2-1 … P2-7** from the remediation plan.
+- **P3** coverage gaps (`auth.ts`, `requireUser.ts`, `timingSafe.ts`,
+  `redact.ts`, `toEnvelope.ts`).
+- **The unit suite is intermittently flaky under full-suite concurrency.** One
+  run showed 4 failures in `throttle.test.ts` / DB-reset hooks with
+  `Hook timed out in 10000ms`; the same files pass in isolation and the next two
+  full runs were green. A suite that fails intermittently in the DB hook will
+  eventually be dismissed as "just flaky" and then hide something real. Not yet
+  diagnosed.

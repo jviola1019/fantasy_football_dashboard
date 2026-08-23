@@ -29,7 +29,7 @@ Ordered by *who is harmed and how invisibly*, not by reported severity:
 | P0-1 | DEF grade was a constant "B+" for every live user; `fragility` never declared missing so every guard was dead code | **FIXED** `97c6774` |
 | P0-2 | Every ESPN trade graded "balanced, fairness 1.0" from an empty value map; half-priced trades graded "lopsided" | **FIXED** `97c6774` |
 | P0-3 | `myRoster` silently falls back to **another manager's team** when identity resolution fails, stamped `validation: "valid"` | **NEXT** |
-| P0-4 | Season-sim "confidence bands" are ~30× too narrow — they measure Monte-Carlo replication noise (<1pp) while measured ECE is 28–30pp, and are labelled "confidence interval" | **PLANNED** |
+| P0-4 | Season-sim "confidence bands" measure Monte-Carlo replication noise but are labelled a confidence interval — **and one of the two displayed intervals did not contain its own point estimate** | **FIXED** — see §P0-4 below |
 | P0-5 | Stale opportunity snapshot presented as current; `fetchedAt` dropped so age is never checked, and `opportunity` is removed from `missingFields` regardless | **PLANNED** |
 
 P0-3 is the worst remaining item. A Sleeper user who omits `sleeperUsername`
@@ -165,3 +165,286 @@ The commit message for `a40e1d7` is **truncated** — it was passed through
 fixes themselves are complete and verified; only the message is short. It is not
 being rewritten because that would require a force-push, which this audit's brief
 forbids without explicit approval. This section is the complete record.
+
+---
+
+## P0-4 — the season-simulation "confidence bands"
+
+**Reproduced before fixing**, per the method note. `npm run measure:bands`
+(`scripts/measure-scenario-bands.ts`) prints the evidence and re-runs on demand.
+
+### What the agent report claimed, and what is actually true
+
+| claim | measured |
+|---|---|
+| bands are ~30× too narrow | **11.1×** — widest band 1.45pp vs 16.13pp measured ECE |
+| measured ECE is 28–30pp | **16.13pp** (shipped chain) / 17.04pp (protocol 2) |
+| labelled "confidence interval" | **true** — and the label was the smaller problem |
+
+The agent's magnitude was overstated by nearly 2×. The finding survives; the
+number did not, and it is recorded corrected rather than quietly adopted.
+
+### The defect the report missed, which is worse
+
+The displayed point estimate came from **one run at `SIM_BASE.iterations`**. The
+band came from **20 bootstrap replicates at a smaller `BAND_ITERATIONS`**. Two
+different estimators, nothing forcing them to agree — and on the fixture league
+they did not:
+
+```
+Playoffs      point  69.60 IS NOT inside [68.12 - 69.57]
+Championship  point   7.90 IS     inside [ 7.44 -  8.30]
+
+1 of 2 displayed intervals EXCLUDE their own point estimate.
+```
+
+The panel rendered `Playoffs 69.6% [68.1 – 69.6]`. Whatever that interval means,
+it cannot mean anything about a number that sits outside it.
+
+**A test claimed to cover exactly this and could not fail.** `continuity.test.ts`
+asserted `ci.lower ≤ ci.estimate ≤ ci.upper` — but `bootstrapCI` fills
+`estimate` with the mean of *its own replicates*, so the assertion was that a
+bootstrap interval contains its own bootstrap mean. True by construction. The
+value on screen was never compared to the interval printed beside it. **Eighth
+instance of the green-check-that-isn't-checking class.**
+
+### What changed
+
+| | before | after |
+|---|---|---|
+| name | `ConfidenceBands` / `deriveConfidenceBands` | `ReplicationRange` / `deriveReplicationRange` |
+| centre | bootstrap mean of 20 short runs | **the estimate actually displayed** |
+| width | bootstrap 95% interval | unchanged — 1.450pp / 0.860pp |
+| degraded data | interval stretched **×1.5** | a sentence naming the missing inputs |
+| unavailable data | interval stretched **×2.5** | a sentence naming the missing inputs |
+| caption | "the model's measured calibration error is far larger" | "**16pp**, roughly ten times this range" |
+| announcement | `role="status" aria-live="polite"` | removed — standing context |
+
+The `widen()` helper is deleted. Multiplying a replication range does not turn
+it into input uncertainty; it prints a wider number with no measurement behind
+it, and 1.5 / 2.5 were chosen for legibility rather than derived from anything.
+Deleting an unmeasured constant that inflates a displayed interval is the same
+rule as every other P0 here: **never show a number the data does not support.**
+
+### Verification
+
+```
+$ npm run measure:bands
+Playoffs       69.60    [68.87 - 70.33]          1.450
+Championship    7.90    [ 7.47 -  8.33]          0.860
+All intervals contain their point estimate.
+widest band = 1.450pp · measured ECE = 16.13pp → 11.1x too narrow
+```
+
+Two new unit tests pin it: the range must bracket **`sim.playoffProbability` /
+`sim.championshipProbability` by name**, and its width must stay below a third
+of the measured ECE — so if anyone reintroduces a multiplier, the label
+"replication range" stops being true and the suite says so.
+
+---
+
+## Hierarchy — the deferred design findings, executed
+
+The design audit's own verdict was **"the information is almost always present —
+the failure is hierarchy, not honesty."** Five findings were deferred for
+needing product decisions or wide mechanical sweeps. They are done.
+
+### D-6 — there was no type scale
+
+`@theme` defined spacing and radius tokens and **nothing for type**. 264 sites
+set their own size through four unreconciled systems, and **78% of the CSS
+declarations sat inside the 8–11px band**. When almost everything is the same
+size, size stops ranking anything.
+
+The fix is *not* enlarging the small text — RAE is a dense quant console and its
+grid labels are legitimately small. It is (a) collapsing the four near-identical
+bottom sizes into two and (b) giving the scale a real **top**, so a route can
+have a loudest element at all. Twelve sizes spanning 8→32px become eight
+spanning 9→44px:
+
+| token | px | role |
+|---|---|---|
+| `--text-micro` | 9 | dense-grid labels ONLY — uppercase, letter-spaced, inside a grid |
+| `--text-xs` | 11 | metadata, captions, provenance — the floor for prose (F-05) |
+| `--text-sm` | 13 | body copy and table cells |
+| `--text-base` | 16 | panel titles, emphasised labels |
+| `--text-lg` | 20 | section headers |
+| `--text-xl` | 26 | route title — one per page |
+| `--text-2xl` | 34 | hero metric numerals |
+| `--text-3xl` | 44 | onboarding display |
+
+These deliberately **override Tailwind's default ladder**, so `text-xs` and
+`font-size: var(--text-xs)` mean the same thing. All 264 sites migrated: 157 CSS
+declarations, 52 inline `fontSize`, 14 arbitrary `text-[Npx]`, 42 utilities.
+Zero raw `px` type remains outside the scale.
+
+`typeScale.test.ts` (7 tests) pins the ladder strictly increasing, pins the 11px
+prose floor, requires the top to stay ≥1.6× body, and **fails the build** if a
+raw `font-size`, a `text-[Npx]`, or a numeric inline `fontSize` reappears.
+SVG `fontSize={9}` props are exempt and documented: they compile to presentation
+attributes, which cannot resolve `var()`.
+
+### D-8 — no primary CTA, and amber spent on a label
+
+Seven of eight routes had zero primary CTA, the only `<h1>` on each was
+`sr-only`, and the loudest object on `/dashboard` was a **solid-amber,
+non-interactive season chip**. Amber is the product's action colour; spending it
+on a label inverted the whole hierarchy.
+
+- **`RouteHeader`** — one component in the shell, so no route can lose its
+  heading: 26px visible `<h1>`, a one-sentence purpose, an optional action, and
+  the route's ordinal echoing the numbered sidebar (continuous wayfinding, not
+  ornament — `aria-hidden`, since the heading text already names the route).
+- **The season chip is demoted** to amber-on-panel with a hairline (7.6:1, still
+  clear of AA). Solid amber now means "this is the action" and nothing else.
+- **In fixture mode every route's action is "Connect your league"**, because in
+  demo mode it genuinely is the same action and CLAUDE.md puts onboarding first.
+  In live mode the slot is filled only where a *real, distinct* action exists
+  (`/draft` → open the mock draft). **Inventing a button for a route with no
+  action would be fabricating an affordance** — the interface equivalent of
+  fabricating a number — so the other routes show none.
+- **Next Best Actions moved** from the bottom-right of four equal tiles to the
+  first and widest element on `/dashboard`.
+
+An e2e test asserts **no non-interactive element anywhere renders solid amber**.
+
+### D-7 — /analytics was 28 boxed regions
+
+Measured, not estimated (the audit's "~21" was above-the-fold only): four
+legitimate panels and **twenty-four more boxes nested inside them**. Once
+everything is boxed, a box stops meaning "this is a distinct thing".
+
+The rule now is **one border level per panel**. Inside a panel a region is marked
+by a hairline rule, a wash, or a tone-carrying left edge — never a fourth side.
+KPI tiles take a left edge in their own semantic tone, which also reinforces a
+meaning the value colour already carries, so it is never the sole signal.
+
+| route | before | after |
+|---|---|---|
+| /analytics | 28 | **10** |
+| /players | 19 | **13** |
+| /draft | 13 | **6** |
+| /dashboard | 13 | **8** |
+| /waivers | 9 | **7** |
+| /trades | 7 | 7 |
+
+The 8 remaining boxes on `/players` are the **selectable player cards**, where a
+border is a real affordance and `.selected` changes it. Those keep it.
+
+### D-9 — tabs that named nothing
+
+Five panels declared `role="tab"` with **no `role="tabpanel"` and no
+`aria-controls` anywhere**. Activating a tab announced a selection change, then
+dropped the user into unlabelled content with no stated relationship to the
+control they had just used. axe treats `aria-controls` as advisory, so this
+passed every scan for the entire life of the component.
+
+`PanelTabs` now generates stable ids and every consumer wraps its content in
+`TabPanel`. An e2e test walks four routes, requires **every** tab to name a
+region, and requires the selected tab's region to exist, to have
+`role="tabpanel"`, and to point back at the tab — a dangling `aria-controls` is
+worse than none.
+
+### D-5 — token drift, partially closed
+
+The two undeclared text colours are now tokens (`--gov-text`, `--label-text`,
+both with their measured contrast recorded). The chart series palette in
+`NexusSimulator` remains **open**: it needs a visual-diff pass, because a colour
+regression is invisible to every gate this repo has.
+
+### Two things this work removed rather than added
+
+- **Six duplicate provenance badges per route.** Every panel passed
+  `envelope.sourceState` to `PanelCard` — the exact value the governance strip
+  directly above already stated. One route rendered the same provenance line up
+  to six times. Repetition is not disclosure; it teaches the reader to skip the
+  thing they most need to read. `PanelCard.source` now documents that it is for
+  a lineage that genuinely **differs** from the route's.
+- **"FIXTURE FIXTURE" in the command bar.** In fixture mode the freshness string
+  *is* the word "fixture", so the bar printed it twice — once as an amber pill,
+  once as plain text. When freshness restates the mode there is no second fact
+  to show.
+
+### The governance strip, re-ranked
+
+It carried exactly the right information and still scored a partial on UX
+question 5, because it delivered all of it as an 11px run-on sentence: to learn
+the confidence you had to read a paragraph. It is now a **field row** — values at
+body size above 9px mono labels, freshness and validation carrying semantic
+colour **and** their own word. Nothing was removed. The e2e assertion was
+strengthened at the same time: it used to pass on the word "freshness" appearing
+anywhere in the banner; it now requires each labelled field and a real
+percentage.
+
+### Regression found and fixed during this work
+
+`.route-header-num` used `--blue` at `opacity: 0.75`, which composites to
+`#467c9b` on the navy ground: **4.13:1 at 11px, a serious axe failure on all
+seven routes.** Opacity is a contrast change wearing a costume. Full `--blue` is
+6.6:1. Caught by running the gate, not by reading the diff.
+
+---
+
+## P0-5 — a stale opportunity snapshot presented as current
+
+**Reproduced by inspection at the boundary**, then pinned by test:
+`src/lib/envelope/load.ts` read the nflverse snapshot and passed only
+`snapshot.scores` into `buildLiveEnvelope`. `fetchedAt` was **dropped**.
+
+With no age available, the envelope activated opportunity on **presence alone**:
+
+- every record got a snap-share number stamped onto it,
+- `opportunity` was removed from `missingFields` — the one channel panels use to
+  render "—" instead of a figure, and
+- the assumption read *"a real role/usage proxy from the latest season's games."*
+
+If the daily cron had been dead for two months, all three statements were still
+made, confidently, with nothing in the product contradicting them.
+
+**The system already knew.** `/api/health` evaluates this exact snapshot against
+a declared contract — warn at 2 days, expire at 15. The operator surface could
+see the staleness and the user surface could not, because the two did not share
+the contract. That is the shape of the defect: not a missing measurement, a
+measurement that never reached the person relying on it.
+
+### What changed
+
+- `SNAPSHOT_CONTRACT` extracted to `src/lib/ops/snapshotContracts.ts`, consumed
+  by **both** `/api/health` and the envelope. **No new thresholds were invented**
+  — an invented constant is what P0-4 just finished deleting.
+- `opportunityFetchedAt` travels with the scores, documented as required.
+- **Expired → withheld.** `opportunity` stays in `missingFields`, the scores are
+  not stamped onto records, and the source string drops "+ nflverse snaps". The
+  disclosure and the data agree; declaring a field missing while still writing
+  88 onto the record would only move the lie.
+- **Stale (past warn, inside expire) → used, and labelled**: "Past its refresh
+  window; treat as indicative, not current."
+- **Age is always stated** when the data is used. "From the latest season's
+  games" is a claim about recency, and a claim about recency has to carry the
+  date it rests on.
+- **A missing timestamp is treated as unusable, not as fresh.** The safe reading
+  of "I don't know how old this is" is not "it is new" — and an absent timestamp
+  is precisely what caused this bug.
+
+`opportunityStaleness.test.ts` — 7 tests covering activation, withholding,
+record stamping, the age string, the stale caveat, the stated reason, and the
+null-timestamp case.
+
+## P4 — dead code removed
+
+Each symbol was confirmed to have **exactly one occurrence in the repository —
+its own definition** before deletion.
+
+- `SESSION_VERSION_CLAIM` (`auth/session.ts`)
+- `espnRosterEntryToRecord` (`normalize.ts`)
+- `src/lib/espn/index.ts` — a barrel with zero importers
+- 8 uncalled Sleeper wrappers: `getLeagueDrafts`, `getUserDrafts`,
+  `getDraftTradedPicks`, `getUserByName`, `getUserLeagues`, `getMatchups`,
+  `getTradedPicks`, `getWinnersBracket`
+- the imports and type imports those left orphaned
+
+**Deliberately NOT deleted:** the five `z.array(...)` list schemas the wrappers
+had been the only consumers of. Deleting them cascades into the element schemas,
+which are 10–15 lines each of documented upstream API contract — that is
+knowledge about Sleeper, not dead product code, and removing it was not part of
+what the coverage audit examined. Recorded here rather than done quietly.
