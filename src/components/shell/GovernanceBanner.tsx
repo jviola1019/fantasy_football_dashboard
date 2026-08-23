@@ -11,7 +11,15 @@ export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
   const fmt = envelope.leagueFormat;
   const draftState = envelope.draftState ?? "unknown";
   return (
-    <div className="governance-banner" role="status">
+    // `role="status"` removed 2026-08-22. This is mounted on EVERY route and its
+    // content (source, freshness, confidence, validation, failure, the full
+    // missing-fields list) changes on every navigation — so a screen reader read
+    // the entire governance paragraph aloud on each route change. The
+    // information is standing context, not an event.
+    //
+    // It stays reachable: the content is plain text in the document, and the
+    // region is labelled so it can be navigated to deliberately.
+    <div className="governance-banner" aria-label="Data governance summary">
       {fmt ? (
         <span>
           <b>League:</b>{" "}

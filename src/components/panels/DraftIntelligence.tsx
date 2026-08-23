@@ -365,8 +365,18 @@ function TierCollapseView({
                 <td>{s.remaining}</td>
                 <td>{s.cliff.toFixed(1)}</td>
                 <td>
+                  {/* The severity band was carried by colour ALONE (red/amber/green),
+                      so a red-green-deficient reader saw "62%" with no indication
+                      it was the alarm band. WCAG 1.4.1 — axe cannot detect this.
+                      The word now carries the meaning and the colour reinforces it. */}
                   <span className={s.intensity > 0.5 ? "neg-text" : s.intensity > 0.25 ? "neu-text" : "pos-text"}>
-                    {(s.intensity * 100).toFixed(0)}%
+                    {(s.intensity * 100).toFixed(0)}%{" "}
+                    <span className="sr-only">
+                      {s.intensity > 0.5 ? "severe" : s.intensity > 0.25 ? "moderate" : "mild"} tier collapse
+                    </span>
+                    <b aria-hidden="true">
+                      {s.intensity > 0.5 ? " severe" : s.intensity > 0.25 ? " moderate" : " mild"}
+                    </b>
                   </span>
                 </td>
               </tr>

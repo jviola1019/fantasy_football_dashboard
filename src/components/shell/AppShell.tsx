@@ -26,6 +26,13 @@ interface Props {
 export function AppShell({ mode, freshness, leagueOptions = [], activeLeagueId = null, banner, children }: Props) {
   return (
     <SidebarProvider>
+      {/* Skip link. axe passes without one because landmarks satisfy its
+          `bypass` rule, but a keyboard user still traversed the sidebar trigger,
+          a 9-item numbered route sidebar, the league switcher and the user menu
+          before reaching content — on EVERY route. Audit 2026-08-22. */}
+      <a href="#rae-main" className="skip-link">
+        Skip to main content
+      </a>
       <RouteSidebar />
       <SidebarInset>
         <TopCommandBar
@@ -35,10 +42,10 @@ export function AppShell({ mode, freshness, leagueOptions = [], activeLeagueId =
           activeLeagueId={activeLeagueId}
         />
         {/* pb-16 on mobile clears the fixed bottom nav; removed at md. */}
-        <div className="flex-1 px-3 pb-16 pt-2 sm:px-4 md:pb-4">
+        <main id="rae-main" tabIndex={-1} className="flex-1 px-3 pb-16 pt-2 sm:px-4 md:pb-4">
           {banner}
           {children}
-        </div>
+        </main>
         <MobileBottomNav />
       </SidebarInset>
     </SidebarProvider>

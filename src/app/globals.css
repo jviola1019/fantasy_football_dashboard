@@ -1495,6 +1495,48 @@ td small { color: var(--muted); }
   color: var(--red);
   font-size: 13px;
 }
+/* Audit 2026-08-22. `.btn-primary` was USED at
+   src/app/(app)/settings/leagues/LeagueSettingsForm.tsx:181 and DEFINED NOWHERE.
+   Combined with the `button` reset above (background:none, border:none,
+   padding:0), the Save action for every connected league rendered as bare
+   inline text — an invisible primary button, once per league on the page.
+
+   Defined here from tokens, matching `.login-submit`, rather than inventing a
+   third primary-button treatment. */
+/* Visible only on focus — the standard skip-link pattern. Uses tokens so it
+   matches the rest of the system rather than introducing a fourth button look. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--amber);
+  color: #000;
+  font-weight: 600;
+  font-size: 13px;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus-visible,
+.skip-link:focus {
+  left: 0;
+}
+/* The target must not draw a focus ring when reached programmatically. */
+#rae-main:focus { outline: none; }
+
+.btn-primary {
+  padding: 10px 14px;
+  background: var(--amber);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .login-submit {
   width: 100%;
   padding: 10px 12px;

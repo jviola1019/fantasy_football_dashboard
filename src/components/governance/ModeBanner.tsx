@@ -23,7 +23,10 @@ export function ModeBanner({
         : "border-rae-red/40 text-rae-red";
   return (
     <span
-      aria-live="polite"
+      // `aria-live` removed 2026-08-22. This pill is permanently mounted in the
+      // sticky command bar and its freshness string is recomputed per request,
+      // so every navigation triggered an announcement. Data mode is a standing
+      // property, not an event — it stays labelled, it just no longer interrupts.
       aria-label={`Data mode: ${mode}${freshness ? `. Freshness: ${freshness}` : ""}`}
       className={cn("flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide", className)}
     >

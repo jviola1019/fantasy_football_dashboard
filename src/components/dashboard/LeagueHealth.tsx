@@ -48,7 +48,15 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
     {
       label: "League Advantage",
       value: Number.isFinite(metrics.leagueAdvantage) ? `${metrics.leagueAdvantage}%` : "—",
-      sub: "vs League Median",
+      // `sub` was the static "vs League Median", so above/below 50 was conveyed
+      // by colour alone — and the 50 threshold was never stated. The sibling
+      // cards already carry valence words ("High"/"Moderate"), so this follows
+      // the pattern that existed one array element above it.
+      sub: !Number.isFinite(metrics.leagueAdvantage)
+        ? "vs League Median"
+        : metrics.leagueAdvantage >= 50
+          ? "Above league median (50)"
+          : "Below league median (50)",
       color: !Number.isFinite(metrics.leagueAdvantage)
         ? "neu"
         : metrics.leagueAdvantage >= 50
