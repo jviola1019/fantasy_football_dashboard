@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { type SimulationResult } from "@/lib/simulation";
-import { type ConfidenceBands as ConfidenceBandsData } from "@/lib/envelope/derive";
+import { type ReplicationRange } from "@/lib/envelope/derive";
 import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derivedMetrics";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
@@ -17,37 +17,36 @@ import { ModelScenarioNotice } from "@/components/model/ModelScenarioNotice";
 import { ScenarioOutlook } from "@/components/model/ScenarioOutlook";
 import { structuralBaseline } from "@/lib/models/scenarioBand";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
   sim: SimulationResult;
   scenarios: ScenarioComparison;
-  /** Server-computed bootstrap CIs (null when no roster). */
-  confidenceBands?: ConfidenceBandsData | null;
+  /** Server-computed Monte-Carlo replication range (null when no roster). */
+  replicationRange?: ReplicationRange | null;
   envelope?: RAEEnvelope;
 };
 
 const TABS = ["Multiverse", "Scenarios", "Risk Analysis"] as const;
 
-// CI multipliers per panel-data-state. The simulation itself always runs;
-// what changes is how loud we are about the uncertainty bands. degraded
-// widens the CI 1.5x and labels "Wide CI: data partial"; unavailable
-// widens 2.5x and labels "Speculative". Numbers chosen so the label
-// boundary stays interpretable rather than triggering on every tiny gap.
-const CI_MULTIPLIER: Record<"ready" | "degraded" | "unavailable", number> = {
-  ready: 1,
-  degraded: 1.5,
-  unavailable: 2.5
-};
-
-const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
+// Data-state notice per panel-data-state.
+//
+// This used to also carry CI MULTIPLIERS — 1.5x for degraded, 2.5x for
+// unavailable — that stretched the displayed interval when inputs were missing.
+// Removed 2026-08-22 (audit P0-4). The interval is a Monte-Carlo REPLICATION
+// range: it measures how much the number moves across random seeds with every
+// input held fixed. Multiplying it does not turn it into a measure of input
+// uncertainty; it just prints a wider number with no measurement behind it, and
+// 1.5 and 2.5 were chosen for legibility rather than derived from anything.
+// Missing inputs are now stated in words, which is what we can actually support.
+const DATA_STATE_NOTICE: Record<"ready" | "degraded" | "unavailable", string> = {
   ready: "",
-  degraded: "Wide CI: data partial",
-  unavailable: "Speculative — trending-momentum + opportunity unavailable"
+  degraded: "Some inputs are missing — read the frequencies below as partial.",
+  unavailable: "Trending-momentum and opportunity are unavailable; these frequencies rest on the roster alone."
 };
 
-export function NexusSimulator({ players, sim, scenarios, confidenceBands, envelope }: Props) {
+export function NexusSimulator({ players, sim, scenarios, replicationRange, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
 
   // Build the weekly projections Map from the envelope (plain Record → Map).
@@ -57,29 +56,24 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
     return new Map(Object.entries(proj));
   }, [envelope?.weeklyProjections]);
 
-  // The simulator depends on trending_momentum (chaosExposure) and
-  // opportunity to interpret risk + driver weights. When both are missing,
-  // the CI bands shown to the user need to widen so the displayed
-  // probabilities aren't read as precise. The actual numbers from
-  // runNexusSimulation stay the same — we only modify the displayed CI
-  // width + add a banner.
+  // The simulator depends on trending_momentum (chaosExposure) and opportunity
+  // to interpret risk + driver weights. When they are missing the numbers from
+  // runNexusSimulation are unchanged — what changes is what we say about them.
   const panelState = envelope
     ? derivePanelState(envelope, ["trending_momentum", "opportunity"])
-    : // No envelope ⇒ no provenance; widen the CI and label speculative (UX-05).
+    : // No envelope ⇒ no provenance to stand on (UX-05).
       {
         status: "unavailable" as const,
         bannerText: "No data envelope — simulation inputs unverified.",
         unavailable: new Set<string>(["trending_momentum", "opportunity"])
       };
-  const ciMultiplier = CI_MULTIPLIER[panelState.status];
 
-  // When weekly projections are wired, override the CI label to show the
-  // week/date stamp. The label is empty when projections are absent and the
-  // panel state is "ready" (no missing fields to disclose).
+  // When weekly projections are wired, the notice reports their week/date stamp
+  // instead. Empty when projections are absent and the panel state is "ready".
   const projMeta = envelope?.weeklyProjectionsMeta;
-  const ciLabel = weeklyProjections && projMeta
+  const dataStateNotice = weeklyProjections && projMeta
     ? `Live week-${projMeta.week} projections (${new Date(projMeta.fetchedAt).toLocaleDateString()})`
-    : CI_LABEL[panelState.status];
+    : DATA_STATE_NOTICE[panelState.status];
 
   const hasData = players.length > 0;
 
@@ -89,7 +83,6 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
       titleId="ns-title"
       title="Nexus Simulator"
       eyebrow="Simulate future. Master uncertainty."
-      source={envelope?.sourceState}
       controls={
         <span className="sim-count">{sim.params.iterations.toLocaleString()} simulations</span>
       }
@@ -99,67 +92,73 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Nexus Simulator tabs"
+        idBase="nexus-sim"
       />
 
-      {ciLabel ? (
-        <div
-          role="status"
-          aria-live="polite"
+      {dataStateNotice ? (
+        // No role="status"/aria-live. This is standing context about the data
+        // behind the panel, recomputed on every request — as a live region it
+        // interrupted a screen reader on each navigation to re-read a sentence
+        // that had not meaningfully changed. Audit 2026-08-22, same class of
+        // defect as the governance banner and the mode pill.
+        <p
           style={{
             background: "rgba(245,231,196,0.04)",
             border: "1px solid rgba(245,231,196,0.12)",
             color: "var(--cream)",
             padding: "8px 12px",
             borderRadius: 8,
-            fontSize: 12,
+            fontSize: "var(--text-sm)",
             margin: "8px 0",
             letterSpacing: 0.2
           }}
         >
-          {ciLabel} — confidence-interval bands widened {ciMultiplier.toFixed(1)}× from the seeded simulation.
-        </div>
+          {dataStateNotice}
+        </p>
       ) : null}
 
-      <div className="nexus-layout">
-        {activeTab === "Multiverse" && (
-          <>
-            <div className="nexus-main">
-              <OutcomeMultiverse players={players} sim={sim} />
-            </div>
-            <div className="nexus-side">
-              <ScenarioBands sim={sim} bands={confidenceBands ?? null} ciMultiplier={ciMultiplier} />
+      <TabPanel idBase="nexus-sim" active={activeTab}>
+        <div className="nexus-layout">
+          {activeTab === "Multiverse" && (
+            <>
+              <div className="nexus-main">
+                <OutcomeMultiverse players={players} sim={sim} />
+              </div>
+              <div className="nexus-side">
+                <ScenarioBands sim={sim} range={replicationRange ?? null} />
+                <KeyDrivers sim={sim} hasData={hasData} />
+                <RiskOfRegret sim={sim} hasData={hasData} />
+              </div>
+            </>
+          )}
+          {activeTab === "Scenarios" && (
+            <div className="nexus-full">
+              {/* Same model, same failure - the notice travels with the numbers. */}
+              <ModelScenarioNotice variant="banner" />
+              <ScenarioComparisonTable scenarios={scenarios} hasData={hasData} />
               <KeyDrivers sim={sim} hasData={hasData} />
+            </div>
+          )}
+          {activeTab === "Risk Analysis" && (
+            <div className="nexus-full">
+              <ModelScenarioNotice variant="banner" />
+              <p className="section-intro">
+                How much to trust this scenario: the regret index quantifies downside exposure, the
+                reliability diagram shows whether simulated frequencies match real outcomes, and the
+                assumptions list states what the simulation took as given.
+              </p>
               <RiskOfRegret sim={sim} hasData={hasData} />
+              <div className="mini-panel">
+                <div className="mini-panel-title">Calibration — Reliability Diagram</div>
+                <ReliabilityDiagram
+                  caption="Calibration is measured offline against real 2025 outcomes (model-governance report). This panel draws the live curve only once a backtest feed is wired in — it never fabricates one."
+                />
+              </div>
+              <RiskDetails sim={sim} />
             </div>
-          </>
-        )}
-        {activeTab === "Scenarios" && (
-          <div className="nexus-full">
-            {/* Same model, same failure - the notice travels with the numbers. */}
-            <ModelScenarioNotice variant="banner" />
-            <ScenarioComparisonTable scenarios={scenarios} hasData={hasData} />
-            <KeyDrivers sim={sim} hasData={hasData} />
-          </div>
-        )}
-        {activeTab === "Risk Analysis" && (
-          <div className="nexus-full">
-            <ModelScenarioNotice variant="banner" />
-            <p className="section-intro">
-              How much to trust this scenario: the regret index quantifies downside exposure, the
-              reliability diagram shows whether simulated frequencies match real outcomes, and the
-              assumptions list states what the simulation took as given.
-            </p>
-            <RiskOfRegret sim={sim} hasData={hasData} />
-            <div className="mini-panel">
-              <div className="mini-panel-title">Calibration — Reliability Diagram</div>
-              <ReliabilityDiagram
-                caption="Calibration is measured offline against real 2025 outcomes (model-governance report). This panel draws the live curve only once a backtest feed is wired in — it never fabricates one."
-              />
-            </div>
-            <RiskDetails sim={sim} />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </TabPanel>
     </PanelCard>
   );
 }
@@ -256,24 +255,6 @@ function OutcomeMultiverse({
 }
 
 /**
- * Widen a CI's bounds symmetrically around its point estimate by the given
- * multiplier. Bounded to [0, 100] so we never display impossible probabilities.
- * Used by ConfidenceBands when the envelope's data state is degraded/unavailable —
- * the underlying simulation is unchanged; we just communicate honest uncertainty.
- */
-function widen(
-  ci: { estimate: number; lower: number; upper: number; width: number; level: number },
-  multiplier: number
-) {
-  if (multiplier === 1) return ci;
-  const halfWidthLow = ci.estimate - ci.lower;
-  const halfWidthHigh = ci.upper - ci.estimate;
-  const lower = Math.max(0, ci.estimate - halfWidthLow * multiplier);
-  const upper = Math.min(100, ci.estimate + halfWidthHigh * multiplier);
-  return { ...ci, lower, upper, width: upper - lower };
-}
-
-/**
  * Strategy B replacement for the former "95% Confidence Bands" tile
  * (audit 2026-08-20 SS3).
  *
@@ -285,30 +266,25 @@ function widen(
  * What is here now: the league's structural baseline as the prominent number,
  * the model's output as a band relative to it, the failure notice immediately
  * above, and the raw frequencies one keyboard-reachable disclosure away.
+ *
+ * The interval passed through is a Monte-Carlo REPLICATION range, not a
+ * confidence interval, and `deriveReplicationRange` explains at length why the
+ * distinction matters. The `widen()` helper that used to stretch it by 1.5x or
+ * 2.5x when inputs were missing is gone (audit 2026-08-22, P0-4): widening a
+ * replication range does not make it measure input uncertainty, and the two
+ * multipliers were never derived from a measurement.
  */
 function ScenarioBands({
   sim,
-  bands,
-  ciMultiplier = 1
+  range
 }: {
   sim: SimulationResult;
-  /** Server-computed base bootstrap CIs (deriveConfidenceBands). */
-  bands: ConfidenceBandsData | null;
-  ciMultiplier?: number;
+  /** Server-computed replication range (deriveReplicationRange). */
+  range: ReplicationRange | null;
 }) {
-  // The bootstrap replication runs on the SERVER (deriveConfidenceBands); here
-  // we only apply the cheap data-state widen() - no client-side simulation.
-  const widened = useMemo(
-    () =>
-      bands
-        ? { championship: widen(bands.championship, ciMultiplier), playoff: widen(bands.playoff, ciMultiplier) }
-        : null,
-    [bands, ciMultiplier]
-  );
-
   const baseline = structuralBaseline(sim.params.numTeams ?? 12, sim.params.playoffTeams ?? 6);
 
-  if (!bands) {
+  if (!range) {
     return (
       <div className="mini-panel">
         <div className="mini-panel-title">Scenario Outlook</div>
@@ -335,13 +311,13 @@ function ScenarioBands({
             label: "Playoffs",
             scenarioPct: sim.playoffProbability,
             baselinePct: baseline.playoffs,
-            interval: widened?.playoff ?? null
+            interval: range.playoff
           },
           {
             label: "Championship",
             scenarioPct: sim.championshipProbability,
             baselinePct: baseline.championship,
-            interval: widened?.championship ?? null
+            interval: range.championship
           }
         ]}
       />

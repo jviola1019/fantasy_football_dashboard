@@ -28,7 +28,7 @@ describe("model continuity", () => {
     expect(b.sim.playoffProbability).toBe(a.sim.playoffProbability);
     expect(b.sim.regretIndex).toBe(a.sim.regretIndex);
     expect(b.sim.distribution).toEqual(a.sim.distribution);
-    expect(b.confidenceBands).toEqual(a.confidenceBands);
+    expect(b.replicationRange).toEqual(a.replicationRange);
   });
 
   it("Scenarios 'Baseline' column == the headline sim probabilities (Multiverse / Reports)", () => {
@@ -52,14 +52,52 @@ describe("model continuity", () => {
     expect(s.baseline.championship).toBeGreaterThanOrEqual(s.worstCase.championship);
   });
 
-  it("Confidence Bands are well-formed CIs bracketing their estimate within [0,100]", () => {
+  it("the replication range brackets the number actually DISPLAYED, within [0,100]", () => {
+    /**
+     * This test used to read `ci.estimate` — a field `bootstrapCI` fills with
+     * the mean of its own replicates. So it asserted that a bootstrap interval
+     * contains its own bootstrap mean, which is true by construction and can
+     * never fail. Meanwhile the number on screen came from a DIFFERENT run
+     * (full iterations, single seed) and was never checked against the interval
+     * printed beside it. On the fixture league it did not fit: the panel
+     * rendered `Playoffs 69.6% [68.1 - 69.6]`, an estimate outside its own
+     * interval. Audit 2026-08-22, P0-4 — reproduced by
+     * `scripts/measure-scenario-bands.ts`.
+     *
+     * The assertion now names the displayed values explicitly, so it fails if
+     * the two estimators are ever allowed to drift apart again.
+     */
     const d = deriveAppData(envelope());
-    expect(d.confidenceBands).not.toBeNull();
-    for (const ci of [d.confidenceBands!.championship, d.confidenceBands!.playoff]) {
+    expect(d.replicationRange).not.toBeNull();
+    const range = d.replicationRange!;
+    const pairs: Array<[number, typeof range.championship]> = [
+      [d.sim.championshipProbability, range.championship],
+      [d.sim.playoffProbability, range.playoff]
+    ];
+    for (const [displayed, ci] of pairs) {
       expect(ci.lower).toBeGreaterThanOrEqual(0);
       expect(ci.upper).toBeLessThanOrEqual(100);
-      expect(ci.lower).toBeLessThanOrEqual(ci.estimate + 1e-9);
-      expect(ci.estimate).toBeLessThanOrEqual(ci.upper + 1e-9);
+      expect(ci.lower).toBeLessThanOrEqual(displayed + 1e-9);
+      expect(displayed).toBeLessThanOrEqual(ci.upper + 1e-9);
+      // …and the interval must be centred on what is shown, not on a private mean.
+      expect(ci.estimate).toBeCloseTo(displayed, 9);
+    }
+  });
+
+  it("the replication range stays an order of magnitude below the model's measured error", () => {
+    /**
+     * The range is Monte-Carlo replication noise. The shipped chain's measured
+     * out-of-sample calibration error is 16.13pp
+     * (reports/2026-08-20/AUDIT-LEDGER.md). If the range ever grows to the same
+     * order as that error, either the simulation has become unstable or someone
+     * has started inflating the interval to stand in for model uncertainty —
+     * which is exactly the multiplier behaviour removed in P0-4. Either way the
+     * label "replication range" would have stopped being true.
+     */
+    const MEASURED_ECE_PP = 16.13;
+    const d = deriveAppData(envelope());
+    for (const ci of [d.replicationRange!.championship, d.replicationRange!.playoff]) {
+      expect(ci.width).toBeLessThan(MEASURED_ECE_PP / 3);
     }
   });
 

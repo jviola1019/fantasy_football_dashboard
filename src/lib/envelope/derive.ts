@@ -19,21 +19,49 @@ export const SIM_BASE = { seed: 20260513, iterations: 2500, riskTolerance: 0.58 
 const BAND_REPLICATES = 20;
 const BAND_ITERATIONS = 800;
 
-export interface ConfidenceBands {
+export interface ReplicationRange {
   championship: ConfidenceInterval;
   playoff: ConfidenceInterval;
 }
 
 /**
- * Bootstrap 95% CIs for the championship/playoff probabilities by re-running the
- * season sim across {@link BAND_REPLICATES} seeds. Deterministic (seeded), pure,
- * and serializable — computed server-side and passed to NexusSimulator, which
- * only applies the cheap data-state `widen()` client-side.
+ * The MONTE-CARLO REPLICATION RANGE of the season simulation's championship and
+ * playoff frequencies: how much the number moves when the same model is re-run
+ * on the same inputs under a different pseudo-random seed.
+ *
+ * Renamed from `deriveConfidenceBands` (audit 2026-08-22, P0-4). Two defects
+ * were reproduced by `scripts/measure-scenario-bands.ts` before this change:
+ *
+ * 1. **It was called a confidence interval and is not one.** Every input, every
+ *    parameter and the model itself are held fixed across replicates, so the
+ *    only thing that varies is the random draw. On the fixture league the range
+ *    is 1.45pp (playoffs) and 0.86pp (championship), while the shipped chain's
+ *    MEASURED out-of-sample calibration error is 16.13pp — the interval is
+ *    ~11x too narrow to stand for the error we have actually measured. A
+ *    reader who takes it as a confidence interval is being told the forecast is
+ *    an order of magnitude more certain than the backtest says it is.
+ *
+ *    (The audit's own estimate of "~30x, ECE 28-30pp" was wrong; the measured
+ *    figures are in reports/2026-08-20/AUDIT-LEDGER.md and protocol 2.)
+ *
+ * 2. **The interval did not contain its own point estimate.** The displayed
+ *    number came from ONE run at `SIM_BASE.iterations`; the band was
+ *    bootstrapped over `BAND_REPLICATES` runs at the smaller `BAND_ITERATIONS`.
+ *    Two different estimators, so nothing forced agreement — and the fixture
+ *    league printed `Playoffs 69.6% [68.1 - 69.6]`, an estimate sitting outside
+ *    its own interval.
+ *
+ * The fix for (2) is to use the replicate spread for what it can measure — the
+ * HALF-WIDTH — and centre it on the estimate actually being displayed. The
+ * range then always contains its point by construction, and it still reports
+ * exactly the quantity it is able to observe.
  */
-export function deriveConfidenceBands(
+export function deriveReplicationRange(
   players: RAEEnvelope["records"],
-  simParams: SimulationParams
-): ConfidenceBands | null {
+  simParams: SimulationParams,
+  /** The estimates actually shown to the reader, from the full-iteration run. */
+  point: { championship: number; playoff: number }
+): ReplicationRange | null {
   if (players.length === 0) return null;
   const champ: number[] = [];
   const playoff: number[] = [];
@@ -43,9 +71,21 @@ export function deriveConfidenceBands(
     playoff.push(r.playoffProbability);
   }
   return {
-    championship: bootstrapCI(champ, 0.95, 500, 1019),
-    playoff: bootstrapCI(playoff, 0.95, 500, 1019)
+    championship: centreOn(bootstrapCI(champ, 0.95, 500, 1019), point.championship),
+    playoff: centreOn(bootstrapCI(playoff, 0.95, 500, 1019), point.playoff)
   };
+}
+
+/**
+ * Re-centre a bootstrap interval on the estimate being displayed, preserving
+ * its width. Clamped to [0, 100] because a probability outside that range is
+ * not a thing that can be shown.
+ */
+function centreOn(ci: ConfidenceInterval, estimate: number): ConfidenceInterval {
+  const half = ci.width / 2;
+  const lower = Math.max(0, estimate - half);
+  const upper = Math.min(100, estimate + half);
+  return { estimate, lower, upper, width: upper - lower, level: ci.level };
 }
 
 export interface AppData {
@@ -61,8 +101,11 @@ export interface AppData {
   commandMetrics: CommandMetrics;
   marketMetrics: MarketMetrics;
   scenarios: ScenarioComparison;
-  /** Server-computed bootstrap CIs for NexusSimulator (null when no roster). */
-  confidenceBands: ConfidenceBands | null;
+  /**
+   * Server-computed Monte-Carlo REPLICATION RANGE for NexusSimulator (null when
+   * no roster). Not a confidence interval — see `deriveReplicationRange`.
+   */
+  replicationRange: ReplicationRange | null;
   /**
    * The connected league's format, or null when no league is connected.
    * Exposed (audit F-010) so panels can derive format-correct targets instead
@@ -123,7 +166,10 @@ export function deriveAppData(envelope: RAEEnvelope): AppData {
   const commandMetrics = deriveCommandMetrics(players);
   const marketMetrics = deriveMarketMetrics(marketPool);
   const scenarios = deriveScenarioComparison(players, sim);
-  const confidenceBands = deriveConfidenceBands(players, simParams);
+  const replicationRange = deriveReplicationRange(players, simParams, {
+    championship: sim.championshipProbability,
+    playoff: sim.playoffProbability
+  });
 
   return {
     players,
@@ -134,7 +180,7 @@ export function deriveAppData(envelope: RAEEnvelope): AppData {
     commandMetrics,
     marketMetrics,
     scenarios,
-    confidenceBands,
+    replicationRange,
     leagueFormat: fmt ?? null
   };
 }

@@ -106,9 +106,11 @@ export function ScenarioOutlook({
         </ul>
         <p className="small-note">
           Simulated frequency under model assumptions, not a forecast probability. Seed {seed} ·{" "}
-          {iterations.toLocaleString()} simulated seasons. Any interval shown is Monte-Carlo
-          sampling error only — it does not include model or input error, and the model&apos;s
-          measured calibration error is far larger.
+          {iterations.toLocaleString()} simulated seasons. Any interval shown is the{" "}
+          <b>replication range</b> — how much the number moves when the same model is re-run on the
+          same inputs under a different seed. It is not a confidence interval: it excludes model and
+          input error. Measured out-of-sample calibration error is <b>16pp</b>, roughly ten times
+          this range.
         </p>
       </details>
     </div>

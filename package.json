@@ -23,6 +23,7 @@
     "check:exceptions": "tsx scripts/check-vuln-exceptions.ts",
     "smoke": "tsx scripts/smoke-vercel.ts",
     "calibrate:season": "tsx scripts/brier-season-sim.ts",
+    "measure:bands": "tsx scripts/measure-scenario-bands.ts",
     "backtest:sleeper": "tsx scripts/backtest-sleeper-2025.ts",
     "check:freshness": "tsx scripts/check-cron-freshness.ts",
     "deploy": "next build",
