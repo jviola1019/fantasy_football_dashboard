@@ -114,3 +114,54 @@ Every P0 was **reproduced before being fixed** — the DEF grade by executing
 reports are treated as leads, not findings. Two claims in the reports have
 already been narrowed on inspection, and any that fail verification will be
 moved to the rejected section with the reason.
+
+---
+
+## Design audit (re-dispatched after the first attempt hit a session limit)
+
+### Fixed — `a40e1d7`
+
+| # | finding | why it mattered |
+|---|---|---|
+| D-1 | **`.btn-primary` was undefined** — used at `LeagueSettingsForm.tsx:181`, defined nowhere | With the global `button` reset (`background:none; border:none; padding:0`), the Save action for every connected league rendered as **bare inline text**. A functional break, not a style issue. Defined from tokens matching `.login-submit`. |
+| D-2 | **Four concurrent live regions** on `/dashboard` | `GovernanceBanner` was `role="status"` on a paragraph mounted on every route whose content changes on every navigation — a screen reader read the **entire governance paragraph** aloud on each route change. `ModeBanner` was permanently mounted with `aria-live` and a per-request freshness string (and triple-labelled). `SeasonNotice` had `role="status"` on a static explainer. All standing context, not events. |
+| D-3 | **Two colour-only signals** (WCAG 1.4.1) | `DraftIntelligence` tier-collapse Intensity showed a bare `62%` with severe/moderate/mild carried by red/amber/green alone. `LeagueHealth` "League Advantage" flipped pos/neg at 50 with a static "vs League Median" sub-label — so above/below was colour-only **and the threshold was never stated**. |
+| D-4 | **No skip link** | axe passes without one (landmarks satisfy its `bypass` rule), but keyboard users traversed the sidebar trigger, a 9-item route sidebar, the league switcher and the user menu before reaching content, on every route. Added with a real `<main id="rae-main">`; verified it is the **first tab stop**. |
+
+Every one of these was **green under axe throughout**. An automated scan bounds
+the problem; it does not close it. Three e2e tests now cover what axe cannot.
+
+### Deferred — larger refactors, tracked not dropped
+
+| # | finding | why deferred |
+|---|---|---|
+| D-5 | **Systematic token drift** — ~40 off-token colour literals across 12 files. A full *pre-repaint* palette survives in `rgba()` form (`#77d7b0` for green, `#d9866f` for red, `#f5c566`/`#eaa53d` for amber, `#4a8cf7` for blue), plus two undeclared text colours (`#d8dece` ×5, `#e8d9b0` ×3) and a chart series palette in `NexusSimulator.tsx:181-185` where only 1 of 5 colours is a current token | A mechanical but wide sweep touching every chart. Needs its own visual-diff pass — a colour regression is invisible to every gate we have. |
+| D-6 | **No type scale exists.** `@theme` defines `--space-1..8` and `--radius-*` but **no `--text-*`**. Four unreconciled systems in use: 154 CSS `font-size` declarations across 12 px values, 43 Tailwind defaults, 14 arbitrary `text-[Npx]`, 53 inline `fontSize`. **76% of CSS type is ≤11px** | Defining the scale is easy; migrating 264 sites is not, and doing it badly would regress legibility that currently passes AA. |
+| D-7 | **`/analytics` renders ~21 boxed regions** at first paint (4 cards + ~12 bordered sub-panels + 5 KPI tiles) — the "dense spreadsheet with neon panels" silhouette CLAUDE.md rules out | A layout redesign, not a fix. Needs a product decision about what to demote. |
+| D-8 | **7 of 8 app routes have ZERO primary CTA**, while the loudest amber object on `/dashboard` is a **non-interactive season chip** (`LeagueSwitcher.tsx:102-114`). UX question 2 ("what should I do next?") is answerable only if you already know where to look | Needs a product decision about what the primary action on each route *is*. Not something to invent unilaterally. |
+| D-9 | `role="tab"` with **no `role="tabpanel"` and no `aria-controls`** anywhere — a screen-reader user activates a tab, hears the selection change, then tabs into unlabelled content with no relationship to the control | Mechanical, but touches every tabbed panel; worth doing as one deliberate change with its own test. |
+
+### The five UX questions on `/dashboard`
+
+Scored by the audit: **1 clean pass, 4 partials.**
+
+- ✅ **Is this live or demo?** — mode pill + full-width demo banner.
+- ⚠️ **What is this?** — the only `<h1>` is `sr-only`; a sighted user gets no visible route title, and the product subtitle is `md:`-only so it is hidden on mobile.
+- ⚠️ **What should I do next?** — the Next Best Action panel exists but is the bottom-right of four equal tiles with 10px ghost-pill actions (see D-8).
+- ⚠️ **What data is driving this?** — route-level governance banner is thorough, but **not one of the four dashboard panels passes `source` to `PanelCard`**, so the per-panel freshness badge never renders. `/analytics` does wire it; `/dashboard` is the outlier.
+- ⚠️ **Can I trust it?** — confidence, validation and assumptions are all present, and honest, but delivered as an 11px run-on sentence in a low-contrast strip.
+
+The audit's own summary is the fair one: **the information is almost always
+present — the failure is hierarchy, not honesty.** This is the opposite of the
+model problem, where the numbers were wrong. Here the governance content is
+good and the visual system simply does not rank it.
+
+---
+
+## Record-keeping note
+
+The commit message for `a40e1d7` is **truncated** — it was passed through
+`printf`, which consumed the `%` in "62%" and cut the body at that point. The
+fixes themselves are complete and verified; only the message is short. It is not
+being rewritten because that would require a force-push, which this audit's brief
+forbids without explicit approval. This section is the complete record.
