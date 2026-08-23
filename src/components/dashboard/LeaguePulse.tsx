@@ -4,14 +4,21 @@ import { PositionBadge } from "../PlayerRow";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 
-const PULSE_POS_COLOR: Record<string, string> = {
-  QB: "var(--pos-qb)",
-  RB: "var(--pos-rb)",
-  WR: "var(--pos-wr)",
-  TE: "var(--pos-te)",
-  K: "var(--muted)",
-  DEF: "var(--muted)"
-};
+/**
+ * Bars are coloured by MEANING, not by position (audit F-012).
+ *
+ * They used to take the position palette, and `--pos-qb` (#ef5c7a) is
+ * effectively the same hue as `--red` (#eb5f54) — the design system's RISK
+ * colour. So the single most valuable quarterback on a roster rendered a
+ * full-width red bar, which reads as the strongest possible warning about the
+ * player you are most pleased to own.
+ *
+ * Position is already on every row via `PositionBadge`, so the bar was
+ * duplicating an encoding that was available anyway and paying for it with the
+ * risk semantics. It now uses the informational accent throughout, per
+ * CLAUDE.md's colour contract (blue = informational, red = risk).
+ */
+const PULSE_BAR_COLOR = "var(--blue)";
 const PULSE_MAX_ROWS = 14;
 
 /**
@@ -31,7 +38,7 @@ export function LeaguePulse({ players, marketEdge }: { players: PlayerMarketReco
       controls={
         <span
           className="league-pulse-edge-pill"
-          title="Market Edge index: your roster's average reputation edge (consensus value minus market price) rescaled so 50 = neutral. Above 50 = the market underprices your roster; below 50 = overprices. Same model as League Health's Avg Edge."
+          title="Market Edge index: your roster's average scarcity gap (consensus value minus market price) rescaled so 50 = neutral. Above 50 = the market underprices your roster; below 50 = overprices. Same model as League Health's Avg Edge."
         >
           <span className="league-pulse-edge-val">{marketEdge}</span>
           <span className="league-pulse-edge-lbl">Market Edge · 50 = neutral</span>
@@ -62,7 +69,7 @@ export function LeaguePulse({ players, marketEdge }: { players: PlayerMarketReco
                       className="lp-bar"
                       style={{
                         ["--bar-w" as string]: `${pct}%`,
-                        ["--bar-c" as string]: PULSE_POS_COLOR[p.position] ?? "var(--green)"
+                        ["--bar-c" as string]: PULSE_BAR_COLOR
                       }}
                     />
                   </span>

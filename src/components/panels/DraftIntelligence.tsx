@@ -2,21 +2,28 @@
 
 import { useMemo, useState } from "react";
 import type { PlayerMarketRecord } from "@/lib/governance";
+import type { LeagueFormat } from "@/lib/trade/format";
 import { recommend, type Recommendation } from "@/lib/draft/recommend";
 import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { derivePositionGrades } from "@/lib/derivedMetrics";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
+  /**
+   * Connected league format. When present, draft targets come from its real
+   * starting lineup (audit F-010); otherwise the documented demo default is
+   * used. Never silently assumes a 12-team 1QB PPR league.
+   */
+  format?: LeagueFormat | null;
 };
 
 const TABS = ["Live Board", "Recommendations", "Tier Collapse", "Big Board"] as const;
 
-export function DraftIntelligence({ players }: Props) {
+export function DraftIntelligence({ players, format }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Live Board");
   const [myPicks, setMyPicks] = useState<Set<string>>(new Set());
   // Players drafted by OTHER teams — removed from the pool so you can mock how
@@ -28,7 +35,10 @@ export function DraftIntelligence({ players }: Props) {
     () => players.filter((p) => !myPicks.has(p.id) && !taken.has(p.id)),
     [players, myPicks, taken]
   );
-  const recommendations = useMemo(() => recommend({ available, myRoster }, 8), [available, myRoster]);
+  const recommendations = useMemo(
+    () => recommend({ available, myRoster, format }, 8),
+    [available, myRoster, format]
+  );
   const tiers = useMemo(() => tiersByPosition(available), [available]);
   const collapseSignals = useMemo(() => tierCollapseSignals(tiers), [tiers]);
   const grades = useMemo(() => derivePositionGrades(myRoster), [myRoster]);
@@ -55,7 +65,6 @@ export function DraftIntelligence({ players }: Props) {
       titleId="dr-title"
       title="Draft Intelligence"
       eyebrow="Read the room. Anticipate the run."
-      source={players[0]?.sources[0]}
       controls={
         <span className="draft-controls">
           <span className="muted-text">{myRoster.length} mine · {taken.size} taken · {available.length} left</span>
@@ -70,28 +79,31 @@ export function DraftIntelligence({ players }: Props) {
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Draft Intelligence tabs"
+        idBase="draft-intel"
       />
 
-      {activeTab === "Live Board" && (
-        <LiveBoard
-          available={available}
-          myRoster={myRoster}
-          takenCount={taken.size}
-          onDraftMine={draftMine}
-          onDraftOpponent={draftOpponent}
-          onRelease={release}
-          recommendations={recommendations}
-        />
-      )}
-      {activeTab === "Recommendations" && (
-        <RecommendationQueue recommendations={recommendations} />
-      )}
-      {activeTab === "Tier Collapse" && (
-        <TierCollapseView signals={collapseSignals} grades={grades} />
-      )}
-      {activeTab === "Big Board" && (
-        <DraftBoardView recommendations={recommendations} />
-      )}
+      <TabPanel idBase="draft-intel" active={activeTab}>
+        {activeTab === "Live Board" && (
+          <LiveBoard
+            available={available}
+            myRoster={myRoster}
+            takenCount={taken.size}
+            onDraftMine={draftMine}
+            onDraftOpponent={draftOpponent}
+            onRelease={release}
+            recommendations={recommendations}
+          />
+        )}
+        {activeTab === "Recommendations" && (
+          <RecommendationQueue recommendations={recommendations} />
+        )}
+        {activeTab === "Tier Collapse" && (
+          <TierCollapseView signals={collapseSignals} grades={grades} />
+        )}
+        {activeTab === "Big Board" && (
+          <DraftBoardView recommendations={recommendations} />
+        )}
+      </TabPanel>
     </PanelCard>
   );
 }
@@ -149,6 +161,33 @@ function LiveBoard({
 
   const matchCount = matches?.length ?? available.length;
 
+  /**
+   * Players whose bye week would STACK against a starter you already hold at
+   * the same position.
+   *
+   * Two running backs off in week 6 means an empty RB slot in week 6, which is
+   * a real cost the raw value columns cannot show. This is advisory and never
+   * removes a player from the board or reorders it -- a stacked bye is a reason
+   * to look twice, not a verdict, and the drafter decides.
+   *
+   * Unknown byes never clash: `byeWeek` is null when the source did not supply
+   * one, and a null must not be treated as equal to another null.
+   */
+  const byeClash = useMemo(() => {
+    const mineByPosWeek = new Map<string, number>();
+    for (const p of myRoster) {
+      if (p.byeWeek == null) continue;
+      const key = `${p.position}:${p.byeWeek}`;
+      mineByPosWeek.set(key, (mineByPosWeek.get(key) ?? 0) + 1);
+    }
+    const clash = new Set<string>();
+    for (const p of available) {
+      if (p.byeWeek == null) continue;
+      if ((mineByPosWeek.get(`${p.position}:${p.byeWeek}`) ?? 0) > 0) clash.add(p.id);
+    }
+    return clash;
+  }, [myRoster, available]);
+
   return (
     <div className="universe-layout">
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Available players table">
@@ -172,6 +211,9 @@ function LiveBoard({
               <th>Player</th>
               <th>Position</th>
               <th>Team</th>
+              <th scope="col" title="NFL bye week — the week this player does not play">
+                Bye
+              </th>
               <th>True</th>
               <th>Edge</th>
               <th>Draft</th>
@@ -180,12 +222,12 @@ function LiveBoard({
           <tbody>
             {available.length === 0 && (
               <tr>
-                <td colSpan={6}>No available players (or empty envelope).</td>
+                <td colSpan={7}>No available players (or empty envelope).</td>
               </tr>
             )}
             {available.length > 0 && visible.length === 0 && (
               <tr>
-                <td colSpan={6}>No available players match “{query}”.</td>
+                <td colSpan={7}>No available players match “{query}”.</td>
               </tr>
             )}
             {visible.map((p) => (
@@ -198,10 +240,23 @@ function LiveBoard({
                 </td>
                 <td>{p.position}</td>
                 <td>{p.team ?? "—"}</td>
+                <td className={byeClash.has(p.id) ? "neu-text draft-bye-clash" : undefined}>
+                  {p.byeWeek == null ? (
+                    <span title="Bye week not available from the current source">—</span>
+                  ) : (
+                    <>
+                      {p.byeWeek}
+                      {/* The word, not only the colour (WCAG 1.4.1). A clash is
+                          information a drafter acts on, so it cannot be carried
+                          by a tint alone. */}
+                      {byeClash.has(p.id) && <span className="draft-bye-flag"> clash</span>}
+                    </>
+                  )}
+                </td>
                 <td>{Math.round(p.trueValue)}</td>
-                <td className={reputationEdge(p) >= 0 ? "pos-text" : "neg-text"}>
-                  {reputationEdge(p) >= 0 ? "+" : ""}
-                  {reputationEdge(p)}
+                <td className={scarcityGap(p) >= 0 ? "pos-text" : "neg-text"}>
+                  {scarcityGap(p) >= 0 ? "+" : ""}
+                  {scarcityGap(p)}
                 </td>
                 <td className="draft-actions">
                   <button
@@ -291,6 +346,9 @@ function RecommendationQueue({ recommendations }: { recommendations: Recommendat
           <tr>
             <th>Player</th>
             <th>Position</th>
+            <th scope="col" title="NFL bye week — the week this player does not play">
+              Bye
+            </th>
             <th>Category</th>
             <th>Score</th>
             <th>Why</th>
@@ -299,13 +357,14 @@ function RecommendationQueue({ recommendations }: { recommendations: Recommendat
         <tbody>
           {recommendations.length === 0 && (
             <tr>
-              <td colSpan={5}>No recommendations.</td>
+              <td colSpan={6}>No recommendations.</td>
             </tr>
           )}
           {recommendations.map((rec) => (
             <tr key={rec.player.id}>
               <td>{rec.player.name}</td>
               <td>{rec.player.position}</td>
+              <td>{rec.player.byeWeek ?? "—"}</td>
               <td>
                 <span className={`fixture-badge`}>{rec.category}</span>
               </td>
@@ -355,8 +414,18 @@ function TierCollapseView({
                 <td>{s.remaining}</td>
                 <td>{s.cliff.toFixed(1)}</td>
                 <td>
+                  {/* The severity band was carried by colour ALONE (red/amber/green),
+                      so a red-green-deficient reader saw "62%" with no indication
+                      it was the alarm band. WCAG 1.4.1 — axe cannot detect this.
+                      The word now carries the meaning and the colour reinforces it. */}
                   <span className={s.intensity > 0.5 ? "neg-text" : s.intensity > 0.25 ? "neu-text" : "pos-text"}>
-                    {(s.intensity * 100).toFixed(0)}%
+                    {(s.intensity * 100).toFixed(0)}%{" "}
+                    <span className="sr-only">
+                      {s.intensity > 0.5 ? "severe" : s.intensity > 0.25 ? "moderate" : "mild"} tier collapse
+                    </span>
+                    <b aria-hidden="true">
+                      {s.intensity > 0.5 ? " severe" : s.intensity > 0.25 ? " moderate" : " mild"}
+                    </b>
                   </span>
                 </td>
               </tr>
@@ -410,6 +479,9 @@ function DraftBoardView({ recommendations }: { recommendations: Recommendation[]
               </span>
               <span className="pos-badge" data-pos={rec.player.position.toLowerCase()}>
                 {rec.player.position}
+              </span>
+              <span className="draft-board-bye" title="NFL bye week">
+                {rec.player.byeWeek == null ? "BYE —" : `BYE ${rec.player.byeWeek}`}
               </span>
               <span className="draft-board-category">{rec.category}</span>
               <div className="draft-board-bar-wrap" aria-hidden="true">

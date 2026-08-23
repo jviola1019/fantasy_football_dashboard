@@ -99,14 +99,27 @@ const wrapperStyle: React.CSSProperties = {
   position: "relative"
 };
 
+/**
+ * The league season, as the left cap of the joined league control.
+ *
+ * Design audit 2026-08-22 (D-8). This was SOLID amber on near-black — by a wide
+ * margin the loudest object on every route, and NON-INTERACTIVE. Amber is RAE's
+ * designated action colour, so spending it on a static label inverted the whole
+ * hierarchy: the one thing shouting at you was the one thing you could not use.
+ * It now reads as amber-on-panel with a hairline, which keeps the season legible
+ * (#d7a857 on #18222f measures ~7.6:1, well clear of AA) while leaving solid
+ * amber to mean "this is the action" — see `.route-header-action`.
+ */
 const seasonBadgeStyle: React.CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   fontFamily: "var(--monospace-font, monospace)",
   fontWeight: 700,
-  fontSize: 12,
-  color: "#0b0e13",
-  background: "var(--amber)",
+  fontSize: "var(--text-xs)",
+  color: "var(--amber)",
+  background: "rgba(0,0,0,0.35)",
+  border: "1px solid rgba(215,168,87,0.28)",
+  borderRight: "none",
   borderRadius: "7px 0 0 7px",
   padding: "0 9px",
   letterSpacing: 0.4,
@@ -129,7 +142,7 @@ const selectStyle: React.CSSProperties = {
   borderLeft: "none",
   borderRadius: "0 7px 7px 0",
   padding: "0 26px 0 10px",
-  fontSize: 12,
+  fontSize: "var(--text-sm)",
   fontWeight: 500,
   letterSpacing: 0.2,
   cursor: "pointer",
@@ -142,7 +155,7 @@ const caretStyle: React.CSSProperties = {
   right: 9,
   top: "50%",
   transform: "translateY(-50%)",
-  fontSize: 10,
+  fontSize: "var(--text-xs)",
   color: "var(--muted)",
   pointerEvents: "none"
 };
@@ -156,7 +169,7 @@ const labelOnlyStyle: React.CSSProperties = {
   borderLeft: "none",
   borderRadius: "0 7px 7px 0",
   padding: "0 12px",
-  fontSize: 12,
+  fontSize: "var(--text-sm)",
   color: "var(--cream)"
 };
 
@@ -164,7 +177,7 @@ const glyphStyle: React.CSSProperties = {
   fontFamily: "var(--monospace-font, monospace)",
   fontWeight: 700,
   color: "var(--amber)",
-  fontSize: 11
+  fontSize: "var(--text-xs)"
 };
 
 const labelTextStyle: React.CSSProperties = {

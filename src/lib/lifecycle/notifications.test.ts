@@ -3,10 +3,35 @@ import { resetDbForTests, schema } from "../../db";
 import {
   dismissNotificationForUser,
   evaluateLifecycleRules,
-  insertNotification,
-  listNotificationsForUser
+  listNotificationsForUser,
+  resolveNotification,
+  upsertNotification
 } from "./notifications";
 import type { PlayerMarketRecord } from "../governance";
+import type { ByeSchedule, VerifiedByeSchedule } from "../schedule/byeSchedule";
+import { classifyInjuryEvidence, type InjuryEvidence } from "../leagues/injuryEvidence";
+
+/** Verified schedule fixture — never a real season table (audit F-002). */
+const VERIFIED_BYES: VerifiedByeSchedule = {
+  status: "verified",
+  season: 2026,
+  byes: { ATL: 5, GB: 5, BUF: 7, DAL: 10 },
+  regularSeasonWeeks: 18,
+  provenance: {
+    source: "test fixture",
+    sourceUrl: "https://example.invalid/games.csv",
+    retrievedAt: "2026-08-13T00:00:00.000Z",
+    derivation: "test"
+  }
+};
+
+const UNAVAILABLE_BYES: ByeSchedule = {
+  status: "unavailable",
+  season: 2026,
+  reason: "source-unavailable",
+  detail: "nflverse unreachable",
+  provenance: {}
+};
 
 function p(id: string, position: PlayerMarketRecord["position"], team: string, overrides: Partial<PlayerMarketRecord> = {}): PlayerMarketRecord {
   return {
@@ -48,29 +73,74 @@ describe("lifecycle notifications", () => {
 
   describe("evaluateLifecycleRules (pure)", () => {
     it("emits a stacked-bye notification when 2+ starters share a bye week", () => {
-      const roster = [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")]; // both ATL/GB bye wk5
-      const out = evaluateLifecycleRules({ userId: "user-a", leagueId: "L1", roster });
+      const roster = [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")]; // both bye wk5 in fixture
+      const { drafted: out } = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster,
+        byeSchedule: VERIFIED_BYES
+      });
       expect(out).toHaveLength(1);
       expect(out[0]!.rule).toBe("stacked-bye-week");
       expect(out[0]!.severity).toBe("warn");
-      expect(out[0]!.dedupKey).toBe("bye:L1:RB:5");
+      // Season is in the key so next year's identical alert is not suppressed.
+      expect(out[0]!.dedupKey).toBe("bye:L1:RB:2026:5");
+    });
+
+    it("records the schedule season and source in the message", () => {
+      const { drafted: out } = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
+        byeSchedule: VERIFIED_BYES
+      });
+      expect(out[0]!.message).toContain("2026 schedule");
+      expect(out[0]!.message).toContain("test fixture");
+    });
+
+    it("FAILS CLOSED: emits no bye advice when the schedule is unverified", () => {
+      // The core F-002 regression. Previously this produced confident advice
+      // from a hardcoded 2025 table regardless of the real season.
+      const { drafted: out } = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
+        byeSchedule: UNAVAILABLE_BYES
+      });
+      expect(out.filter((n) => n.rule === "stacked-bye-week")).toHaveLength(0);
+    });
+
+    it("still evaluates the other rules when the bye schedule is unavailable", () => {
+      // Fail-closed must be scoped to the bye rule, not silently disable the cron.
+      const { drafted: out } = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [p("rb1", "RB", "ATL"), p("rb2", "RB", "GB")],
+        byeSchedule: UNAVAILABLE_BYES,
+        faabRemainingRatio: 0.05,
+        injuredStarters: [p("wr1", "WR", "BUF", { status: "out" })]
+      });
+      expect(out.some((n) => n.rule === "faab-depleted")).toBe(true);
+      expect(out.some((n) => n.rule === "injured-starter")).toBe(true);
     });
 
     it("emits a faab-depleted alert when ratio < 0.1", () => {
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [],
+        byeSchedule: VERIFIED_BYES,
         faabRemainingRatio: 0.05
       });
       expect(out.some((n) => n.rule === "faab-depleted" && n.severity === "alert")).toBe(true);
     });
 
     it("does not emit faab alert when budget is healthy", () => {
-      const out = evaluateLifecycleRules({
+      const { drafted: out } = evaluateLifecycleRules({
         userId: "user-a",
         leagueId: "L1",
         roster: [],
+        byeSchedule: VERIFIED_BYES,
         faabRemainingRatio: 0.5
       });
       expect(out.some((n) => n.rule === "faab-depleted")).toBe(false);
@@ -78,47 +148,252 @@ describe("lifecycle notifications", () => {
 
     it("emits an injured-starter alert per injured player", () => {
       const injured = [p("rb1", "RB", "ATL", { status: "ir" }), p("wr1", "WR", "BUF", { status: "out" })];
-      const out = evaluateLifecycleRules({ userId: "user-a", leagueId: "L1", roster: [], injuredStarters: injured });
+      const { drafted: out } = evaluateLifecycleRules({
+        userId: "user-a",
+        leagueId: "L1",
+        roster: [],
+        byeSchedule: VERIFIED_BYES,
+        injuredStarters: injured
+      });
       expect(out.filter((n) => n.rule === "injured-starter")).toHaveLength(2);
     });
   });
 
   describe("DB persistence + user isolation", () => {
+    const base = (userId: string, dedupKey = "k1") => ({
+      userId,
+      severity: "info" as const,
+      rule: "test",
+      message: "hello",
+      dedupKey
+    });
+
     it("a notification written for user-a is not visible to user-b", async () => {
-      await insertNotification(
-        { userId: "user-a", severity: "info", rule: "test", message: "hello" },
-        db
-      );
-      const aList = await listNotificationsForUser("user-a", {}, db);
-      const bList = await listNotificationsForUser("user-b", {}, db);
-      expect(aList).toHaveLength(1);
-      expect(bList).toHaveLength(0);
+      await upsertNotification(base("user-a"), db);
+      expect(await listNotificationsForUser("user-a", {}, db)).toHaveLength(1);
+      expect(await listNotificationsForUser("user-b", {}, db)).toHaveLength(0);
     });
 
     it("dismissed notifications are excluded from default list", async () => {
-      const n = await insertNotification(
-        { userId: "user-a", severity: "info", rule: "test", message: "hello" },
-        db
-      );
-      const dismissed = await dismissNotificationForUser("user-a", n.id, db);
-      expect(dismissed).toBe(true);
-
-      const aListDefault = await listNotificationsForUser("user-a", {}, db);
-      const aListAll = await listNotificationsForUser("user-a", { includeDismissed: true }, db);
-      expect(aListDefault).toHaveLength(0);
-      expect(aListAll).toHaveLength(1);
+      const n = await upsertNotification(base("user-a"), db);
+      expect(await dismissNotificationForUser("user-a", n.id, db)).toBe(true);
+      expect(await listNotificationsForUser("user-a", {}, db)).toHaveLength(0);
+      expect(await listNotificationsForUser("user-a", { includeDismissed: true }, db)).toHaveLength(1);
     });
 
     it("user-b cannot dismiss user-a's notification", async () => {
-      const n = await insertNotification(
-        { userId: "user-a", severity: "info", rule: "test", message: "hello" },
+      const n = await upsertNotification(base("user-a"), db);
+      expect(await dismissNotificationForUser("user-b", n.id, db)).toBe(false);
+      expect(await listNotificationsForUser("user-a", {}, db)).toHaveLength(1);
+    });
+  });
+
+  describe("F-003 deduplication", () => {
+    const bye = (userId = "user-a", key = "bye:L1:RB:2026:5") => ({
+      userId,
+      leagueId: null,
+      severity: "warn" as const,
+      rule: "stacked-bye-week",
+      message: "two RBs on bye",
+      dedupKey: key,
+      season: 2026,
+      week: 5
+    });
+
+    it("repeated identical cron runs produce exactly ONE row", async () => {
+      // The core regression: the daily cron used to append a duplicate forever.
+      for (let day = 0; day < 30; day += 1) await upsertNotification(bye(), db);
+      const list = await listNotificationsForUser("user-a", { includeDismissed: true }, db);
+      expect(list).toHaveLength(1);
+      expect(list[0]!.occurrences).toBe(30);
+    });
+
+    it("CONCURRENT runs do not create duplicates", async () => {
+      // Atomic upsert, not read-then-write: parallel writes must collapse.
+      await Promise.all(Array.from({ length: 12 }, () => upsertNotification(bye(), db)));
+      const list = await listNotificationsForUser("user-a", { includeDismissed: true }, db);
+      expect(list).toHaveLength(1);
+      expect(list[0]!.occurrences).toBe(12);
+    });
+
+    it("a dismissed alert STAYS dismissed when the condition is still true", async () => {
+      const n = await upsertNotification(bye(), db);
+      await dismissNotificationForUser("user-a", n.id, db);
+      await upsertNotification(bye(), db); // tomorrow's cron
+      expect(await listNotificationsForUser("user-a", {}, db)).toHaveLength(0);
+      const all = await listNotificationsForUser("user-a", { includeDismissed: true }, db);
+      expect(all[0]!.status).toBe("dismissed");
+    });
+
+    it("a RESOLVED condition that recurs is reopened as a new event", async () => {
+      await upsertNotification(bye(), db);
+      expect(await resolveNotification("user-a", "bye:L1:RB:2026:5", db)).toBe(true);
+      const reopened = await upsertNotification(bye(), db);
+      expect(reopened.status).toBe("reopened");
+      expect(reopened.resolvedAt).toBeNull();
+    });
+
+    it("keeps separate rows per user and per league", async () => {
+      await upsertNotification(bye("user-a", "bye:L1:RB:2026:5"), db);
+      await upsertNotification(bye("user-b", "bye:L1:RB:2026:5"), db);
+      await upsertNotification(bye("user-a", "bye:L2:RB:2026:5"), db);
+      expect(await listNotificationsForUser("user-a", { includeDismissed: true }, db)).toHaveLength(2);
+      expect(await listNotificationsForUser("user-b", { includeDismissed: true }, db)).toHaveLength(1);
+    });
+
+    it("a changed bye week is a DIFFERENT alert, not a duplicate", async () => {
+      await upsertNotification(bye("user-a", "bye:L1:RB:2026:5"), db);
+      await upsertNotification(bye("user-a", "bye:L1:RB:2026:9"), db);
+      expect(await listNotificationsForUser("user-a", { includeDismissed: true }, db)).toHaveLength(2);
+    });
+
+    it("the same week in a NEW SEASON is a different alert", async () => {
+      await upsertNotification(bye("user-a", "bye:L1:RB:2025:5"), db);
+      await upsertNotification(bye("user-a", "bye:L1:RB:2026:5"), db);
+      expect(await listNotificationsForUser("user-a", { includeDismissed: true }, db)).toHaveLength(2);
+    });
+
+    it("a changed injury status updates the row in place and refreshes the message", async () => {
+      const key = "injury:L1:p99";
+      await upsertNotification(
+        { userId: "user-a", severity: "alert", rule: "injured-starter", message: "listed as questionable", dedupKey: key },
         db
       );
-      const result = await dismissNotificationForUser("user-b", n.id, db);
-      expect(result).toBe(false);
+      const updated = await upsertNotification(
+        { userId: "user-a", severity: "alert", rule: "injured-starter", message: "listed as out", dedupKey: key },
+        db
+      );
+      expect(updated.message).toBe("listed as out");
+      expect(updated.occurrences).toBe(2);
+      expect(await listNotificationsForUser("user-a", { includeDismissed: true }, db)).toHaveLength(1);
+    });
 
-      const aListDefault = await listNotificationsForUser("user-a", {}, db);
-      expect(aListDefault).toHaveLength(1);
+    it("a partially failed run can be retried without duplicating what succeeded", async () => {
+      await upsertNotification(bye("user-a", "bye:L1:RB:2026:5"), db);
+      // Retry writes the first key again and adds the one that failed last time.
+      await upsertNotification(bye("user-a", "bye:L1:RB:2026:5"), db);
+      await upsertNotification(bye("user-a", "bye:L1:WR:2026:5"), db);
+      expect(await listNotificationsForUser("user-a", { includeDismissed: true }, db)).toHaveLength(2);
+    });
+
+    it("persists the dedup key, season and week that were dropped before", async () => {
+      const row = await upsertNotification(bye(), db);
+      expect(row.dedupKey).toBe("bye:L1:RB:2026:5");
+      expect(row.season).toBe(2026);
+      expect(row.week).toBe(5);
+    });
+
+    it("caps the returned history", async () => {
+      for (let i = 0; i < 5; i += 1) await upsertNotification(bye("user-a", `k${i}`), db);
+      expect(await listNotificationsForUser("user-a", { limit: 2, includeDismissed: true }, db)).toHaveLength(2);
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Audit 2026-08-20 §9 — injury evidence gates RESOLUTION, never EMISSION
+// ---------------------------------------------------------------------------
+
+describe("injured-starter reconcilability requires trustworthy injury evidence", () => {
+  const NOW = new Date("2026-08-20T12:00:00.000Z");
+  const hoursAgo = (h: number) => new Date(NOW.getTime() - h * 3600 * 1000);
+  const healthyRoster = [p("rb1", "RB", "ATL"), p("wr1", "WR", "BUF")];
+
+  const evaluate = (injuryEvidence?: InjuryEvidence, injuredStarters: PlayerMarketRecord[] = []) =>
+    evaluateLifecycleRules({
+      userId: "user-a",
+      leagueId: "L1",
+      roster: healthyRoster,
+      byeSchedule: VERIFIED_BYES,
+      injuredStarters,
+      injuryEvidence
+    });
+
+  const VERIFIED: InjuryEvidence = classifyInjuryEvidence(hoursAgo(1), NOW);
+  const STALE: InjuryEvidence = classifyInjuryEvidence(hoursAgo(36), NOW);
+  const MISSING: InjuryEvidence = classifyInjuryEvidence(null, NOW);
+  const DOWN: InjuryEvidence = { state: "unavailable", reason: "upstream 503" };
+
+  it("fresh healthy status → family IS evaluated, so an old alert may resolve", () => {
+    expect(evaluate(VERIFIED).evaluated).toContain("injured-starter");
+  });
+
+  it("stale healthy status → family NOT evaluated, so an old alert MUST NOT resolve", () => {
+    // The defect: a 36h-old snapshot makes every player look healthy, and the
+    // engine used to accept that as proof the injury was over.
+    expect(STALE.state).toBe("stale");
+    expect(evaluate(STALE).evaluated).not.toContain("injured-starter");
+  });
+
+  it("missing status → family NOT evaluated", () => {
+    expect(MISSING.state).toBe("unavailable");
+    expect(evaluate(MISSING).evaluated).not.toContain("injured-starter");
+  });
+
+  it("source unavailable → family NOT evaluated", () => {
+    expect(evaluate(DOWN).evaluated).not.toContain("injured-starter");
+  });
+
+  it("FAILS CLOSED: a caller that supplies no evidence cannot resolve alerts", () => {
+    // Omitting the field must not grant the authority by default.
+    expect(evaluate(undefined).evaluated).not.toContain("injured-starter");
+  });
+
+  it("an empty roster still cannot resolve, even with verified evidence", () => {
+    // Both conditions are required: readable roster AND trustworthy status.
+    const { evaluated } = evaluateLifecycleRules({
+      userId: "user-a",
+      leagueId: "L1",
+      roster: [],
+      byeSchedule: VERIFIED_BYES,
+      injuryEvidence: VERIFIED
+    });
+    expect(evaluated).not.toContain("injured-starter");
+  });
+
+  it("gating resolution does not disable the other families", () => {
+    const { evaluated } = evaluateLifecycleRules({
+      userId: "user-a",
+      leagueId: "L1",
+      roster: healthyRoster,
+      byeSchedule: VERIFIED_BYES,
+      faabRemainingRatio: 0.05,
+      injuryEvidence: MISSING
+    });
+    expect(evaluated).toContain("stacked-bye-week");
+    expect(evaluated).toContain("faab-depleted");
+    expect(evaluated).not.toContain("injured-starter");
+  });
+
+  describe("EMISSION is never suppressed — a known injury is still reported", () => {
+    const injured = [p("rb1", "RB", "ATL", { status: "out" })];
+
+    it("fresh injured → a current alert", () => {
+      const { drafted } = evaluate(VERIFIED, injured);
+      const alert = drafted.find((n) => n.rule === "injured-starter");
+      expect(alert).toBeDefined();
+      expect(alert!.message).toContain("is listed as out");
+      expect(alert!.message).not.toMatch(/as of the last verified update/);
+    });
+
+    it("stale injured → still emitted, but explicitly labeled stale", () => {
+      const { drafted } = evaluate(STALE, injured);
+      const alert = drafted.find((n) => n.rule === "injured-starter");
+      expect(alert).toBeDefined();
+      expect(alert!.message).toMatch(/as of the last verified update/);
+      expect(alert!.message).toMatch(/36\.0h old/);
+      expect(alert!.message).toMatch(/Confirm on your platform/);
+    });
+
+    it("missing evidence → an injury the caller found is still surfaced", () => {
+      // Suppressing it would hide a real risk behind a provenance problem.
+      expect(evaluate(MISSING, injured).drafted.some((n) => n.rule === "injured-starter")).toBe(true);
+    });
+
+    it("dedup key is stable across evidence states so staleness does not double-alert", () => {
+      const fresh = evaluate(VERIFIED, injured).drafted.find((n) => n.rule === "injured-starter");
+      const stale = evaluate(STALE, injured).drafted.find((n) => n.rule === "injured-starter");
+      expect(fresh!.dedupKey).toBe(stale!.dedupKey);
     });
   });
 });

@@ -58,28 +58,41 @@ const hatchStyle: React.CSSProperties = {
 const contentStyle: React.CSSProperties = {
   position: "relative",
   display: "grid",
-  gap: 6
+  gap: 6,
+  // A grid item's default `min-width: auto` refuses to shrink below its content,
+  // so an unbreakable token pushed this past the wrapper and `overflow: hidden`
+  // then clipped the text mid-word.
+  minWidth: 0
 };
 
 const captionStyle: React.CSSProperties = {
   fontFamily: "var(--monospace-font, monospace)",
-  fontSize: 10,
+  fontSize: "var(--text-xs)",
   letterSpacing: 0.3,
   color: "var(--muted)",
-  textTransform: "uppercase"
+  textTransform: "uppercase",
+  minWidth: 0,
+  overflowWrap: "anywhere"
 };
 
 const titleStyle: React.CSSProperties = {
   margin: "4px 0 0",
   color: "var(--cream)",
-  fontSize: 15,
+  fontSize: "var(--text-base)",
   fontWeight: 600,
-  letterSpacing: 0.2
+  letterSpacing: 0.2,
+  minWidth: 0,
+  overflowWrap: "anywhere"
 };
 
 const descStyle: React.CSSProperties = {
   margin: 0,
   color: "var(--muted)",
-  fontSize: 13,
-  lineHeight: 1.5
+  fontSize: "var(--text-sm)",
+  lineHeight: 1.5,
+  // These descriptions routinely name an API route or a field, and those have no
+  // break opportunity. Without this the sidebar rendered "/api/leagues/[id]/refres"
+  // — a truncated instruction is worse than none, since it reads as complete.
+  minWidth: 0,
+  overflowWrap: "anywhere"
 };

@@ -100,3 +100,62 @@ describe("scoreForecasts", () => {
     expect(s.reliabilityBins.length).toBeGreaterThan(0);
   });
 });
+
+describe("betweenTeamSigma excludes the within-team sampling term (P2-6)", () => {
+  /**
+   * A team's season mean is estimated from W weekly games, so
+   *
+   *     Var(observed means) = Var(true strength) + Var(weekly) / W
+   *
+   * The estimator used the raw standard deviation, so the simulator drew each
+   * opponent's strength from an inflated spread and then added weekly noise on
+   * top -- counting within-team variance twice and over-dispersing the field.
+   * Measured bias at realistic parameters: +8.4% (npm run measure:sigma).
+   */
+  it("returns zero spread when every team is identical apart from weekly noise", () => {
+    // Four teams, same true strength, differing only by the noise around it.
+    // The raw standard deviation of their season means is NOT zero; the
+    // variance-components estimate should be, because there is no real spread.
+    const weekly = [
+      [100, 120, 80, 110, 90, 105, 95, 115],
+      [105, 95, 115, 85, 120, 100, 90, 110],
+      [90, 110, 100, 120, 80, 115, 105, 95],
+      [115, 85, 105, 95, 110, 90, 120, 100]
+    ];
+    const { field } = buildLeagueModels(weekly);
+    // Every team has the same 8 numbers in a different order, so their season
+    // means are exactly equal and the raw estimate is already 0 -- this pins
+    // that the correction cannot push a zero spread NEGATIVE or NaN.
+    expect(field.betweenTeamSigma).toBe(0);
+    expect(Number.isFinite(field.betweenTeamSigma)).toBe(true);
+  });
+
+  it("is strictly smaller than the raw spread of season means", () => {
+    const weekly = [
+      [130, 140, 120, 135, 125, 145, 115, 138],
+      [100, 95, 110, 90, 105, 98, 102, 108],
+      [80, 75, 90, 70, 85, 78, 82, 88],
+      [110, 118, 105, 122, 100, 115, 108, 112]
+    ];
+    const means = weekly.map((w) => w.reduce((a, b) => a + b, 0) / w.length);
+    const m = means.reduce((a, b) => a + b, 0) / means.length;
+    const rawSigma = Math.sqrt(means.reduce((a, b) => a + (b - m) ** 2, 0) / (means.length - 1));
+
+    const { field } = buildLeagueModels(weekly);
+    expect(field.betweenTeamSigma).toBeLessThan(rawSigma);
+    expect(field.betweenTeamSigma).toBeGreaterThan(0);
+  });
+
+  it("floors at zero rather than producing a negative variance", () => {
+    // Wild weekly noise, near-identical strengths: the sampling term exceeds
+    // the observed spread, so the variance estimate goes negative. A negative
+    // variance means "no detectable spread", not a negative one.
+    const weekly = [
+      [10, 200, 5, 195, 12, 190],
+      [190, 12, 195, 8, 200, 7]
+    ];
+    const { field } = buildLeagueModels(weekly);
+    expect(field.betweenTeamSigma).toBeGreaterThanOrEqual(0);
+    expect(Number.isNaN(field.betweenTeamSigma)).toBe(false);
+  });
+});

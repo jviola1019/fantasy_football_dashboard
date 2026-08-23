@@ -1,4 +1,10 @@
 import type { PlayerMarketRecord, SourceMeta } from "./governance";
+import { averageStartableTrueValue } from "./fantasypros/enrich";
+import {
+  selectProjectionForFormat,
+  type WeeklyProjectionByFormat
+} from "./leagues/scoringPoints";
+import type { ScoringFormat } from "./trade/format";
 import {
   runSeasonSimulation,
   OUTCOME_TIERS,
@@ -15,8 +21,25 @@ export type SimulationParams = {
   rosterSlots: number;
   /** 0..1. Scales the team's week-to-week variance (higher = boom/bust). */
   riskTolerance: number;
-  /** Real weekly pts_ppr per player id, when the projections cron has fired. */
-  weeklyProjections?: Map<string, number> | null;
+  /**
+   * Real weekly projections per player id, when the projections cron has fired.
+   *
+   * Carries ALL THREE scoring variants (audit 2026-08-20 §7). The numeric is
+   * selected here, from {@link SimulationParams.scoringFormat} — the same field
+   * that sets the opponent baseline — so the user's starters and the opponent
+   * field are structurally guaranteed to share one point unit. Passing a
+   * pre-collapsed `Map<string, number>` is exactly what made that guarantee
+   * unenforceable before.
+   */
+  weeklyProjections?: Map<string, WeeklyProjectionByFormat> | null;
+  /**
+   * League scoring format. BOTH the opponent-field baseline (audit F-010) and
+   * the per-starter projection unit (audit 2026-08-20 §7) are derived from it,
+   * so the field and the user's own starters are measured on the same scale.
+   * Defaults to PPR, which is the value the model was originally calibrated
+   * against.
+   */
+  scoringFormat?: "STD" | "HALF" | "PPR";
   /** League size for the simulated season. Default 12. */
   numTeams?: number;
   /** Teams that make the playoffs. Default 6. */
@@ -50,21 +73,89 @@ export type SimulationResult = {
 };
 
 // ── Player → weekly-points model ────────────────────────────────────────────
-// All quantities are in WEEKLY FANTASY POINTS (PPR). A league-average startable
-// player scores ~AVG_STARTER_PTS; value above/below the median trueValue scales
+// Quantities are WEEKLY FANTASY POINTS. A league-average startable player
+// scores ~avgStarterPts; value above/below the median trueValue scales
 // linearly. These anchors make a median roster land at the field mean, which is
 // the calibration anchor (median roster ≈ playoffTeams/numTeams playoff odds).
-const AVG_STARTER_PTS = 11.5;
-const TV_SLOPE = 0.18; // weekly pts per trueValue point away from the median
-const MEDIAN_TV = 50;
+//
+// Audit 2026-08-06 F-010: this was a single PPR-calibrated constant (11.5) used
+// for the OPPONENT FIELD, while the user's own starters were scored with
+// `pickProjectionPoints` in the league's ACTUAL format. In a standard league the
+// team was therefore measured in STD points against a PPR-sized field, biasing
+// playoff and championship odds DOWN; a TE-premium or high-scoring league biased
+// them up. The two sides of the comparison have to share a scale.
+const AVG_STARTER_PTS_PPR = 11.5;
+
+/**
+ * Field baseline per scoring format.
+ *
+ * An average starting-lineup player catches roughly two passes a game, which is
+ * worth 2 points in full PPR, 1 in half and 0 in standard — so the baseline
+ * moves by ~1 point per half-point of reception scoring. PPR is left at exactly
+ * 11.5 so the calibration that already exists for PPR leagues is unchanged, and
+ * only the previously-wrong formats move.
+ */
+export function avgStarterPtsFor(scoringFormat: "STD" | "HALF" | "PPR"): number {
+  if (scoringFormat === "PPR") return AVG_STARTER_PTS_PPR;
+  if (scoringFormat === "HALF") return AVG_STARTER_PTS_PPR - 1;
+  return AVG_STARTER_PTS_PPR - 2;
+}
+
+const TV_SLOPE = 0.18; // weekly pts per trueValue point away from the anchor
 const PLAYER_SIGMA_BASE = 4;
 const PLAYER_SIGMA_SLOPE = 0.08; // weekly sd per volatility point
 const MEDIAN_PLAYER_SIGMA = PLAYER_SIGMA_BASE + PLAYER_SIGMA_SLOPE * 35;
 
-function starterWeeklyMean(p: PlayerMarketRecord, weekly: Map<string, number> | null): number {
-  const proj = weekly?.get(p.id);
-  if (proj != null) return Math.max(0, proj); // real weekly projection (live path)
-  return Math.max(0, AVG_STARTER_PTS + (p.trueValue - MEDIAN_TV) * TV_SLOPE);
+/**
+ * The trueValue that maps onto an average starter's points.
+ *
+ * Was `MEDIAN_TV = 50`, and that was a unit error rather than a tuning choice.
+ * `trueValue = 50` is REPLACEMENT LEVEL (see ecrToTrueValue) while
+ * `avgStarterPtsFor()` is the average STARTER's points, so the transform
+ * equated a replacement player with an average starter and inflated every real
+ * roster by the whole replacement-to-starter gap.
+ *
+ * Caught by scripts/backtest-valuation.ts on five completed leagues: every team
+ * averaged 164 weekly points against a 115 field — every team 42% above
+ * average, which cannot be true of every team simultaneously — so all 50
+ * team-seasons predicted ~100% playoff odds. Brier 0.4000 against a 0.2400
+ * climatology baseline; AUC exactly 0.5000, i.e. no discrimination at all.
+ *
+ * The replacement model now supplies the correct anchor, derived in closed form
+ * from the depth cushion (79.2 at cushion 1.2), so the two sides of the
+ * comparison share a scale and the documented calibration anchor — a
+ * league-average roster makes the playoffs about playoffTeams/numTeams of the
+ * time — actually holds. Pinned by simulation.calibration.test.ts.
+ */
+const STARTER_ANCHOR_TV = averageStartableTrueValue();
+
+/**
+ * A starter's weekly mean, in the league's own point unit.
+ *
+ * Two paths, and the whole point of audit 2026-08-20 §7 is that BOTH are in the
+ * same unit:
+ *
+ *  1. Live — the real projection for `scoringFormat`. `selectProjectionForFormat`
+ *     returns null rather than handing back a differently-scaled number, so a
+ *     standard-scoring league never receives PPR points.
+ *  2. Structural — `avgStarterPts`, which `avgStarterPtsFor(scoringFormat)`
+ *     already scaled to the same format, offset by trueValue.
+ *
+ * So a player with no same-unit projection degrades to path 2 in the correct
+ * unit, instead of importing the wrong one.
+ */
+function starterWeeklyMean(
+  p: PlayerMarketRecord,
+  weekly: Map<string, WeeklyProjectionByFormat> | null,
+  scoringFormat: ScoringFormat,
+  avgStarterPts: number
+): number {
+  const raw = weekly?.get(p.id);
+  if (raw) {
+    const selected = selectProjectionForFormat(raw, scoringFormat);
+    if (selected) return Math.max(0, selected.points);
+  }
+  return Math.max(0, avgStarterPts + (p.trueValue - STARTER_ANCHOR_TV) * TV_SLOPE);
 }
 
 function starterWeeklySigma(p: PlayerMarketRecord): number {
@@ -93,10 +184,16 @@ export function deriveSeasonInputs(players: PlayerMarketRecord[], params: Simula
   const weekly = params.weeklyProjections ?? null;
   const chosen = [...players].sort((a, b) => b.trueValue - a.trueValue).slice(0, rosterSlots);
 
+  // BOTH sides of the comparison use this same per-starter baseline, which is
+  // the property that was broken: the field used it while the team was anchored
+  // at replacement level instead.
+  const scoringFormat: ScoringFormat = params.scoringFormat ?? "PPR";
+  const avgStarterPts = avgStarterPtsFor(scoringFormat);
+
   let mean = 0;
   let varSum = 0;
   const starters = chosen.map((player) => {
-    const m = starterWeeklyMean(player, weekly);
+    const m = starterWeeklyMean(player, weekly, scoringFormat, avgStarterPts);
     const s = starterWeeklySigma(player);
     mean += m;
     varSum += s * s;
@@ -112,7 +209,7 @@ export function deriveSeasonInputs(players: PlayerMarketRecord[], params: Simula
   // Otherwise a roster with fewer players than rosterSlots (e.g. the 8-player
   // demo fixture) is scored against a larger field and looks artificially weak.
   const usedStarters = Math.max(1, starters.length);
-  const fieldMean = usedStarters * AVG_STARTER_PTS;
+  const fieldMean = usedStarters * avgStarterPts;
   const field: FieldModel = {
     meanWeekly: fieldMean,
     betweenTeamSigma: fieldMean * 0.13,
@@ -171,8 +268,12 @@ export function runNexusSimulation(players: PlayerMarketRecord[], params: Simula
     assumptions: [
       `Real season Monte Carlo: ${numTeams}-team league, ${regularSeasonWeeks}-week round-robin, top ${playoffTeams} make a single-elimination bracket (byes for top seeds), over ${season.iterations.toLocaleString()} simulated seasons.`,
       "Each weekly matchup is decided by sampled team scores; the user's team uses its real starters' weekly means/variances and opponents draw a season strength from the league distribution.",
-      "Live path: each starter's weekly mean is its real Sleeper pts_ppr projection; off-season it is mapped from season-aggregate trueValue. Risk tolerance scales week-to-week variance.",
-      "Calibration anchor: a league-average roster makes the playoffs ≈ playoffTeams/numTeams of the time (see docs/season-sim.md)."
+      `Live path: each starter's weekly mean is its real Sleeper projection in this league's ${params.scoringFormat ?? "PPR"} scoring unit (pts_ppr / pts_half_ppr / pts_std selected by league format); a player with no projection in that unit, and the whole off-season path, are mapped from season-aggregate trueValue on the same scale. Risk tolerance scales week-to-week variance.`,
+      `Calibration anchor: a league-average roster (trueValue ≈ ${STARTER_ANCHOR_TV.toFixed(0)}, the average STARTABLE player) makes the playoffs ≈ playoffTeams/numTeams of the time. Verified by simulation.calibration.test.ts.`,
+      // CLAUDE.md: "if a model lacks calibration, do not present it as
+      // production-safe". An out-of-sample backtest now exists, and it failed —
+      // so saying nothing here would be the dishonest option.
+      "NOT VALIDATED: tested against an UNTOUCHED external sample — 160 team-seasons across 13 MyFantasyLeague leagues, a different platform and manager population — this chain scored Brier 0.2822 against a 0.2404 structural-climatology baseline, with a Brier skill 95% CI of [-0.2550, -0.0910], entirely below zero: significantly WORSE calibrated than simply using the league's own base rate. Its AUC was 0.5569 [95% CI 0.4630, 0.6300], which straddles 0.5, so it shows no measurable ability to rank teams either. NOTE: the earlier development-sample finding of a significant INVERSION (AUC 0.2546 [0.1333, 0.4450] on 5 correlated leagues) did NOT replicate and is now attributed to small-sample noise. These are simulated frequencies under model assumptions, not forecast probabilities. See reports/2026-08-20/holdout-result.md."
     ],
     source,
     distribution: {

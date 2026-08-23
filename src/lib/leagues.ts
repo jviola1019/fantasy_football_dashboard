@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { decrypt, encrypt, getCredentialKey } from "./crypto";
 import { schema } from "../db";
-import type { LeagueFormat } from "./trade/format";
+import { DEFAULT_FORMAT, type LeagueFormat } from "./trade/format";
 
 export type LeaguePlatform = "sleeper" | "espn";
 
@@ -83,6 +83,31 @@ export async function createLeague(db: Db, input: CreateLeagueInput): Promise<Le
   if (existing) {
     throw new Error("duplicate league: already added for this user and season");
   }
+  // Audit 2026-08-22, P1-6: this writes TWO rows and had no transaction, so a
+  // failure between them left an ESPN league with no credentials. That league
+  // could never refresh, reported a misleading "credentials missing" error, and
+  // the duplicate guard above then BLOCKED the user from re-adding it — a
+  // permanently bricked row created by a transient failure.
+  //
+  // A real transaction is not available here: `Db` is typed for better-sqlite3,
+  // whose drizzle transaction callback must be synchronous, while the
+  // production Postgres driver requires an async one. The two are not
+  // reconcilable behind this shared type, and getting it wrong is a runtime
+  // failure on exactly one driver — the one that matters.
+  //
+  // So the window is closed from both ends instead:
+  //   1. Encryption happens BEFORE any row is written. `getCredentialKey()`
+  //      throwing on a missing or malformed key, and `encrypt` itself, are the
+  //      likely failures, and now neither can leave anything behind.
+  //   2. If the credentials INSERT still fails, the league row is deleted and
+  //      the original error is rethrown, so the user can simply try again.
+  const sealed = input.credentials
+    ? (() => {
+        const key = getCredentialKey();
+        return encrypt(JSON.stringify(input.credentials), key);
+      })()
+    : null;
+
   const inserted = await db
     .insert(schema.leagues)
     .values({
@@ -96,21 +121,58 @@ export async function createLeague(db: Db, input: CreateLeagueInput): Promise<Le
     })
     .returning();
   const row = inserted[0]!;
-  if (input.credentials) {
-    const key = getCredentialKey();
-    const sealed = encrypt(JSON.stringify(input.credentials), key);
-    await db.insert(schema.leagueCredentials).values({
-      leagueId: row.id,
-      iv: sealed.iv,
-      authTag: sealed.authTag,
-      ciphertext: sealed.ciphertext
-    });
+
+  if (sealed) {
+    try {
+      await db.insert(schema.leagueCredentials).values({
+        leagueId: row.id,
+        iv: sealed.iv,
+        authTag: sealed.authTag,
+        ciphertext: sealed.ciphertext
+      });
+    } catch (err) {
+      // Compensate, then report. If the compensation ALSO fails the user must
+      // hear about it, because the row is now the bricked state described
+      // above and silence would leave them re-trying into a duplicate error.
+      let rolledBack = false;
+      try {
+        rolledBack = await deleteLeagueForUser(db, input.userId, row.id);
+      } catch {
+        rolledBack = false;
+      }
+      const reason = err instanceof Error ? err.message : String(err);
+      throw new Error(
+        rolledBack
+          ? `Could not store league credentials (${reason}). The league was not added; please try again.`
+          : `Could not store league credentials (${reason}), and the partially-created league could not be removed. League id ${row.id} has no credentials and must be deleted before re-adding.`
+      );
+    }
   }
+
   return toRecord(row);
 }
 
+/**
+ * A user's leagues, oldest first.
+ *
+ * The ORDER BY is not cosmetic. `leagues[0]` is the DEFAULT ACTIVE LEAGUE when
+ * no selection cookie is present (`activeLeague.ts`), so the order of this
+ * result decides whose roster, projections, trade prices and keeper costs a
+ * returning user sees. Without it, SQLite happened to return insertion order
+ * and Postgres was free to return anything — and on Postgres an UPDATE
+ * physically relocates a row, so merely editing one league's settings could
+ * silently change which league the app opened on. Audit 2026-08-22, P1-1.
+ *
+ * `createdAt` then `id` — createdAt alone is not a total order, because two
+ * leagues added in the same millisecond would tie and reintroduce the
+ * non-determinism this exists to remove.
+ */
 export async function listLeagues(db: Db, userId: string): Promise<LeagueRecord[]> {
-  const rows = await db.select().from(schema.leagues).where(eq(schema.leagues.userId, userId));
+  const rows = await db
+    .select()
+    .from(schema.leagues)
+    .where(eq(schema.leagues.userId, userId))
+    .orderBy(asc(schema.leagues.createdAt), asc(schema.leagues.id));
   return rows.map(toRecord);
 }
 
@@ -121,6 +183,35 @@ export async function getLeagueForUser(db: Db, userId: string, leagueId: string)
     .where(and(eq(schema.leagues.userId, userId), eq(schema.leagues.id, leagueId)))
     .limit(1);
   return rows[0] ? toRecord(rows[0]) : null;
+}
+
+/**
+ * Merge owner-confirmed settings into a league's stored format.
+ *
+ * Scoped by userId as well as leagueId so one account can never edit another's
+ * league — the same ownership rule every other league mutation follows.
+ *
+ * Only the fields an owner can legitimately confirm are accepted. Everything
+ * else (scoring, roster slots, team count) is DETECTED from the platform and
+ * must not be hand-editable, or the app would start reporting settings that
+ * disagree with the league itself.
+ */
+export async function updateLeagueSettingsForUser(
+  db: Db,
+  userId: string,
+  leagueId: string,
+  patch: Partial<Pick<LeagueFormat, "keeperCostRule" | "keeperCostRound" | "draftSlot">>
+): Promise<LeagueRecord | null> {
+  const existing = await getLeagueForUser(db, userId, leagueId);
+  if (!existing) return null;
+  const merged: LeagueFormat = { ...(existing.settings ?? DEFAULT_FORMAT), ...patch };
+  const updated = await db
+    .update(schema.leagues)
+    .set({ settings: JSON.stringify(merged) })
+    .where(and(eq(schema.leagues.id, leagueId), eq(schema.leagues.userId, userId)))
+    .returning();
+  const row = updated[0];
+  return row ? toRecord(row) : null;
 }
 
 export async function deleteLeagueForUser(db: Db, userId: string, leagueId: string): Promise<boolean> {

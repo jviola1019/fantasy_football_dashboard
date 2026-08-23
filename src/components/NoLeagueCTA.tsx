@@ -45,7 +45,7 @@ export function NoLeagueCTA() {
         <p
           style={{
             margin: 0,
-            fontSize: 11,
+            fontSize: "var(--text-xs)",
             letterSpacing: "0.4em",
             textTransform: "uppercase",
             color: "var(--muted)"
@@ -70,7 +70,7 @@ export function NoLeagueCTA() {
           style={{
             margin: "0 auto",
             maxWidth: 480,
-            fontSize: 15,
+            fontSize: "var(--text-base)",
             lineHeight: 1.55,
             color: "var(--muted)"
           }}
@@ -96,7 +96,7 @@ export function NoLeagueCTA() {
               background: "var(--amber)",
               color: "#000",
               borderRadius: 8,
-              fontSize: 14,
+              fontSize: "var(--text-base)",
               fontWeight: 600,
               letterSpacing: 0.2,
               textDecoration: "none",
@@ -113,7 +113,7 @@ export function NoLeagueCTA() {
               background: "transparent",
               color: "var(--cream)",
               borderRadius: 8,
-              fontSize: 14,
+              fontSize: "var(--text-base)",
               fontWeight: 500,
               letterSpacing: 0.2,
               textDecoration: "none",
@@ -126,7 +126,7 @@ export function NoLeagueCTA() {
         <p
           style={{
             margin: "16px 0 0",
-            fontSize: 11,
+            fontSize: "var(--text-xs)",
             color: "var(--muted)",
             letterSpacing: 0.4
           }}

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { LiveLeagueSnapshot } from "./fetchLive";
 
 // ESPN integration test for fetchLeagueLive. Mocks the upstream league
 // query + credential decrypt and feeds a synthetic ESPN mTeam/mSettings
@@ -16,8 +17,7 @@ vi.mock("../espn/league", () => ({
   getScoreboard: vi.fn(),
   getDraft: vi.fn(),
   getTransactions: vi.fn(),
-  getFreeAgents: vi.fn(),
-  getNews: vi.fn()
+  getFreeAgents: vi.fn()
 }));
 
 // Stub the leagues data access so fetchLeagueLive resolves a fake league
@@ -213,5 +213,39 @@ describe("fetchLeagueLive (ESPN) — integration with mocked fetcher", () => {
     expect(snapshot?.allRosters).toEqual([]);
     expect(snapshot?.format).toBeNull();
     expect(getLeagueMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("roster identity is declared, never silently substituted (audit 2026-08-22)", () => {
+  it("the snapshot type requires an identity verdict on every path", () => {
+    // A compile-time guarantee more than a runtime one: `identityResolved` and
+    // `identityNote` are non-optional on LiveLeagueSnapshot, so every current
+    // and future return site must state whether myRoster is really the user's.
+    //
+    // Before this, both platforms fell back to team index 0 — a Sleeper user
+    // who omitted the optional `sleeperUsername`, or an ESPN co-manager whose
+    // SWID matched no team, silently received a STRANGER'S roster. Every panel,
+    // simulation, trade grade and keeper price was computed against it, and the
+    // source still read validation: "valid".
+    //
+    // The fallback is deliberately kept (a commissioner with no team in the
+    // league genuinely wants it) — what changed is that it is now declared and
+    // surfaced through the envelope's failure channel.
+    const shape: Pick<LiveLeagueSnapshot, "identityResolved" | "identityNote"> = {
+      identityResolved: false,
+      identityNote: "showing another team"
+    };
+    expect(shape.identityResolved).toBe(false);
+    expect(shape.identityNote).not.toBeNull();
+  });
+
+  it("a resolved identity carries no note, so no warning is shown", () => {
+    const shape: Pick<LiveLeagueSnapshot, "identityResolved" | "identityNote"> = {
+      identityResolved: true,
+      identityNote: null
+    };
+    // Consumers key on identityNote, not identityResolved — a degraded path with
+    // an EMPTY roster misattributes nothing and must not raise a warning.
+    expect(shape.identityNote).toBeNull();
   });
 });

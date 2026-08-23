@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 import { resetDbForTests, schema } from "../db";
 import {
   createLeague,
@@ -199,5 +200,76 @@ describe("league storage and isolation", () => {
     const deleted = await deleteLeagueForUser(db, "user-a", aLeague.id);
     expect(deleted).toBe(true);
     expect(await getLeagueCredentials(db, aLeague.id)).toBeNull();
+  });
+
+  // ── P1-1 (audit 2026-08-22) ───────────────────────────────────────────────
+  it("returns leagues in a deterministic, total order", async () => {
+    /**
+     * `listLeagues` had no ORDER BY, and `leagues[0]` is the DEFAULT ACTIVE
+     * LEAGUE when no selection cookie is present. The order of this result
+     * therefore decides whose roster, projections, trade prices and keeper
+     * costs a returning user sees. SQLite happened to return insertion order;
+     * Postgres is free to return anything, and an UPDATE physically relocates
+     * a row -- so merely editing one league's settings could silently change
+     * which league the app opened on.
+     */
+    for (const n of ["one", "two", "three"]) {
+      await createLeague(db, {
+        userId: "user-a",
+        platform: "sleeper",
+        externalLeagueId: `ext-${n}`,
+        season: 2025,
+        label: `League ${n}`,
+        sleeperUsername: "someone"
+      });
+    }
+    const first = (await listLeagues(db, "user-a")).map((l) => l.id);
+    expect(first).toHaveLength(3);
+
+    // Repeated reads agree...
+    expect((await listLeagues(db, "user-a")).map((l) => l.id)).toEqual(first);
+
+    // ...and an UPDATE to a middle row does not reorder the list, which is the
+    // exact scenario that changed a user's active league on Postgres.
+    await db
+      .update(schema.leagues)
+      .set({ label: "renamed" })
+      .where(eq(schema.leagues.id, first[1]!));
+    expect((await listLeagues(db, "user-a")).map((l) => l.id)).toEqual(first);
+  });
+
+  // ── P1-6 (audit 2026-08-22) ───────────────────────────────────────────────
+  it("does not leave a credential-less league behind when encryption fails", async () => {
+    /**
+     * createLeague writes TWO rows with no transaction. A failure between them
+     * left an ESPN league with no credentials: it could never refresh, reported
+     * a misleading error, and the duplicate guard then BLOCKED re-adding it --
+     * a permanently bricked row created by a transient failure.
+     *
+     * Encryption now happens BEFORE any row is written, so the most likely
+     * failure (a missing or malformed key) cannot leave anything behind at all.
+     */
+    const saved = process.env.CREDENTIAL_ENCRYPTION_KEY;
+    process.env.CREDENTIAL_ENCRYPTION_KEY = "not-a-valid-key";
+    try {
+      await expect(
+        createLeague(db, {
+          userId: "user-a",
+          platform: "espn",
+          externalLeagueId: "ext-espn",
+          season: 2025,
+          label: "ESPN League",
+          credentials: { espnS2: "s2", swid: "{swid}" }
+        })
+      ).rejects.toThrow();
+    } finally {
+      process.env.CREDENTIAL_ENCRYPTION_KEY = saved;
+    }
+
+    // Nothing was created, so the user can simply try again.
+    expect(await listLeagues(db, "user-a")).toHaveLength(0);
+    expect(
+      await findUserLeagueByExternal(db, "user-a", "espn", "ext-espn", 2025)
+    ).toBeNull();
   });
 });

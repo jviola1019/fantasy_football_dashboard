@@ -1,17 +1,81 @@
 name: Security
 
+# Audit 2026-08-06 F-006. Previously this workflow only ran `dependency-review`,
+# which is PR-only AND only sees the PR diff. A lockfile that was clean at merge
+# therefore rotted silently: a PR went green on 2026-07-09 and nine Next.js
+# advisories landed on 2026-07-22 against the very version it had just locked,
+# with nothing to notice. Scanning now runs on PRs, on pushes to main (so the
+# MERGED sha gets its own evidence rather than inheriting the PR head's), and on
+# a daily schedule so a newly published advisory fails without needing a new PR.
 on:
   pull_request:
-    branches: [main]
+    # `[main]` alone meant a STACKED remediation PR (one fix branch based on
+    # another) got no CI at all — it is not targeting main, so nothing ran and
+    # the PR looked clean because it was never checked. Audit 2026-08-20.
+    branches: [main, "fix/**"]
   push:
     branches: [main]
+  schedule:
+    - cron: "23 5 * * *" # daily 05:23 UTC
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # Fails a PR that introduces dependencies with known vulnerabilities or
-  # disallowed licenses. PR-only: it diffs the dependency graph of the PR.
+  # Lockfile scan that does NOT depend on any GitHub-side feature being enabled.
+  # dependency-review needs the repository dependency graph and has historically
+  # failed outright on this repo; this job works offline and on every trigger.
+  lockfile-audit:
+    name: lockfile advisory scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+
+      # Expiring-exception policy first: a lapsed exception must fail the build
+      # before it can suppress anything below.
+      - name: Validate vulnerability exceptions
+        run: npm run check:exceptions
+
+      # Version-floor guard for the specific advisories we have already
+      # remediated, so they can never silently reappear.
+      - name: Advisory floor guard
+        run: npm run check:advisories
+
+      # Production runtime must be clean. This is the blocking gate.
+      - name: npm audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=moderate
+
+      # Dev-tree findings are reported for review but do not block: they are not
+      # part of the deployed runtime. Reviewed weekly via Dependabot.
+      - name: npm audit (full tree, informational)
+        if: always()
+        run: npm audit || true
+
+  osv-scanner:
+    name: OSV lockfile scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/osv-scanner-action@v2.2.4
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+        continue-on-error: true
+
+  # Kept, but no longer the only line of defence. PR-only by nature.
   dependency-review:
     if: github.event_name == 'pull_request'
     name: dependency review
@@ -21,11 +85,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
         with:
-          fail-on-severity: high
+          fail-on-severity: moderate
+        continue-on-error: true
 
-  # Full-repo + history secret scan. Complements scripts/check-doc-secrets.ts,
-  # which only scans tracked *.md / *.json / .env* docs — gitleaks covers
-  # source files and the commit history.
   gitleaks:
     name: gitleaks secret scan
     runs-on: ubuntu-latest
@@ -37,3 +99,56 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  gitleaks-history:
+    name: gitleaks FULL-HISTORY secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Audit 2026-08-21. The `gitleaks` job above passes on push events while
+      # scanning only the PUSHED COMMIT RANGE: its own log recorded
+      # "29 commits scanned" against a repository of 299. A secret committed
+      # before the current branch could therefore never fail CI, which makes a
+      # green check on that job evidence about the diff, not about the
+      # repository.
+      #
+      # This job scans ALL history explicitly. It honours .gitleaksignore, so
+      # the thirteen already-adjudicated findings recorded there stay
+      # suppressed by exact fingerprint while any NEW finding — including one in
+      # an old commit — fails.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          VERSION=8.24.3
+          curl -sSfL -o /tmp/gitleaks.tar.gz             "https://github.com/gitleaks/gitleaks/releases/download/v${VERSION}/gitleaks_${VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          /tmp/gitleaks version
+      - name: Scan every commit
+        run: |
+          set -euo pipefail
+          # No --log-opts: with fetch-depth 0 and no range, gitleaks walks the
+          # entire history. --redact keeps any finding out of the public log.
+          /tmp/gitleaks detect             --source=.             --redact             --exit-code=1             --report-format=sarif             --report-path=gitleaks-history.sarif             --log-level=info
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-history-sarif
+          path: gitleaks-history.sarif
+          if-no-files-found: ignore
+
+  doc-secrets:
+    name: tracked-file secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check:secrets

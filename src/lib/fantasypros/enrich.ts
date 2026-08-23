@@ -1,8 +1,10 @@
+import { DEFAULT_FORMAT, type LeagueFormat } from "../trade/format";
 import type { PlayerMarketRecord, SourceMeta } from "../governance";
 import type { FpEcrData, FpPlayer } from "./types";
 import type { FpIndex } from "./match";
 import { buildFpIndex, matchSleeperToFp } from "./match";
 import { trendingMomentumFromProxy } from "../sleeper/trendingProxy";
+import { positionReplacementRank } from "../league/lineupDemand";
 
 // Map a FantasyPros ranking entry into the behavioral-market fields of
 // PlayerMarketRecord. The transform is intentionally simple — invert the
@@ -13,36 +15,77 @@ import { trendingMomentumFromProxy } from "../sleeper/trendingProxy";
 
 const PPR_BEHAVIORAL_FIELDS = [
   "trending_momentum", // requires Sleeper trending or ESPN-news adapter
-  "opportunity" // requires in-season target/snap data
+  "opportunity", // requires in-season target/snap data
+  // `fragility` was MISSING FROM THIS LIST while every live record was still
+  // created with fragility: 0 (src/lib/normalize.ts). The envelope therefore
+  // never declared it missing, so every guard downstream was dead code — and
+  // the DEF grade, which is entirely fragility-driven, printed a constant "B+"
+  // for every live user regardless of their actual defense
+  // (derivedMetrics: avg(fragility < 35 ? 6 : -4) => 6 => gradeFromScore(6)).
+  // Audit 2026-08-22.
+  "fragility" // requires an injury / snap-share adapter; none is integrated
 ];
 
-// Average across all rated positions per scoring format. Used so VBD
-// numbers are comparable league-wide rather than per-position-only.
-function positionReplacementRank(
-  position: PlayerMarketRecord["position"],
-  scoring: "STD" | "PPR" | "HALF"
-): number {
-  // Approximate starter+bench replacement for a 12-team league at each pos.
-  // QB: 12 starters, ~16-18 rostered → replacement around 18-20.
-  // RB: 24 starters + ~2 flex + bench → replacement ~36.
-  // WR: 24 starters + ~2 flex + bench → replacement ~40.
-  // TE: 12 starters + bench → replacement ~16.
-  // K/DEF: 12 starters, single per team → replacement ~12.
-  const base: Record<PlayerMarketRecord["position"], number> = {
-    QB: 18,
-    RB: 36,
-    WR: 40,
-    TE: 16,
-    K: 12,
-    DEF: 12
-  };
-  // PPR boosts WR/TE replacement levels marginally because more pass-
-  // catchers stay startable.
-  const pprAdjust = scoring === "PPR" ? { WR: 4, TE: 2 } : scoring === "HALF" ? { WR: 2, TE: 1 } : { WR: 0, TE: 0 };
-  if (position === "WR") return base.WR + pprAdjust.WR;
-  if (position === "TE") return base.TE + pprAdjust.TE;
-  return base[position];
-}
+/**
+ * Replacement level: how deep the league actually rosters a position.
+ *
+ * Audit 2026-08-06 F-010. This was a fixed table (QB 18, RB 36, WR 40, TE 16)
+ * with a comment that admitted it was "for a 12-team league". It took `scoring`
+ * but NOT numTeams, starters, or numQbs — so an 8-team league, a 2-TE league and
+ * a superflex league all got 12-team 1QB replacement levels. That matters more
+ * than it looks: replacement level is the denominator of `trueValue`, and
+ * trueValue feeds the season simulation, the draft board, trade grades and every
+ * panel. A wrong baseline biases the entire product, quietly.
+ *
+ * Now derived from the league's real starting lineup:
+ *   replacement = numTeams x (per-team starters at the position, incl. flex share)
+ *                 x DEPTH_CUSHION
+ *
+ * THE ASSUMPTION DID CHANGE, and the audit requires that to be stated rather
+ * than buried. Measured against the retired constants for the 12-team 1QB PPR
+ * league they were tuned for:
+ *
+ *        retired   derived
+ *   QB     18        14
+ *   RB     36        35     <- essentially unchanged
+ *   WR     44        37
+ *   TE     18        14
+ *   K/DEF  12        12
+ *
+ * RB lands close to the old value. That is AGREEMENT WITH THE PREVIOUS GUESS,
+ * not calibration — one position, one league shape, no observed outcome — and
+ * an earlier version of this comment overclaimed it as evidence the cushion was
+ * "calibrated sensibly" (corrected per audit P2 §9). QB/WR/TE come in shallower
+ * because the old table conflated ROSTERED depth with STARTABLE depth: a
+ * 12-team PPR league rosters ~44 WRs but only starts ~30, and VBD's baseline is
+ * the worst player you are forced to START. The derived value is the more
+ * defensible definition, and it is now consistent across positions instead of
+ * hand-tuned per position.
+ *
+ * The cushion is 1.2 because practical replacement sits slightly deeper than the
+ * last starter — managers stream from waivers. K/DEF get no cushion, being
+ * fully fungible. Measured influence, swept across 48 league shapes: moving the
+ * cushion ±0.2 disturbs at most 4.2% of cross-position pairs and moves at most
+ * ONE player in the top 24 (reports/2026-08-06/replacement-sensitivity.md).
+ *
+ * Where the old table was simply WRONG, the change is large and obviously right:
+ * a 12-team superflex goes QB 14 -> 29, a 2-TE league goes TE 14 -> 31, and an
+ * 8-team league scales down across the board (RB 35 -> 23) instead of using
+ * 12-team baselines.
+ */
+/**
+ * The replacement model and its derived anchor now live in
+ * `lib/league/lineupDemand.ts`, beside the flex-allocation logic they belong
+ * with. Re-exported here so existing importers are unchanged, and so there is
+ * exactly ONE definition rather than two that a comment merely claims agree.
+ */
+export {
+  averageStartableTrueValue,
+  DEFAULT_REPLACEMENT_MODEL,
+  type ReplacementModel
+} from "../league/lineupDemand";
+
+export { positionReplacementRank };
 
 /**
  * Build a perceivedValue (0-100) from an ECR rank. Top player = 100,
@@ -98,6 +141,12 @@ export function ownershipToLeverage(owned: number | null | undefined, medianOwne
 export interface EnrichOptions {
   /** Source metadata to attach to enriched records. */
   rankingsSource: SourceMeta;
+  /**
+   * League format — replacement level is derived from it (audit F-010). When
+   * omitted the documented 12-team 1QB PPR baseline applies, and that is a
+   * stated default rather than a hidden assumption.
+   */
+  format?: LeagueFormat;
   /** Median ownership % for the scoring format. Pass 0 if you want raw delta. */
   medianOwnership?: number;
   /**
@@ -134,7 +183,13 @@ export function enrichWithFp(
   options: EnrichOptions,
   maxRank: number,
   scoring: "STD" | "PPR" | "HALF",
-  maxes?: { trendingAddsMax?: number; trendingDropsMax?: number }
+  maxes?: { trendingAddsMax?: number; trendingDropsMax?: number },
+  /**
+   * League format — replacement level is derived from it (audit F-010).
+   * Optional and last so existing call sites are unaffected; when absent the
+   * documented 12-team 1QB PPR baseline applies, matching the retired constants.
+   */
+  format: LeagueFormat = DEFAULT_FORMAT
 ): PlayerMarketRecord {
   const sources = [
     ...record.sources,
@@ -162,7 +217,7 @@ export function enrichWithFp(
     return { ...record, trendingMomentum, sources };
   }
   const perceivedValue = ecrToPerceivedValue(match.rank_ecr, maxRank);
-  const replacementPosRank = positionReplacementRank(record.position, scoring);
+  const replacementPosRank = positionReplacementRank(record.position, options.format ?? format);
   // pos_rank is "WR3" etc — parse the trailing integer.
   const posRankNum = Number((match.pos_rank ?? "").replace(/^[A-Z]+/, ""));
   const trueValue = Number.isFinite(posRankNum)
@@ -291,13 +346,15 @@ export function fpPlayerToRecord(
   scoring: "STD" | "PPR" | "HALF",
   maxRank: number,
   medianOwnership: number,
-  rankingsSource: SourceMeta
+  rankingsSource: SourceMeta,
+  /** See enrichWithFp — optional and last, defaults to the documented baseline. */
+  format: LeagueFormat = DEFAULT_FORMAT
 ): PlayerMarketRecord | null {
   const position = fpPositionToPmr(fp.player_position_id);
   if (!position) return null;
 
   const perceivedValue = ecrToPerceivedValue(fp.rank_ecr, maxRank);
-  const replacementPosRank = positionReplacementRank(position, scoring);
+  const replacementPosRank = positionReplacementRank(position, format);
   const posRankNum = Number((fp.pos_rank ?? "").replace(/^[A-Z]+/, ""));
   const trueValue = Number.isFinite(posRankNum)
     ? ecrToTrueValue(fp.rank_ecr, posRankNum, replacementPosRank)
@@ -334,9 +391,27 @@ export function fpPlayerToRecord(
     ],
     rosterSlot: "FLEX",
     status: "active",
+    // FantasyPros ships this in every snapshot and it was dropped here. The
+    // field is a string upstream and may be absent, empty, or non-numeric, so
+    // anything that is not a plausible week becomes null rather than NaN or 0.
+    byeWeek: parseByeWeek(fp.player_bye_week),
     imageUrl: FP_DEFAULT_HEADSHOT,
     imageSource: "FantasyPros consensus rankings"
   };
+}
+
+/**
+ * FantasyPros reports the bye as a STRING and sometimes omits it entirely.
+ *
+ * Anything that is not a plausible NFL week returns null. Zero is explicitly not
+ * a bye week -- upstream uses it as a placeholder, and passing it through would
+ * put "BYE 0" next to a real draft decision.
+ */
+export function parseByeWeek(raw: unknown): number | null {
+  if (typeof raw === "number") return Number.isInteger(raw) && raw >= 1 && raw <= 22 ? raw : null;
+  if (typeof raw !== "string") return null;
+  const n = Number.parseInt(raw.trim(), 10);
+  return Number.isInteger(n) && n >= 1 && n <= 22 ? n : null;
 }
 
 /**

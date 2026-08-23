@@ -1,0 +1,174 @@
+import { describe, expect, it } from "vitest";
+import { parseEspnFormat, parseSleeperFormat } from "./format";
+
+/**
+ * League type / keeper detection, and the ESPN slot regression (audit F-010).
+ *
+ * Payload shapes below are trimmed from REAL responses captured from the
+ * operator's Sleeper and ESPN accounts, so these are not invented fixtures.
+ */
+
+const espnPayload = (
+  counts: Record<string, number>,
+  opts: { keeperCount?: number; ppr?: number; size?: number } = {}
+) => ({
+  size: opts.size ?? 10,
+  rosterSettings: { lineupSlotCounts: counts },
+  scoringSettings: { scoringItems: [{ statId: 53, points: opts.ppr ?? 1 }] },
+  draftSettings: {
+    type: "SNAKE",
+    keeperCount: opts.keeperCount ?? 0,
+    keeperCountFuture: opts.keeperCount ?? 0
+  }
+});
+
+/** Standard 1QB lineup: QB, 2RB, 2WR, TE, D/ST, K, bench, IR, and a FLEX (23). */
+const STANDARD_FLEX = { "0": 1, "2": 2, "4": 2, "6": 1, "16": 1, "17": 1, "20": 7, "21": 1, "23": 1 };
+/** Genuine superflex: ESPN slot 7 = OP (QB/RB/WR/TE eligible). */
+const SUPERFLEX = { "0": 1, "2": 2, "4": 2, "6": 1, "7": 1, "16": 1, "17": 1, "20": 7 };
+
+describe("ESPN lineup slots 7 vs 23 (regression)", () => {
+  it("a standard FLEX league is NOT superflex", () => {
+    // The bug: slots 7 and 23 were swapped, so superflex was keyed off slot 23
+    // — the ordinary RB/WR/TE flex. Every one of the operator's four real ESPN
+    // leagues therefore reported numQbs=2, feeding superflex QB targets into
+    // the draft board and a 2QB FantasyCalc URL for 1QB leagues.
+    const f = parseEspnFormat(espnPayload(STANDARD_FLEX));
+    expect(f.numQbs).toBe(1);
+    expect(f.starters.FLEX).toBe(1);
+    expect(f.starters.SUPERFLEX).toBe(0);
+  });
+
+  it("slot 7 (OP) IS superflex", () => {
+    const f = parseEspnFormat(espnPayload(SUPERFLEX));
+    expect(f.numQbs).toBe(2);
+    expect(f.starters.SUPERFLEX).toBe(1);
+    expect(f.starters.FLEX).toBe(0);
+  });
+
+  it("matches every real ESPN league the operator owns", () => {
+    const cases: Array<[string, Record<string, number>, number, number]> = [
+      ["My 2024 League", STANDARD_FLEX, 0, 1],
+      ["Scumbags", { ...STANDARD_FLEX, "21": 2, "23": 2 }, 1, 1],
+      ["The Roberta Rat Pack", STANDARD_FLEX, 0, 0.5],
+      ["Vols", STANDARD_FLEX, 0, 1]
+    ];
+    for (const [name, counts, keeperCount, ppr] of cases) {
+      const f = parseEspnFormat(espnPayload(counts, { keeperCount, ppr }));
+      expect(f.numQbs, `${name} numQbs`).toBe(1);
+      expect(f.starters.SUPERFLEX, `${name} superflex`).toBe(0);
+      expect(f.ppr, `${name} ppr`).toBe(ppr);
+    }
+  });
+});
+
+describe("ESPN league type", () => {
+  it("no keepers means redraft", () => {
+    const f = parseEspnFormat(espnPayload(STANDARD_FLEX, { keeperCount: 0 }));
+    expect(f.leagueType).toBe("redraft");
+    expect(f.keeperCount).toBe(0);
+  });
+
+  it("detects the operator's real 1-keeper league", () => {
+    const f = parseEspnFormat(espnPayload({ ...STANDARD_FLEX, "23": 2 }, { keeperCount: 1 }));
+    expect(f.leagueType).toBe("keeper");
+    expect(f.keeperCount).toBe(1);
+  });
+
+  it("treats keeping (nearly) the whole roster as dynasty", () => {
+    // ESPN has no dynasty flag; it models continuity purely as keepers.
+    const f = parseEspnFormat(espnPayload(STANDARD_FLEX, { keeperCount: 17 }));
+    expect(f.leagueType).toBe("dynasty");
+  });
+
+  it("uses the larger of keeperCount and keeperCountFuture", () => {
+    const payload = espnPayload(STANDARD_FLEX);
+    payload.draftSettings = { type: "SNAKE", keeperCount: 0, keeperCountFuture: 2 };
+    expect(parseEspnFormat(payload).keeperCount).toBe(2);
+  });
+});
+
+describe("Sleeper league type", () => {
+  const sleeper = (settings: Record<string, unknown>) =>
+    parseSleeperFormat({
+      roster_positions: ["QB", "RB", "RB", "WR", "WR", "TE", "FLEX", "FLEX", "K", "DEF", "BN", "BN", "BN", "BN", "BN"],
+      scoring_settings: { rec: 1 },
+      settings: { num_teams: 10, ...settings }
+    });
+
+  it("reads settings.type: 0 redraft, 1 keeper, 2 dynasty", () => {
+    expect(sleeper({ type: 0 }).leagueType).toBe("redraft");
+    expect(sleeper({ type: 1 }).leagueType).toBe("keeper");
+    expect(sleeper({ type: 2 }).leagueType).toBe("dynasty");
+  });
+
+  it("reads max_keepers for a keeper league", () => {
+    expect(sleeper({ type: 1, max_keepers: 3 }).keeperCount).toBe(3);
+  });
+
+  it("reports no keeper COUNT for dynasty — the whole roster carries over", () => {
+    expect(sleeper({ type: 2, max_keepers: 20 }).keeperCount).toBe(0);
+  });
+
+  it("matches the operator's real 2026 Sleeper league", () => {
+    const f = sleeper({ type: 0, playoff_week_start: 15, trade_deadline: 11 });
+    expect(f.leagueType).toBe("redraft");
+    expect(f.numQbs).toBe(1);
+    expect(f.starters.FLEX).toBe(2);
+    expect(f.ppr).toBe(1);
+  });
+
+  it("defaults to redraft when the platform omits the field", () => {
+    expect(sleeper({}).leagueType).toBe("redraft");
+  });
+});
+
+describe("trade values follow league type (F-010)", () => {
+  it("selects the dynasty KTC scale only for dynasty leagues", async () => {
+    const { ktcVariantForLeague, buildFantasyCalcUrl } = await import("./values");
+    const { DEFAULT_FORMAT } = await import("./format");
+    const fmt = (leagueType: "redraft" | "keeper" | "dynasty") => ({ ...DEFAULT_FORMAT, leagueType });
+
+    // The daily cron scrapes and prunes the dynasty snapshot; before this fix
+    // nothing ever read it.
+    expect(ktcVariantForLeague(fmt("dynasty"))).toBe("dynasty");
+    expect(ktcVariantForLeague(fmt("redraft"))).toBe("redraft");
+    // Keeper leagues price for THIS season — only a few players carry over.
+    expect(ktcVariantForLeague(fmt("keeper"))).toBe("redraft");
+
+    expect(buildFantasyCalcUrl(fmt("dynasty"))).toContain("isDynasty=true");
+    expect(buildFantasyCalcUrl(fmt("redraft"))).toContain("isDynasty=false");
+    expect(buildFantasyCalcUrl(fmt("keeper"))).toContain("isDynasty=false");
+  });
+
+  it("reads the format-scaled column for whichever endpoint was queried", async () => {
+    // CORRECTED 2026-08-16. This test used to assert that `redraftValue` was
+    // the redraft column and that an omitted argument defaulted to redraft.
+    // Live evidence disproves both halves:
+    //
+    //   * `redraftValue` is FORMAT-INDEPENDENT — Jahmyr Gibbs returns 10017 at
+    //     numTeams 8/12/14 and at ppr 0/0.5/1, identical every time — so
+    //     reading it discarded the numTeams/numQbs/ppr scaling that
+    //     buildFantasyCalcUrl had just requested.
+    //   * The horizon is chosen by `isDynasty` in the URL, and the answer comes
+    //     back in `value`. So `value` is correct for BOTH bases.
+    //
+    // The silent `= "redraft"` default was the actual defect: it let the
+    // production caller omit the argument entirely. `basis` is now required,
+    // and dynasty-vs-redraft is asserted end-to-end in values.integration.test.ts
+    // against a URL-aware mock, which is the only level that can catch it.
+    const { parseFantasyCalc } = await import("./values");
+    const payload = [
+      {
+        player: { id: 1, name: "A Player", position: "RB", sleeperId: 4034, espnId: 3, maybeTeam: "KC" },
+        value: 9000,
+        redraftValue: 100,
+        overallRank: 1,
+        positionRank: 1,
+        trend30Day: 0
+      }
+    ];
+    expect(parseFantasyCalc(payload, "dynasty").get("4034")!.value).toBe(9000);
+    expect(parseFantasyCalc(payload, "redraft").get("4034")!.value).toBe(9000);
+  });
+});

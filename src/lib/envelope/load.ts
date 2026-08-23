@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
-import { pickProjectionPoints } from "@/lib/leagues/scoringPoints";
+import { type WeeklyProjectionByFormat } from "@/lib/leagues/scoringPoints";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
 import { infraNull } from "./infraNull";
 import { buildLeagueUniverse, UNIVERSE_LIMIT } from "@/lib/leagues/buildUniverse";
@@ -19,6 +19,7 @@ import { buildTrendingMap } from "@/lib/sleeper/trendingProxy";
 import { getActiveLeagueId } from "@/lib/activeLeague";
 import { getNflState } from "@/lib/sleeper/league";
 import { getLatestProjectionsSnapshot } from "@/lib/sleeper/projectionsSnapshot";
+import { snapshotToWeeklyProjections } from "@/lib/sleeper/projections";
 import { getLatestNewsSnapshot } from "@/lib/espn/newsSnapshot";
 import { buildNewsWeightMap, normaliseMomentumScores } from "@/lib/espn/newsMatch";
 import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
@@ -141,7 +142,17 @@ async function resolveEnvelope(): Promise<HomeResolution> {
 
         // Weekly projections for the current regular-season week. Off-season or
         // pre-cron: both stay null and the sim falls back to season-aggregate.
-        let weeklyProjections: Record<string, number> | null = null;
+        //
+        // Audit 2026-08-20 §7: all three scoring variants travel to the
+        // simulation boundary. This loader deliberately does NOT collapse them
+        // to one number — that collapse used to happen here, against a
+        // `scoring` value resolved in this file, while the OPPONENT FIELD
+        // baseline was resolved separately in deriveAppData. Two independent
+        // reads of the league format could disagree, and nothing in the types
+        // said which unit the surviving number was in. The selection now
+        // happens once, inside the simulator, from the same `scoringFormat`
+        // that sets the field baseline.
+        let weeklyProjections: Record<string, WeeklyProjectionByFormat> | null = null;
         let weeklyProjectionsMeta: { season: string; week: number; fetchedAt: string } | null = null;
         const nflData = nflState?.data;
         if (nflData?.season_type === "regular" && nflData.week >= 1) {
@@ -149,13 +160,9 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             infraNull("projections")
           );
           if (projSnapshot) {
-            const pts: Record<string, number> = {};
-            for (const [id, p] of Object.entries(projSnapshot.data.projections)) {
-              const v = pickProjectionPoints(p, scoring);
-              if (v != null) pts[id] = v;
-            }
-            if (Object.keys(pts).length > 0) {
-              weeklyProjections = pts;
+            const byFormat = snapshotToWeeklyProjections(projSnapshot.data);
+            if (Object.keys(byFormat).length > 0) {
+              weeklyProjections = byFormat;
               weeklyProjectionsMeta = {
                 season: nflData.season,
                 week: nflData.week,
@@ -178,7 +185,10 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             newsMomentumScores,
             playersSnapshot: playersSnapshot?.players ?? null,
             currentSeason: nflData?.season,
-            opportunityScores: oppSnapshot?.scores ?? null
+            opportunityScores: oppSnapshot?.scores ?? null,
+            // P0-5: the age travels WITH the scores. Dropping it here is what let
+            // a snapshot of any age be presented as current usage.
+            opportunityFetchedAt: oppSnapshot?.fetchedAt ?? null
           }),
           leagueOptions,
           activeLeagueId

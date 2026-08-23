@@ -1,4 +1,12 @@
-import { sqliteTable, text, integer, blob, primaryKey } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  blob,
+  primaryKey,
+  uniqueIndex,
+  index
+} from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -7,7 +15,14 @@ export const users = sqliteTable("users", {
   email: text("email").unique(),
   emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
   image: text("image"),
-  passwordHash: text("passwordHash")
+  passwordHash: text("passwordHash"),
+  /**
+   * Monotonic session generation (audit 2026-08-06 F-004). Stamped into every
+   * issued token; a mismatch on the server invalidates the token. Bumping this
+   * revokes EVERY outstanding session for the user, on every device, which
+   * clearing one browser cookie cannot do.
+   */
+  sessionVersion: integer("sessionVersion").notNull().default(1)
 });
 
 export const accounts = sqliteTable(
@@ -77,19 +92,87 @@ export const leagueCredentials = sqliteTable("leagueCredentials", {
     .default(sql`(unixepoch() * 1000)`)
 });
 
-export const notifications = sqliteTable("notifications", {
-  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  userId: text("userId")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
-  severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
-  rule: text("rule").notNull(),
-  message: text("message").notNull(),
-  createdAt: integer("createdAt", { mode: "timestamp_ms" })
-    .notNull()
-    .default(sql`(unixepoch() * 1000)`),
-  dismissedAt: integer("dismissedAt", { mode: "timestamp_ms" })
+/**
+ * Lifecycle states for a notification (audit 2026-08-06 F-003).
+ *   new      — just created, never listed to the user
+ *   active   — surfaced and still true
+ *   dismissed— user dismissed it; the same condition must NOT nag again
+ *   resolved — the condition stopped being true
+ *   expired  — aged out (e.g. the week it referred to has passed)
+ *   reopened — a previously resolved condition recurred (a genuinely new event)
+ */
+export const NOTIFICATION_STATUSES = [
+  "new",
+  "active",
+  "dismissed",
+  "resolved",
+  "expired",
+  "reopened"
+] as const;
+
+export const notifications = sqliteTable(
+  "notifications",
+  {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    leagueId: text("leagueId").references(() => leagues.id, { onDelete: "cascade" }),
+    severity: text("severity", { enum: ["info", "warn", "alert"] }).notNull(),
+    rule: text("rule").notNull(),
+    message: text("message").notNull(),
+    /**
+     * Deterministic identity for the underlying condition. F-003: this was
+     * computed by the rules engine and then silently DROPPED by
+     * insertNotification, so the daily cron re-inserted an identical row every
+     * run forever. It is now persisted and uniquely indexed with userId.
+     */
+    dedupKey: text("dedupKey").notNull(),
+    status: text("status", { enum: NOTIFICATION_STATUSES }).notNull().default("new"),
+    /** How many times the condition has been observed. */
+    occurrences: integer("occurrences").notNull().default(1),
+    /** Season/week the condition refers to, when it is time-bound. */
+    season: integer("season"),
+    week: integer("week"),
+    createdAt: integer("createdAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updatedAt", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(unixepoch() * 1000)`),
+    resolvedAt: integer("resolvedAt", { mode: "timestamp_ms" }),
+    dismissedAt: integer("dismissedAt", { mode: "timestamp_ms" })
+  },
+  (table) => [
+    // The uniqueness gate that makes the cron idempotent. Scoped by user so two
+    // users in the same league each keep their own copy.
+    uniqueIndex("notifications_user_dedup").on(table.userId, table.dedupKey),
+    index("notifications_user_created").on(table.userId, table.createdAt)
+  ]
+);
+
+/**
+ * Durable authentication throttle (audit 2026-08-06 F-005).
+ *
+ * Login and registration had NO rate limiting of any kind, and the timing
+ * equalizer means every attempt — including for accounts that do not exist —
+ * pays a full scrypt derivation. That made the login form an unauthenticated
+ * CPU/memory amplifier. Process-local memory is useless on Vercel (per-invocation
+ * isolation), so the counter has to be durable; the SQL database is the only
+ * durable store this app has.
+ *
+ * `key` is a HASHED identifier ("acct:<sha256>" / "ip:<sha256>" / "global"), so
+ * this table never stores an email address or an IP in the clear.
+ */
+export const authAttempts = sqliteTable("auth_attempts", {
+  key: text("key").primaryKey(),
+  // Plain epoch-milliseconds INTEGERs, not timestamp columns. The app uses the
+  // SQLite schema objects on Postgres too, and that seam mishandles Date values
+  // (see nowSql() in db/index.ts, audit F-011). A counter table has no need for
+  // native timestamp semantics, so integers remove the hazard entirely.
+  windowStart: integer("windowStart").notNull().default(0),
+  attempts: integer("attempts").notNull().default(0),
+  lockedUntil: integer("lockedUntil")
 });
 
 export const playersSnapshots = sqliteTable("players_snapshots", {

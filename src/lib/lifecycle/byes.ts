@@ -1,33 +1,18 @@
 import type { PlayerMarketRecord } from "../governance";
+import { normalizeTeamCode } from "../fantasypros/match";
+import type { VerifiedByeSchedule } from "../schedule/byeSchedule";
 
 /**
- * Provenance for the static bye-week table below. `verified` is false because
- * the table has NOT been reconciled against an authoritative live schedule —
- * any consumer that surfaces bye-derived alerts to the user must disclose this
- * (see `BYE_SCHEDULE_DISCLOSURE`) rather than present them as confirmed. The
- * intended wiring is the Sleeper `getNflState` / ESPN scoreboard pipeline.
+ * Bye-week risk detection.
+ *
+ * Audit 2026-08-06 F-002 rewrote this module. It previously defaulted to a
+ * hardcoded `BYE_WEEKS_2025` table that was never checked against the live
+ * season, so in 2026 it produced confidently wrong waiver advice. That table is
+ * gone from production entirely; the schedule now arrives as a
+ * `VerifiedByeSchedule` derived from the published NFL schedule (see
+ * lib/schedule/byeSchedule.ts) and there is deliberately NO default argument —
+ * a caller that cannot supply a verified schedule cannot produce alerts.
  */
-export const BYE_SCHEDULE = {
-  season: 2025,
-  verified: false as const,
-  source: "static placeholder table (not reconciled with a live schedule)"
-};
-
-/** One-line disclosure to append to any user-facing bye alert while unverified. */
-export const BYE_SCHEDULE_DISCLOSURE =
-  `Bye schedule is a static ${BYE_SCHEDULE.season} table pending live wiring — verify before acting.`;
-
-/**
- * Bye-week mapping. Keys are team abbreviations, values are the week number that
- * team is on bye. See `BYE_SCHEDULE` — this is an UNVERIFIED placeholder, not a
- * confirmed schedule. Update once per year and reconcile against the live source.
- */
-export const BYE_WEEKS_2025: Record<string, number> = {
-  ATL: 5, BUF: 7, CHI: 5, CIN: 10, CLE: 9, DAL: 10, DEN: 12, DET: 8,
-  GB: 5, HOU: 6, IND: 11, JAX: 8, KC: 10, LAC: 12, LAR: 8, LV: 8,
-  MIA: 12, MIN: 6, NE: 14, NO: 11, NYG: 14, NYJ: 9, PHI: 9, PIT: 5,
-  SF: 14, SEA: 8, TB: 9, TEN: 10, WSH: 14, ARI: 8, BAL: 7, CAR: 14
-};
 
 export interface ByeWeekAlert {
   week: number;
@@ -35,15 +20,21 @@ export interface ByeWeekAlert {
   affectedPlayers: PlayerMarketRecord[];
   /** True when 2+ starters at a position share a bye in the same week. */
   stacked: boolean;
+  /** Season the bye came from, carried so notifications can record provenance. */
+  season: number;
 }
 
 /**
  * Detect bye-week thinness in a roster. Returns one alert per (position, week)
- * pair where more than half of the roster's position depth is on bye.
+ * pair where at least half of the roster's depth at that position is on bye.
+ *
+ * Team codes are normalized before lookup. This matters: Sleeper emits "WAS" and
+ * ESPN emits "WSH" for the same franchise, and the retired table keyed only
+ * "WSH" — so Washington players on Sleeper rosters were silently skipped.
  */
 export function detectByeWeekRisks(
   roster: PlayerMarketRecord[],
-  byes: Record<string, number> = BYE_WEEKS_2025
+  schedule: VerifiedByeSchedule
 ): ByeWeekAlert[] {
   const positions: Array<PlayerMarketRecord["position"]> = ["QB", "RB", "WR", "TE", "K", "DEF"];
   const alerts: ByeWeekAlert[] = [];
@@ -54,43 +45,29 @@ export function detectByeWeekRisks(
 
     const byWeek = new Map<number, PlayerMarketRecord[]>();
     for (const player of positional) {
-      const week = byes[player.team!.toUpperCase()];
-      if (!week) continue;
+      const team = normalizeTeamCode(player.team);
+      if (!team) continue;
+      const week = schedule.byes[team];
+      if (week === undefined) continue;
       const bucket = byWeek.get(week) ?? [];
       bucket.push(player);
       byWeek.set(week, bucket);
     }
 
     for (const [week, affected] of byWeek) {
-      // Alert when bye coverage drops a position to < 50% of normal depth.
+      // Alert when bye coverage drops a position to half or less of normal depth.
       const ratio = affected.length / positional.length;
       if (ratio >= 0.5) {
         alerts.push({
           week,
           position,
           affectedPlayers: affected,
-          stacked: affected.length >= 2
+          stacked: affected.length >= 2,
+          season: schedule.season
         });
       }
     }
   }
 
   return alerts.sort((a, b) => a.week - b.week || a.position.localeCompare(b.position));
-}
-
-/**
- * For a given alert, recommend `limit` waiver targets at the same position,
- * filtered to teams not on bye that week. Sort by trueValue.
- */
-export function recommendByeReplacements(
-  alert: ByeWeekAlert,
-  freeAgents: PlayerMarketRecord[],
-  byes: Record<string, number> = BYE_WEEKS_2025,
-  limit = 3
-): PlayerMarketRecord[] {
-  return freeAgents
-    .filter((p) => p.position === alert.position)
-    .filter((p) => !p.team || byes[p.team.toUpperCase()] !== alert.week)
-    .sort((a, b) => b.trueValue - a.trueValue)
-    .slice(0, limit);
 }

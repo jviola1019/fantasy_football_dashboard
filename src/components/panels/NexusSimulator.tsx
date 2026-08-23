@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { type SimulationResult } from "@/lib/simulation";
-import { type ConfidenceBands as ConfidenceBandsData } from "@/lib/envelope/derive";
+import { type ReplicationRange } from "@/lib/envelope/derive";
 import { deriveOutcomeDistribution, type ScenarioComparison } from "@/lib/derivedMetrics";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
@@ -13,38 +13,41 @@ import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import { surname } from "@/lib/utils";
 import { ReliabilityDiagram } from "@/components/charts/ReliabilityDiagram";
+import { ModelScenarioNotice } from "@/components/model/ModelScenarioNotice";
+import { ScenarioOutlook } from "@/components/model/ScenarioOutlook";
+import { structuralBaseline } from "@/lib/models/scenarioBand";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { THEME, OUTCOME_COLORS } from "@/lib/theme";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
   sim: SimulationResult;
   scenarios: ScenarioComparison;
-  /** Server-computed bootstrap CIs (null when no roster). */
-  confidenceBands?: ConfidenceBandsData | null;
+  /** Server-computed Monte-Carlo replication range (null when no roster). */
+  replicationRange?: ReplicationRange | null;
   envelope?: RAEEnvelope;
 };
 
 const TABS = ["Multiverse", "Scenarios", "Risk Analysis"] as const;
 
-// CI multipliers per panel-data-state. The simulation itself always runs;
-// what changes is how loud we are about the uncertainty bands. degraded
-// widens the CI 1.5x and labels "Wide CI: data partial"; unavailable
-// widens 2.5x and labels "Speculative". Numbers chosen so the label
-// boundary stays interpretable rather than triggering on every tiny gap.
-const CI_MULTIPLIER: Record<"ready" | "degraded" | "unavailable", number> = {
-  ready: 1,
-  degraded: 1.5,
-  unavailable: 2.5
-};
-
-const CI_LABEL: Record<"ready" | "degraded" | "unavailable", string> = {
+// Data-state notice per panel-data-state.
+//
+// This used to also carry CI MULTIPLIERS — 1.5x for degraded, 2.5x for
+// unavailable — that stretched the displayed interval when inputs were missing.
+// Removed 2026-08-22 (audit P0-4). The interval is a Monte-Carlo REPLICATION
+// range: it measures how much the number moves across random seeds with every
+// input held fixed. Multiplying it does not turn it into a measure of input
+// uncertainty; it just prints a wider number with no measurement behind it, and
+// 1.5 and 2.5 were chosen for legibility rather than derived from anything.
+// Missing inputs are now stated in words, which is what we can actually support.
+const DATA_STATE_NOTICE: Record<"ready" | "degraded" | "unavailable", string> = {
   ready: "",
-  degraded: "Wide CI: data partial",
-  unavailable: "Speculative — trending-momentum + opportunity unavailable"
+  degraded: "Some inputs are missing — read the frequencies below as partial.",
+  unavailable: "Trending-momentum and opportunity are unavailable; these frequencies rest on the roster alone."
 };
 
-export function NexusSimulator({ players, sim, scenarios, confidenceBands, envelope }: Props) {
+export function NexusSimulator({ players, sim, scenarios, replicationRange, envelope }: Props) {
   const [activeTab, setActiveTab] = useState<string>("Multiverse");
 
   // Build the weekly projections Map from the envelope (plain Record → Map).
@@ -54,29 +57,24 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
     return new Map(Object.entries(proj));
   }, [envelope?.weeklyProjections]);
 
-  // The simulator depends on trending_momentum (chaosExposure) and
-  // opportunity to interpret risk + driver weights. When both are missing,
-  // the CI bands shown to the user need to widen so the displayed
-  // probabilities aren't read as precise. The actual numbers from
-  // runNexusSimulation stay the same — we only modify the displayed CI
-  // width + add a banner.
+  // The simulator depends on trending_momentum (chaosExposure) and opportunity
+  // to interpret risk + driver weights. When they are missing the numbers from
+  // runNexusSimulation are unchanged — what changes is what we say about them.
   const panelState = envelope
     ? derivePanelState(envelope, ["trending_momentum", "opportunity"])
-    : // No envelope ⇒ no provenance; widen the CI and label speculative (UX-05).
+    : // No envelope ⇒ no provenance to stand on (UX-05).
       {
         status: "unavailable" as const,
         bannerText: "No data envelope — simulation inputs unverified.",
         unavailable: new Set<string>(["trending_momentum", "opportunity"])
       };
-  const ciMultiplier = CI_MULTIPLIER[panelState.status];
 
-  // When weekly projections are wired, override the CI label to show the
-  // week/date stamp. The label is empty when projections are absent and the
-  // panel state is "ready" (no missing fields to disclose).
+  // When weekly projections are wired, the notice reports their week/date stamp
+  // instead. Empty when projections are absent and the panel state is "ready".
   const projMeta = envelope?.weeklyProjectionsMeta;
-  const ciLabel = weeklyProjections && projMeta
+  const dataStateNotice = weeklyProjections && projMeta
     ? `Live week-${projMeta.week} projections (${new Date(projMeta.fetchedAt).toLocaleDateString()})`
-    : CI_LABEL[panelState.status];
+    : DATA_STATE_NOTICE[panelState.status];
 
   const hasData = players.length > 0;
 
@@ -86,7 +84,6 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
       titleId="ns-title"
       title="Nexus Simulator"
       eyebrow="Simulate future. Master uncertainty."
-      source={envelope?.sourceState}
       controls={
         <span className="sim-count">{sim.params.iterations.toLocaleString()} simulations</span>
       }
@@ -96,64 +93,73 @@ export function NexusSimulator({ players, sim, scenarios, confidenceBands, envel
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Nexus Simulator tabs"
+        idBase="nexus-sim"
       />
 
-      {ciLabel ? (
-        <div
-          role="status"
-          aria-live="polite"
+      {dataStateNotice ? (
+        // No role="status"/aria-live. This is standing context about the data
+        // behind the panel, recomputed on every request — as a live region it
+        // interrupted a screen reader on each navigation to re-read a sentence
+        // that had not meaningfully changed. Audit 2026-08-22, same class of
+        // defect as the governance banner and the mode pill.
+        <p
           style={{
             background: "rgba(245,231,196,0.04)",
             border: "1px solid rgba(245,231,196,0.12)",
             color: "var(--cream)",
             padding: "8px 12px",
             borderRadius: 8,
-            fontSize: 12,
+            fontSize: "var(--text-sm)",
             margin: "8px 0",
             letterSpacing: 0.2
           }}
         >
-          {ciLabel} — confidence-interval bands widened {ciMultiplier.toFixed(1)}× from the seeded simulation.
-        </div>
+          {dataStateNotice}
+        </p>
       ) : null}
 
-      <div className="nexus-layout">
-        {activeTab === "Multiverse" && (
-          <>
-            <div className="nexus-main">
-              <OutcomeMultiverse players={players} sim={sim} />
-            </div>
-            <div className="nexus-side">
-              <ConfidenceBands sim={sim} bands={confidenceBands ?? null} ciMultiplier={ciMultiplier} />
+      <TabPanel idBase="nexus-sim" active={activeTab}>
+        <div className="nexus-layout">
+          {activeTab === "Multiverse" && (
+            <>
+              <div className="nexus-main">
+                <OutcomeMultiverse players={players} sim={sim} />
+              </div>
+              <div className="nexus-side">
+                <ScenarioBands sim={sim} range={replicationRange ?? null} />
+                <KeyDrivers sim={sim} hasData={hasData} />
+                <RiskOfRegret sim={sim} hasData={hasData} />
+              </div>
+            </>
+          )}
+          {activeTab === "Scenarios" && (
+            <div className="nexus-full">
+              {/* Same model, same failure - the notice travels with the numbers. */}
+              <ModelScenarioNotice variant="banner" />
+              <ScenarioComparisonTable scenarios={scenarios} hasData={hasData} />
               <KeyDrivers sim={sim} hasData={hasData} />
+            </div>
+          )}
+          {activeTab === "Risk Analysis" && (
+            <div className="nexus-full">
+              <ModelScenarioNotice variant="banner" />
+              <p className="section-intro">
+                How much to trust this scenario: the regret index quantifies downside exposure, the
+                reliability diagram shows whether simulated frequencies match real outcomes, and the
+                assumptions list states what the simulation took as given.
+              </p>
               <RiskOfRegret sim={sim} hasData={hasData} />
+              <div className="mini-panel">
+                <div className="mini-panel-title">Calibration — Reliability Diagram</div>
+                <ReliabilityDiagram
+                  caption="Calibration is measured offline against real 2025 outcomes (model-governance report). This panel draws the live curve only once a backtest feed is wired in — it never fabricates one."
+                />
+              </div>
+              <RiskDetails sim={sim} />
             </div>
-          </>
-        )}
-        {activeTab === "Scenarios" && (
-          <div className="nexus-full">
-            <ScenarioComparisonTable scenarios={scenarios} hasData={hasData} />
-            <KeyDrivers sim={sim} hasData={hasData} />
-          </div>
-        )}
-        {activeTab === "Risk Analysis" && (
-          <div className="nexus-full">
-            <p className="section-intro">
-              How much to trust this forecast: the regret index quantifies downside exposure, the
-              reliability diagram shows whether forecast probabilities match real outcomes, and the
-              assumptions list states what the simulation took as given.
-            </p>
-            <RiskOfRegret sim={sim} hasData={hasData} />
-            <div className="mini-panel">
-              <div className="mini-panel-title">Calibration — Reliability Diagram</div>
-              <ReliabilityDiagram
-                caption="Calibration is measured offline against real 2025 outcomes (model-governance report). This panel draws the live curve only once a backtest feed is wired in — it never fabricates one."
-              />
-            </div>
-            <RiskDetails sim={sim} />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </TabPanel>
     </PanelCard>
   );
 }
@@ -172,11 +178,15 @@ function OutcomeMultiverse({
   // are each ≥ 0 — no impossible >100% or negative percentages.
   const dist = deriveOutcomeDistribution(sim);
   const outcomes = [
-    { label: "Championship", pct: dist.championship, y: 50, color: "#d7a857" },
-    { label: "Top 3 Finish", pct: dist.topThree, y: 100, color: "#77d7b0" },
-    { label: "Wild Card", pct: dist.playoffs, y: 150, color: "#7bb7ce" },
-    { label: "Middle Pack", pct: dist.middlePack, y: 200, color: "#8d9aa0" },
-    { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: "#d9866f" },
+    // Colours come from OUTCOME_COLORS, not from hex literals. These are SVG
+    // presentation attributes (`stroke=`, `fill=`), which cannot resolve
+    // var(), which is exactly why a PRE-REPAINT palette survived here long
+    // after the tokens moved. Design audit 2026-08-22, D-5.
+    { label: "Championship", pct: dist.championship, y: 50, color: OUTCOME_COLORS.championship },
+    { label: "Top 3 Finish", pct: dist.topThree, y: 100, color: OUTCOME_COLORS.topThree },
+    { label: "Wild Card", pct: dist.playoffs, y: 150, color: OUTCOME_COLORS.playoffs },
+    { label: "Middle Pack", pct: dist.middlePack, y: 200, color: OUTCOME_COLORS.middlePack },
+    { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: OUTCOME_COLORS.bottomThree },
   ];
 
   // Honest, useful heatmap: P(playoff outcome | regular-season wins) from the
@@ -217,7 +227,7 @@ function OutcomeMultiverse({
           </filter>
         </defs>
         <circle cx="50" cy="150" r="12" fill="rgba(9,13,18,0.9)" stroke="rgba(123,183,206,0.6)" strokeWidth="1.5" />
-        <text x="50" y="154" textAnchor="middle" fontSize="8" fill="var(--blue)">NOW</text>
+        <text x="50" y="155" textAnchor="middle" fontSize="14" fill="var(--blue)">NOW</text>
         {outcomes.map((o, i) => {
           const cpX = 220;
           const d = `M 50 150 C ${cpX} ${150}, ${cpX + 80} ${o.y}, 460 ${o.y}`;
@@ -234,101 +244,119 @@ function OutcomeMultiverse({
                 transition={{ duration: reduceMotion ? 0 : 1.2 + i * 0.2, ease: "easeOut" }}
               />
               <circle cx="460" cy={o.y} r="8" fill="rgba(9,13,18,0.9)" stroke={o.color} strokeWidth="1.5" filter="url(#multiverseGlow)" />
-              <text x="470" y={o.y + 4} fontSize="9" fill={o.color}>{o.pct}%</text>
-              <text x="470" y={o.y - 6} fontSize="8" fill="var(--muted)">{o.label}</text>
             </g>
           );
         })}
         {players.length === 0 && (
-          <text x="280" y="150" textAnchor="middle" fontSize="12" fill="rgba(232,225,207,0.3)">
+          <text x="280" y="150" textAnchor="middle" fontSize="18" fill="rgba(232,225,207,0.3)">
             No player data
           </text>
         )}
       </svg>
+      {/* The outcome labels are HTML, not SVG <text>.
+          Audit 2026-08-23. They used to live inside the chart at 8 and 9 USER
+          UNITS, and this SVG is a 560-wide viewBox rendered around 371px — a
+          0.66 scale, so those labels reached the screen at roughly 5 and 6 CSS
+          pixels. Below the declared 9px floor, below anything the type scale
+          governs, and invisible to every gate: CSS tooling does not measure
+          scaled SVG user units.
+          Bumping them in place was not an option — the fan leaves ~90 user
+          units to the right of the nodes, and text large enough to survive the
+          scale would not fit. So the chart keeps the geometry and the labels
+          move out to where the type scale applies and they can reflow. */}
+      {players.length > 0 && (
+        <ul className="multiverse-legend">
+          {outcomes.map((o) => (
+            <li key={o.label} className="multiverse-legend-row">
+              <span className="multiverse-legend-dot" style={{ background: o.color }} aria-hidden="true" />
+              <span className="multiverse-legend-label">{o.label}</span>
+              <span className="multiverse-legend-pct">{o.pct}%</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
 /**
- * Widen a CI's bounds symmetrically around its point estimate by the given
- * multiplier. Bounded to [0, 100] so we never display impossible probabilities.
- * Used by ConfidenceBands when the envelope's data state is degraded/unavailable —
- * the underlying simulation is unchanged; we just communicate honest uncertainty.
+ * Strategy B replacement for the former "95% Confidence Bands" tile
+ * (audit 2026-08-20 SS3).
+ *
+ * What was here: `Championship 12.4% [8.1 - 17.0]` under a heading that said
+ * "95% Confidence Bands", on the DEFAULT tab, with the model-failure notice
+ * three components away inside a different tab. That presentation asserted a
+ * calibrated forecast the backtest had already refuted.
+ *
+ * What is here now: the league's structural baseline as the prominent number,
+ * the model's output as a band relative to it, the failure notice immediately
+ * above, and the raw frequencies one keyboard-reachable disclosure away.
+ *
+ * The interval passed through is a Monte-Carlo REPLICATION range, not a
+ * confidence interval, and `deriveReplicationRange` explains at length why the
+ * distinction matters. The `widen()` helper that used to stretch it by 1.5x or
+ * 2.5x when inputs were missing is gone (audit 2026-08-22, P0-4): widening a
+ * replication range does not make it measure input uncertainty, and the two
+ * multipliers were never derived from a measurement.
  */
-function widen(
-  ci: { estimate: number; lower: number; upper: number; width: number; level: number },
-  multiplier: number
-) {
-  if (multiplier === 1) return ci;
-  const halfWidthLow = ci.estimate - ci.lower;
-  const halfWidthHigh = ci.upper - ci.estimate;
-  const lower = Math.max(0, ci.estimate - halfWidthLow * multiplier);
-  const upper = Math.min(100, ci.estimate + halfWidthHigh * multiplier);
-  return { ...ci, lower, upper, width: upper - lower };
-}
-
-function ConfidenceBands({
+function ScenarioBands({
   sim,
-  bands,
-  ciMultiplier = 1
+  range
 }: {
   sim: SimulationResult;
-  /** Server-computed base bootstrap CIs (deriveConfidenceBands). */
-  bands: ConfidenceBandsData | null;
-  ciMultiplier?: number;
+  /** Server-computed replication range (deriveReplicationRange). */
+  range: ReplicationRange | null;
 }) {
-  // The bootstrap replication runs on the SERVER (deriveConfidenceBands); here
-  // we only apply the cheap data-state widen() — no client-side simulation.
-  const widened = useMemo(
-    () =>
-      bands
-        ? { championship: widen(bands.championship, ciMultiplier), playoff: widen(bands.playoff, ciMultiplier) }
-        : null,
-    [bands, ciMultiplier]
-  );
+  const baseline = structuralBaseline(sim.params.numTeams ?? 12, sim.params.playoffTeams ?? 6);
 
-  if (!widened) {
+  if (!range) {
     return (
       <div className="mini-panel">
-        <div className="mini-panel-title">Confidence Bands</div>
-        <p className="muted-note">No data — confidence intervals unavailable.</p>
+        <div className="mini-panel-title">Scenario Outlook</div>
+        <p className="muted-note">No roster to simulate - connect a league.</p>
       </div>
     );
   }
 
   return (
     <div className="mini-panel">
-      <div className="mini-panel-title">95% Confidence Bands</div>
-      <ul className="ci-list">
-        <li className="ci-row">
-          <span>Championship</span>
-          <b>
-            {sim.championshipProbability.toFixed(1)}%
-            <small className="ci-range">
-              {" "}[{widened.championship.lower.toFixed(1)} – {widened.championship.upper.toFixed(1)}]
-            </small>
-          </b>
-        </li>
-        <li className="ci-row">
-          <span>Playoffs</span>
-          <b>
-            {sim.playoffProbability.toFixed(1)}%
-            <small className="ci-range">
-              {" "}[{widened.playoff.lower.toFixed(1)} – {widened.playoff.upper.toFixed(1)}]
-            </small>
-          </b>
-        </li>
-      </ul>
-      <p className="small-note">20 replicate seasons · bootstrap N=500 (computed server-side).</p>
+      <div className="mini-panel-title" id="scenario-outlook-title">
+        Scenario Outlook
+      </div>
+      {/* Adjacent, not behind a tab. This is the SS3/SS20 requirement. */}
+      <ModelScenarioNotice variant="banner" />
+      <ScenarioOutlook
+        headingId="scenario-outlook-title"
+        numTeams={baseline.numTeams}
+        playoffTeams={baseline.playoffTeams}
+        iterations={sim.params.iterations}
+        seed={sim.seed}
+        rows={[
+          {
+            label: "Playoffs",
+            scenarioPct: sim.playoffProbability,
+            baselinePct: baseline.playoffs,
+            interval: range.playoff
+          },
+          {
+            label: "Championship",
+            scenarioPct: sim.championshipProbability,
+            baselinePct: baseline.championship,
+            interval: range.championship
+          }
+        ]}
+      />
     </div>
   );
 }
 
 function ScenarioComparisonTable({ scenarios, hasData }: { scenarios: ScenarioComparison; hasData: boolean }) {
+  // Labels name the quantity: these are scenario frequencies, and the notice
+  // above the table states the model has no demonstrated skill (audit SS3).
   const rows = [
-    { label: "Championship %", best: `${scenarios.bestCase.championship}%`, base: `${scenarios.baseline.championship}%`, worst: `${scenarios.worstCase.championship}%` },
-    { label: "Top 3 Finish %", best: `${scenarios.bestCase.topThree}%`, base: `${scenarios.baseline.topThree}%`, worst: `${scenarios.worstCase.topThree}%` },
-    { label: "Playoffs %", best: `${scenarios.bestCase.playoffs}%`, base: `${scenarios.baseline.playoffs}%`, worst: `${scenarios.worstCase.playoffs}%` },
+    { label: "Championship (scenario %)", best: `${scenarios.bestCase.championship}%`, base: `${scenarios.baseline.championship}%`, worst: `${scenarios.worstCase.championship}%` },
+    { label: "Top 3 Finish (scenario %)", best: `${scenarios.bestCase.topThree}%`, base: `${scenarios.baseline.topThree}%`, worst: `${scenarios.worstCase.topThree}%` },
+    { label: "Playoffs (scenario %)", best: `${scenarios.bestCase.playoffs}%`, base: `${scenarios.baseline.playoffs}%`, worst: `${scenarios.worstCase.playoffs}%` },
     { label: "Points For", best: scenarios.bestCase.pointsFor, base: scenarios.baseline.pointsFor, worst: scenarios.worstCase.pointsFor },
     { label: "Points Against", best: scenarios.bestCase.pointsAgainst, base: scenarios.baseline.pointsAgainst, worst: scenarios.worstCase.pointsAgainst },
     { label: "Final Rank", best: scenarios.bestCase.finalRank, base: scenarios.baseline.finalRank, worst: scenarios.worstCase.finalRank },
@@ -385,7 +413,7 @@ function KeyDrivers({ sim, hasData }: { sim: SimulationResult; hasData: boolean 
   const items = sim.keyDrivers.map((d) => ({
     label: surname(d.name),
     value: Math.round(d.contribution * 10) / 10,
-    color: "#77d7b0",
+    color: THEME.green,
   }));
   const maxV = Math.max(...items.map((i) => i.value), 1);
   return (
@@ -402,7 +430,7 @@ function RiskOfRegret({ sim, hasData }: { sim: SimulationResult; hasData: boolea
   }
   const regret = sim.regretIndex;
   const level = regret > 60 ? "High" : regret > 30 ? "Moderate" : "Low";
-  const color = regret > 60 ? "#d9866f" : regret > 30 ? "#d7a857" : "#77d7b0";
+  const color = regret > 60 ? THEME.red : regret > 30 ? THEME.amber : THEME.green;
   const segments = [
     { label: level, value: regret, color },
     { label: "OK", value: 100 - regret, color: "rgba(255,255,255,0.06)" },
@@ -413,11 +441,15 @@ function RiskOfRegret({ sim, hasData }: { sim: SimulationResult; hasData: boolea
       <div className="risk-layout">
         <DonutChart segments={segments} centerValue={`${regret}%`} centerLabel={level} />
         <ul className="risk-list">
+          {/* Was assumptions.slice(0, 3) truncated to 60 chars, which cut the
+              out-of-sample failure notice (assumptions[4]) out entirely. The
+              notice now renders in full, as a component, below. */}
           {sim.assumptions.slice(0, 3).map((a, i) => (
             <li key={i}>{a.slice(0, 60)}{a.length > 60 ? "…" : ""}</li>
           ))}
         </ul>
       </div>
+      <ModelScenarioNotice variant="inline" />
     </div>
   );
 }

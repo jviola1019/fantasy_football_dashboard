@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runNexusSimulation } from "./simulation";
 import { fixturePlayers } from "./fixtures";
 import { bootstrapCI } from "./stats/distribution";
+import { averageStartableTrueValue } from "./fantasypros/enrich";
 import type { PlayerMarketRecord } from "./governance";
 
 /**
@@ -13,6 +14,8 @@ import type { PlayerMarketRecord } from "./governance";
  * drive the odds.
  */
 const ROSTER_SLOTS = 9;
+/** trueValue of the average STARTABLE player — the real league-average roster. */
+const AVG_STARTABLE = averageStartableTrueValue();
 function withStrength(tv: number, volatility = 35): PlayerMarketRecord[] {
   return fixturePlayers.map((p) => ({ ...p, trueValue: tv, volatility }));
 }
@@ -28,9 +31,16 @@ describe("season simulation — calibration properties", () => {
   });
 
   it("CALIBRATION: a league-average roster makes the playoffs ≈ playoffTeams/numTeams", () => {
-    // Median roster (trueValue 50, median volatility) in a 12-team / 6-playoff
-    // league → fair playoff rate ≈ 6/12 = 50%.
-    const r = runNexusSimulation(withStrength(50), {
+    // CORRECTED 2026-08-17. This used trueValue 50 as "the median roster", but
+    // 50 is REPLACEMENT LEVEL, not league-average — and the simulation used to
+    // agree with the mistake, mapping 50 onto an average starter's points. The
+    // out-of-sample backtest exposed it: every real roster then sat ~42% above
+    // its own field and drew ~100% playoff odds.
+    //
+    // The league-average roster is one made of AVERAGE STARTABLE players, whose
+    // trueValue is derived from the depth cushion (79.2 at 1.2). The property
+    // being asserted is unchanged; only the input that represents "average" is.
+    const r = runNexusSimulation(withStrength(AVG_STARTABLE), {
       seed: 20260601,
       iterations: 3000,
       rosterSlots: ROSTER_SLOTS,
@@ -41,12 +51,27 @@ describe("season simulation — calibration properties", () => {
   });
 
   it("playoff probability is monotonic in roster strength", () => {
+    // Ladder straddles the average-startable anchor so the comparison spans
+    // below-average / average / above-average rather than three flavours of
+    // below-replacement.
     const params = { seed: 20260601, iterations: 2500, rosterSlots: ROSTER_SLOTS, riskTolerance: 0.5 };
-    const weak = runNexusSimulation(withStrength(30), params).playoffProbability;
-    const avg = runNexusSimulation(withStrength(50), params).playoffProbability;
-    const strong = runNexusSimulation(withStrength(75), params).playoffProbability;
+    const weak = runNexusSimulation(withStrength(AVG_STARTABLE - 20), params).playoffProbability;
+    const avg = runNexusSimulation(withStrength(AVG_STARTABLE), params).playoffProbability;
+    const strong = runNexusSimulation(withStrength(AVG_STARTABLE + 15), params).playoffProbability;
     expect(weak).toBeLessThan(avg);
     expect(avg).toBeLessThan(strong);
+  });
+
+  it("a REPLACEMENT-level roster is below average, as the name implies", () => {
+    // The distinction the old test conflated: trueValue 50 must now come out
+    // clearly worse than the fair rate.
+    const r = runNexusSimulation(withStrength(50), {
+      seed: 20260601,
+      iterations: 3000,
+      rosterSlots: ROSTER_SLOTS,
+      riskTolerance: 0.5
+    });
+    expect(r.playoffProbability).toBeLessThan(42);
   });
 
   it("for a strong favorite, more variance lowers title odds (variance helps underdogs, hurts favorites)", () => {
@@ -61,8 +86,17 @@ describe("season simulation — calibration properties", () => {
 
   it("real weekly projections drive the odds (stronger projections → better odds)", () => {
     const params = { seed: 20260601, iterations: 2500, rosterSlots: ROSTER_SLOTS, riskTolerance: 0.5 };
-    const goodProj = new Map(fixturePlayers.map((p) => [p.id, 18])); // ~18 pts/starter (well above avg)
-    const badProj = new Map(fixturePlayers.map((p) => [p.id, 7])); // ~7 pts/starter (well below avg)
+    // All three scoring variants set to the same value so this test isolates the
+    // projection LEVEL from the format-selection behavior covered by
+    // simulation.scoringUnits.test.ts (audit 2026-08-20 §7).
+    const flat = (pts: number, position: string) => ({
+      ppr: pts,
+      halfPpr: pts,
+      standard: pts,
+      position
+    });
+    const goodProj = new Map(fixturePlayers.map((p) => [p.id, flat(18, p.position)])); // well above avg
+    const badProj = new Map(fixturePlayers.map((p) => [p.id, flat(7, p.position)])); // well below avg
     const good = runNexusSimulation(fixturePlayers, { ...params, weeklyProjections: goodProj }).playoffProbability;
     const bad = runNexusSimulation(fixturePlayers, { ...params, weeklyProjections: badProj }).playoffProbability;
     expect(good).toBeGreaterThan(bad);

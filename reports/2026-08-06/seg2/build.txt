@@ -1,0 +1,50 @@
+▲ Next.js 16.3.1 (Turbopack)
+- Environments: .env
+✓ Running next.config.mjs took 107ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.0s
+  Running TypeScript ...
+  Finished TypeScript in 12.4s ...
+  Collecting page data using 15 workers ...
+  Generating static pages using 15 workers (0/14) ...
+  Generating static pages using 15 workers (3/14) 
+  Generating static pages using 15 workers (6/14) 
+  Generating static pages using 15 workers (10/14) 
+✓ Generating static pages using 15 workers (14/14) in 1522ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /analytics
+├ ƒ /api/admin/init-db
+├ ƒ /api/auth/[...nextauth]
+├ ƒ /api/cron/ktc-refresh
+├ ƒ /api/cron/lifecycle-check
+├ ƒ /api/cron/news-refresh
+├ ƒ /api/cron/opportunity-refresh
+├ ƒ /api/cron/players-refresh
+├ ƒ /api/cron/projections-refresh
+├ ƒ /api/cron/rankings-refresh
+├ ƒ /api/health
+├ ƒ /api/leagues/[id]/refresh
+├ ƒ /api/notifications
+├ ƒ /dashboard
+├ ƒ /draft
+├ ○ /icon.svg
+├ ○ /login
+├ ƒ /mock-draft
+├ ƒ /players
+├ ƒ /reports
+├ ƒ /settings/account
+├ ƒ /settings/leagues
+├ ƒ /trades
+└ ƒ /waivers
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

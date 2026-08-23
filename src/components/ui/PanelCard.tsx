@@ -14,8 +14,15 @@ interface PanelCardProps {
   controls?: ReactNode;
   /**
    * Per-panel provenance (UX-06). When provided, the panel chrome renders the
-   * source · freshness · confidence · validation badge — so multi-source routes
-   * (e.g. /analytics) disclose lineage per panel, not just via the global banner.
+   * source · freshness · confidence · validation badge.
+   *
+   * PASS THIS ONLY WHEN THE PANEL'S LINEAGE DIFFERS from the route-level
+   * governance strip — a per-record source (`DraftIntelligence`) or an upstream
+   * feed the envelope does not describe (`TradeCenter`). Six panels used to pass
+   * `envelope.sourceState`, which is the exact value the banner directly above
+   * them already states, so a single route rendered the same provenance line up
+   * to six times. Repetition is not disclosure; it trains the reader to skip the
+   * thing they most need to read. Design audit 2026-08-22.
    */
   source?: RAEEnvelope["sourceState"];
   children: ReactNode;
@@ -55,12 +62,12 @@ export function PanelCard({
         <div className="min-w-0">
           <h2
             id={titleId}
-            className="truncate text-[15px] font-bold uppercase tracking-[0.04em] text-foreground"
+            className="truncate text-base font-bold uppercase tracking-[0.04em] text-foreground"
           >
             {title}
           </h2>
           {eyebrow ? (
-            <p className="truncate text-[10px] text-muted-foreground">{eyebrow}</p>
+            <p className="truncate text-xs text-muted-foreground">{eyebrow}</p>
           ) : null}
           {source ? (
             <div className="mt-1">

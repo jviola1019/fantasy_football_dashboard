@@ -1,15 +1,9 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { z } from "zod";
 import { authConfig } from "./auth.config";
 import { getDb, schema } from "../db";
-import { authenticateUser } from "./users";
-
-const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8)
-});
+import { authorizeCredentials } from "./auth/credentials";
 
 function buildConfig(): NextAuthConfig {
   return {
@@ -32,13 +26,7 @@ function buildConfig(): NextAuthConfig {
           email: { label: "Email", type: "email" },
           password: { label: "Password", type: "password" }
         },
-        authorize: async (raw) => {
-          const parsed = credentialsSchema.safeParse(raw);
-          if (!parsed.success) return null;
-          const user = await authenticateUser(getDb(), parsed.data.email, parsed.data.password);
-          if (!user) return null;
-          return { id: user.id, email: user.email, name: user.name ?? undefined };
-        }
+        authorize: (raw) => authorizeCredentials(raw)
       })
     ]
   };

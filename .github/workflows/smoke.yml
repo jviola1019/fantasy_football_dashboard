@@ -13,6 +13,9 @@ on:
   schedule:
     - cron: "17 13 * * *" # daily 13:17 UTC
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     runs-on: ubuntu-latest

@@ -1,6 +1,8 @@
 import type { PlayerMarketRecord } from "../governance";
-import { reputationEdge } from "../models";
+import type { LeagueFormat } from "../trade/format";
+import { scarcityGap } from "../models";
 import { tiersByPosition } from "./tiers";
+import { targetsFromFormat } from "./rosterTargets";
 
 export type RecommendationCategory = "Value" | "Need" | "Stash" | "Run";
 
@@ -18,8 +20,21 @@ export interface RecommendInput {
   picksRemaining?: number;
   /** Roster slot targets, e.g. { QB: 1, RB: 2, WR: 3, TE: 1 }. */
   targets?: Partial<Record<PlayerMarketRecord["position"], number>>;
+  /**
+   * The connected league's format. When present, targets are DERIVED from its
+   * real starting lineup (audit F-010) — superflex raises the QB target, a 2-TE
+   * league raises TE, and roster size sizes the bench. An explicit `targets`
+   * still wins, and with neither we fall back to the documented default below.
+   */
+  format?: LeagueFormat | null;
 }
 
+/**
+ * Fallback ONLY for when no league is connected (the fixture/demo pool). It
+ * describes a 12-team, 1QB, PPR league and must never be treated as universal:
+ * it was previously the unconditional value for every league, which is exactly
+ * what audit F-010 flagged.
+ */
 const DEFAULT_TARGETS: Record<PlayerMarketRecord["position"], number> = {
   QB: 1,
   RB: 4,
@@ -36,7 +51,8 @@ const LATE_ONLY = new Set<PlayerMarketRecord["position"]>(["K", "DEF"]);
 const CORE_POSITIONS: ReadonlyArray<PlayerMarketRecord["position"]> = ["QB", "RB", "WR", "TE"];
 
 export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
-  const targets = { ...DEFAULT_TARGETS, ...(input.targets ?? {}) };
+  const base = input.format ? targetsFromFormat(input.format) : DEFAULT_TARGETS;
+  const targets = { ...base, ...(input.targets ?? {}) };
   const myCounts = countByPosition(input.myRoster);
   const tiers = tiersByPosition(input.available);
   const lastInTier = new Map<string, PlayerMarketRecord>();
@@ -53,6 +69,15 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
   // empty roster has high coreRemaining (draft skill players); a nearly-set
   // roster has ~0 (now K/DEF become sensible). Works for any roster size without
   // hardcoding round numbers.
+  // How many players you already hold at each (position, bye week). Built once
+  // rather than per candidate.
+  const byeCounts = new Map<string, number>();
+  for (const p of input.myRoster) {
+    if (p.byeWeek == null) continue;
+    const key = `${p.position}:${p.byeWeek}`;
+    byeCounts.set(key, (byeCounts.get(key) ?? 0) + 1);
+  }
+
   const coreRemaining = CORE_POSITIONS.reduce(
     (s, pos) => s + Math.max(0, (targets[pos] ?? 0) - (myCounts[pos] ?? 0)),
     0
@@ -63,7 +88,7 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
       const reasons: string[] = [];
       const have = myCounts[player.position] ?? 0;
       const need = Math.max(0, (targets[player.position] ?? 0) - have);
-      const edge = reputationEdge(player);
+      const edge = scarcityGap(player);
       const opportunity = player.opportunity;
       const fragilityPenalty = player.fragility * 0.25;
 
@@ -103,12 +128,31 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
           reasons.push("depth pick / stash");
         } else if (edge > 8) {
           category = "Value";
-          reasons.push(`reputation edge +${edge.toFixed(1)}`);
+          reasons.push(`scarcity gap +${edge.toFixed(1)}`);
         }
       }
 
       if (player.trendingMomentum > 30) reasons.push(`trending tailwind +${player.trendingMomentum}`);
       if (player.fragility > 60) reasons.push(`fragility ${player.fragility} — discount applied`);
+
+      // Bye-week stacking (audit 2026-08-23). Two starters at the same position
+      // off in the same week means an empty slot that week -- a real cost the
+      // value columns cannot show.
+      //
+      // The penalty is SMALL and always accompanied by a stated reason. A
+      // stacked bye is one bad week, not a bad player, and burying a
+      // significantly better player over it would be the model overruling the
+      // drafter on a judgement that is theirs. It is surfaced, then weighted
+      // gently.
+      //
+      // A null bye never stacks: unknown is not equal to unknown.
+      const stacked = player.byeWeek == null ? 0 : (byeCounts.get(`${player.position}:${player.byeWeek}`) ?? 0);
+      if (stacked > 0) {
+        score -= 3;
+        reasons.push(
+          `bye week ${player.byeWeek} clashes with ${stacked} ${player.position} you already hold`
+        );
+      }
 
       return {
         player,

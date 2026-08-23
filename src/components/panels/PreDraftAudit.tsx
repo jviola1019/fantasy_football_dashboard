@@ -102,11 +102,21 @@ function rowsForFormat(format: LeagueFormat, platform: string): AuditRow[] {
 }
 
 export function PreDraftAudit({ players, envelope }: Props) {
-  const grades = derivePositionGrades(players);
   const format = envelope.leagueFormat ?? null;
+  // Pass `format` — omitting it fell back to the hardcoded
+  // ["QB","RB","WR","TE","FLEX","DEF"] slot list that audit F-012 had already
+  // fixed in derivedMetrics, so a superflex league saw correct slots in
+  // TeamConstruction and the wrong six here, on the same page.
+  const grades = derivePositionGrades(players, format ?? undefined);
+  // The DEF grade is entirely fragility-driven, and no adapter populates
+  // fragility. Show "—" rather than a fabricated letter, exactly as
+  // TeamConstruction does.
+  const fragilityMissing = new Set(envelope.sourceState.missingFields).has("fragility");
   const platform = platformLabel(envelope);
   const rows = format ? rowsForFormat(format, platform) : [];
-  const positionRows = grades.positions;
+  const positionRows = grades.positions.map((row) =>
+    row.pos === "DEF" && fragilityMissing ? { ...row, grade: "—" } : row
+  );
 
   return (
     <PanelCard

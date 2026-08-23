@@ -61,7 +61,7 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
           <MarketIntelligence players={d.marketPool} marketMetrics={d.marketMetrics} sim={d.sim} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={2}>
-          <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} confidenceBands={d.confidenceBands} envelope={envelope} />
+          <NexusSimulator players={d.players} sim={d.sim} scenarios={d.scenarios} replicationRange={d.replicationRange} envelope={envelope} />
           <NarrativeEngine players={d.marketPool} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={1}>
@@ -75,13 +75,18 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
     return (
       <PanelGrid>
         <PanelRow cols={1}>
-          <DraftIntelligence players={d.universePool} />
+          <DraftIntelligence players={d.universePool} format={d.leagueFormat} />
         </PanelRow>
         <PanelRow cols={1}>
           <PreDraftAudit players={d.players} envelope={envelope} />
         </PanelRow>
         <PanelRow cols={1}>
-          <TeamConstruction players={d.players} fragilityMissing={fragilityMissing} />
+          <TeamConstruction
+            players={d.players}
+            fragilityMissing={fragilityMissing}
+            format={d.leagueFormat}
+            board={d.universePool}
+          />
         </PanelRow>
       </PanelGrid>
     );
@@ -95,18 +100,29 @@ export function RouteView({ view, envelope }: { view: RouteViewName; envelope: R
 
   // dashboard — a tiled OVERVIEW (progressive disclosure): League Health + League
   // Pulse + Top Insights + Next Best Actions, each linking into the deep routes.
-  const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + d.commandMetrics.reputationEdge * 1.4)));
+  const marketEdge = Math.round(Math.min(99, Math.max(0, 50 + d.commandMetrics.scarcityGap * 1.4)));
   return (
     <>
       <SeasonNotice envelope={envelope} hasPlayers={d.players.length > 0} />
+      {/* Rank, top to bottom: what to DO, then the state that produced it, then
+          what the market is getting wrong. "Next Best Actions" used to be the
+          bottom-right of four equal tiles behind 10px ghost pills, which is
+          why the design audit scored UX question 2 ("what should I do next?")
+          as a partial. It is now the first and widest thing on the route.
+          The tiles deliberately do NOT repeat the route-level source badge: all
+          four read the same envelope the governance strip above already
+          describes, and four identical copies of one provenance line is
+          wallpaper, not disclosure. Audit 2026-08-22. */}
       <PanelGrid>
+        <PanelRow cols={1}>
+          <NextBestActionPanel roster={d.players} market={d.marketPool} draftState={envelope.draftState} />
+        </PanelRow>
         <PanelRow cols={2}>
           <LeagueHealth metrics={d.commandMetrics} missingFields={envelope.sourceState.missingFields} />
           <LeaguePulse players={d.players} marketEdge={marketEdge} />
         </PanelRow>
-        <PanelRow cols={2}>
+        <PanelRow cols={1}>
           <TopInsights market={d.marketPool} />
-          <NextBestActionPanel roster={d.players} market={d.marketPool} draftState={envelope.draftState} />
         </PanelRow>
       </PanelGrid>
     </>

@@ -4,13 +4,10 @@ import { ReportsView } from "@/components/app/ReportsView";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Reports" };
 
+// The visible <h1> is rendered once by `RouteHeader` inside the app shell, so
+// every route is titled identically and none can quietly lose its heading.
 export default async function ReportsPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return (
-    <>
-      <h1 className="sr-only">Reports</h1>
-      <ReportsView envelope={r.envelope} />
-    </>
-  );
+  return <ReportsView envelope={r.envelope} />;
 }

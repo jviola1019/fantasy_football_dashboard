@@ -1,0 +1,48 @@
+version: 2
+
+# Audit 2026-08-06 F-006. Dependency alerts are enabled on this repo, but
+# `dependabot_security_updates` and `automated-security-fixes` are OFF and there
+# was no dependabot.yml at all, so nothing ever opened a PR to actually apply a
+# patch. Enabling the repo-level toggles is an owner action; this file is the
+# in-repo half.
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    # Group routine bumps so they arrive as one reviewable PR, while leaving
+    # security patches to arrive individually and immediately.
+    groups:
+      dev-tooling:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      production-minor-patch:
+        dependency-type: production
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Majors are deliberate, reviewed migrations (Next 16.3 alone deprecated
+      # the Edge runtime and middleware). Security advisories still bypass this.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    labels:
+      - dependencies
+      - ci

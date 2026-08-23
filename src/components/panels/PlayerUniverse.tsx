@@ -4,14 +4,15 @@ import { useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
-import { marketInefficiency, narrativeVelocity, reputationEdge } from "@/lib/models";
+import { marketInefficiency, narrativeVelocity, scarcityGap } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { avg, trendingLabel, fmt, surname } from "@/lib/utils";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
+import { selectProjectionForFormat } from "@/lib/leagues/scoringPoints";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -75,7 +76,6 @@ export function PlayerUniverse({ players, envelope }: Props) {
       titleId="pu-title"
       title="Player Universe"
       eyebrow="Explore the player ecosystem."
-      source={envelope?.sourceState}
       controls={
         <input
           className="galaxy-search"
@@ -92,79 +92,82 @@ export function PlayerUniverse({ players, envelope }: Props) {
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Player Universe tabs"
+        idBase="player-universe"
       />
 
-      {activeTab === "Universe" && (
-        <div className="universe-layout">
-          <div>
-            <GalaxyView
-              players={gridPlayers}
-              allPlayers={players}
-              selectedIdx={selectedIdx}
-              onSelect={setSelectedIdx}
-            />
-            {!searchQuery && players.length > gridPlayers.length ? (
-              <p className="small-note pu-grid-note">
-                Showing the top {gridPlayers.length} of {players.length} by value — search to find any player.
-              </p>
-            ) : null}
+      <TabPanel idBase="player-universe" active={activeTab}>
+        {activeTab === "Universe" && (
+          <div className="universe-layout">
+            <div>
+              <GalaxyView
+                players={gridPlayers}
+                allPlayers={players}
+                selectedIdx={selectedIdx}
+                onSelect={setSelectedIdx}
+              />
+              {!searchQuery && players.length > gridPlayers.length ? (
+                <p className="small-note pu-grid-note">
+                  Showing the top {gridPlayers.length} of {players.length} by value — search to find any player.
+                </p>
+              ) : null}
+            </div>
+            <div className="universe-sidebar">
+              {selected && <PlayerProfile player={selected} />}
+              <UniverseStats
+                count={players.length}
+                undervalued={undervalued}
+                avgIneff={avgIneff}
+                risingStars={risingStars}
+              />
+              {selected && (
+                <div className="radar-wrap">
+                  <div className="section-label">METRIC PROFILE</div>
+                  <RadarChart
+                    axes={[
+                      {
+                        label: "Value",
+                        value: selected.trueValue,
+                        unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
+                      },
+                      {
+                        label: "Opportunity",
+                        value: selected.opportunity,
+                        unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
+                      },
+                      {
+                        // Map signed momentum (−100..100) to a 0..100 position so a
+                        // NEGATIVE trend shows a SHORT spoke (consistent with the
+                        // signed value in the profile), not |momentum| which made a
+                        // −47 look identical to a +47.
+                        label: "Trending",
+                        value: (selected.trendingMomentum + 100) / 2,
+                        unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
+                      },
+                      { label: "Confidence", value: selected.confidence * 100 },
+                      { label: "Stability", value: 100 - selected.volatility },
+                    ]}
+                    max={100}
+                    size={140}
+                  />
+                  {anyAxisMissing ? (
+                    <p className="small-note pu-radar-note">
+                      Axes marked <code>*</code> have no integrated data source yet — radar polygon
+                      drops to 0 on those edges rather than show a fabricated reading.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="universe-sidebar">
-            {selected && <PlayerProfile player={selected} />}
-            <UniverseStats
-              count={players.length}
-              undervalued={undervalued}
-              avgIneff={avgIneff}
-              risingStars={risingStars}
-            />
-            {selected && (
-              <div className="radar-wrap">
-                <div className="section-label">METRIC PROFILE</div>
-                <RadarChart
-                  axes={[
-                    {
-                      label: "Value",
-                      value: selected.trueValue,
-                      unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
-                    },
-                    {
-                      label: "Opportunity",
-                      value: selected.opportunity,
-                      unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
-                    },
-                    {
-                      // Map signed momentum (−100..100) to a 0..100 position so a
-                      // NEGATIVE trend shows a SHORT spoke (consistent with the
-                      // signed value in the profile), not |momentum| which made a
-                      // −47 look identical to a +47.
-                      label: "Trending",
-                      value: (selected.trendingMomentum + 100) / 2,
-                      unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
-                    },
-                    { label: "Confidence", value: selected.confidence * 100 },
-                    { label: "Stability", value: 100 - selected.volatility },
-                  ]}
-                  max={100}
-                  size={140}
-                />
-                {anyAxisMissing ? (
-                  <p className="small-note pu-radar-note">
-                    Axes marked <code>*</code> have no integrated data source yet — radar polygon
-                    drops to 0 on those edges rather than show a fabricated reading.
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === "Tiers" && <UniverseTiers players={players} />}
-      {activeTab === "Comparison" && <UniverseComparison player={selected} players={players} />}
-      {activeTab === "Watchlist" && (
-        <UniverseWatchlist players={players} trendingUnavailable={missing.has("trending_momentum")} />
-      )}
-      {activeTab === "Projections" && <UniverseProjections envelope={envelope} players={players} />}
+        {activeTab === "Tiers" && <UniverseTiers players={players} />}
+        {activeTab === "Comparison" && <UniverseComparison player={selected} players={players} />}
+        {activeTab === "Watchlist" && (
+          <UniverseWatchlist players={players} trendingUnavailable={missing.has("trending_momentum")} />
+        )}
+        {activeTab === "Projections" && <UniverseProjections envelope={envelope} players={players} />}
+      </TabPanel>
     </PanelCard>
   );
 }
@@ -251,7 +254,7 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
           // "True Value" here is the SAME number shown across every panel.
           ["True Value", Math.round(player.trueValue)],
           ["Market Value", Math.round(player.perceivedValue)],
-          ["Edge", Math.round(reputationEdge(player))],
+          ["Edge", Math.round(scarcityGap(player))],
         ].map(([k, v]) => (
           <div key={String(k)} className="profile-row">
             <span>{k}</span>
@@ -374,9 +377,9 @@ function UniverseComparison({ player, players }: { player?: PlayerMarketRecord; 
         </thead>
         <tbody>
           {rows.map((p) => {
-            // Same Edge formula as every other panel (reputationEdge), so a
+            // Same Edge formula as every other panel (scarcityGap), so a
             // player's Edge is identical here and in Market Intelligence/Waiver.
-            const edge = Math.round(reputationEdge(p));
+            const edge = Math.round(scarcityGap(p));
             return (
               <tr key={p.id} className={p.id === player.id ? "cmp-self" : undefined}>
                 <td>
@@ -444,27 +447,52 @@ function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; pl
       />
     );
   }
-  const ranked = players
-    .map((p) => ({ p, pts: proj[p.id.replace(/^sleeper:/, "")] ?? null }))
-    .filter((r): r is { p: PlayerMarketRecord; pts: number } => r.pts != null)
-    .sort((a, b) => b.pts - a.pts)
-    .slice(0, 25);
+  // Audit 2026-08-20 §7: the projection record carries all three scoring
+  // variants, so the unit shown here is chosen from the league's OWN format and
+  // named in the column header. A player with no projection in that unit is
+  // omitted rather than shown in a different unit, and the omission is disclosed
+  // instead of hidden.
+  const scoring = envelope?.leagueFormat?.scoringFormat ?? "PPR";
+  const scored = players
+    .map((p) => {
+      // Keyed by the namespaced record id (audit 2026-08-20 §7b) — no stripping.
+      const raw = proj[p.id];
+      const sel = raw ? selectProjectionForFormat(raw, scoring) : null;
+      return sel ? { p, pts: sel.points, substituted: sel.substituted } : null;
+    })
+    .filter((r): r is { p: PlayerMarketRecord; pts: number; substituted: boolean } => r != null);
+  const ranked = [...scored].sort((a, b) => b.pts - a.pts).slice(0, 25);
+  const omitted = players.length - scored.length;
   return (
     <div className="table-wrap" tabIndex={0} role="region" aria-label="Weekly projections table">
       <div className="section-label">
-        WEEKLY PROJECTIONS{meta ? ` — week ${meta.week}, ${meta.season}` : ""}
+        WEEKLY PROJECTIONS{meta ? ` — week ${meta.week}, ${meta.season}` : ""} — {scoring} SCORING
       </div>
       {ranked.length === 0 ? (
         <p className="muted-note">No projected players in this set.</p>
       ) : (
-        <table>
-          <thead><tr><th>Player</th><th>Position</th><th>Projected pts</th></tr></thead>
-          <tbody>
-            {ranked.map(({ p, pts }) => (
-              <tr key={p.id}><td>{p.name}</td><td>{p.position}</td><td><b>{pts.toFixed(1)}</b></td></tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Position</th>
+                <th>Projected pts ({scoring})</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranked.map(({ p, pts }) => (
+                <tr key={p.id}><td>{p.name}</td><td>{p.position}</td><td><b>{pts.toFixed(1)}</b></td></tr>
+              ))}
+            </tbody>
+          </table>
+          {omitted > 0 ? (
+            <p className="muted-note">
+              {omitted} player{omitted === 1 ? "" : "s"} in this set have no projection in {scoring}
+              {" "}scoring and are omitted rather than shown in a different unit.
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );

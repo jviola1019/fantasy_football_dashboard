@@ -39,7 +39,7 @@ const style: React.CSSProperties = {
   alignItems: "center",
   gap: 8,
   padding: "6px 12px",
-  fontSize: 13,
+  fontSize: "var(--text-sm)",
   fontWeight: 600,
   color: "#f0ece4",
   background: "#18222f",

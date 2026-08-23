@@ -129,7 +129,7 @@ export function Heatmap2D({ data, xLabels, yLabels, caption, colorScale = DEFAUL
           style={{
             // ≥11px: this caption is the misread-prevention text (P(outcome | wins),
             // columns sum to 100%) — trust-critical, not decoration (audit F-05).
-            fontSize: 11,
+            fontSize: "var(--text-xs)",
             color: "var(--muted)",
             fontFamily: "monospace",
             marginTop: 4,

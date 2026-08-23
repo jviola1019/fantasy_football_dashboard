@@ -39,13 +39,49 @@ export function buildLeagueModels(weeklyByTeam: number[][]): LeagueModels {
   }));
   const seasonMeans = teams.map((t) => t.meanWeekly);
   const fieldMean = seasonMeans.length ? mean(seasonMeans) : 0;
-  const betweenTeamSigma = seasonMeans.length > 1 ? stdev(seasonMeans) : 1;
   const withinVals = teams.map((t) => t.sigmaWeekly).filter((s) => s > 0);
   const withinTeamSigma = withinVals.length ? mean(withinVals) : 1;
+
+  /**
+   * BETWEEN-TEAM SIGMA, WITH THE SAMPLING TERM REMOVED (audit 2026-08-22, P2-6).
+   *
+   * This was `stdev(seasonMeans)`, which is not the spread of team STRENGTH. A
+   * team's season mean is itself estimated from W weekly games, so
+   *
+   *     Var(observed season means) = Var(true strength) + Var(weekly) / W
+   *
+   * and the raw standard deviation therefore includes a within-team sampling
+   * term that has nothing to do with how different the teams actually are. The
+   * simulator then drew each opponent's strength from that inflated spread AND
+   * added weekly noise on top, so within-team variance was counted twice: the
+   * simulated field was more spread out than the real league, which pushes
+   * playoff and championship probabilities away from the base rate — the
+   * direction that makes a model look more decisive than it is.
+   *
+   * The correction is the standard variance-components one: subtract the
+   * sampling term, floored at zero, because a negative variance estimate means
+   * "no detectable between-team spread", not a negative one.
+   */
+  const weeksPerTeam = weeklyByTeam.length
+    ? mean(weeklyByTeam.map((w) => w.length).filter((n) => n > 0))
+    : 0;
+  const rawBetweenVar = seasonMeans.length > 1 ? stdev(seasonMeans) ** 2 : 1;
+  const samplingVar = weeksPerTeam > 0 ? (withinTeamSigma ** 2) / weeksPerTeam : 0;
+  const betweenTeamSigma =
+    seasonMeans.length > 1 ? Math.sqrt(Math.max(0, rawBetweenVar - samplingVar)) : 1;
   return {
     field: {
       meanWeekly: fieldMean,
-      betweenTeamSigma: betweenTeamSigma || 1,
+      // No `|| 1` on between-team sigma. It was there when a zero could only
+      // come from a degenerate input, but the variance-components estimate
+      // above makes zero a LEGITIMATE result: it is what "these teams are not
+      // detectably different" looks like. Coercing it to 1 would substitute a
+      // fabricated spread for a measured one, and `seasonSim` only ever
+      // MULTIPLIES by it, so zero is safe. Audit 2026-08-22, P2-6.
+      betweenTeamSigma,
+      // Within-team sigma keeps its floor: a zero there means every team
+      // scored the identical number every week, which is a broken input rather
+      // than a finding, and it would make every simulated season a tie.
       withinTeamSigma: withinTeamSigma || 1,
     },
     teams,

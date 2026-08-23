@@ -23,3 +23,10 @@ artifacts/screenshots/*.webp
 # Lighthouse CI artifacts
 .lighthouseci/
 reports/lighthouse/
+
+# Audit 2026-08-20 §19: loose per-league holdout files are the working set.
+# The reproducible artifact committed to the repo is holdout-data.jsonl.gz.
+reports/2026-08-20/holdout-data/
+
+# Protocol 4 working set; the reproducible artifact is nflverse-usage.json.gz
+reports/2026-08-20/nflverse/

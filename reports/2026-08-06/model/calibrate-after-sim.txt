@@ -1,0 +1,27 @@
+
+> rae-reputation-arbitrage-engine@0.1.0 calibrate:season
+> tsx scripts/brier-season-sim.ts
+
+Season-sim calibration harness
+==============================
+
+SYNTHETIC self-consistency (internal calibration, NOT real-world accuracy)
+  configs:            40  (forecasts: 8000)
+  coverage @90%:      0.8750  (target ≈ 0.9)
+  playoff Brier:      0.0770   ECE: 0.0096
+  championship Brier: 0.0855   ECE: 0.0092
+  reliability (forecast → observed):
+    bin 0.05  fc=0.020  obs=0.020  n=2600
+    bin 0.15  fc=0.133  obs=0.158  n=400
+    bin 0.25  fc=0.238  obs=0.220  n=400
+    bin 0.35  fc=0.355  obs=0.338  n=400
+    bin 0.45  fc=0.454  obs=0.460  n=200
+    bin 0.55  fc=0.544  obs=0.460  n=200
+    bin 0.65  fc=0.640  obs=0.605  n=400
+    bin 0.75  fc=0.732  obs=0.800  n=200
+    bin 0.85  fc=0.842  obs=0.840  n=600
+    bin 0.95  fc=0.980  obs=0.982  n=2600
+
+REAL backtest skipped — set RAE_BACKTEST_FORECASTS=path/to/forecasts.json (see docs/season-calibration.md).
+
+Wrote docs/season-calibration.md

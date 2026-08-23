@@ -1,0 +1,32 @@
+{
+  "$comment": [
+    "Machine-readable vulnerability exceptions (audit 2026-08-06 F-006).",
+    "An entry here suppresses one advisory in the dependency gate. Every entry MUST carry a",
+    "justification, a compensating control, an owner, and an expiry. CI FAILS when an entry is past",
+    "`expires`, so an exception cannot quietly become permanent - the default outcome of neglect is a",
+    "red build. Enforced by scripts/check-vuln-exceptions.ts (npm run check:exceptions).",
+    "Adding an entry is a security decision, not a build fix. If you are here to make CI green,",
+    "upgrade the dependency instead.",
+    "JSON rather than YAML so the checker stays stdlib-only, like scripts/check-doc-secrets.ts."
+  ],
+  "policy": {
+    "failOn": ["critical", "high", "moderate"],
+    "failOnDev": [],
+    "maxDurationDays": 90
+  },
+  "exceptions": [
+    {
+      "advisory": "GHSA-9wv6-86v2-598j",
+      "package": "path-to-regexp",
+      "introducedBy": "@vercel/config > @vercel/routing-utils",
+      "severity": "high",
+      "scope": "development",
+      "justification": "ReDoS in path-to-regexp 6.1.0. Not production runtime: vercel.ts imports @vercel/config with `import type` only, so the package is build/config-time and was moved to devDependencies in this remediation. Upstream cannot currently fix it - @vercel/routing-utils@6.4.1 still declares path-to-regexp@6.1.0 alongside a `path-to-regexp-updated` alias for legacy route compatibility, so no released version resolves it.",
+      "compensatingControl": "Route patterns in vercel.ts are static and authored in-repo; no user-controlled input ever reaches path-to-regexp. The package is absent from the deployed function bundle.",
+      "owner": "jviola1019",
+      "opened": "2026-08-13",
+      "expires": "2026-11-11",
+      "review": "Re-check whether @vercel/routing-utils has dropped the pinned 6.1.0 dependency; if so, drop this exception and upgrade."
+    }
+  ]
+}

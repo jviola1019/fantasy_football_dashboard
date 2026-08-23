@@ -13,7 +13,7 @@ export default function AppError({ error, reset }: { error: Error & { digest?: s
         This view hit an error loading its data. Nothing was fabricated to hide it — the panel failed cleanly. Try
         again, or head back to your dashboard.
       </p>
-      {error.digest ? <p className="mt-2 text-[11px] text-muted-foreground">Error id: {error.digest}</p> : null}
+      {error.digest ? <p className="mt-2 text-xs text-muted-foreground">Error id: {error.digest}</p> : null}
       <div className="mt-5 flex items-center justify-center gap-3">
         <button
           type="button"

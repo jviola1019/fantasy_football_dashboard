@@ -85,20 +85,20 @@ const headerStyle: React.CSSProperties = {
 const h1Style: React.CSSProperties = {
   color: "var(--cream)",
   margin: 0,
-  fontSize: 28,
+  fontSize: "var(--text-2xl)",
   letterSpacing: 0.2
 };
 
 const h2Style: React.CSSProperties = {
   color: "var(--cream)",
   marginTop: 0,
-  fontSize: 18
+  fontSize: "var(--text-lg)"
 };
 
 const muted: React.CSSProperties = {
   color: "var(--muted)",
   margin: "8px 0 0",
-  fontSize: 13
+  fontSize: "var(--text-sm)"
 };
 
 const sourceStripStyle: React.CSSProperties = {
@@ -111,7 +111,7 @@ const sourceStripStyle: React.CSSProperties = {
   borderRadius: 8,
   border: "1px solid rgba(215,168,87,0.22)",
   background: "rgba(43,35,18,0.32)",
-  fontSize: 12
+  fontSize: "var(--text-sm)"
 };
 
 const panelStyle: React.CSSProperties = {

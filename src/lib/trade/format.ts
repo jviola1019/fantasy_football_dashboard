@@ -18,16 +18,135 @@ export const LeagueStartersSchema = z.object({
 
 export type LeagueStarters = z.infer<typeof LeagueStartersSchema>;
 
+/**
+ * Redraft vs keeper vs dynasty. Audit 2026-08-06 F-010: this dimension did not
+ * exist, so every league was valued as redraft — dynasty trade values were
+ * hardcoded off and keeper decisions had nowhere to live. Both platforms
+ * publish it and neither was being read.
+ */
+export const LeagueTypeSchema = z.enum(["redraft", "keeper", "dynasty"]);
+export type LeagueType = z.infer<typeof LeagueTypeSchema>;
+
+/**
+ * What keeping a player costs you.
+ *
+ * Verified against the operator's real ESPN keeper league (1546190) on
+ * 2026-08-15: the FULL `draftSettings` payload is
+ *   { auctionBudget, availableDate, date, isTradingEnabled, keeperCount,
+ *     keeperCountFuture, keeperDeadlineDate, keeperOrderType: "MANUAL",
+ *     leagueSubType, orderType, pickOrder, timePerSelection, type: "SNAKE" }
+ * — there is NO field describing the cost. `keeperOrderType` is the ordering of
+ * keeper selections, not their price. Sleeper does not publish one either.
+ *
+ * The cost is a league convention agreed between managers, so it CANNOT be
+ * detected and must never be guessed. `unknown` is the honest default and the
+ * app fails closed on it: no keeper recommendation is produced until an owner
+ * confirms the rule. Guessing here would be worse than silence, because a
+ * keeper decision is irreversible for the season.
+ */
+export const KeeperCostRuleSchema = z.enum([
+  /** Not applicable — redraft, or dynasty where the whole roster carries over. */
+  "none",
+  /** Costs a fixed round every year, e.g. "your first-round pick". */
+  "fixed-round",
+  /** Costs the round the player was drafted in last season. */
+  "draft-round",
+  /** Costs the round they were kept at, minus one each year. */
+  "escalating-round",
+  /** Auction leagues: costs last year's salary plus an increment. */
+  "auction-salary",
+  /** Free — no pick is forfeited. */
+  "free",
+  /** Not yet confirmed by an owner. Fails closed: no recommendation. */
+  "unknown"
+]);
+export type KeeperCostRule = z.infer<typeof KeeperCostRuleSchema>;
+
+/**
+ * How confident we are allowed to be about a classification (audit P2 §11).
+ *
+ * Not every field in a LeagueFormat is known the same way, and collapsing that
+ * distinction is how a heuristic starts being reported as a fact. Sleeper
+ * PUBLISHES league type as `settings.type`; ESPN does not publish one at all
+ * and it is INFERRED from keeper count against roster size. Both previously
+ * arrived as a bare `leagueType: "dynasty"` with nothing to tell them apart.
+ *
+ *   platform-declared  the platform states it outright
+ *   owner-confirmed    a human confirmed it in league settings
+ *   derived            inferred by our heuristic from other fields
+ *   defaulted          the platform omitted it; we fell back to a safe default
+ *   unavailable        not known, and not guessed
+ */
+export const ProvenanceSchema = z.enum([
+  "platform-declared",
+  "owner-confirmed",
+  "derived",
+  "defaulted",
+  "unavailable"
+]);
+export type Provenance = z.infer<typeof ProvenanceSchema>;
+
+export const FormatProvenanceSchema = z.object({
+  leagueType: ProvenanceSchema,
+  keeperCount: ProvenanceSchema,
+  keeperCostRule: ProvenanceSchema,
+  /** Free-text explanation of a `derived` verdict, for the settings screen. */
+  note: z.string().nullable()
+});
+export type FormatProvenance = z.infer<typeof FormatProvenanceSchema>;
+
 export const LeagueFormatSchema = z.object({
+  /**
+   * Points per reception SNAPPED to the three values the third-party value
+   * APIs accept. Use `pprActual` for anything shown to a human.
+   */
   ppr: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
+  /**
+   * The league's REAL points-per-reception setting, unrounded.
+   *
+   * Audit 2026-08-22, P1-3. `normalizePpr` returned 0 for anything that was
+   * not exactly 0, 0.5 or 1 — so a 0.25 PPR league, a 0.75 PPR league and a
+   * 1.5 PPR TE-premium league were all classified STANDARD, which for the
+   * 1.5 case is the furthest-possible-from-correct answer. The settings screen
+   * then told the owner their league was "STD (0 pt/reception)" while they were
+   * looking at a league that pays 1.5, and FantasyCalc was queried with ppr=0.
+   *
+   * Optional so previously stored league rows keep parsing; absent means the
+   * row predates this field, and the UI says "not recorded" rather than
+   * inventing one.
+   */
+  pprActual: z.number().nonnegative().optional(),
   numQbs: z.union([z.literal(1), z.literal(2)]),
+  /** redraft | keeper | dynasty, read from the platform — never assumed. */
+  leagueType: LeagueTypeSchema,
+  /** How many players may be kept. 0 for redraft and for dynasty (all are kept). */
+  keeperCount: z.number().int().nonnegative(),
+  /**
+   * How a keeper is paid for. Neither platform publishes this, so it is
+   * `unknown` until an owner confirms it at league-add time.
+   */
+  keeperCostRule: KeeperCostRuleSchema,
+  /** For `fixed-round`: which round. Null until confirmed. */
+  keeperCostRound: z.number().int().positive().nullable(),
+  /**
+   * This manager's slot in round 1 (1-indexed). Neither platform reliably
+   * exposes which pickOrder entry is "you", so it is confirmed by the owner.
+   * Null means keeper pricing falls back to the middle of the round and says so.
+   */
+  draftSlot: z.number().int().positive().nullable(),
   numTeams: z.number().int().positive(),
   scoringFormat: z.enum(["STD", "HALF", "PPR"]),
   rosterSize: z.number().int().positive(),
   starters: LeagueStartersSchema,
   tradeDeadlineWeek: z.number().int().positive().nullable(),
   playoffWeekStart: z.number().int().positive().nullable(),
-  playoffTeams: z.number().int().positive().nullable()
+  playoffTeams: z.number().int().positive().nullable(),
+  /**
+   * How each classification above was arrived at. Optional so previously
+   * stored league rows keep parsing; absent means "not recorded", which the UI
+   * renders as unknown rather than inventing a confidence.
+   */
+  provenance: FormatProvenanceSchema.optional()
 });
 
 export type LeagueFormat = z.infer<typeof LeagueFormatSchema>;
@@ -45,7 +164,13 @@ const DEFAULT_STARTERS: LeagueStarters = {
 
 export const DEFAULT_FORMAT: LeagueFormat = {
   ppr: 1,
+  pprActual: 1,
   numQbs: 1,
+  leagueType: "redraft",
+  keeperCount: 0,
+  keeperCostRule: "none",
+  keeperCostRound: null,
+  draftSlot: null,
   numTeams: 12,
   scoringFormat: "PPR",
   rosterSize: 16,
@@ -55,10 +180,27 @@ export const DEFAULT_FORMAT: LeagueFormat = {
   playoffTeams: 6
 };
 
-function normalizePpr(rec: unknown): 0 | 0.5 | 1 {
-  if (rec === 1) return 1;
-  if (rec === 0.5) return 0.5;
-  return 0;
+/**
+ * Snap a league's real points-per-reception to the three values the trade-value
+ * APIs (FantasyCalc, KTC) accept.
+ *
+ * This used to return 0 for ANY value outside {0, 0.5, 1}. A 1.5 PPR
+ * TE-premium league — a real and not-rare format — was therefore classified
+ * STANDARD, the single furthest-away answer available. Snapping to the NEAREST
+ * supported value is the smallest honest approximation; `pprActual` carries the
+ * true figure so nothing has to guess it back, and `pprApproximated` lets the
+ * UI say so out loud instead of quietly presenting the rounded value as fact.
+ */
+export function normalizePpr(rec: unknown): 0 | 0.5 | 1 {
+  const n = typeof rec === "number" && Number.isFinite(rec) ? rec : 0;
+  if (n <= 0.25) return 0;
+  if (n < 0.75) return 0.5;
+  return 1;
+}
+
+/** True when the league's real setting is not one of the three supported values. */
+export function pprApproximated(actual: number | undefined): boolean {
+  return actual !== undefined && actual !== 0 && actual !== 0.5 && actual !== 1;
 }
 
 function scoringFormatFromPpr(ppr: 0 | 0.5 | 1): ScoringFormat {
@@ -101,6 +243,101 @@ function startersFromSleeperPositions(positions: string[]): LeagueStarters {
   return result;
 }
 
+/**
+ * Sleeper publishes the league type as `settings.type`: 0 redraft, 1 keeper,
+ * 2 dynasty. It was parsed into the schema and then never read.
+ */
+function sleeperLeagueType(settings: Record<string, unknown>): LeagueType {
+  const raw = settings.type;
+  if (raw === 2) return "dynasty";
+  if (raw === 1) return "keeper";
+  return "redraft";
+}
+
+function sleeperKeeperCount(settings: Record<string, unknown>): number {
+  // Dynasty keeps the whole roster, so a keeper COUNT is meaningless there.
+  if (settings.type === 2) return 0;
+  const n = settings.max_keepers;
+  return typeof n === "number" && n > 0 ? n : 0;
+}
+
+/**
+ * ESPN has no "dynasty" flag — it models continuity purely as keepers. A league
+ * that keeps (nearly) the whole roster is a dynasty in all but name, so treat a
+ * keeper count at or above the starting-lineup size as dynasty; otherwise it is
+ * a keeper league. `keeperCount` of 0 means redraft.
+ *
+ * Audit P2 §11: every verdict here is a HEURISTIC, and it now says so. Sleeper
+ * publishes `settings.type` and is `platform-declared`; nothing ESPN returns
+ * declares a league type, so even the confident-looking "redraft" is `derived`
+ * — from the ABSENCE of keepers, which is an inference, not a statement.
+ */
+function espnLeagueType(s: Record<string, unknown>): {
+  leagueType: LeagueType;
+  keeperCount: number;
+  provenance: FormatProvenance;
+} {
+  const draft = (s.draftSettings ?? {}) as Record<string, unknown>;
+  const raw = typeof draft.keeperCount === "number" ? draft.keeperCount : 0;
+  const future = typeof draft.keeperCountFuture === "number" ? draft.keeperCountFuture : 0;
+  const keeperCount = Math.max(raw, future);
+  const declaresKeepers =
+    typeof draft.keeperCount === "number" || typeof draft.keeperCountFuture === "number";
+
+  const prov = (leagueType: Provenance, note: string | null): FormatProvenance => ({
+    leagueType,
+    // The COUNT itself is a real published number when ESPN sends one.
+    keeperCount: declaresKeepers ? "platform-declared" : "defaulted",
+    // Never published by either platform — see KeeperCostRuleSchema.
+    keeperCostRule: "unavailable",
+    note
+  });
+
+  if (keeperCount <= 0) {
+    return {
+      leagueType: "redraft",
+      keeperCount: 0,
+      provenance: prov(
+        "derived",
+        declaresKeepers
+          ? "ESPN publishes no league type. Inferred redraft because keeperCount is 0."
+          : "ESPN publishes no league type and sent no keeper fields. Assumed redraft."
+      )
+    };
+  }
+
+  const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
+  const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
+  const bench = counts["20"] ?? 0;
+  const starting = Object.entries(counts)
+    .filter(([slot]) => slot !== "20" && slot !== "21")
+    .reduce((a, [, n]) => a + n, 0);
+
+  if (starting > 0 && keeperCount >= starting + bench) {
+    return {
+      leagueType: "dynasty",
+      keeperCount: 0,
+      provenance: prov(
+        "derived",
+        `ESPN publishes no league type. Inferred dynasty because keeperCount ${keeperCount} ` +
+          `covers the whole ${starting + bench}-man roster. If this is really a deep keeper ` +
+          `league, correct it in league settings — dynasty switches trade values to the ` +
+          `long-term scale.`
+      )
+    };
+  }
+
+  return {
+    leagueType: "keeper",
+    keeperCount,
+    provenance: prov(
+      "derived",
+      `ESPN publishes no league type. Inferred keeper from keeperCount ${keeperCount} ` +
+        `against a ${starting + bench}-man roster.`
+    )
+  };
+}
+
 /** Parse a Sleeper `getLeague` payload into a LeagueFormat. */
 export function parseSleeperFormat(league: unknown): LeagueFormat {
   if (!league || typeof league !== "object") return DEFAULT_FORMAT;
@@ -115,20 +352,41 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
         ? l.total_rosters
         : DEFAULT_FORMAT.numTeams;
   const numQbs: 1 | 2 = positions.includes("SUPER_FLEX") ? 2 : 1;
-  const ppr = normalizePpr(scoring.rec);
+  const pprActual = typeof scoring.rec === "number" && Number.isFinite(scoring.rec) ? scoring.rec : 0;
+  const ppr = normalizePpr(pprActual);
   const starters = positions.length
     ? startersFromSleeperPositions(positions)
     : DEFAULT_STARTERS;
   return {
     ppr,
+    pprActual,
     numQbs,
+    leagueType: sleeperLeagueType(settings),
+    keeperCount: sleeperKeeperCount(settings),
+    // Unconfirmed by definition — Sleeper publishes no cost rule.
+    keeperCostRule: sleeperKeeperCount(settings) > 0 ? "unknown" : "none",
+    keeperCostRound: null,
+    draftSlot: null,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: positions.length || DEFAULT_FORMAT.rosterSize,
     starters,
     tradeDeadlineWeek: typeof settings.trade_deadline === "number" ? settings.trade_deadline : null,
     playoffWeekStart: typeof settings.playoff_week_start === "number" ? settings.playoff_week_start : null,
-    playoffTeams: typeof settings.playoff_teams === "number" ? settings.playoff_teams : null
+    playoffTeams: typeof settings.playoff_teams === "number" ? settings.playoff_teams : null,
+    // Audit P2 §11: Sleeper genuinely DECLARES the league type in settings.type,
+    // so unlike ESPN this is not an inference and must not be labelled as one.
+    provenance: {
+      leagueType: typeof settings.type === "number" ? "platform-declared" : "defaulted",
+      keeperCount:
+        typeof settings.max_keepers === "number" ? "platform-declared" : "defaulted",
+      // Neither platform publishes a cost rule — see KeeperCostRuleSchema.
+      keeperCostRule: "unavailable",
+      note:
+        typeof settings.type === "number"
+          ? null
+          : "Sleeper omitted settings.type; assumed redraft."
+    }
   };
 }
 
@@ -140,10 +398,18 @@ const ESPN_LINEUP_SLOT_MAP: Record<string, keyof LeagueStarters | null> = {
   "2": "RB",
   "4": "WR",
   "6": "TE",
-  "7": "FLEX", // OP / RB-WR-TE
+  // Audit 2026-08-06 F-010: slots 7 and 23 were SWAPPED here, contradicting the
+  // authoritative map in espn/positions.ts. ESPN's IDs are 7 = OP (Offensive
+  // Player, i.e. superflex — QB/RB/WR/TE eligible) and 23 = RB/WR/TE (the
+  // ordinary flex). Because the check below keyed superflex off slot 23, EVERY
+  // league with a normal flex was reported as superflex: verified against all
+  // four of the operator's real ESPN leagues, each returning numQbs=2 for what
+  // is a standard 1QB league. That fed superflex QB targets into the draft
+  // board, a 2QB FantasyCalc URL, and the KTC superflex value scale.
+  "7": "SUPERFLEX", // OP — QB/RB/WR/TE
   "16": "DEF", // D/ST
   "17": "K",
-  "23": "SUPERFLEX" // OP / QB-RB-WR-TE
+  "23": "FLEX" // RB/WR/TE
   // 20 = BN (bench), 21 = IR — excluded from starter counts
 };
 const ESPN_BENCH_SLOTS = new Set(["20", "21"]);
@@ -204,21 +470,31 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
   const scoring = (s.scoringSettings ?? {}) as Record<string, unknown>;
   const items = Array.isArray(scoring.scoringItems) ? (scoring.scoringItems as Record<string, unknown>[]) : [];
   const recItem = items.find((i) => i.statId === 53);
-  const ppr = normalizePpr(typeof recItem?.points === "number" ? recItem.points : 0);
+  const pprActual = typeof recItem?.points === "number" && Number.isFinite(recItem.points) ? recItem.points : 0;
+  const ppr = normalizePpr(pprActual);
   const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
   const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
-  const numQbs: 1 | 2 = (counts["23"] ?? 0) > 0 ? 2 : 1;
+  const numQbs: 1 | 2 = (counts["7"] ?? 0) > 0 ? 2 : 1;
   const starters = startersFromEspnCounts(counts);
   const rosterSize = Object.values(counts).reduce((a, b) => a + b, 0);
+  const { leagueType, keeperCount, provenance } = espnLeagueType(s);
   return {
     ppr,
+    pprActual,
     numQbs,
+    leagueType,
+    keeperCount,
+    // ESPN publishes keeperCount but never a cost — see KeeperCostRuleSchema.
+    keeperCostRule: keeperCount > 0 ? "unknown" : "none",
+    keeperCostRound: null,
+    draftSlot: null,
     numTeams,
     scoringFormat: scoringFormatFromPpr(ppr),
     rosterSize: rosterSize || DEFAULT_FORMAT.rosterSize,
     starters,
     tradeDeadlineWeek: espnTradeDeadlineWeek(s),
     playoffWeekStart: espnPlayoffWeekStart(s),
-    playoffTeams: espnPlayoffTeams(s)
+    playoffTeams: espnPlayoffTeams(s),
+    provenance
   };
 }

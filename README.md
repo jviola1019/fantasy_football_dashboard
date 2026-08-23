@@ -1,8 +1,8 @@
 <p align="center">
-  <img src=".github/assets/rae-banner.svg" alt="RAE — Reputation Arbitrage Engine" width="100%">
+  <img src=".github/assets/rae-banner.svg" alt="RAE — Roster Analytics Engine" width="100%">
 </p>
 
-<h1 align="center">RAE — Reputation Arbitrage Engine</h1>
+<h1 align="center">RAE — Roster Analytics Engine</h1>
 
 <p align="center">
   <b>Quant fantasy-football intelligence.</b><br>
@@ -10,11 +10,20 @@
 </p>
 
 <p align="center">
+  <sub><b>Renamed 2026-08-22.</b> RAE was the <i>Reputation Arbitrage Engine</i>.
+  A frozen out-of-sample test on 115 real drafts found the reputation edge does
+  not identify mispriced players — within a position it was inverted — so the
+  product no longer claims an arbitrage it cannot demonstrate.
+  Evidence: <a href="reports/2026-08-20/holdout-result-3.md">holdout-result-3.md</a>.</sub>
+</p>
+
+<p align="center">
   <a href="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="TypeScript strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white">
   <img alt="Next.js 16" src="https://img.shields.io/badge/Next.js-16-000?logo=nextdotjs&logoColor=white">
   <img alt="Tailwind v4" src="https://img.shields.io/badge/Tailwind-v4-38bdf8?logo=tailwindcss&logoColor=white">
-  <img alt="442 tests passing" src="https://img.shields.io/badge/tests-442%20passing-35c08a">
+  <a href="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml"><img alt="tests" src="https://img.shields.io/badge/tests-vitest%20%2B%20playwright%20%2B%20axe-35c08a"></a>
+  <a href="https://github.com/jviola1019/fantasy_football_dashboard/actions/workflows/ci.yml"><img alt="postgres integration" src="https://img.shields.io/badge/postgres-integration%20in%20CI-336791?logo=postgresql&logoColor=white"></a>
   <img alt="No fabrication" src="https://img.shields.io/badge/data-no%20fabrication-5a9fc4">
 </p>
 
@@ -105,15 +114,107 @@ Open `http://localhost:3000`.
 
 ## Exact run commands
 
+Every script in `package.json`, grouped by what it is for. All 20 are listed —
+an earlier version of this section named only nine, so the security gates and
+model harnesses were effectively undiscoverable.
+
+### Everyday
+
 ```bash
 npm install
-npm run dev
-npm run build
-npm run test
-npm run lint
-npm run typecheck
-npm run deploy
+npm run dev          # next dev
+npm run build        # next build
+npm run start        # next start (serves the build; used by e2e/lighthouse)
 ```
+
+### Gates — run these after meaningful changes
+
+```bash
+npm run typecheck    # tsc --noEmit
+npm run lint         # eslint .
+npm run test         # vitest run
+npm run test:watch   # vitest, watch mode
+npm run e2e          # playwright (needs a build; npm run e2e:install first time)
+npm run e2e:install  # playwright install --with-deps chromium
+npm run lighthouse   # lhci autorun against next start
+```
+
+### Security gates
+
+```bash
+npm run check:secrets     # scan tracked files for secret-shaped literals
+npm run check:advisories  # fail if the lockfile resolves below an advisory floor
+npm run check:exceptions  # fail on an expired vulnerability exception
+```
+
+### Model harnesses
+
+These reach the network (public Sleeper data, no credentials) and are therefore
+reported, not CI-blocking.
+
+```bash
+npm run backtest:valuation       # out-of-sample backtest of the SHIPPED chain
+npm run sensitivity:replacement  # sweep the two replacement-model assumptions
+npm run calibrate:season         # synthetic self-consistency check
+npm run backtest:sleeper         # season-sim backtest on real weekly scores
+```
+
+### Gated suites (skipped in CI by design)
+
+Live-network, Postgres and Lighthouse suites need real credentials, a real
+database or a browser, so CI skips them. They were executed on 2026-08-22 and the
+results — including a live test that could never have passed, and the hype-axis
+asymmetry it exposed — are in
+[`reports/2026-08-20/gated-suite-verification.md`](reports/2026-08-20/gated-suite-verification.md).
+
+```bash
+RAE_LIVE_TESTS=1 npx vitest run src/lib/schedule/schedule.live.test.ts src/lib/trade/values.live.test.ts
+RAE_PG_TEST_URL=postgres://... npx vitest run src/db/postgres.integration.test.ts
+npm run lighthouse
+```
+
+### Frozen holdout protocols
+
+Four protocols were each **frozen and committed before any metric was computed**,
+then executed once. Index and verdicts:
+[`reports/2026-08-20/README.md`](reports/2026-08-20/README.md).
+
+```bash
+npm run holdout:evaluate         # protocol 1 — shipped season model
+npm run holdout:evaluate2        # protocol 2 — larger external holdout
+npm run holdout:evaluate3        # protocol 3 — the reputation edge
+npm run holdout:acquire-usage    # protocol 4 — fetch/archive nflverse usage data
+npm run holdout:evaluate4        # protocol 4 — does opportunity add over production?
+npm run holdout:evaluate4 -- --self-test   # arithmetic only; never touches the data
+```
+
+Each reproduces from a committed archive with no network. **Protocol 4 is the only
+one that passed** — in-season opportunity adds beyond points scored to date
+(partial ρ 0.2289, holding within position, 452 players). Its out-of-fold gain is
+**+0.0137** and its scope is **in-season only**; see
+[`holdout-result-4.md`](reports/2026-08-20/holdout-result-4.md) before relying on
+it.
+
+**Read [`reports/2026-08-06/backtest-valuation.md`](reports/2026-08-06/backtest-valuation.md)
+before trusting any probability this app displays.** The shipped valuation chain
+fails out-of-sample: Brier 0.3098 against a 0.2400 climatology baseline, AUC
+0.3058 with a 95% CI of [0.1333, 0.4450] — significantly worse than forecasting
+the league base rate. The simulation declares this in its own assumptions.
+
+### Operations
+
+```bash
+npm run smoke            # smoke-check a Vercel deployment
+npm run check:freshness  # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
+npm run verify:rotation  # prove a rotated secret's PREVIOUS value is now rejected
+npm run deploy           # currently aliases `next build` — see below
+```
+
+`verify:rotation` reads secrets from the environment only, never prints them, and
+refuses plaintext http. It asserts the **old** credential returns 401/403, which
+is the only direct evidence a rotation took effect — confirming the new value
+works proves only that it was accepted. Full procedure:
+[`docs/runbooks/secret-rotation.md`](docs/runbooks/secret-rotation.md).
 
 `npm run deploy` currently aliases build validation. Wire it to Vercel, Docker, or another deployment target once production infrastructure is selected.
 
@@ -238,10 +339,20 @@ Current tests cover:
 End-to-end (Playwright, `e2e/`): public dashboard render, login form, axe accessibility
 scan, draft + lifecycle tabs, register → settings flow, per-account isolation, and a
 responsive viewport sweep asserting no horizontal overflow at 1440 / 1024 / 768 / 390 px.
-`vitest` holds 442 passing unit/integration tests; 6 live-API tests (Sleeper / ESPN / FantasyCalc integration,
-across 4 `*.live.test.ts` specs) are skipped unless `RAE_LIVE_TESTS=1` and the matching credentials are set.
-Playwright runs both a chromium and a mobile-chrome project. CI runs typecheck + lint + vitest + Playwright +
-Lighthouse on every push (`.github/workflows/ci.yml`).
+Test counts are deliberately NOT quoted here. The previous badge and this
+paragraph both claimed 442 tests, a number that had been wrong for months with no
+mechanism that would ever have corrected it (audit 2026-08-20 SS16). The CI badge
+above reports whether the suite passes, which is the fact that matters; the exact
+count for any given commit is in that run's log.
+
+Live-API tests (Sleeper / ESPN / FantasyCalc round-trips, `*.live.test.ts`) are
+skipped unless `RAE_LIVE_TESTS=1` and the matching credentials are set.
+PostgreSQL integration tests are gated on `RAE_PG_TEST_URL` and run in CI against
+a pinned `postgres:17.5-alpine` service; that job fails if they are skipped rather
+than executed, so they cannot silently stop running. Playwright runs both a
+chromium and a mobile-chrome project. CI runs typecheck + lint + vitest +
+PostgreSQL integration + Playwright + Lighthouse on every push
+(`.github/workflows/ci.yml`).
 
 ## Design philosophy
 

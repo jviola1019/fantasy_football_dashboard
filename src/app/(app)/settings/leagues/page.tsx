@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { AddLeagueForm } from "./AddLeagueForm";
 import { LeagueList } from "./LeagueList";
+import { LeagueSettingsForm } from "./LeagueSettingsForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "League Settings" };
@@ -11,14 +12,14 @@ export const metadata = { title: "League Settings" };
 // Rendered inside the (app) shell — the route sidebar + command bar provide
 // navigation, so this is just the settings content (no standalone page chrome).
 export default async function LeaguesSettingsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect("/login");
-  const leagues = await listLeagues(getDb(), session.user.id);
+  const user = await requireUser();
+  if (!user) redirect("/login");
+  const leagues = await listLeagues(getDb(), user.id);
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 20 }}>
       <header>
-        <h1 style={{ color: "var(--cream)", margin: 0, fontSize: 24 }}>Your leagues</h1>
+        <h1 style={{ color: "var(--cream)", margin: 0, fontSize: "var(--text-xl)" }}>Your leagues</h1>
         <p style={{ color: "var(--muted)", marginTop: 8 }}>
           Sleeper is public. ESPN private leagues require <code>espn_s2</code> and <code>SWID</code> cookies
           from your browser. Cookies are encrypted at rest and never sent back to your browser after creation.
@@ -32,6 +33,13 @@ export default async function LeaguesSettingsPage() {
         <h2 style={h2}>Connected ({leagues.length})</h2>
         <LeagueList leagues={leagues} />
       </section>
+
+      {leagues.map((league) => (
+        <section key={league.id} style={panel}>
+          <h2 style={h2}>{league.label} — settings</h2>
+          <LeagueSettingsForm leagueId={league.id} label={league.label} format={league.settings} />
+        </section>
+      ))}
     </div>
   );
 }
@@ -43,4 +51,4 @@ const panel: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.06)"
 };
 
-const h2: React.CSSProperties = { color: "var(--cream)", marginTop: 0, fontSize: 16 };
+const h2: React.CSSProperties = { color: "var(--cream)", marginTop: 0, fontSize: "var(--text-base)" };

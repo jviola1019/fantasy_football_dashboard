@@ -24,7 +24,7 @@ describe("buildFantasyCalcUrl", () => {
 
 describe("parseFantasyCalc", () => {
   it("maps entries into a sleeperId-keyed PlayerValue map", () => {
-    const map = parseFantasyCalc(SAMPLE);
+    const map = parseFantasyCalc(SAMPLE, "redraft");
     const gibbs = map.get("9493");
     expect(gibbs?.value).toBe(10399);
     expect(gibbs?.position).toBe("RB");
@@ -32,7 +32,25 @@ describe("parseFantasyCalc", () => {
   });
 
   it("throws on a malformed payload", () => {
-    expect(() => parseFantasyCalc([{ player: {} }])).toThrow();
+    expect(() => parseFantasyCalc([{ player: {} }], "redraft")).toThrow();
+  });
+
+  it("skips a dynasty entry with no dynasty figure rather than substituting redraft", () => {
+    // Omitting a player is honest; pricing a dynasty asset off this season
+    // alone is a wrong number wearing the right label.
+    const noValue = [
+      {
+        player: { name: "No Value", position: "WR", maybeTeam: "KC", sleeperId: "77", espnId: 1 },
+        value: null,
+        redraftValue: 4200,
+        overallRank: 9,
+        positionRank: 4,
+        trend30Day: 0
+      }
+    ];
+    expect(parseFantasyCalc(noValue, "dynasty").has("77")).toBe(false);
+    // A redraft league CAN honestly fall back — same horizon, canonical format.
+    expect(parseFantasyCalc(noValue, "redraft").get("77")?.value).toBe(4200);
   });
 });
 

@@ -23,9 +23,12 @@ export function ModeBanner({
         : "border-rae-red/40 text-rae-red";
   return (
     <span
-      aria-live="polite"
+      // `aria-live` removed 2026-08-22. This pill is permanently mounted in the
+      // sticky command bar and its freshness string is recomputed per request,
+      // so every navigation triggered an announcement. Data mode is a standing
+      // property, not an event — it stays labelled, it just no longer interrupts.
       aria-label={`Data mode: ${mode}${freshness ? `. Freshness: ${freshness}` : ""}`}
-      className={cn("flex shrink-0 items-center gap-2 text-[11px] uppercase tracking-wide", className)}
+      className={cn("flex shrink-0 items-center gap-2 text-xs uppercase tracking-wide", className)}
     >
       <Badge
         variant="outline"
@@ -40,7 +43,13 @@ export function ModeBanner({
         )}
         {mode}
       </Badge>
-      {freshness ? <span className="hidden text-muted-foreground lg:inline">{freshness}</span> : null}
+      {/* In fixture mode the freshness string IS the word "fixture", so the bar
+          rendered "FIXTURE FIXTURE" — one amber pill and one plain repeat of
+          the same word. Nothing is hidden: when freshness restates the mode
+          there is no second fact to show. Design audit 2026-08-22. */}
+      {freshness && freshness.toLowerCase() !== mode ? (
+        <span className="hidden text-muted-foreground lg:inline">{freshness}</span>
+      ) : null}
     </span>
   );
 }

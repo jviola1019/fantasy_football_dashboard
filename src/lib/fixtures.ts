@@ -43,17 +43,31 @@ const FIXTURE_ROWS: ReadonlyArray<{
   opportunity: number;
   confidence: number;
   rosterSlot: string;
+  /**
+   * Handcrafted like every other fixture value, and internally CONSISTENT in
+   * the two ways that matter, so the demo exercises real invariants rather than
+   * showing eight unrelated numbers:
+   *
+   *   - Teammates share a bye. Gibbs and LaPorta are both Detroit, both week 6
+   *     -- and both are DIFFERENT positions, so that pair is not a clash.
+   *   - Two different teams can share a week, exactly as the real schedule
+   *     works. Bijan Robinson (ATL) and Christian McCaffrey (SF) are both week
+   *     5 and both RB, which IS a clash -- so the draft board's stacking
+   *     warning is reachable in the demo instead of being dead code nobody
+   *     ever sees fire.
+   */
+  byeWeek: number;
   sleeperId: string;
   espnFallbackId?: number;
 }> = [
-  { id: "puka-nacua",          name: "Puka Nacua",          position: "WR", team: "LAR", perceivedValue: 72, trueValue: 84,  ownershipLeverage:  18, fragility: 34, trendingMomentum:  47, volatility: 41, opportunity: 79, confidence: 0.62, rosterSlot: "WR1", sleeperId: "9493" },
-  { id: "bijan-robinson",      name: "Bijan Robinson",      position: "RB", team: "ATL", perceivedValue: 91, trueValue: 86,  ownershipLeverage:  -8, fragility: 38, trendingMomentum:  20, volatility: 32, opportunity: 88, confidence: 0.58, rosterSlot: "RB1", sleeperId: "9509" },
-  { id: "josh-allen",          name: "Josh Allen",          position: "QB", team: "BUF", perceivedValue: 93, trueValue: 89,  ownershipLeverage: -14, fragility: 28, trendingMomentum:  12, volatility: 36, opportunity: 83, confidence: 0.61, rosterSlot: "QB1", sleeperId: "4984",  espnFallbackId: 3918298 },
-  { id: "jahmyr-gibbs",        name: "Jahmyr Gibbs",        position: "RB", team: "DET", perceivedValue: 83, trueValue: 90,  ownershipLeverage:  11, fragility: 31, trendingMomentum:  29, volatility: 46, opportunity: 86, confidence: 0.57, rosterSlot: "RB2", sleeperId: "9221" },
-  { id: "sam-laporta",         name: "Sam LaPorta",         position: "TE", team: "DET", perceivedValue: 68, trueValue: 77,  ownershipLeverage:  16, fragility: 24, trendingMomentum:  18, volatility: 29, opportunity: 74, confidence: 0.55, rosterSlot: "TE1", sleeperId: "10859" },
-  { id: "caleb-williams",      name: "Caleb Williams",      position: "QB", team: "CHI", perceivedValue: 61, trueValue: 68,  ownershipLeverage:  22, fragility: 49, trendingMomentum:  64, volatility: 57, opportunity: 71, confidence: 0.48, rosterSlot: "QB2", sleeperId: "11560" },
-  { id: "christian-mccaffrey", name: "Christian McCaffrey", position: "RB", team: "SF",  perceivedValue: 96, trueValue: 85,  ownershipLeverage: -21, fragility: 72, trendingMomentum:  33, volatility: 62, opportunity: 81, confidence: 0.51, rosterSlot: "RB3", sleeperId: "4034",  espnFallbackId: 3117251 },
-  { id: "marvin-harrison",     name: "Marvin Harrison Jr.", position: "WR", team: "ARI", perceivedValue: 78, trueValue: 82,  ownershipLeverage:   9, fragility: 36, trendingMomentum:  52, volatility: 44, opportunity: 84, confidence: 0.50, rosterSlot: "WR2", sleeperId: "11628" }
+  { id: "puka-nacua",          name: "Puka Nacua",          position: "WR", team: "LAR", perceivedValue: 72, trueValue: 84,  ownershipLeverage:  18, fragility: 34, trendingMomentum:  47, volatility: 41, opportunity: 79, confidence: 0.62, rosterSlot: "WR1", byeWeek: 8, sleeperId: "9493" },
+  { id: "bijan-robinson",      name: "Bijan Robinson",      position: "RB", team: "ATL", perceivedValue: 91, trueValue: 86,  ownershipLeverage:  -8, fragility: 38, trendingMomentum:  20, volatility: 32, opportunity: 88, confidence: 0.58, rosterSlot: "RB1", byeWeek: 5, sleeperId: "9509" },
+  { id: "josh-allen",          name: "Josh Allen",          position: "QB", team: "BUF", perceivedValue: 93, trueValue: 89,  ownershipLeverage: -14, fragility: 28, trendingMomentum:  12, volatility: 36, opportunity: 83, confidence: 0.61, rosterSlot: "QB1", byeWeek: 7, sleeperId: "4984",  espnFallbackId: 3918298 },
+  { id: "jahmyr-gibbs",        name: "Jahmyr Gibbs",        position: "RB", team: "DET", perceivedValue: 83, trueValue: 90,  ownershipLeverage:  11, fragility: 31, trendingMomentum:  29, volatility: 46, opportunity: 86, confidence: 0.57, rosterSlot: "RB2", byeWeek: 6, sleeperId: "9221" },
+  { id: "sam-laporta",         name: "Sam LaPorta",         position: "TE", team: "DET", perceivedValue: 68, trueValue: 77,  ownershipLeverage:  16, fragility: 24, trendingMomentum:  18, volatility: 29, opportunity: 74, confidence: 0.55, rosterSlot: "TE1", byeWeek: 6, sleeperId: "10859" },
+  { id: "caleb-williams",      name: "Caleb Williams",      position: "QB", team: "CHI", perceivedValue: 61, trueValue: 68,  ownershipLeverage:  22, fragility: 49, trendingMomentum:  64, volatility: 57, opportunity: 71, confidence: 0.48, rosterSlot: "QB2", byeWeek: 9, sleeperId: "11560" },
+  { id: "christian-mccaffrey", name: "Christian McCaffrey", position: "RB", team: "SF",  perceivedValue: 96, trueValue: 85,  ownershipLeverage: -21, fragility: 72, trendingMomentum:  33, volatility: 62, opportunity: 81, confidence: 0.51, rosterSlot: "RB3", byeWeek: 5, sleeperId: "4034",  espnFallbackId: 3117251 },
+  { id: "marvin-harrison",     name: "Marvin Harrison Jr.", position: "WR", team: "ARI", perceivedValue: 78, trueValue: 82,  ownershipLeverage:   9, fragility: 36, trendingMomentum:  52, volatility: 44, opportunity: 84, confidence: 0.50, rosterSlot: "WR2", byeWeek: 11, sleeperId: "11628" }
 ];
 
 export const fixturePlayers: PlayerMarketRecord[] = FIXTURE_ROWS.map((row) => {
@@ -73,6 +87,7 @@ export const fixturePlayers: PlayerMarketRecord[] = FIXTURE_ROWS.map((row) => {
     opportunity: row.opportunity,
     confidence: row.confidence,
     rosterSlot: row.rosterSlot,
+    byeWeek: row.byeWeek,
     status: "active" as const,
     imageUrl: primary,
     imageSource: IMG_SRC,

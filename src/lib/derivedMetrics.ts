@@ -1,10 +1,11 @@
 import type { PlayerMarketRecord } from "./governance";
-import { reputationEdge, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
+import type { LeagueFormat } from "./trade/format";
+import { scarcityGap, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
 import { runNexusSimulation, deriveSeasonInputs, type SimulationResult } from "./simulation";
 import { avg, clamp, gradeFromScore } from "./utils";
 
 export type CommandMetrics = {
-  reputationEdge: number;
+  scarcityGap: number;
   marketInefficiency: number;
   narrativeVelocity: number;
   leagueAdvantage: number;
@@ -14,7 +15,7 @@ export type CommandMetrics = {
 export type MarketMetrics = {
   inefficiencyPct: number;
   liquidityScore: number;
-  arbitrageCount: number;
+  largeGapCount: number;
   priceDiscoveryPct: number;
   marketRegime: string;
   topInefficiencies: PlayerMarketRecord[];
@@ -41,10 +42,10 @@ export type PositionGrades = {
 };
 
 export function deriveCommandMetrics(players: PlayerMarketRecord[]): CommandMetrics {
-  const avgEdge = avg(players.map(reputationEdge));
+  const avgEdge = avg(players.map(scarcityGap));
   const leagueAdv = players.length ? clamp(50 + avgEdge * 2.8, 0, 100) : NaN;
   return {
-    reputationEdge: avgEdge,
+    scarcityGap: avgEdge,
     marketInefficiency: avg(players.map(marketInefficiency)),
     narrativeVelocity: avg(players.map(narrativeVelocity)),
     leagueAdvantage: Math.round(leagueAdv),
@@ -65,14 +66,14 @@ export function deriveMarketMetrics(players: PlayerMarketRecord[]): MarketMetric
   return {
     inefficiencyPct: meanIneff,
     liquidityScore: avg(players.map(liquidityScore)),
-    arbitrageCount: players.filter((p) => Math.abs(reputationEdge(p)) > 8).length,
+    largeGapCount: players.filter((p) => Math.abs(scarcityGap(p)) > 8).length,
     // Honest: the average week-to-week variance (volatility, 0-100), not a
     // rescaled "price discovery %". Surfaced as a "Volatility Index".
     priceDiscoveryPct: avg(players.map((p) => p.volatility)),
     // An empty pool has no market signal — don't assert "Efficient" on no data.
     marketRegime: players.length === 0 ? "Unknown" : meanIneff > 15 ? "Inefficient" : "Efficient",
     topInefficiencies: [...players]
-      .sort((a, b) => Math.abs(reputationEdge(b)) - Math.abs(reputationEdge(a)))
+      .sort((a, b) => Math.abs(scarcityGap(b)) - Math.abs(scarcityGap(a)))
       .slice(0, 5),
   };
 }
@@ -190,11 +191,38 @@ export function deriveScenarioComparison(players: PlayerMarketRecord[], baseline
   };
 }
 
-export function derivePositionGrades(players: PlayerMarketRecord[]): PositionGrades {
-  const posSlots = ["QB", "RB", "WR", "TE", "FLEX", "DEF"];
+/**
+ * Which slots to grade, taken from the league's real starting lineup.
+ *
+ * Audit F-012: this was the hardcoded list ["QB","RB","WR","TE","FLEX","DEF"],
+ * so a superflex league got no SUPERFLEX grade and NO league ever got a K grade
+ * — the scorecard silently omitted a slot the user has to fill every week.
+ * Falls back to the historical list when no league is connected, which keeps
+ * the demo unchanged rather than inventing slots for a league that isn't there.
+ */
+function gradedSlots(format?: LeagueFormat | null): string[] {
+  if (!format) return ["QB", "RB", "WR", "TE", "FLEX", "DEF"];
+  const s = format.starters;
+  const slots: string[] = [];
+  if (s.QB > 0) slots.push("QB");
+  if (s.RB > 0) slots.push("RB");
+  if (s.WR > 0) slots.push("WR");
+  if (s.TE > 0) slots.push("TE");
+  if (s.FLEX > 0) slots.push("FLEX");
+  if (s.SUPERFLEX > 0) slots.push("SUPERFLEX");
+  if (s.DEF > 0) slots.push("DEF");
+  if (s.K > 0) slots.push("K");
+  return slots;
+}
+
+export function derivePositionGrades(
+  players: PlayerMarketRecord[],
+  format?: LeagueFormat | null
+): PositionGrades {
+  const posSlots = gradedSlots(format);
   const edgeFor = (filter: (p: PlayerMarketRecord) => boolean) => {
     const group = players.filter(filter);
-    return group.length ? avg(group.map(reputationEdge)) : 0;
+    return group.length ? avg(group.map(scarcityGap)) : 0;
   };
   const scores: Record<string, number> = {
     QB: edgeFor((p) => p.position === "QB"),
@@ -202,9 +230,15 @@ export function derivePositionGrades(players: PlayerMarketRecord[]): PositionGra
     WR: edgeFor((p) => p.position === "WR"),
     TE: edgeFor((p) => p.position === "TE"),
     FLEX: edgeFor((p) => p.position === "RB" || p.position === "WR"),
+    // A superflex slot is graded on everyone eligible to fill it, QBs included —
+    // which is the whole point of the slot.
+    SUPERFLEX: edgeFor(
+      (p) => p.position === "QB" || p.position === "RB" || p.position === "WR" || p.position === "TE"
+    ),
+    K: edgeFor((p) => p.position === "K"),
     DEF: players.length ? (avg(players.map((p) => (p.fragility < 35 ? 6 : -4)))) : 0,
   };
-  const overall = avg(players.map(reputationEdge));
+  const overall = avg(players.map(scarcityGap));
   return {
     overall: gradeFromScore(overall),
     positions: posSlots.map((pos) => ({ pos, grade: gradeFromScore(scores[pos] ?? 0) })),
@@ -231,7 +265,7 @@ export function deriveAggregateValueIndex(players: PlayerMarketRecord[]): string
  * (audit 2026-07-08 F-01: they were headed "Projected points").
  */
 export function deriveStartSitEdge(players: PlayerMarketRecord[]): Array<{ player: PlayerMarketRecord; value: number; bestAlt: number; edge: number }> {
-  const sorted = [...players].sort((a, b) => reputationEdge(b) - reputationEdge(a));
+  const sorted = [...players].sort((a, b) => scarcityGap(b) - scarcityGap(a));
   return sorted.slice(0, 5).map((player) => {
     const samePos = players.filter((p) => p.position === player.position && p.id !== player.id);
     const bestAlt = samePos.length ? samePos.sort((a, b) => b.trueValue - a.trueValue)[0].trueValue : player.perceivedValue;

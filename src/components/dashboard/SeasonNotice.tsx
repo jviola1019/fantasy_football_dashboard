@@ -14,7 +14,7 @@ export function SeasonNotice({ envelope, hasPlayers }: { envelope: RAEEnvelope; 
   if (!s || !hasPlayers) return null;
   if (envelope.draftState === "pre") {
     return (
-      <div className="predraft-notice" role="status">
+      <div className="predraft-notice">
         <b>Pre-draft {s.upcoming}.</b> Your {s.upcoming} roster isn&apos;t set yet — these are your{" "}
         {s.completed ?? "prior"}-season players, shown as a carryover baseline. Use{" "}
         <a href="/draft">Draft Intelligence</a> or the Mock Draft to plan your {s.upcoming} team.
@@ -23,7 +23,7 @@ export function SeasonNotice({ envelope, hasPlayers }: { envelope: RAEEnvelope; 
   }
   if (envelope.draftState === "post" && s.completed) {
     return (
-      <div className="predraft-notice" role="status">
+      <div className="predraft-notice">
         <b>{s.completed} season — final.</b> This is your completed {s.completed} roster. Your {s.upcoming} league
         hasn&apos;t been drafted yet; use <a href="/draft">Draft Intelligence</a> or the Mock Draft to
         plan {s.upcoming}.

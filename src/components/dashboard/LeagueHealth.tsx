@@ -1,6 +1,7 @@
 import type { CommandMetrics } from "@/lib/derivedMetrics";
 import { PanelCard } from "../ui/PanelCard";
 import { fmt } from "@/lib/utils";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 
 /**
  * League Health overview tile — the team-state KPI strip extracted verbatim from
@@ -19,12 +20,12 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
 
   const cards = [
     valuesUnavailable
-      ? { label: "Reputation Edge", value: "—", sub: "Value data unavailable", color: "neu" }
+      ? { label: EDGE_LABELS.metricNameTitle, value: "—", sub: "Value data unavailable", color: "neu" }
       : {
-          label: "Reputation Edge",
-          value: fmt(metrics.reputationEdge, 1),
+          label: EDGE_LABELS.metricNameTitle,
+          value: fmt(metrics.scarcityGap, 1),
           sub: "Avg True – Market Value",
-          color: metrics.reputationEdge >= 0 ? "pos" : "neg"
+          color: metrics.scarcityGap >= 0 ? "pos" : "neg"
         },
     valuesUnavailable
       ? { label: "Market Inefficiency", value: "—", sub: "Value data unavailable", color: "neu" }
@@ -47,7 +48,15 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
     {
       label: "League Advantage",
       value: Number.isFinite(metrics.leagueAdvantage) ? `${metrics.leagueAdvantage}%` : "—",
-      sub: "vs League Median",
+      // `sub` was the static "vs League Median", so above/below 50 was conveyed
+      // by colour alone — and the 50 threshold was never stated. The sibling
+      // cards already carry valence words ("High"/"Moderate"), so this follows
+      // the pattern that existed one array element above it.
+      sub: !Number.isFinite(metrics.leagueAdvantage)
+        ? "vs League Median"
+        : metrics.leagueAdvantage >= 50
+          ? "Above league median (50)"
+          : "Below league median (50)",
       color: !Number.isFinite(metrics.leagueAdvantage)
         ? "neu"
         : metrics.leagueAdvantage >= 50
@@ -64,7 +73,12 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
         }
   ];
   return (
-    <PanelCard id="league-health" titleId="lh-title" title="League Health" eyebrow="Your team's state at a glance.">
+    <PanelCard
+      id="league-health"
+      titleId="lh-title"
+      title="League Health"
+      eyebrow="Your team's state at a glance."
+    >
       <div className="kpi-row">
         {cards.map((c) => (
           <div key={c.label} className={`kpi-card kpi-${c.color}`}>

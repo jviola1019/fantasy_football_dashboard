@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { EDGE_LABELS } from "../src/lib/models/edgeDisclosure";
 
 /**
  * Panel matrix across the multi-route app: every system panel renders on its
@@ -69,7 +70,7 @@ test.describe("panels render on their routes", () => {
 
 test.describe("in-panel tabs switch content", () => {
   const cases: Array<{ panel: string; route: string; tabs: string[] }> = [
-    { panel: "market-intelligence", route: "/analytics", tabs: ["Market Pulse", "Liquidity Flow", "Sentiment", "Arbitrage", "Trends", "Price Discovery"] },
+    { panel: "market-intelligence", route: "/analytics", tabs: ["Market Pulse", "Liquidity Flow", "Sentiment", EDGE_LABELS.gapsTab, "Trends", "Price Discovery"] },
     { panel: "player-universe", route: "/players", tabs: ["Universe", "Tiers", "Comparison", "Watchlist", "Projections"] },
     { panel: "nexus-simulator", route: "/analytics", tabs: ["Multiverse", "Scenarios", "Risk Analysis"] },
     { panel: "trade-center", route: "/trades", tabs: ["Trade Builder", "Recent League Trades"] }

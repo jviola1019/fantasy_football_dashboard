@@ -31,7 +31,7 @@ export function LeagueList({ leagues }: { leagues: LeagueRecord[] }) {
         >
           <div>
             <div style={{ color: "var(--cream)", fontWeight: 600 }}>{league.label}</div>
-            <div style={{ color: "var(--muted)", fontSize: 12 }}>
+            <div style={{ color: "var(--muted)", fontSize: "var(--text-sm)" }}>
               {league.platform.toUpperCase()} · {league.externalLeagueId} · {league.season}
             </div>
           </div>
@@ -52,7 +52,7 @@ export function LeagueList({ leagues }: { leagues: LeagueRecord[] }) {
               padding: "6px 10px",
               borderRadius: 6,
               cursor: "pointer",
-              fontSize: 12
+              fontSize: "var(--text-sm)"
             }}
           >
             Remove

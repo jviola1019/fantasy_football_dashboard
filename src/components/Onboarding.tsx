@@ -10,9 +10,9 @@ export function Onboarding() {
   return (
     <main className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-10 sm:py-16">
       <header className="flex items-baseline gap-3">
-        <span className="text-2xl font-extrabold tracking-[0.16em] text-rae-blue">RAE</span>
-        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          Reputation Arbitrage Engine
+        <span className="text-lg font-extrabold tracking-[0.16em] text-rae-blue">RAE</span>
+        <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+          Roster Analytics Engine
         </span>
         <Link
           href="/login"
@@ -24,7 +24,7 @@ export function Onboarding() {
 
       <section className="mt-16 max-w-2xl sm:mt-24">
         <h1
-          className="text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl"
+          className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl"
           style={{ fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif' }}
         >
           Win your league with model-governed, source-traceable analytics.
@@ -54,7 +54,11 @@ export function Onboarding() {
           </Link>
           <Link
             href="/mock-draft"
-            className="text-sm font-semibold text-rae-blue underline-offset-4 hover:underline"
+            // inline-flex + py-3 gives this tertiary CTA the same 24px+ target
+            // height as the two buttons beside it (WCAG 2.2 AA SC 2.5.8); it
+            // measured 171x20 before. Kept visually text-only — only the hit
+            // area changes, not the emphasis hierarchy.
+            className="inline-flex items-center px-1 py-3 text-sm font-semibold text-rae-blue underline-offset-4 hover:underline"
           >
             Mock draft (no account) →
           </Link>
@@ -76,7 +80,7 @@ export function Onboarding() {
         ))}
       </section>
 
-      <footer className="mt-auto pt-16 text-[11px] text-muted-foreground">
+      <footer className="mt-auto pt-16 text-xs text-muted-foreground">
         Real data. Real models. Model-governed decisions.
       </footer>
     </main>
@@ -85,12 +89,12 @@ export function Onboarding() {
 
 const CAPABILITIES: { title: string; body: string }[] = [
   {
-    title: "Reputation edge",
+    title: "Scarcity gap",
     body: "Find players the market over- or under-prices versus their true value, with the gap and its drivers shown."
   },
   {
     title: "Season simulation",
-    body: "A seeded Monte-Carlo season: playoff / championship odds shown conditionally on win total, with uncertainty."
+    body: "A seeded Monte-Carlo season: playoff / championship SCENARIO frequencies shown conditionally on win total, against the league baseline. Reproducible, and openly labeled as not yet validated out of sample."
   },
   {
     title: "Draft & waivers",

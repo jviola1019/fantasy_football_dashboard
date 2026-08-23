@@ -100,17 +100,21 @@ const config: VercelConfig = {
       ]
     },
     {
-      // Baseline browser hardening for an authenticated dashboard (audit A-04).
-      // frame-ancestors must be a header (ignored in <meta>) and is the only CSP
-      // directive shipped for now — a full CSP needs nonce plumbing through
-      // Next's inline scripts and is tracked separately.
+      // Audit 2026-08-06 F-007: the full header set and the nonce-based CSP now
+      // come from the APP (next.config.mjs + src/proxy.ts), so they are visible
+      // to `next start`, Playwright and Lighthouse and are asserted in
+      // e2e/19-security-headers.spec.ts. Keeping duplicate copies here would
+      // mean two places to update and no gate on this one.
+      //
+      // What remains is a deliberate EDGE-LEVEL BACKSTOP for clickjacking:
+      // an enforcing `frame-ancestors` that applies even to responses the app
+      // never renders (edge errors, static assets, a failed deploy). The main
+      // policy ships report-only during rollout, so this is the one directive
+      // worth enforcing unconditionally, and it is the one directive that
+      // cannot be set from a <meta> tag.
       source: "/(.*)",
       headers: [
-        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
-        { key: "X-Frame-Options", value: "DENY" },
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" }
+        { key: "Content-Security-Policy", value: "frame-ancestors 'none'" }
       ]
     }
   ]

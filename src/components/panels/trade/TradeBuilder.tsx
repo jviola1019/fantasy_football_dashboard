@@ -39,7 +39,7 @@ export function TradeBuilder({
   return (
     <div className="trade-builder">
       <div className="section-label">
-        TRADE BUILDER — {format.numTeams}-team · {format.numQbs}QB · {format.ppr} PPR
+        TRADE BUILDER — {format.numTeams}-team · {format.numQbs}QB · {format.pprActual ?? format.ppr} PPR
       </div>
       <input
         className="galaxy-search"
@@ -71,12 +71,20 @@ export function TradeBuilder({
         <TradeSideColumn label="You get" side="B" players={sideB} onRemove={remove} />
       </div>
       <div className={`trade-verdict trade-verdict-${verdict.verdict}`} role="status">
-        <b>{verdict.totalA}</b> vs <b>{verdict.totalB}</b> ·{" "}
-        {verdict.verdict === "balanced"
-          ? "Fair trade"
-          : verdict.winner === "B"
-            ? `${(verdict.pctDelta * 100).toFixed(0)}% in your favor`
-            : `${(verdict.pctDelta * 100).toFixed(0)}% against you`}
+        {verdict.unpriced ? (
+          // Both sides must carry at least one priced player before any verdict
+          // is honest. Saying nothing is correct here; "Fair trade" was not.
+          <>Add players on both sides with available trade values to grade this trade.</>
+        ) : (
+          <>
+            <b>{verdict.totalA}</b> vs <b>{verdict.totalB}</b> ·{" "}
+            {verdict.verdict === "balanced"
+              ? "Fair trade"
+              : verdict.winner === "B"
+                ? `${(verdict.pctDelta * 100).toFixed(0)}% in your favor`
+                : `${(verdict.pctDelta * 100).toFixed(0)}% against you`}
+          </>
+        )}
       </div>
     </div>
   );

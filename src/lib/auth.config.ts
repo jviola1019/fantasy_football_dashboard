@@ -17,11 +17,21 @@ export const authConfig = {
   providers: [], // real providers are added in src/lib/auth.ts (Node runtime)
   callbacks: {
     jwt: ({ token, user }) => {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        // Session generation, stamped at sign-in (audit F-004). The server
+        // compares it against the DB on every protected read, so bumping the
+        // stored value revokes this token everywhere. Edge-safe: this is a
+        // pure copy, no database access.
+        token.sv = (user as { sessionVersion?: number }).sessionVersion;
+      }
       return token;
     },
     session: ({ session, token }) => {
       if (session.user && token.id) session.user.id = token.id as string;
+      if (session.user) {
+        (session.user as { sessionVersion?: number }).sessionVersion = token.sv as number | undefined;
+      }
       return session;
     },
     /**

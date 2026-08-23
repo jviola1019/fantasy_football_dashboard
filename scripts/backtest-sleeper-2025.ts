@@ -26,10 +26,29 @@ const leagueIds = (process.env.RAE_BACKTEST_LEAGUES ?? DEFAULT_LEAGUES.join(",")
   .filter(Boolean);
 
 const API = "https://api.sleeper.app/v1";
+/**
+ * Constrain what a Sleeper response may be before it is used, and ultimately
+ * written into a report on disk (CodeQL js/http-to-file-access).
+ *
+ * The path is a literal and the written content is derived numbers, so the
+ * traversal risk the rule guards is absent — but the check is still worth
+ * having on its own merits: an HTML error page or a redirect body parsed as
+ * JSON would otherwise flow silently into a backtest report as if it were data,
+ * which is exactly the class of failure this audit exists to catch.
+ *
+ * Sleeper always returns an object or an array for the endpoints used here;
+ * anything else is a malformed response, not data.
+ */
+function isJsonPayload(v: unknown): boolean {
+  return v !== null && (typeof v === "object");
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API}${path}`);
   if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
-  return (await res.json()) as T;
+  const body: unknown = await res.json().catch(() => null);
+  if (!isJsonPayload(body)) throw new Error(`${path} → response was not a JSON object/array`);
+  return body as T;
 }
 
 interface League { name: string; settings: { playoff_week_start: number; playoff_teams: number; num_teams: number }; draft_id?: string }

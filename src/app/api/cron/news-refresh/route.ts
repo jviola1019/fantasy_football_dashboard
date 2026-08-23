@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeEqual } from "@/lib/timingSafe";
+import { requireCronAuth } from "@/lib/security/cronAuth";
 import { fetchEspnNews } from "@/lib/espn/news";
 import { insertNewsSnapshot, pruneOldNewsSnapshots } from "@/lib/espn/newsSnapshot";
 import { redact } from "@/lib/redact";
@@ -23,14 +23,8 @@ const KEEP_LAST_MS = 7 * 24 * 60 * 60 * 1000;
  * NFL news year-round.
  */
 export async function GET(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  if (!expected) {
-    return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  }
-  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   try {
     const { articles, error } = await fetchEspnNews({ limit: 100 });
@@ -38,6 +32,31 @@ export async function GET(request: Request): Promise<Response> {
     if (error && articles.length === 0) {
       return NextResponse.json(
         { ok: false, error: redact(error) },
+        { status: 502 }
+      );
+    }
+
+    // An empty snapshot is not a snapshot.
+    //
+    // Audit 2026-08-22, P1-5. A fetch that "succeeded" with zero articles used
+    // to be written and reported ok:true. That is the worst of both worlds: the
+    // feature is dark, AND the freshness clock has just been reset, so
+    // /api/health reports the source as current and nothing anywhere says the
+    // news signal has no articles behind it. ESPN publishes NFL news
+    // year-round, so zero articles from a limit-100 request means the endpoint
+    // or the payload shape changed — a failure that happens to have returned
+    // HTTP 200.
+    //
+    // Refusing to write leaves the PREVIOUS snapshot in place, which is both
+    // more useful and more honest: it ages visibly against its contract instead
+    // of being replaced by nothing that looks new.
+    if (articles.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "ESPN returned zero articles; refusing to write an empty snapshot over the last good one",
+          fetchError: error ? redact(error) : null
+        },
         { status: 502 }
       );
     }

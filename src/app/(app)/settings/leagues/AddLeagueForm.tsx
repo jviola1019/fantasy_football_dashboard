@@ -11,10 +11,10 @@ const input: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.08)",
   borderRadius: 6,
   color: "var(--cream)",
-  fontSize: 13
+  fontSize: "var(--text-sm)"
 };
 
-const label: React.CSSProperties = { color: "var(--muted)", fontSize: 11, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 };
+const label: React.CSSProperties = { color: "var(--muted)", fontSize: "var(--text-xs)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 };
 
 export function AddLeagueForm() {
   const router = useRouter();
@@ -69,7 +69,7 @@ export function AddLeagueForm() {
       </div>
       {platform === "espn" ? (
         <div aria-live="polite" style={{ display: "grid", gap: 12, padding: 12, background: "rgba(0,0,0,0.25)", borderRadius: 8 }}>
-          <p id="espn-creds-instructions" style={{ margin: 0, color: "var(--muted)", fontSize: 12 }}>
+          <p id="espn-creds-instructions" style={{ margin: 0, color: "var(--muted)", fontSize: "var(--text-sm)" }}>
             In a browser logged into ESPN, open DevTools → Application → Cookies → fantasy.espn.com. Copy <code>espn_s2</code> and <code>SWID</code>.
           </p>
           <div>
@@ -87,7 +87,7 @@ export function AddLeagueForm() {
           <input id="sleeperUsername" name="sleeperUsername" type="text" placeholder="your Sleeper username" style={input} />
         </div>
       )}
-      {error ? <p role="alert" aria-live="polite" style={{ color: "var(--red)", margin: 0, fontSize: 13 }}>{error}</p> : null}
+      {error ? <p role="alert" aria-live="polite" style={{ color: "var(--red)", margin: 0, fontSize: "var(--text-sm)" }}>{error}</p> : null}
       <button
         type="submit"
         disabled={pending}

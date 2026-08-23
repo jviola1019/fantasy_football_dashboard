@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeEqual } from "@/lib/timingSafe";
+import { requireCronAuth } from "@/lib/security/cronAuth";
 import { fetchOpportunity } from "@/lib/nflverse/opportunity";
 import {
   insertOpportunitySnapshot,
@@ -26,14 +26,8 @@ const OPP_SOURCE = "nfl";
  * Gated by the Vercel CRON_SECRET Bearer token.
  */
 export async function GET(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  if (!expected) {
-    return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  }
-  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   try {
     await ensureOpportunityTable();

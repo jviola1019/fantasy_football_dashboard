@@ -21,7 +21,7 @@ export function AuditInfoTooltip({ label, children }: { label: string; children?
             ⓘ
           </button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-xs text-left text-[11px] leading-relaxed">
+        <TooltipContent className="max-w-xs text-left text-xs leading-relaxed">
           {children ?? label}
         </TooltipContent>
       </Tooltip>

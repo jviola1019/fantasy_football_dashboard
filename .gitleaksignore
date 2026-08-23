@@ -1,0 +1,77 @@
+# Gitleaks exceptions — EXACT FINGERPRINTS ONLY (audit 2026-08-06, P1 §7)
+#
+# Every entry is commit:file:rule:line. Nothing here is a wildcard, a path glob,
+# or a rule-wide exemption: a new secret in any of these same files, or a new
+# occurrence on a different line, still fails the scan. That constraint is the
+# whole point — an exception list that suppresses a CLASS of finding is
+# indistinguishable from having no scanner.
+#
+# WHY AN EXCEPTION LIST, AND WHY NOT REWRITE HISTORY
+#
+# The audit offered rewriting this remediation branch as the alternative. That
+# was checked, and it does not work. Of the seven commits carrying findings, SIX
+# are already ancestors of origin/main:
+#
+#   ec2662bf (2026-05-18)
+#   82d97e85  4a8fa026  015de0ef  6f507108  (2026-06-09)
+#   d7874ae7 (2026-06-10)
+#
+# and only 671989bf is branch-only. Rewriting this branch would leave 12 of the
+# 13 findings untouched. Rewriting main's history is out of scope and gated on
+# owner approval besides. So history is treated as immutable and the TIP is
+# fixed instead.
+#
+# THE TIP IS CLEAN — verified after remediation: a gitleaks scan of all 456
+# tracked files reports "no leaks found". The synthetic detector fixtures that
+# caused most of these are now ASSEMBLED AT RUNTIME from a seeded SHA-256 in
+# src/lib/security/docSecrets.test.ts, so no secret-shaped literal is committed
+# at all. The false positive is removed at its source rather than suppressed,
+# and only frozen history needs the entries below.
+#
+# OWNER: repository owner (jviola1019).
+# REMOVAL CONDITION: delete this file wholesale if the repository's history is
+# ever rewritten or the repository re-created. Never append a line for a NEW
+# finding without adjudicating it the way the two groups below are adjudicated.
+
+# ---------------------------------------------------------------------------
+# GROUP A — a REAL credential, already rotated (8 findings)
+#
+# Credential class: DB_INIT_TOKEN — the x-init-token header for
+# POST /api/admin/init-db.
+# Location:  committed history only; absent from the tip.
+# Exposure:  2026-05-18 until rotation. Redacted at tip in f363637 and ROTATED
+#            since — see reports/audit-2026-07-08-fable.md A-01.
+# Residual:  the plaintext is burned. Its SHA-256 is in BURNED_SECRET_HASHES
+#            (src/lib/security/docSecrets.ts), so check:secrets fails if it is
+#            ever reintroduced — even on a line with no secret keyword, and even
+#            if that line would otherwise be allow-listed.
+# No further action is possible on the committed copies short of a history
+# rewrite, which is an owner decision and would not be worth the disruption for
+# an already-rotated credential.
+ec2662bfbe1ea00c03460492e07e3b09428fdcee:DEPLOY_TO_VERCEL.md:curl-auth-header:51
+ec2662bfbe1ea00c03460492e07e3b09428fdcee:DEPLOY_TO_VERCEL.md:generic-api-key:52
+82d97e856458b0eeb6e10c75b84f0bb2384f8f89:docs/superpowers/plans/2026-06-09-p0-secret-hardening.md:curl-auth-header:70
+82d97e856458b0eeb6e10c75b84f0bb2384f8f89:docs/superpowers/plans/2026-06-09-p0-secret-hardening.md:generic-api-key:71
+82d97e856458b0eeb6e10c75b84f0bb2384f8f89:docs/superpowers/plans/2026-06-09-p0-secret-hardening.md:generic-api-key:100
+4a8fa0262a8ca843e96d9e897378c0146ac35757:src/lib/security/docSecrets.test.ts:curl-auth-header:10
+4a8fa0262a8ca843e96d9e897378c0146ac35757:src/lib/security/docSecrets.test.ts:generic-api-key:11
+4a8fa0262a8ca843e96d9e897378c0146ac35757:src/lib/security/docSecrets.test.ts:generic-api-key:40
+
+# ---------------------------------------------------------------------------
+# GROUP B — SYNTHETIC test fixtures, never real (5 findings)
+#
+# High-entropy strings written deliberately to exercise the secret detector in
+# src/lib/security/docSecrets.test.ts, plus the copies embedded in the
+# 2026-06-09 planning document that quotes that test verbatim.
+#
+# They authenticate to nothing and never did: they were generated as shape-only
+# stand-ins so the detector's own tests could assert it catches a 44-char base64
+# value, a 32-char token and a hyphen-prefixed secret. The source comment beside
+# them always said "SYNTHETIC ... never real secrets" — Gitleaks simply cannot
+# read comments, which is precisely why they are now derived from a seeded hash
+# at runtime rather than written down.
+6f507108fb988157225ab2e8228ca9e4f75532d0:docs/superpowers/plans/2026-06-09-p0-secret-hardening.md:curl-auth-header:71
+6f507108fb988157225ab2e8228ca9e4f75532d0:docs/superpowers/plans/2026-06-09-p0-secret-hardening.md:generic-api-key:100
+015de0ef5dbb07e10216d2fe6680d988558c8f5f:src/lib/security/docSecrets.test.ts:generic-api-key:6
+671989bfa93b01d5b5794565c5aa73957651ba07:src/lib/security/docSecrets.test.ts:generic-api-key:36
+d7874ae7275206c38cd3faf1c673a71bc1d46255:src/lib/security/docSecrets.test.ts:generic-api-key:66

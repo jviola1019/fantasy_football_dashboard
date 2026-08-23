@@ -33,6 +33,32 @@ describe("spearman", () => {
   it("returns -1 for a perfectly inversely ranked pair", () => {
     expect(spearman([1, 2, 3, 4], [40, 30, 20, 10])).toBeCloseTo(-1, 5);
   });
+  // ── P2-4 (audit 2026-08-22) ───────────────────────────────────────────────
+  it("is inert on a constant input instead of inventing an ordering", () => {
+    // `rank` used to assign [1,2,3,4] to [5,5,5,5] by sort position, so a
+    // zero-variance bucket carried an arbitrary ordering into the correlation.
+    expect(spearman([5, 5, 5, 5], [1, 2, 3, 4])).toBe(0);
+    expect(spearman([1, 2, 3, 4], [5, 5, 5, 5])).toBe(0);
+  });
+
+  it("gives tied values the same rank, so pair order cannot change the answer", () => {
+    // Perfectly concordant with ties.
+    expect(spearman([1, 1, 2, 2], [1, 1, 2, 2])).toBeCloseTo(1, 10);
+    // Reversing y is genuinely anti-correlated -- that is not a tie artifact.
+    expect(spearman([1, 1, 2, 2], [2, 2, 1, 1])).toBeCloseTo(-1, 10);
+    // The statistic must not depend on the order the PAIRS are listed in.
+    // Under the old sort-position ranking it did, because ties were broken by
+    // whichever tied element the sort happened to place first.
+    expect(spearman([2, 1, 2, 1], [2, 1, 2, 1])).toBeCloseTo(1, 10);
+    expect(spearman([1, 2, 1, 2], [1, 2, 1, 2])).toBeCloseTo(1, 10);
+  });
+
+  it("matches the reference mid-rank value on a half-tied set", () => {
+    // x = [1,2,2,3] -> ranks [1, 2.5, 2.5, 4]; y = [10,20,30,40] -> [1,2,3,4].
+    // Pearson on those ranks is 0.9486832980505138.
+    expect(spearman([1, 2, 2, 3], [10, 20, 30, 40])).toBeCloseTo(0.9486832980505138, 10);
+  });
+
 });
 
 describe("realizedVor", () => {

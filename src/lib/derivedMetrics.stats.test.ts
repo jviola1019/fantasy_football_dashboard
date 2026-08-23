@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixturePlayers } from "./fixtures";
+import { DEFAULT_FORMAT, type LeagueFormat, type LeagueStarters } from "./trade/format";
 import {
   deriveCommandMetrics,
   deriveMarketMetrics,
@@ -13,7 +14,7 @@ import {
   chaosScore
 } from "./derivedMetrics";
 import { runNexusSimulation } from "./simulation";
-import { reputationEdge, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
+import { scarcityGap, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
 import type { PlayerMarketRecord } from "./governance";
 
 const sim = runNexusSimulation(fixturePlayers, {
@@ -35,10 +36,10 @@ const sim = runNexusSimulation(fixturePlayers, {
  */
 describe("derivedMetrics — statistical properties", () => {
   describe("per-player formulas", () => {
-    it("reputationEdge: determinism + bounded", () => {
+    it("scarcityGap: determinism + bounded", () => {
       for (const p of fixturePlayers) {
-        const a = reputationEdge(p);
-        const b = reputationEdge(p);
+        const a = scarcityGap(p);
+        const b = scarcityGap(p);
         expect(a).toBe(b);
         // Formula: trueValue - perceivedValue + ownLev*0.18 - frag*0.08
         // Inputs are 0..100 (or ±100 for ownership), so bound is wide but finite.
@@ -47,10 +48,10 @@ describe("derivedMetrics — statistical properties", () => {
       }
     });
 
-    it("reputationEdge: monotonic in trueValue (sensitivity)", () => {
+    it("scarcityGap: monotonic in trueValue (sensitivity)", () => {
       const p = fixturePlayers[0]!;
-      const before = reputationEdge(p);
-      const after = reputationEdge({ ...p, trueValue: p.trueValue + 10 });
+      const before = scarcityGap(p);
+      const after = scarcityGap({ ...p, trueValue: p.trueValue + 10 });
       expect(after).toBeGreaterThan(before);
     });
 
@@ -96,13 +97,13 @@ describe("derivedMetrics — statistical properties", () => {
       const base = deriveCommandMetrics(fixturePlayers);
       const up = deriveCommandMetrics(lifted);
       expect(up.leagueAdvantage).toBeGreaterThanOrEqual(base.leagueAdvantage);
-      expect(up.reputationEdge).toBeGreaterThan(base.reputationEdge);
+      expect(up.scarcityGap).toBeGreaterThan(base.scarcityGap);
     });
 
-    it("deriveMarketMetrics: arbitrageCount in [0, n]", () => {
+    it("deriveMarketMetrics: largeGapCount in [0, n]", () => {
       const m = deriveMarketMetrics(fixturePlayers);
-      expect(m.arbitrageCount).toBeGreaterThanOrEqual(0);
-      expect(m.arbitrageCount).toBeLessThanOrEqual(fixturePlayers.length);
+      expect(m.largeGapCount).toBeGreaterThanOrEqual(0);
+      expect(m.largeGapCount).toBeLessThanOrEqual(fixturePlayers.length);
       expect(["Inefficient", "Efficient"]).toContain(m.marketRegime);
     });
 
@@ -168,11 +169,54 @@ describe("derivedMetrics — statistical properties", () => {
       for (const row of g.positions) expect(valid.test(row.grade)).toBe(true);
     });
 
+    describe("derivePositionGrades follows the league's real lineup (F-012)", () => {
+      // The scorecard used a hardcoded ["QB","RB","WR","TE","FLEX","DEF"], so a
+      // superflex league never saw a SUPERFLEX grade and NO league ever saw a K
+      // grade — a slot the user has to fill every single week.
+      const starters = (o: Partial<LeagueStarters> = {}): LeagueStarters => ({
+        QB: 1, RB: 2, WR: 2, TE: 1, FLEX: 1, DEF: 1, K: 1, SUPERFLEX: 0, ...o
+      });
+      const fmt = (o: Partial<LeagueStarters> = {}): LeagueFormat => ({
+        ...DEFAULT_FORMAT,
+        starters: starters(o)
+      });
+      const slotsOf = (f: LeagueFormat | null) =>
+        derivePositionGrades(fixturePlayers, f).positions.map((p) => p.pos);
+
+      it("grades K when the league actually starts one", () => {
+        expect(slotsOf(fmt())).toContain("K");
+      });
+
+      it("omits K when the league does not start one", () => {
+        expect(slotsOf(fmt({ K: 0 }))).not.toContain("K");
+      });
+
+      it("grades SUPERFLEX only in a superflex league", () => {
+        expect(slotsOf(fmt({ SUPERFLEX: 1 }))).toContain("SUPERFLEX");
+        expect(slotsOf(fmt())).not.toContain("SUPERFLEX");
+      });
+
+      it("omits FLEX when the league has no flex slot", () => {
+        expect(slotsOf(fmt({ FLEX: 0 }))).not.toContain("FLEX");
+      });
+
+      it("keeps the historical slot list when no league is connected", () => {
+        expect(slotsOf(null)).toEqual(["QB", "RB", "WR", "TE", "FLEX", "DEF"]);
+      });
+
+      it("still emits a valid letter for every slot it does grade", () => {
+        const valid = /^[ABCD][+-]?$/;
+        for (const row of derivePositionGrades(fixturePlayers, fmt({ SUPERFLEX: 1 })).positions) {
+          expect(valid.test(row.grade), `${row.pos} → ${row.grade}`).toBe(true);
+        }
+      });
+    });
+
     it("deriveStartSitEdge: edge = value - bestAlt is finite and consistent", () => {
       const rows = deriveStartSitEdge(fixturePlayers);
       expect(rows.length).toBeGreaterThan(0);
       for (const r of rows) {
-        // The function ranks by reputationEdge (which can favor a player even
+        // The function ranks by scarcityGap (which can favor a player even
         // when their trueValue is lower than the same-position best), so edge
         // can legitimately be negative. We only assert the value is consistent.
         expect(Number.isFinite(r.value)).toBe(true);

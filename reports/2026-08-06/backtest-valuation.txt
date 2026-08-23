@@ -1,0 +1,97 @@
+# Out-of-sample backtest — shipped rank-ratio VBD vs points-above-replacement
+# generated 2026-08-20T13:30:00.511Z
+#
+# Both forecasters run through the IDENTICAL production simulation.
+# The only difference is the valuation transform.
+
+## Leagues
+
+league               season  teams  fmt   wks  drafted  scored  made
+Joe V                2022    10     PPR   14   150      150     6
+Creamy Les Coot      2022    10     PPR   13   140      140     6
+Creamy Les Coot      2023    10     PPR   13   140      138     6
+Creamy Les Coot      2024    10     PPR   13   140      140     6
+Creamy Les Coot 4.0  2025    10     PPR   14   150      147     6
+
+## Temporal split for the PAR curve (leakage control 3)
+
+Each league's curve is fitted ONLY on strictly earlier seasons. A league
+with no prior season gets no PAR forecast at all rather than a curve that
+has seen its own outcomes.
+
+league               season  curve fitted on      obs   PAR?
+Joe V                2022    (none)               0     no
+Creamy Les Coot      2022    (none)               0     no
+Creamy Les Coot      2023    2022                 156.0 yes
+Creamy Les Coot      2024    2022,2023            294.0 yes
+Creamy Les Coot 4.0  2025    2022,2023,2024       434.0 yes
+
+## Dependence and pseudo-replication in the curve training data
+
+The backtest pools observations from every earlier league, so ONE NFL
+player-season appears once per league that drafted them - a different ADP
+rank each time, but literally the same outcome. That is not automatically
+wrong (ADP is league-specific), but the rows are correlated and must not
+be counted as independent evidence.
+
+fit for            raw   unique  dup   multi-lg  leagues  seasons  design effect
+Creamy Les C 2023   290     156  134       134        2  2022           1.86
+Creamy Les C 2024   428     294  134       134        3  2022/2023      1.46
+Creamy Les C 2025   568     434  134       134        4  2022/2023/2024 1.31
+
+Per-position effective sample for the LARGEST fit:
+
+position  raw   effective  distinct ranks  design effect
+RB         165        125              46  1.32
+WR         207        157              53  1.32
+TE          58         45              16  1.29
+QB          58         44              15  1.32
+DEF         39         31              10  1.26
+K           41         32              11  1.28
+
+Aggregation comparison on the same fit (A/B/C from audit SS5).
+Reported side by side; the DEFAULT is chosen on statistical grounds
+(cluster-weighted), NOT by whichever scores best here.
+
+mode              effective obs  QB1 expected pts  RB1 expected pts
+league-level              568.0            295.3            219.7
+player-season             434.0            293.4            208.3
+cluster-weighted          434.0            293.5            209.2
+
+## Headline
+
+  base rate (structural) ..... 0.6000
+  observed qualification ..... 0.6000
+
+                              n    Brier    logloss  AUC      vs climatology
+  RANK (shipped)             50   0.3098  0.8267  0.3058  -0.2908
+  PAR  (candidate)           30   0.3289  0.8778  0.4051  -0.3704
+  climatology (p=0.60)       50   0.2400
+  raw draft capital          50     —        —      0.5033
+
+## Like-for-like (same rows both forecasters could score)
+
+  n .......................... 30
+  RANK Brier ................. 0.3353   AUC 0.2546
+  PAR  Brier ................. 0.3289   AUC 0.4051
+  climatology Brier .......... 0.2400
+
+## Uncertainty — cluster bootstrap over leagues (5000 resamples)
+
+  RANK AUC ................... [0.1333, 0.4450]  (5 clusters, 105 distinct resample values)
+  PAR  AUC ................... [0.3750, 0.4583]  (3 clusters, 9 distinct resample values)
+  RANK skill ................. [-0.4588, -0.1320]  (5 clusters, 138 distinct resample values)
+  PAR  skill ................. [-0.6824, -0.1074]  (3 clusters, 10 distinct resample values)
+
+## Verdict
+
+  RANK (shipped): ranking is significantly INVERTED (AUC CI entirely below 0.5).
+                  and is significantly WORSE calibrated than a constant.
+
+  PAR  (candidate): ranking is significantly INVERTED (AUC CI entirely below 0.5).
+                    and is significantly WORSE calibrated than a constant.
+
+
+  Effective sample size is nearer 5 leagues than 50 rows,
+  and PAR is scored on only 3 of them (the rest have no prior season).
+  No parameter was fitted on the season being scored.

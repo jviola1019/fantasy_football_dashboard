@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
+import { updateLeagueSettingsForUser } from "@/lib/leagues";
+import { KeeperCostRuleSchema } from "@/lib/trade/format";
 import { getDb } from "@/db";
 import { createLeague, deleteLeagueForUser, findUserLeagueByExternal, getLeagueForUser } from "@/lib/leagues";
 import { setActiveLeagueCookie } from "@/lib/activeLeague";
@@ -22,9 +24,9 @@ const addLeagueSchema = z.object({
 export type AddLeagueResult = { ok: true; leagueId: string } | { ok: false; error: string };
 
 export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
 
   const parsed = addLeagueSchema.safeParse({
     platform: formData.get("platform"),
@@ -85,10 +87,63 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
   }
 }
 
+/**
+ * Persist the league rules an owner must confirm because no platform publishes
+ * them (audit F-010).
+ *
+ * Verified against a real ESPN keeper league across four seasons: `draftSettings`
+ * carries keeperCount and keeperOrderType but NO cost field, the 2025 draft has
+ * zero keeper picks to infer from, and the keeper rule only began in 2026. So
+ * the cost is a league convention that exists nowhere in the data. Rather than
+ * guess it — a keeper decision is irreversible for the season — the app asks
+ * once and stores the answer.
+ *
+ * Only owner-confirmable fields are accepted. Scoring, roster slots and team
+ * count stay DETECTED, so the app can never report settings that disagree with
+ * the league itself.
+ */
+const confirmSettingsSchema = z.object({
+  leagueId: z.string().min(1),
+  keeperCostRule: KeeperCostRuleSchema,
+  keeperCostRound: z.coerce.number().int().positive().max(30).nullable().catch(null),
+  draftSlot: z.coerce.number().int().positive().max(32).nullable().catch(null)
+});
+
+export async function confirmLeagueSettings(formData: FormData): Promise<AddLeagueResult> {
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const raw = {
+    leagueId: formData.get("leagueId"),
+    keeperCostRule: formData.get("keeperCostRule"),
+    keeperCostRound: formData.get("keeperCostRound") || null,
+    draftSlot: formData.get("draftSlot") || null
+  };
+  const parsed = confirmSettingsSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Invalid settings input" };
+
+  const { leagueId, keeperCostRule, keeperCostRound, draftSlot } = parsed.data;
+  // A fixed-round rule without a round is not a confirmation, it is a gap.
+  if (keeperCostRule === "fixed-round" && !keeperCostRound) {
+    return { ok: false, error: "Choose which round a keeper costs." };
+  }
+
+  const updated = await updateLeagueSettingsForUser(getDb(), user.id, leagueId, {
+    keeperCostRule,
+    keeperCostRound: keeperCostRule === "fixed-round" ? keeperCostRound : null,
+    draftSlot
+  });
+  if (!updated) return { ok: false, error: "League not found" };
+
+  revalidatePath("/settings/leagues");
+  revalidatePath("/draft");
+  return { ok: true, leagueId };
+}
+
 export async function removeLeague(leagueId: string): Promise<AddLeagueResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
   const deleted = await deleteLeagueForUser(getDb(), userId, leagueId);
   if (!deleted) return { ok: false, error: "not found" };
   revalidatePath("/settings/leagues");
@@ -101,9 +156,9 @@ export async function removeLeague(leagueId: string): Promise<AddLeagueResult> {
  * even though getActiveLeagueId re-validates on every read.
  */
 export async function setActiveLeagueAction(leagueId: string): Promise<AddLeagueResult> {
-  const session = await auth();
-  const userId = session?.user?.id;
-  if (!userId) return { ok: false, error: "unauthenticated" };
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+  const userId = user.id;
   const league = await getLeagueForUser(getDb(), userId, leagueId);
   if (!league) return { ok: false, error: "not found" };
   await setActiveLeagueCookie(leagueId);

@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
-import { reputationEdge } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
+import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
+import { OpportunityEvidenceNotice } from "@/components/model/OpportunityEvidenceNotice";
+import { OPPORTUNITY_SCOPE_LIMIT } from "@/lib/models/opportunityEvidence";
 import { PanelCard } from "../ui/PanelCard";
 import { DataUnavailable } from "../ui/DataUnavailable";
 
@@ -20,7 +24,7 @@ interface RankedFreeAgent {
 }
 
 export function WaiverWire({ players, envelope }: Props) {
-  // The Edge column derives from reputationEdge() which mixes trueValue +
+  // The Edge column derives from scarcityGap() which mixes trueValue +
   // perceivedValue + ownershipLeverage * 0.18 - fragility * 0.08. The
   // fragility term is zero pre-injury-adapter (always), so the Edge value
   // is meaningful only when opportunity is also populated (which it isn't
@@ -52,7 +56,6 @@ export function WaiverWire({ players, envelope }: Props) {
       id="waiver-wire"
       titleId="ww-title"
       title="Waiver Wire"
-      source={envelope?.sourceState}
       eyebrow={
         showEdge
           ? "Rank free agents by value, opportunity & scarcity."
@@ -69,6 +72,14 @@ export function WaiverWire({ players, envelope }: Props) {
         />
       }
     >
+      {/* The Edge column below is edge-derived; protocol 3 found it does not
+          identify mispriced players and is inverted within position. */}
+      {/* Both notices, together and in this order. The edge score is the retracted
+          one and opportunity is the validated one, so showing either alone would
+          misrepresent what is driving the ranking. */}
+      {showEdge ? <EdgeDisclosureNotice variant="banner" /> : null}
+      {showEdge ? <OpportunityEvidenceNotice variant="banner" /> : null}
+
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Ranked free agents table">
           <div className="section-label">
@@ -81,7 +92,7 @@ export function WaiverWire({ players, envelope }: Props) {
                 <th>Position</th>
                 <th>Team</th>
                 <th>Value</th>
-                {showEdge ? <th>Edge</th> : null}
+                {showEdge ? <th>{EDGE_LABELS.column}</th> : null}
                 <th>Scarcity</th>
                 <th>Score</th>
               </tr>
@@ -116,7 +127,7 @@ export function WaiverWire({ players, envelope }: Props) {
           {!showEdge ? (
             <p className="small-note">
               Edge/opportunity hidden — in-season opportunity data not integrated yet. Ranking uses
-              player value + position scarcity (both real).
+              player value + position scarcity (both real). {OPPORTUNITY_SCOPE_LIMIT}
             </p>
           ) : null}
         </div>
@@ -151,7 +162,7 @@ function rankFreeAgents(
 
   return [...players]
     .map((player) => {
-      const edge = reputationEdge(player);
+      const edge = scarcityGap(player);
       // Importance is driven by the player's own VALUE (the best available
       // player is the most important pickup); undervaluation (edge) and
       // in-season opportunity add to it only when those signals are real; a thin

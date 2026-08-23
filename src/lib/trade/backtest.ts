@@ -7,12 +7,34 @@ export interface SeasonPlayer {
 /** Replacement-rank baseline per position for a 12-team, 1QB league. */
 export const REPLACEMENT_RANKS: Record<string, number> = { QB: 13, RB: 25, WR: 37, TE: 13 };
 
+/**
+ * Ranks with MID-RANK (average) handling for ties.
+ *
+ * Audit 2026-08-22, P2-4. This previously assigned distinct sequential ranks by
+ * sort position, so tied values were ordered by whatever the sort happened to
+ * do. Two consequences, both bad:
+ *
+ *   - A zero-variance input like [5, 5, 5, 5] came back as [1, 2, 3, 4]. That
+ *     is not a degenerate case producing zero correlation, it is an ARBITRARY
+ *     ordering invented from nothing, and `spearman` then correlated against
+ *     it as though it meant something. Degenerate buckets should be inert.
+ *   - Genuine ties anywhere in the data were broken by array order, so the
+ *     same numbers in a different order gave a different correlation.
+ *
+ * `scripts/holdout-evaluate-3.ts` already used average ranks for exactly this
+ * reason; the shipped implementation did not. Now they agree.
+ */
 function rank(values: number[]): number[] {
   const order = values.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0]);
   const ranks = new Array<number>(values.length);
-  order.forEach(([, originalIndex], sortedIndex) => {
-    ranks[originalIndex] = sortedIndex + 1;
-  });
+  for (let i = 0; i < order.length; ) {
+    let j = i;
+    while (j + 1 < order.length && order[j + 1]![0] === order[i]![0]) j += 1;
+    // 1-based mid-rank shared by every member of the tie group.
+    const midRank = (i + j) / 2 + 1;
+    for (let k = i; k <= j; k += 1) ranks[order[k]![1]] = midRank;
+    i = j + 1;
+  }
   return ranks;
 }
 
