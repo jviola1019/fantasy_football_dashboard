@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeEqual } from "@/lib/timingSafe";
+import { requireCronAuth } from "@/lib/security/cronAuth";
 import {
   buildSnapshotPayload,
   fetchSleeperWeeklyProjections,
@@ -31,14 +31,8 @@ const KEEP_LAST_MS = 14 * 24 * 60 * 60 * 1000;
  * `skipped: true` rather than writing an empty row.
  */
 export async function GET(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  if (!expected) {
-    return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  }
-  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   // Resolve current week.
   let season: string;

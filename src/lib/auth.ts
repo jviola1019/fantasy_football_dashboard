@@ -1,18 +1,9 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
-import { z } from "zod";
 import { authConfig } from "./auth.config";
 import { getDb, schema } from "../db";
-import { authenticateUser } from "./users";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "./passwords";
-
-// Mirrors the bounds in app/login/actions.ts — the provider is reachable
-// directly via the Auth.js route, so it must enforce them independently.
-const credentialsSchema = z.object({
-  email: z.string().email().max(320),
-  password: z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH)
-});
+import { authorizeCredentials } from "./auth/credentials";
 
 function buildConfig(): NextAuthConfig {
   return {
@@ -35,20 +26,7 @@ function buildConfig(): NextAuthConfig {
           email: { label: "Email", type: "email" },
           password: { label: "Password", type: "password" }
         },
-        authorize: async (raw) => {
-          const parsed = credentialsSchema.safeParse(raw);
-          if (!parsed.success) return null;
-          const user = await authenticateUser(getDb(), parsed.data.email, parsed.data.password);
-          if (!user) return null;
-          // sessionVersion rides along so the jwt callback can stamp it without
-          // a second query (audit F-004).
-          return {
-            id: user.id,
-            email: user.email,
-            name: user.name ?? undefined,
-            sessionVersion: user.sessionVersion
-          };
-        }
+        authorize: (raw) => authorizeCredentials(raw)
       })
     ]
   };

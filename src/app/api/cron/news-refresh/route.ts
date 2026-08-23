@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeEqual } from "@/lib/timingSafe";
+import { requireCronAuth } from "@/lib/security/cronAuth";
 import { fetchEspnNews } from "@/lib/espn/news";
 import { insertNewsSnapshot, pruneOldNewsSnapshots } from "@/lib/espn/newsSnapshot";
 import { redact } from "@/lib/redact";
@@ -23,14 +23,8 @@ const KEEP_LAST_MS = 7 * 24 * 60 * 60 * 1000;
  * NFL news year-round.
  */
 export async function GET(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  if (!expected) {
-    return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  }
-  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   try {
     const { articles, error } = await fetchEspnNews({ limit: 100 });

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeEqual } from "@/lib/timingSafe";
+import { requireCronAuth } from "@/lib/security/cronAuth";
 import { fetchSleeperPlayersMap } from "@/lib/sleeper/players";
 import { insertPlayersSnapshot, pruneOldSnapshots } from "@/lib/sleeper/snapshot";
 import { redact, unwrap } from "@/lib/redact";
@@ -10,15 +10,8 @@ export const maxDuration = 60;
 const KEEP_LAST_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export async function GET(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  // Vercel's Cron Jobs send `Authorization: Bearer <CRON_SECRET>` when CRON_SECRET is set.
-  if (!expected) {
-    return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  }
-  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   // Track which stage failed so operators can see whether the fault is in the
   // upstream Sleeper fetch, the Drizzle insert, or the prune cleanup.

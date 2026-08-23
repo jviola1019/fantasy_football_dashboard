@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { safeEqual } from "@/lib/timingSafe";
+import { requireCronAuth } from "@/lib/security/cronAuth";
 import { fetchKtcRankings } from "@/lib/ktc/scrape";
 import { insertKtcSnapshot, pruneOldKtcSnapshots } from "@/lib/ktc/snapshot";
 import type { KtcVariant } from "@/lib/ktc/types";
@@ -24,14 +24,8 @@ interface VariantResult {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const auth = request.headers.get("authorization");
-  const expected = process.env.CRON_SECRET;
-  if (!expected) {
-    return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 503 });
-  }
-  if (!safeEqual(auth ?? "", `Bearer ${expected}`)) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  }
+  const denied = requireCronAuth(request);
+  if (denied) return denied;
 
   // Run each variant under its own try so a failure in dynasty doesn't
   // lose the redraft snapshot (or vice versa).
