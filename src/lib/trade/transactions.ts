@@ -1,5 +1,5 @@
 import type { PlayerValue } from "./values";
-import { evaluateTrade, type TradeVerdict } from "./evaluate";
+import { evaluateTrade, multiTeamTrade, type TradeVerdict } from "./evaluate";
 import { getTransactions, getNflState } from "../sleeper/league";
 import { getTransactions as getEspnTransactions } from "../espn/league";
 import type { EspnClient } from "../espn/client";
@@ -48,25 +48,34 @@ export function normalizeSleeperTrades(
   const out: GradedTrade[] = [];
   for (const t of txns) {
     if (t.type !== "trade" || t.status !== "complete") continue;
+    // Sleeper states the participants directly, so the team count needs no
+    // inference. Same defect as the ESPN path (audit 2026-08-22, P1-4): a
+    // three-roster trade used to sweep rosters B and C into one "side B" under
+    // roster B's name and grade A against the pair.
     const rosterIds = t.roster_ids ?? [];
     const rosterA = rosterIds[0];
     if (rosterA == null) continue;
+    const rosterB = rosterIds[1];
+    const multiTeam = rosterIds.length > 2;
+
     const sideA: PlayerValue[] = [];
     const sideB: PlayerValue[] = [];
     for (const [playerId, rosterId] of Object.entries(t.adds ?? {})) {
       const pv = valueMap.get(playerId);
       if (!pv) continue;
-      (rosterId === rosterA ? sideA : sideB).push(pv);
+      if (rosterId === rosterA) sideA.push(pv);
+      else if (rosterB != null && rosterId === rosterB) sideB.push(pv);
     }
-    const rosterB = rosterIds[1];
+
+    const labelB = rosterB != null ? rosterLabel(rosterB) : "Roster ?";
     out.push({
       id: `sleeper-${t.created ?? out.length}`,
       proposedAt: new Date(t.created ?? Date.now()).toISOString(),
       sideALabel: rosterLabel(rosterA),
-      sideBLabel: rosterB != null ? rosterLabel(rosterB) : "Roster ?",
+      sideBLabel: multiTeam ? `${labelB} +${rosterIds.length - 2} more` : labelB,
       sideA,
       sideB,
-      verdict: evaluateTrade(sideA, sideB)
+      verdict: multiTeam ? multiTeamTrade(rosterIds.length) : evaluateTrade(sideA, sideB)
     });
   }
   return out;
@@ -133,23 +142,44 @@ export function normalizeEspnTrades(
       (i) => i.playerId != null && i.fromTeamId != null && i.toTeamId != null && i.fromTeamId !== i.toTeamId
     );
     if (items.length === 0) continue;
+
+    // How many DISTINCT teams are actually in this deal.
+    //
+    // Audit 2026-08-22, P1-4: the old bucketing was "did this item go to team
+    // A?", with everything else swept into side B under side B's label. In a
+    // three-team trade that attributed team C's haul to team B and then graded
+    // A against B-plus-C — a specific, confident, wrong verdict, printed beside
+    // the wrong team name. Multi-team deals are now reported as what they are.
+    const teams = new Set<number>();
+    for (const i of items) {
+      if (i.fromTeamId != null) teams.add(i.fromTeamId);
+      if (i.toTeamId != null) teams.add(i.toTeamId);
+    }
+
     const teamA = items[0]!.toTeamId;
+    const teamB = items.find((i) => i.toTeamId !== teamA)?.toTeamId;
+    const multiTeam = teams.size > 2;
+
     const sideA: PlayerValue[] = [];
     const sideB: PlayerValue[] = [];
     for (const item of items) {
       const pv = valueByEspnId.get(String(item.playerId));
       if (!pv) continue;
-      (item.toTeamId === teamA ? sideA : sideB).push(pv);
+      // In a multi-team deal only the two named sides are populated; a third
+      // team's players are deliberately NOT folded into side B, because side B
+      // is labelled with team B's name and does not contain them.
+      if (item.toTeamId === teamA) sideA.push(pv);
+      else if (item.toTeamId === teamB) sideB.push(pv);
     }
-    const teamB = items.find((i) => i.toTeamId !== teamA)?.toTeamId;
+
     out.push({
       id: `espn-${t.id ?? out.length}`,
       proposedAt: new Date(t.proposedDate ?? Date.now()).toISOString(),
       sideALabel: teamLabel(teamA),
-      sideBLabel: teamLabel(teamB),
+      sideBLabel: multiTeam ? `${teamLabel(teamB)} +${teams.size - 2} more` : teamLabel(teamB),
       sideA,
       sideB,
-      verdict: evaluateTrade(sideA, sideB)
+      verdict: multiTeam ? multiTeamTrade(teams.size) : evaluateTrade(sideA, sideB)
     });
   }
   return out;

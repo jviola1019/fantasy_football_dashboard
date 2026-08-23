@@ -99,6 +99,22 @@ export async function GET(request: Request): Promise<Response> {
 
     const payload = buildSnapshotPayload(season, week, byPosition);
     const playerCount = Object.keys(payload.projections).length;
+    // `byPosition.size === 0` above catches "every position failed". This
+    // catches the quieter case: positions responded, and between them carried
+    // no players. Writing that resets the freshness clock on an empty
+    // projection set. Audit 2026-08-22, same class as P1-5.
+    if (playerCount === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          season,
+          week,
+          failures,
+          error: "positions responded but carried no players; refusing to write an empty snapshot"
+        },
+        { status: 502 }
+      );
+    }
     const inserted = await insertProjectionsSnapshot({ data: payload });
     const pruned = await pruneOldProjectionsSnapshots(season, week, KEEP_LAST_MS);
 

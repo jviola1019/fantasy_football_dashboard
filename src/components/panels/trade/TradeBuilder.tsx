@@ -39,7 +39,7 @@ export function TradeBuilder({
   return (
     <div className="trade-builder">
       <div className="section-label">
-        TRADE BUILDER — {format.numTeams}-team · {format.numQbs}QB · {format.ppr} PPR
+        TRADE BUILDER — {format.numTeams}-team · {format.numQbs}QB · {format.pprActual ?? format.ppr} PPR
       </div>
       <input
         className="galaxy-search"

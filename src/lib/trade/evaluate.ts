@@ -15,7 +15,7 @@ import type { PlayerValue } from "./values";
  * deliberately EMPTY value map, so every ESPN trade took the first path and was
  * graded perfectly fair.
  */
-export type Verdict = "balanced" | "slight-edge" | "lopsided" | "unpriced";
+export type Verdict = "balanced" | "slight-edge" | "lopsided" | "unpriced" | "multi-team";
 
 export interface TradeVerdict {
   totalA: number;
@@ -33,6 +33,11 @@ export interface TradeVerdict {
   pricedB: number;
   /** True when either side had no priced player, so no verdict is possible. */
   unpriced: boolean;
+  /**
+   * Number of distinct teams in the deal. 2 for an ordinary trade; more when
+   * the source reported a multi-team deal that cannot be reduced to two sides.
+   */
+  teamCount: number;
 }
 
 // Starting thresholds; Backtest B (Task 8) validates and may adjust them once.
@@ -40,6 +45,33 @@ const BALANCED_MAX = 0.1;
 const SLIGHT_MAX = 0.25;
 
 const sum = (side: PlayerValue[]) => side.reduce((acc, p) => acc + p.value, 0);
+
+/**
+ * A multi-team deal is not a two-sided comparison, and pretending otherwise
+ * produces a specific, confident, wrong answer.
+ *
+ * Audit 2026-08-22, P1-4. `normalizeEspnTrades` bucketed every item by
+ * "did it go to team A?", so in a three-team trade team C's haul was attributed
+ * to team B, team B's label was printed over it, and the verdict compared A
+ * against B-plus-C. There is no arrangement of two totals that answers "was
+ * this fair?" for three parties, so the honest output is a refusal with the
+ * team count attached — the same shape as `unpriced`.
+ */
+export function multiTeamTrade(teamCount: number): TradeVerdict {
+  return {
+    totalA: Number.NaN,
+    totalB: Number.NaN,
+    delta: Number.NaN,
+    pctDelta: Number.NaN,
+    fairness: Number.NaN,
+    verdict: "multi-team",
+    winner: "even",
+    pricedA: 0,
+    pricedB: 0,
+    unpriced: true,
+    teamCount
+  };
+}
 
 export function evaluateTrade(sideA: PlayerValue[], sideB: PlayerValue[]): TradeVerdict {
   const totalA = sum(sideA);
@@ -58,7 +90,8 @@ export function evaluateTrade(sideA: PlayerValue[], sideB: PlayerValue[]): Trade
       verdict: "unpriced",
       winner: "even",
       pricedA, pricedB,
-      unpriced: true
+      unpriced: true,
+      teamCount: 2
     };
   }
 
@@ -68,5 +101,5 @@ export function evaluateTrade(sideA: PlayerValue[], sideB: PlayerValue[]): Trade
   const verdict: Verdict =
     pctDelta <= BALANCED_MAX ? "balanced" : pctDelta <= SLIGHT_MAX ? "slight-edge" : "lopsided";
   const winner = verdict === "balanced" ? "even" : delta > 0 ? "A" : "B";
-  return { totalA, totalB, delta, pctDelta, fairness, verdict, winner, pricedA, pricedB, unpriced: false };
+  return { totalA, totalB, delta, pctDelta, fairness, verdict, winner, pricedA, pricedB, unpriced: false, teamCount: 2 };
 }

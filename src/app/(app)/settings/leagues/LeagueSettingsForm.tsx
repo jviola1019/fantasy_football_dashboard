@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { LeagueFormat, Provenance } from "@/lib/trade/format";
+import { pprApproximated, type LeagueFormat, type Provenance } from "@/lib/trade/format";
 import { confirmLeagueSettings } from "./actions";
 
 /**
@@ -71,7 +71,16 @@ export function LeagueSettingsForm({
       <div>
         <div className="section-label">DETECTED FROM PLATFORM</div>
         <dl style={dl}>
-          <Row k="Scoring" v={`${format.scoringFormat} (${format.ppr} pt/reception)`} />
+          <Row
+            k="Scoring"
+            v={
+              // The REAL setting, not the value snapped for the trade-value
+              // APIs. A 1.5 PPR league used to read "STD (0 pt/reception)".
+              // Audit 2026-08-22, P1-3.
+              `${format.scoringFormat} (${format.pprActual ?? format.ppr} pt/reception)` +
+              (pprApproximated(format.pprActual) ? ` · valued as ${format.ppr} PPR` : "")
+            }
+          />
           <Row
             k="League type"
             v={format.leagueType}

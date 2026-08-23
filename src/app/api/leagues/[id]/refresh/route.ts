@@ -57,6 +57,21 @@ export async function POST(
     }
   }
 
+  // A failed upstream fetch must not return 200.
+  //
+  // Audit 2026-08-22, P1-2. `fetchLeagueLive` degrades rather than throwing: on
+  // an upstream error it returns a snapshot with `failure` set and NO rosters.
+  // This route then serialized that as a normal 200 with `teamCount: 0`, so a
+  // caller following the documented "check res.ok" contract saw success and an
+  // empty league — indistinguishable from a league that genuinely has no
+  // rosters yet. The failure text was in the body, which no correct client
+  // reads on a 2xx.
+  //
+  // 502 specifically: the request was well-formed and authorized, and the
+  // upstream platform is what failed. The full body still ships, so the client
+  // can show WHY rather than a bare status.
+  const upstreamFailed = snapshot.failure !== null && snapshot.allRosters.length === 0;
+
   return NextResponse.json({
     league: {
       id: snapshot.league.id,
@@ -74,6 +89,9 @@ export async function POST(
     myRoster: snapshot.myRoster,
     source: snapshot.source,
     failure: snapshot.failure,
+    // P0-3: a roster substitution has to reach the caller, not just the UI.
+    identityResolved: snapshot.identityResolved,
+    identityNote: snapshot.identityNote,
     gradedTrades
-  });
+  }, upstreamFailed ? { status: 502 } : undefined);
 }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { SourceMeta } from "../governance";
 import { evaluateFreshness, unavailableSource } from "../governance";
+import { pprApproximated } from "./format";
 import type { LeagueFormat } from "./format";
 import { getLatestKtcSnapshot } from "../ktc/snapshot";
 import type { KtcVariant } from "../ktc/types";
@@ -82,9 +83,20 @@ export function valuationAssumptions(
 ): string[] {
   const out = [
     `Priced for a ${format.numTeams}-team, ${format.numQbs === 2 ? "superflex/2QB" : "1QB"}, ` +
-      `${format.scoringFormat} (${format.ppr} pt/reception) league.`,
+      `${format.scoringFormat} (${format.pprActual ?? format.ppr} pt/reception) league.`,
     `Valuation horizon: ${p.actualBasis} (league type: ${p.leagueType}).`
   ];
+  // The value APIs accept only 0 / 0.5 / 1 PPR. When the league's real setting
+  // is something else the price IS an approximation, and saying so is cheaper
+  // than the alternative — which for a 1.5 PPR league used to be pricing it as
+  // STANDARD and reporting that as the league's format. Audit 2026-08-22, P1-3.
+  if (pprApproximated(format.pprActual)) {
+    out.push(
+      `This league pays ${format.pprActual} per reception; the value source only supports ` +
+        `0, 0.5 and 1, so these prices are fetched at ${format.ppr} PPR. Receiving-heavy players ` +
+        `are priced conservatively as a result.`
+    );
+  }
   if (p.leagueType === "keeper") {
     out.push(
       "Keeper leagues are priced on redraft values: only a few players carry over, so the " +

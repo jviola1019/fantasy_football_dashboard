@@ -25,9 +25,19 @@ export async function GET(request: Request): Promise<Response> {
   let stage: "fetch" | "insert" | "prune" = "fetch";
   try {
     const { players, source } = await fetchSleeperPlayersMap();
-    if (!players) {
+    // `!players` catches a null fetch. An EMPTY map is the other failure that
+    // returns successfully — and writing it would reset the freshness clock on
+    // a snapshot with no players in it, so /api/health would report the source
+    // current while every roster in the product resolved to nothing. Same class
+    // as P1-5 in news-refresh. Audit 2026-08-22.
+    if (!players || Object.keys(players).length === 0) {
       return NextResponse.json(
-        { ok: false, stage, error: "sleeper fetch failed", source },
+        {
+          ok: false,
+          stage,
+          error: players ? "sleeper returned an empty players map" : "sleeper fetch failed",
+          source
+        },
         { status: 502 }
       );
     }

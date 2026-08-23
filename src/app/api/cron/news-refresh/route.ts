@@ -42,6 +42,31 @@ export async function GET(request: Request): Promise<Response> {
       );
     }
 
+    // An empty snapshot is not a snapshot.
+    //
+    // Audit 2026-08-22, P1-5. A fetch that "succeeded" with zero articles used
+    // to be written and reported ok:true. That is the worst of both worlds: the
+    // feature is dark, AND the freshness clock has just been reset, so
+    // /api/health reports the source as current and nothing anywhere says the
+    // news signal has no articles behind it. ESPN publishes NFL news
+    // year-round, so zero articles from a limit-100 request means the endpoint
+    // or the payload shape changed — a failure that happens to have returned
+    // HTTP 200.
+    //
+    // Refusing to write leaves the PREVIOUS snapshot in place, which is both
+    // more useful and more honest: it ages visibly against its contract instead
+    // of being replaced by nothing that looks new.
+    if (articles.length === 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "ESPN returned zero articles; refusing to write an empty snapshot over the last good one",
+          fetchError: error ? redact(error) : null
+        },
+        { status: 502 }
+      );
+    }
+
     const inserted = await insertNewsSnapshot({ source: NEWS_SOURCE, articles });
     const pruned = await pruneOldNewsSnapshots(NEWS_SOURCE, KEEP_LAST_MS);
 

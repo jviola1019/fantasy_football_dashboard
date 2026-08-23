@@ -1,4 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { eq } from "drizzle-orm";
 import { resetDbForTests, schema } from "../db";
 import { createLeague } from "./leagues";
 import { generateKey } from "./crypto";
@@ -38,6 +39,7 @@ beforeAll(() => {
 beforeEach(async () => {
   db = resetDbForTests();
   cookieStore.clear();
+  addOrder = 0;
   await db.insert(schema.users).values([
     { id: "user-a", email: "a@example.com" },
     { id: "user-b", email: "b@example.com" }
@@ -48,13 +50,28 @@ afterEach(() => cookieStore.clear());
 
 const fmt = (over: Partial<LeagueFormat>): LeagueFormat => ({ ...DEFAULT_FORMAT, ...over });
 
+/**
+ * Adds a league with an EXPLICIT, distinct `createdAt`.
+ *
+ * `listLeagues` orders by `createdAt` then `id` (audit 2026-08-22, P1-1) --
+ * before that it had no ORDER BY at all, so `leagues[0]`, which is the default
+ * active league, was whatever the driver happened to return. These tests used
+ * to create every league inside the same millisecond and then assert insertion
+ * order, which no database ever promised: `createdAt` tied and the random uuid
+ * broke the tie, so the assertion passed or failed on a coin flip.
+ *
+ * A real user adds leagues seconds apart. The helper reproduces that rather
+ * than asserting a guarantee the schema cannot make.
+ */
+let addOrder = 0;
+
 async function addLeague(
   userId: string,
   label: string,
   settings: LeagueFormat,
   externalLeagueId = label.toLowerCase()
 ) {
-  return createLeague(db, {
+  const league = await createLeague(db, {
     userId,
     platform: "sleeper",
     externalLeagueId,
@@ -62,6 +79,12 @@ async function addLeague(
     label,
     settings
   });
+  addOrder += 1;
+  await db
+    .update(schema.leagues)
+    .set({ createdAt: new Date(1_700_000_000_000 + addOrder * 60_000) })
+    .where(eq(schema.leagues.id, league.id));
+  return league;
 }
 
 describe("resolveActiveLeague", () => {
@@ -86,6 +109,14 @@ describe("resolveActiveLeague", () => {
     expect(res.league.label).toBe("Alpha");
     expect(res.reason).toBe("no-selection");
     expect(res.leagues).toHaveLength(2);
+
+    // The property that actually matters, and the one P1-1 was about: the
+    // order does not change between reads. An unordered query could return
+    // Alpha now and Beta on the next request, silently switching which league
+    // the app opens on.
+    const again = (await resolveActiveLeague("user-a", db))!;
+    expect(again.league.id).toBe(res.league.id);
+    expect(again.leagues.map((l) => l.id)).toEqual(res.leagues.map((l) => l.id));
   });
 
   it("honours the SELECTED second league — the actual bug", async () => {

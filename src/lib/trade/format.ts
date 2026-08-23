@@ -96,7 +96,26 @@ export const FormatProvenanceSchema = z.object({
 export type FormatProvenance = z.infer<typeof FormatProvenanceSchema>;
 
 export const LeagueFormatSchema = z.object({
+  /**
+   * Points per reception SNAPPED to the three values the third-party value
+   * APIs accept. Use `pprActual` for anything shown to a human.
+   */
   ppr: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
+  /**
+   * The league's REAL points-per-reception setting, unrounded.
+   *
+   * Audit 2026-08-22, P1-3. `normalizePpr` returned 0 for anything that was
+   * not exactly 0, 0.5 or 1 — so a 0.25 PPR league, a 0.75 PPR league and a
+   * 1.5 PPR TE-premium league were all classified STANDARD, which for the
+   * 1.5 case is the furthest-possible-from-correct answer. The settings screen
+   * then told the owner their league was "STD (0 pt/reception)" while they were
+   * looking at a league that pays 1.5, and FantasyCalc was queried with ppr=0.
+   *
+   * Optional so previously stored league rows keep parsing; absent means the
+   * row predates this field, and the UI says "not recorded" rather than
+   * inventing one.
+   */
+  pprActual: z.number().nonnegative().optional(),
   numQbs: z.union([z.literal(1), z.literal(2)]),
   /** redraft | keeper | dynasty, read from the platform — never assumed. */
   leagueType: LeagueTypeSchema,
@@ -145,6 +164,7 @@ const DEFAULT_STARTERS: LeagueStarters = {
 
 export const DEFAULT_FORMAT: LeagueFormat = {
   ppr: 1,
+  pprActual: 1,
   numQbs: 1,
   leagueType: "redraft",
   keeperCount: 0,
@@ -160,10 +180,27 @@ export const DEFAULT_FORMAT: LeagueFormat = {
   playoffTeams: 6
 };
 
-function normalizePpr(rec: unknown): 0 | 0.5 | 1 {
-  if (rec === 1) return 1;
-  if (rec === 0.5) return 0.5;
-  return 0;
+/**
+ * Snap a league's real points-per-reception to the three values the trade-value
+ * APIs (FantasyCalc, KTC) accept.
+ *
+ * This used to return 0 for ANY value outside {0, 0.5, 1}. A 1.5 PPR
+ * TE-premium league — a real and not-rare format — was therefore classified
+ * STANDARD, the single furthest-away answer available. Snapping to the NEAREST
+ * supported value is the smallest honest approximation; `pprActual` carries the
+ * true figure so nothing has to guess it back, and `pprApproximated` lets the
+ * UI say so out loud instead of quietly presenting the rounded value as fact.
+ */
+export function normalizePpr(rec: unknown): 0 | 0.5 | 1 {
+  const n = typeof rec === "number" && Number.isFinite(rec) ? rec : 0;
+  if (n <= 0.25) return 0;
+  if (n < 0.75) return 0.5;
+  return 1;
+}
+
+/** True when the league's real setting is not one of the three supported values. */
+export function pprApproximated(actual: number | undefined): boolean {
+  return actual !== undefined && actual !== 0 && actual !== 0.5 && actual !== 1;
 }
 
 function scoringFormatFromPpr(ppr: 0 | 0.5 | 1): ScoringFormat {
@@ -315,12 +352,14 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
         ? l.total_rosters
         : DEFAULT_FORMAT.numTeams;
   const numQbs: 1 | 2 = positions.includes("SUPER_FLEX") ? 2 : 1;
-  const ppr = normalizePpr(scoring.rec);
+  const pprActual = typeof scoring.rec === "number" && Number.isFinite(scoring.rec) ? scoring.rec : 0;
+  const ppr = normalizePpr(pprActual);
   const starters = positions.length
     ? startersFromSleeperPositions(positions)
     : DEFAULT_STARTERS;
   return {
     ppr,
+    pprActual,
     numQbs,
     leagueType: sleeperLeagueType(settings),
     keeperCount: sleeperKeeperCount(settings),
@@ -431,7 +470,8 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
   const scoring = (s.scoringSettings ?? {}) as Record<string, unknown>;
   const items = Array.isArray(scoring.scoringItems) ? (scoring.scoringItems as Record<string, unknown>[]) : [];
   const recItem = items.find((i) => i.statId === 53);
-  const ppr = normalizePpr(typeof recItem?.points === "number" ? recItem.points : 0);
+  const pprActual = typeof recItem?.points === "number" && Number.isFinite(recItem.points) ? recItem.points : 0;
+  const ppr = normalizePpr(pprActual);
   const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
   const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
   const numQbs: 1 | 2 = (counts["7"] ?? 0) > 0 ? 2 : 1;
@@ -440,6 +480,7 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
   const { leagueType, keeperCount, provenance } = espnLeagueType(s);
   return {
     ppr,
+    pprActual,
     numQbs,
     leagueType,
     keeperCount,
