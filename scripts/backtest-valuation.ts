@@ -239,6 +239,13 @@ function toObservations(lg: LeagueData): PointsObservation[] {
       // drafted them, with a different ADP rank but the SAME outcome.
       playerId: p.playerId,
       leagueId: lg.id,
+      // Audit 2026-08-22, P2-3. Season points are not comparable across scoring
+      // formats: a PPR WR1 and a STANDARD WR1 differ by the receptions they
+      // caught, so pooling them lifts the WR/TE curves relative to RB/QB. That
+      // is the same positionally-asymmetric distortion this curve exists to
+      // remove from rank-ratio VBD. Recording it makes any mixing visible in
+      // `curve.mixedScoringFormats` instead of averaging it away.
+      scoringFormat: lg.format.scoringFormat,
       // Normalised to a 14-week regular season so leagues of different length
       // are comparable. Without this a 14-week league would look systematically
       // weaker than a 13-week one purely from schedule length.
@@ -505,8 +512,25 @@ async function main(): Promise<void> {
     const total = Object.values(curve.counts).reduce((a, b) => a + (b ?? 0), 0);
     say(
       `${lg.name.slice(0, 20).padEnd(20)} ${String(lg.season).padEnd(7)} ` +
-        `${curve.seasons.join(",").padEnd(20)} ${total.toFixed(1).padEnd(5)} yes`
+        `${curve.seasons.join(",").padEnd(20)} ${total.toFixed(1).padEnd(5)} yes` +
+        `  [${curve.scoringFormats.join("+")}]`
     );
+    // Audit 2026-08-22, P2-3. Said once per curve, loudly, because a mixed pool
+    // does not fail — it produces a plausible curve whose POSITIONAL SHAPE is
+    // wrong, and nothing downstream can detect that from the numbers.
+    if (curve.mixedScoringFormats) {
+      say(
+        `  WARNING: this curve pools ${curve.scoringFormats.join(" + ")} leagues. Season points are ` +
+          `not comparable across scoring formats, so the WR and TE curves are lifted relative to ` +
+          `RB and QB and every PAR figure derived from it is positionally distorted.`
+      );
+    }
+    if (curve.scoringFormats.length === 1 && curve.scoringFormats[0] !== lg.format.scoringFormat) {
+      say(
+        `  WARNING: curve fitted on ${curve.scoringFormats[0]} leagues but applied to a ` +
+          `${lg.format.scoringFormat} league.`
+      );
+    }
   }
   say();
 

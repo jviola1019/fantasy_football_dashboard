@@ -49,6 +49,7 @@ const obs = (
     position,
     adpRank: i + 1,
     seasonPoints,
+    scoringFormat: "PPR" as const,
     playerId: `${position}-${season}-${i + 1}`,
     leagueId
   }));
@@ -122,8 +123,8 @@ describe("building the curve", () => {
 
   it("ignores non-finite points instead of poisoning the fit", () => {
     const curve = buildPointsCurve([
-      { season: 2024, position: "RB", adpRank: 1, seasonPoints: Number.NaN, playerId: "a", leagueId: "L1" },
-      { season: 2024, position: "RB", adpRank: 2, seasonPoints: 100, playerId: "b", leagueId: "L1" }
+      { season: 2024, position: "RB", adpRank: 1, seasonPoints: Number.NaN, playerId: "a", leagueId: "L1", scoringFormat: "PPR" },
+      { season: 2024, position: "RB", adpRank: 2, seasonPoints: 100, playerId: "b", leagueId: "L1", scoringFormat: "PPR" }
     ]);
     expect(Number.isFinite(expectedPointsAt(curve, "RB", 2)!)).toBe(true);
   });
@@ -242,6 +243,7 @@ function inLeagues(
     position,
     adpRank,
     seasonPoints,
+    scoringFormat: "PPR" as const,
     playerId,
     leagueId
   }));
@@ -358,5 +360,49 @@ describe("aggregation modes for repeated player-seasons", () => {
         expect(series[i]!).toBeLessThanOrEqual(series[i - 1]! + 1e-9);
       }
     }
+  });
+});
+
+describe("scoring format is recorded, and mixing it is visible (P2-3)", () => {
+  /**
+   * Season points are not comparable across scoring formats. Pooling a PPR
+   * league's receivers with a STANDARD league's lifts the WR and TE curves
+   * relative to RB and QB -- a POSITIONALLY ASYMMETRIC distortion, which is the
+   * exact error this curve was built to remove from rank-ratio VBD. The pool
+   * carried no format at all, so the mixing was invisible.
+   */
+  const withFormat = (
+    format: PointsObservation["scoringFormat"],
+    leagueId: string
+  ): PointsObservation[] =>
+    [220, 180, 150].map((seasonPoints, i) => ({
+      season: 2024,
+      position: "WR" as const,
+      adpRank: i + 1,
+      seasonPoints,
+      scoringFormat: format,
+      playerId: `WR-${i + 1}`,
+      leagueId
+    }));
+
+  it("reports a single-format pool as unmixed", () => {
+    const curve = buildPointsCurve(withFormat("PPR", "L1"));
+    expect(curve.scoringFormats).toEqual(["PPR"]);
+    expect(curve.mixedScoringFormats).toBe(false);
+  });
+
+  it("flags a pool that spans two formats", () => {
+    const curve = buildPointsCurve([...withFormat("PPR", "L1"), ...withFormat("STD", "L2")]);
+    expect(curve.scoringFormats).toEqual(["PPR", "STD"]);
+    expect(curve.mixedScoringFormats).toBe(true);
+  });
+
+  it("lists every format present, sorted, so the report can name them", () => {
+    const curve = buildPointsCurve([
+      ...withFormat("PPR", "L1"),
+      ...withFormat("HALF", "L2"),
+      ...withFormat("STD", "L3")
+    ]);
+    expect(curve.scoringFormats).toEqual(["HALF", "PPR", "STD"]);
   });
 });

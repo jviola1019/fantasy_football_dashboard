@@ -55,6 +55,21 @@ export interface PointsObservation {
   playerId: string;
   /** Source league. REQUIRED — it is the cluster these observations share. */
   leagueId: string;
+  /**
+   * The source league's scoring format. REQUIRED (audit 2026-08-22, P2-3).
+   *
+   * Season points are not comparable across formats. A PPR league's WR1 and a
+   * STANDARD league's WR1 differ by roughly the receptions they caught, so
+   * pooling them shifts the WR and TE curves up relative to RB and QB — a
+   * POSITIONALLY ASYMMETRIC distortion, which is precisely the error
+   * `pointsCurve` was built to remove from rank-ratio VBD. Recording the format
+   * makes the mixing visible; `buildPointsCurve` reports it rather than
+   * silently averaging across it.
+   *
+   * `regWeeks` normalisation was already applied for schedule length. Format is
+   * the other axis that has to be held constant, and it was not.
+   */
+  scoringFormat: "STD" | "HALF" | "PPR";
 }
 
 /**
@@ -207,6 +222,18 @@ export interface PointsCurve {
   counts: Partial<Record<DemandPosition, number>>;
   /** Which dependence treatment produced this curve. Recorded, never inferred. */
   aggregation: CurveAggregation;
+  /**
+   * Every scoring format present in the fitting pool, sorted.
+   *
+   * More than one entry means the curve averages across incomparable scoring
+   * environments and its positional shape is distorted. It is surfaced rather
+   * than prevented, because refusing to fit would silently drop data a caller
+   * may have deliberately pooled — but a caller that does not check this is
+   * quoting a number that mixes units. Audit 2026-08-22, P2-3.
+   */
+  scoringFormats: Array<"STD" | "HALF" | "PPR">;
+  /** True when `scoringFormats` has more than one entry. */
+  mixedScoringFormats: boolean;
 }
 
 /**
@@ -278,10 +305,12 @@ export function buildPointsCurve(
   // rather than its mere existence.
   const grouped = new Map<DemandPosition, Map<number, { sum: number; weight: number }>>();
   const seasons = new Set<number>();
+  const formats = new Set<"STD" | "HALF" | "PPR">();
 
   for (const { observation: o, weight } of rows) {
     if (!Number.isFinite(o.seasonPoints) || o.adpRank < 1 || weight <= 0) continue;
     seasons.add(o.season);
+    formats.add(o.scoringFormat);
     let byRank = grouped.get(o.position);
     if (!byRank) {
       byRank = new Map();
@@ -325,7 +354,15 @@ export function buildPointsCurve(
     counts[position] = Math.round(total * 100) / 100;
   }
 
-  return { byPosition, seasons: [...seasons].sort(), counts, aggregation };
+  const scoringFormats = [...formats].sort();
+  return {
+    byPosition,
+    seasons: [...seasons].sort(),
+    counts,
+    aggregation,
+    scoringFormats,
+    mixedScoringFormats: scoringFormats.length > 1
+  };
 }
 
 interface WeightedRow {

@@ -39,7 +39,16 @@
  * interpretation block is derived from the computed reliability/resolution, not
  * hard-coded.
  *
- * For CSV sources: forecast = within-week rank of actual PPR (lower bound only).
+ * For CSV sources: the "forecast" is the within-week rank of the ACTUAL PPR
+ * being scored. That is a TAUTOLOGY, not a backtest — the predictor is a
+ * monotone function of the outcome, so discrimination is perfect (AUC = 1.0)
+ * by construction and no skill is being measured at all. Audit 2026-08-22, P2-1;
+ * it was previously described as a "lower bound", which is exactly backwards.
+ *
+ * The path is kept because it has one legitimate use: as a HARNESS SELF-TEST.
+ * If this pipeline cannot score a perfect forecast as perfect, the pipeline is
+ * broken, and that is worth knowing. So the AUC is now ASSERTED rather than
+ * reported, and the run refuses to present its numbers as results.
  *
  * THRESHOLDS (chosen for roughly even positive/negative split among starters)
  *   QB: 18 pts  RB: 10 pts  WR: 8 pts  TE: 6 pts
@@ -261,10 +270,29 @@ function baseRate(rows: ProspectiveRow[], pos: Position): { clim: number; n: num
 /**
  * Out-of-fold logistic CALIBRATION model. Fits P(actual ≥ threshold) directly
  * from the projected points via logistic regression, training on all OTHER weeks
- * and predicting each held-out week (leave-one-week-out, so no leakage). Unlike
- * the rank→prob model, the probability comes from the projection itself, so its
- * Reliability measures the calibration of the PROJECTIONS — the question the
- * rank model cannot answer. Returns [] when too few rows to fit.
+ * and predicting each held-out week. Unlike the rank→prob model, the probability
+ * comes from the projection itself, so its Reliability measures the calibration
+ * of the PROJECTIONS — the question the rank model cannot answer. Returns []
+ * when too few rows to fit, and ALSO when fewer than two distinct weeks are
+ * present — see the note in the body.
+ *
+ * WHAT LEAVE-ONE-WEEK-OUT DOES AND DOES NOT CONTROL (audit 2026-08-22, P2-7).
+ *
+ * This used to say "leave-one-week-out, so no leakage", which claims more than
+ * the design delivers. Holding out a WEEK removes temporal leakage: no outcome
+ * from the scored week is in the training set. It does NOT make the folds
+ * independent, because THE SAME PLAYERS appear in every other week. A player's
+ * week-5 projection is correlated with their weeks 1–4, so the fitted
+ * projection→probability mapping is partly learned from the very players it is
+ * then scored on.
+ *
+ * That is a dependence problem, not an outcome-leakage problem: the model never
+ * sees a scored outcome, and the single feature is the projection, not player
+ * identity — so the effect is bounded. But it means the effective sample size is
+ * closer to the number of distinct PLAYERS than to the number of player-weeks,
+ * and the out-of-fold error is optimistic by an unmeasured amount. Fixing it
+ * properly needs grouped CV that holds out players and weeks together, which is
+ * a protocol change, not a code tweak. Stated rather than fixed.
  */
 function buildLogisticCalibration(rows: ProspectiveRow[], pos: Position): BrierForecast[] {
   const threshold = THRESHOLDS[pos];
@@ -273,6 +301,23 @@ function buildLogisticCalibration(rows: ProspectiveRow[], pos: Position): BrierF
   const X = posRows.map((r) => [r.proj_pts_ppr]);
   const y = posRows.map((r) => (r.actual_pts_ppr >= threshold ? 1 : 0));
   const fold = posRows.map((r) => r.week);
+
+  // Leave-one-week-out needs at least TWO weeks. With one, every row is its own
+  // and only fold, `fitLogisticCV` correctly refuses to leak and returns the
+  // max-entropy prior 0.5 for every row -- and the caller then reported the ECE
+  // of a constant 0.5 as "the projections' TRUE calibration error". That number
+  // is a property of the base rate; the projections are not in it at all.
+  // Audit 2026-08-22, P2-2. Returning [] makes the model ABSENT from the report,
+  // which is what "we could not measure this" should look like.
+  const distinctWeeks = new Set(fold).size;
+  if (distinctWeeks < 2) {
+    console.warn(
+      `${pos}: only ${distinctWeeks} week of data — leave-one-week-out cannot run, so no ` +
+        `calibration model is reported (it would be the ECE of a constant 0.5).`
+    );
+    return [];
+  }
+
   const oof = fitLogisticCV(X, y, fold, { l2: 1.0 });
   return oof.map((p, i) => ({ prob: p, outcome: y[i]! as 0 | 1 }));
 }
@@ -360,7 +405,7 @@ function parseCsv(csv: string): { rows: DataRow[]; hasWeek: boolean } {
   return { rows, hasWeek };
 }
 
-function buildCsvForecasts(rows: DataRow[], pos: Position): BrierForecast[] {
+function buildSelfTestForecasts(rows: DataRow[], pos: Position): BrierForecast[] {
   const threshold = THRESHOLDS[pos];
   const posRows = rows.filter((r) => r.position === pos);
   if (posRows[0]?.kind === "week") {
@@ -389,6 +434,60 @@ function buildCsvForecasts(rows: DataRow[], pos: Position): BrierForecast[] {
       outcome: row.fantasy_points_ppr >= seasonThreshold ? 1 : (0 as 0 | 1)
     }));
   }
+}
+
+
+/**
+ * AUC by the Mann-Whitney rank identity, with ties averaged.
+ *
+ * Used only by the self-test path, where it must come out at 1.0 — see P2-1.
+ */
+function rankAuc(forecasts: BrierForecast[]): number | null {
+  const pos = forecasts.filter((f) => f.outcome === 1).length;
+  const neg = forecasts.length - pos;
+  if (pos === 0 || neg === 0) return null;
+  const sorted = [...forecasts].sort((a, b) => a.prob - b.prob);
+  const ranks = new Array<number>(sorted.length);
+  for (let i = 0; i < sorted.length; ) {
+    let j = i;
+    while (j + 1 < sorted.length && sorted[j + 1]!.prob === sorted[i]!.prob) j += 1;
+    const avg = (i + j) / 2 + 1;
+    for (let k = i; k <= j; k += 1) ranks[k] = avg;
+    i = j + 1;
+  }
+  let rankSumPos = 0;
+  for (let i = 0; i < sorted.length; i += 1) if (sorted[i]!.outcome === 1) rankSumPos += ranks[i]!;
+  return (rankSumPos - (pos * (pos + 1)) / 2) / (pos * neg);
+}
+
+
+/**
+ * A stable fingerprint of the rows a run was scored on (audit 2026-08-22, P2-5).
+ *
+ * Every source here is fetched LIVE -- the Sleeper projections and stats APIs,
+ * and the nflverse release CSVs -- and none of it is snapshotted. The report
+ * called itself seeded and deterministic, which is true of the ARITHMETIC and
+ * false of the RUN: the same command on two different days scores different
+ * data, and nothing in the output said which. Two reports could disagree and
+ * both be correct.
+ *
+ * A real fix is to snapshot the inputs. Until then, recording a fingerprint at
+ * least makes two runs COMPARABLE: identical fingerprints mean identical
+ * inputs, and different ones mean the numbers are not being compared like for
+ * like. That is the difference between "unreproducible" and "unreproducible and
+ * undetectable".
+ *
+ * FNV-1a over the sorted row keys -- dependency-free and stable across runs.
+ */
+function fingerprintRows(keys: readonly string[]): string {
+  let h = 0x811c9dc5;
+  for (const key of [...keys].sort()) {
+    for (let i = 0; i < key.length; i += 1) {
+      h ^= key.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+  }
+  return h.toString(16).padStart(8, "0");
 }
 
 function asciiBar(v: number, width = 20): string {
@@ -463,11 +562,37 @@ async function main() {
     lines.push(`> **Two models per position:** (1) DISCRIMINATION — rank→prob (ordinal skill of projection order); (2) CALIBRATION — out-of-fold logistic mapping projected pts → P(≥ threshold), scored by Expected Calibration Error (the projections' true calibration error)  `);
     lines.push(`> **Coverage:** ${data.weeksLoaded} regular-season weeks, ${data.rows.length} startable player-weeks (${data.dnpCount} DNP scored 0)  `);
     lines.push(`> **Universe:** players projected ≥ threshold/2; no-shows scored 0 (no survivorship filter)  `);
+    // P2-5. Every source here is fetched LIVE and none of it is snapshotted, so
+    // "seeded and deterministic" describes the arithmetic, not the run. Two
+    // reports with different fingerprints scored different data and must not be
+    // compared as though they scored the same.
+    lines.push(
+      `> **Input fingerprint:** \`${fingerprintRows(
+        data.rows.map((r) => `${r.player_id}|${r.week}|${r.proj_pts_ppr}|${r.actual_pts_ppr}`)
+      )}\` over ${data.rows.length} rows — the inputs are fetched LIVE and are NOT snapshotted, so a rerun on a different day scores different data. Compare two reports only when this value matches.  `
+    );
   } else {
     const src = (data as { source?: string }).source ?? "local";
+    lines[0] = "# Brier Harness SELF-TEST — not a backtest";
+    lines.push(`> ## THIS PAGE MEASURES NOTHING ABOUT THE MODEL.  `);
+    lines.push(
+      `> The "forecast" below is the rank of the ACTUAL PPR being scored, so it is a monotone ` +
+        `function of the outcome. Discrimination is perfect by construction and every number here ` +
+        `is a property of the arithmetic, not of any prediction. Audit 2026-08-22, P2-1.  `
+    );
+    lines.push(`> Its only use is confirming the scoring pipeline works: a perfect forecast must score perfectly.  `);
+    lines.push(`> For real results run the Sleeper PROSPECTIVE path.  `);
+    lines.push(`>  `);
     lines.push(`> **Season:** ${data.season}  `);
     lines.push(`> **Source:** ${src}  `);
-    lines.push(`> **Method:** Rank-based on actual PPR (not prospective — lower bound only)  `);
+    lines.push(`> **Method:** self-test — rank of actual PPR vs threshold on the same actual PPR  `);
+    lines.push(
+      `> **Input fingerprint:** \`${fingerprintRows(
+        (data.rows as Array<{ player_id?: string; position: string; fantasy_points_ppr: number }>).map(
+          (r, i) => `${r.player_id ?? i}|${r.position}|${r.fantasy_points_ppr}`
+        )
+      )}\` over ${data.rows.length} rows (fetched live, not snapshotted — P2-5).  `
+    );
   }
   lines.push("", "---", "");
 
@@ -497,11 +622,24 @@ async function main() {
         .filter((f) => f.length > 0);
       hasWeekFolds = weekFolded.length >= 2;
     } else {
-      forecasts = buildCsvForecasts(data.rows, pos);
+      forecasts = buildSelfTestForecasts(data.rows, pos);
+      // The assertion that turns a tautology into a useful invariant. The
+      // predictor IS the outcome, so a working pipeline must score it as
+      // perfectly discriminating. Anything less means the scoring code, the
+      // threshold handling, or the tie handling is broken — which is the only
+      // thing this path can legitimately tell us. Audit 2026-08-22, P2-1.
+      const selfTestAuc = rankAuc(forecasts);
+      if (selfTestAuc != null && selfTestAuc < 0.999) {
+        console.error(
+          `SELF-TEST FAILED for ${pos}: AUC ${selfTestAuc.toFixed(4)} < 0.999, but the "forecast" is ` +
+            `a monotone function of the outcome. The scoring harness is broken.`
+        );
+        process.exitCode = 1;
+      }
       if ((data as { hasWeek: boolean }).hasWeek) {
         const weekNums = Array.from(new Set((data.rows as PerWeekRow[]).filter((r) => r.position === pos).map((r) => r.week))).sort((a, b) => a - b);
         weekFolded = weekNums
-          .map((w) => buildCsvForecasts((data.rows as PerWeekRow[]).filter((r) => r.position === pos && r.week === w), pos))
+          .map((w) => buildSelfTestForecasts((data.rows as PerWeekRow[]).filter((r) => r.position === pos && r.week === w), pos))
           .filter((f) => f.length > 0);
         hasWeekFolds = weekFolded.length >= 2;
       }
