@@ -11,7 +11,7 @@ import {
   type TradeLeagueIdentity
 } from "@/app/trade/actions";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 import { TradeBuilder } from "./trade/TradeBuilder";
 import { RecentLeagueTrades } from "./trade/RecentLeagueTrades";
 
@@ -65,7 +65,13 @@ export function TradeCenter() {
       eyebrow="Value trades on real market data."
       source={source ?? undefined}
     >
-      <PanelTabs tabs={TABS} active={activeTab} onSelect={setActiveTab} ariaLabel="Trade Center tabs" />
+      <PanelTabs
+        tabs={TABS}
+        active={activeTab}
+        onSelect={setActiveTab}
+        ariaLabel="Trade Center tabs"
+        idBase="trade-center"
+      />
       <TradeLeagueLine league={league} format={format} state={state} />
       {state === "loading" && <p className="muted-note">Loading trade values…</p>}
       {state === "unavailable" && (
@@ -74,12 +80,14 @@ export function TradeCenter() {
           builder is disabled rather than showing fabricated values.
         </p>
       )}
-      {state === "ready" && activeTab === "Trade Builder" && (
-        <TradeBuilder players={pool} format={format} />
-      )}
-      {state === "ready" && activeTab === "Recent League Trades" && (
-        <RecentLeagueTrades trades={leagueTrades} />
-      )}
+      <TabPanel idBase="trade-center" active={activeTab}>
+        {state === "ready" && activeTab === "Trade Builder" && (
+          <TradeBuilder players={pool} format={format} />
+        )}
+        {state === "ready" && activeTab === "Recent League Trades" && (
+          <RecentLeagueTrades trades={leagueTrades} />
+        )}
+      </TabPanel>
     </PanelCard>
   );
 }

@@ -27,7 +27,7 @@ export function MobileBottomNav() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 px-1 pb-2 pt-2.5 text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors",
+              "relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 px-1 pb-2 pt-2.5 text-xs font-semibold uppercase tracking-[0.04em] transition-colors",
               active ? "text-rae-blue" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -42,7 +42,7 @@ export function MobileBottomNav() {
             <span
               aria-hidden="true"
               className={cn(
-                "grid h-6 min-w-6 place-items-center rounded-md text-[11px] font-bold tabular-nums transition-colors",
+                "grid h-6 min-w-6 place-items-center rounded-md text-xs font-bold tabular-nums transition-colors",
                 active
                   ? "bg-rae-blue text-background shadow-[0_2px_8px_rgba(90,159,196,0.45)]"
                   : "text-muted-foreground"

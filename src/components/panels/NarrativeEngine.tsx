@@ -61,7 +61,6 @@ export function NarrativeEngine({ players, envelope }: Props) {
       titleId="ne-title"
       title="Narrative Engine"
       eyebrow="Hype vs. value — sell the story, buy the dip."
-      source={envelope?.sourceState}
     >
       <div className="narr-summary">
         {withHype ? (

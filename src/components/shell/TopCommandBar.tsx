@@ -34,8 +34,8 @@ export function TopCommandBar({ mode, freshness, leagueOptions = [], activeLeagu
       <SidebarTrigger className="text-muted-foreground" />
       <Separator orientation="vertical" className="h-6" />
       <div className="flex items-baseline gap-2">
-        <span className="text-xl font-extrabold tracking-[0.14em] text-rae-blue">RAE</span>
-        <span className="hidden text-[9px] uppercase leading-tight tracking-[0.16em] text-muted-foreground md:inline">
+        <span className="text-lg font-extrabold tracking-[0.14em] text-rae-blue">RAE</span>
+        <span className="hidden text-micro uppercase leading-tight tracking-[0.16em] text-muted-foreground md:inline">
           Roster Analytics Engine
         </span>
       </div>

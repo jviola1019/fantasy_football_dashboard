@@ -19,7 +19,7 @@ export default async function AccountSettingsPage() {
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", display: "grid", gap: 24 }}>
         <header>
-          <h1 style={{ color: "var(--cream)", margin: 0, fontSize: 24 }}>Account</h1>
+          <h1 style={{ color: "var(--cream)", margin: 0, fontSize: "var(--text-xl)" }}>Account</h1>
           <p style={{ color: "var(--muted)", marginTop: 8 }}>
             Manage how you sign in. Passwords are hashed with scrypt. Changing your password signs you out everywhere, on every device.
           </p>
@@ -34,7 +34,7 @@ export default async function AccountSettingsPage() {
             <dd style={dd}>{user.name ?? <span style={{ color: "var(--muted)" }}>(not set)</span>}</dd>
             <dt style={dt}>User ID</dt>
             <dd style={dd}>
-              <code style={{ color: "var(--muted)", fontSize: 12 }}>{user.id}</code>
+              <code style={{ color: "var(--muted)", fontSize: "var(--text-sm)" }}>{user.id}</code>
             </dd>
           </dl>
           <div style={{ marginTop: 16 }}>
@@ -44,7 +44,7 @@ export default async function AccountSettingsPage() {
 
         <section style={panel}>
           <h2 style={h2}>Change password</h2>
-          <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 12, fontSize: 13 }}>
+          <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 12, fontSize: "var(--text-sm)" }}>
             8+ characters. Your current password is required to confirm.
           </p>
           <ChangePasswordForm />
@@ -52,7 +52,7 @@ export default async function AccountSettingsPage() {
 
         <section style={{ ...panel, borderColor: "rgba(227,94,94,0.3)" }}>
           <h2 style={{ ...h2, color: "var(--red, #e35e5e)" }}>Danger zone</h2>
-          <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 12, fontSize: 13 }}>
+          <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 12, fontSize: "var(--text-sm)" }}>
             Deleting your account also deletes every connected league and any encrypted credentials.
           </p>
           <DeleteAccountForm />
@@ -68,14 +68,14 @@ const panel: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.06)"
 };
 
-const h2: React.CSSProperties = { color: "var(--cream)", marginTop: 0, fontSize: 16 };
+const h2: React.CSSProperties = { color: "var(--cream)", marginTop: 0, fontSize: "var(--text-base)" };
 
 const dt: React.CSSProperties = {
   color: "var(--muted)",
-  fontSize: 11,
+  fontSize: "var(--text-xs)",
   textTransform: "uppercase",
   letterSpacing: 0.4,
   alignSelf: "center"
 };
 
-const dd: React.CSSProperties = { color: "var(--cream)", margin: 0, fontSize: 14 };
+const dd: React.CSSProperties = { color: "var(--cream)", margin: 0, fontSize: "var(--text-base)" };

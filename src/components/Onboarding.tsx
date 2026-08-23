@@ -10,8 +10,8 @@ export function Onboarding() {
   return (
     <main className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-10 sm:py-16">
       <header className="flex items-baseline gap-3">
-        <span className="text-2xl font-extrabold tracking-[0.16em] text-rae-blue">RAE</span>
-        <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        <span className="text-lg font-extrabold tracking-[0.16em] text-rae-blue">RAE</span>
+        <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Roster Analytics Engine
         </span>
         <Link
@@ -24,7 +24,7 @@ export function Onboarding() {
 
       <section className="mt-16 max-w-2xl sm:mt-24">
         <h1
-          className="text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl"
+          className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl"
           style={{ fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif' }}
         >
           Win your league with model-governed, source-traceable analytics.
@@ -80,7 +80,7 @@ export function Onboarding() {
         ))}
       </section>
 
-      <footer className="mt-auto pt-16 text-[11px] text-muted-foreground">
+      <footer className="mt-auto pt-16 text-xs text-muted-foreground">
         Real data. Real models. Model-governed decisions.
       </footer>
     </main>

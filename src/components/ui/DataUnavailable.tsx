@@ -67,7 +67,7 @@ const contentStyle: React.CSSProperties = {
 
 const captionStyle: React.CSSProperties = {
   fontFamily: "var(--monospace-font, monospace)",
-  fontSize: 10,
+  fontSize: "var(--text-xs)",
   letterSpacing: 0.3,
   color: "var(--muted)",
   textTransform: "uppercase",
@@ -78,7 +78,7 @@ const captionStyle: React.CSSProperties = {
 const titleStyle: React.CSSProperties = {
   margin: "4px 0 0",
   color: "var(--cream)",
-  fontSize: 15,
+  fontSize: "var(--text-base)",
   fontWeight: 600,
   letterSpacing: 0.2,
   minWidth: 0,
@@ -88,7 +88,7 @@ const titleStyle: React.CSSProperties = {
 const descStyle: React.CSSProperties = {
   margin: 0,
   color: "var(--muted)",
-  fontSize: 13,
+  fontSize: "var(--text-sm)",
   lineHeight: 1.5,
   // These descriptions routinely name an API route or a field, and those have no
   // break opportunity. Without this the sidebar rendered "/api/leagues/[id]/refres"

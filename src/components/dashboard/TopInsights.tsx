@@ -17,7 +17,12 @@ export function TopInsights({ market }: { market: PlayerMarketRecord[] }) {
     .sort((a, b) => Math.abs(b.e) - Math.abs(a.e))
     .slice(0, 6);
   return (
-    <PanelCard id="top-insights" titleId="ti-title" title="Top Insights" eyebrow="Biggest market mispricings.">
+    <PanelCard
+      id="top-insights"
+      titleId="ti-title"
+      title="Top Insights"
+      eyebrow="Biggest market mispricings."
+    >
       {ranked.length === 0 ? (
         <p className="muted-note">No market data to surface insights.</p>
       ) : (

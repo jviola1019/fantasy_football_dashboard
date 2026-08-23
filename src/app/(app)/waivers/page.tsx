@@ -4,13 +4,10 @@ import { RouteView } from "@/components/app/RouteView";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Waivers" };
 
+// The visible <h1> is rendered once by `RouteHeader` inside the app shell, so
+// every route is titled identically and none can quietly lose its heading.
 export default async function WaiversPage() {
   const r = await loadEnvelope();
   if (r.kind === "no-league") return <NoLeagueCTA />;
-  return (
-    <>
-      <h1 className="sr-only">Waivers</h1>
-      <RouteView view="waivers" envelope={r.envelope} />
-    </>
-  );
+  return <RouteView view="waivers" envelope={r.envelope} />;
 }

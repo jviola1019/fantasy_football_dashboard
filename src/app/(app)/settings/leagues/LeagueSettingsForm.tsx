@@ -99,13 +99,13 @@ export function LeagueSettingsForm({
         {format.provenance?.note && (
           <p
             className="muted"
-            style={{ marginTop: 8, fontSize: 11, color: "var(--amber)" }}
+            style={{ marginTop: 8, fontSize: "var(--text-xs)", color: "var(--amber)" }}
             role="note"
           >
             {format.provenance.note}
           </p>
         )}
-        <p className="muted" style={{ marginTop: 6, fontSize: 11 }}>
+        <p className="muted" style={{ marginTop: 6, fontSize: "var(--text-xs)" }}>
           Read from the platform on every refresh. Items marked{" "}
           <strong>derived</strong> are inferred by RAE, not stated by the platform — check those
           first if something looks wrong.
@@ -119,7 +119,7 @@ export function LeagueSettingsForm({
             CONFIRM — NOT PUBLISHED BY THE PLATFORM
             {needsConfirmation && <span style={{ color: "var(--amber)" }}> · needed</span>}
           </div>
-          <p className="muted" style={{ fontSize: 11, marginTop: -4 }}>
+          <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: -4 }}>
             Neither ESPN nor Sleeper stores what a keeper costs — it is your league&apos;s own rule. Keeper
             recommendations stay switched off until you set it, because guessing a keeper cost is
             irreversible for the season.
@@ -141,7 +141,7 @@ export function LeagueSettingsForm({
               ))}
             </select>
           </label>
-          <p className="muted" style={{ fontSize: 11, marginTop: -6 }}>
+          <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: -6 }}>
             {COST_RULES.find((r) => r.value === rule)?.hint ?? "Pick the rule your commissioner set."}
           </p>
 
@@ -173,7 +173,7 @@ export function LeagueSettingsForm({
               style={input}
             />
           </label>
-          <p className="muted" style={{ fontSize: 11, marginTop: -6 }}>
+          <p className="muted" style={{ fontSize: "var(--text-xs)", marginTop: -6 }}>
             Used to price the exact pick a keeper costs. Left blank, the middle of the round is used and
             that assumption is shown alongside the result.
           </p>
@@ -225,7 +225,7 @@ function Row({
       <dd style={dd}>
         {v}
         {badge && (
-          <span style={{ marginLeft: 6, fontSize: 10, color: badge.color }}>({badge.text})</span>
+          <span style={{ marginLeft: 6, fontSize: "var(--text-xs)", color: badge.color }}>({badge.text})</span>
         )}
       </dd>
     </>
@@ -238,9 +238,9 @@ const dl: React.CSSProperties = {
   gap: "4px 14px",
   margin: 0
 };
-const dt: React.CSSProperties = { color: "var(--muted)", fontSize: 12 };
-const dd: React.CSSProperties = { color: "var(--cream)", fontSize: 12, margin: 0, fontVariantNumeric: "tabular-nums" };
-const lbl: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, color: "var(--muted)", fontSize: 12 };
+const dt: React.CSSProperties = { color: "var(--muted)", fontSize: "var(--text-sm)" };
+const dd: React.CSSProperties = { color: "var(--cream)", fontSize: "var(--text-sm)", margin: 0, fontVariantNumeric: "tabular-nums" };
+const lbl: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, color: "var(--muted)", fontSize: "var(--text-sm)" };
 const input: React.CSSProperties = {
   padding: "8px 10px",
   background: "rgba(0,0,0,0.35)",

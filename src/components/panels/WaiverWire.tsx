@@ -56,7 +56,6 @@ export function WaiverWire({ players, envelope }: Props) {
       id="waiver-wire"
       titleId="ww-title"
       title="Waiver Wire"
-      source={envelope?.sourceState}
       eyebrow={
         showEdge
           ? "Rank free agents by value, opportunity & scarcity."

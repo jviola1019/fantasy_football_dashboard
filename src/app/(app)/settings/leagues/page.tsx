@@ -19,7 +19,7 @@ export default async function LeaguesSettingsPage() {
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 20 }}>
       <header>
-        <h1 style={{ color: "var(--cream)", margin: 0, fontSize: 24 }}>Your leagues</h1>
+        <h1 style={{ color: "var(--cream)", margin: 0, fontSize: "var(--text-xl)" }}>Your leagues</h1>
         <p style={{ color: "var(--muted)", marginTop: 8 }}>
           Sleeper is public. ESPN private leagues require <code>espn_s2</code> and <code>SWID</code> cookies
           from your browser. Cookies are encrypted at rest and never sent back to your browser after creation.
@@ -51,4 +51,4 @@ const panel: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.06)"
 };
 
-const h2: React.CSSProperties = { color: "var(--cream)", marginTop: 0, fontSize: 16 };
+const h2: React.CSSProperties = { color: "var(--cream)", marginTop: 0, fontSize: "var(--text-base)" };

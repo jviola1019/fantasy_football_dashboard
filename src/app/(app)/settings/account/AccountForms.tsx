@@ -12,12 +12,12 @@ const inputStyle: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.08)",
   borderRadius: 6,
   color: "var(--cream)",
-  fontSize: 13
+  fontSize: "var(--text-sm)"
 };
 
 const labelStyle: React.CSSProperties = {
   color: "var(--muted)",
-  fontSize: 11,
+  fontSize: "var(--text-xs)",
   display: "block",
   marginBottom: 4,
   textTransform: "uppercase",
@@ -100,10 +100,10 @@ export function ChangePasswordForm() {
         </div>
       </div>
       {status.kind === "error" && status.message ? (
-        <p role="alert" aria-live="polite" style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: 13 }}>{status.message}</p>
+        <p role="alert" aria-live="polite" style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: "var(--text-sm)" }}>{status.message}</p>
       ) : null}
       {status.kind === "ok" && status.message ? (
-        <p role="status" aria-live="polite" style={{ color: "var(--green, #6fd07f)", margin: 0, fontSize: 13 }}>{status.message}</p>
+        <p role="status" aria-live="polite" style={{ color: "var(--green, #6fd07f)", margin: 0, fontSize: "var(--text-sm)" }}>{status.message}</p>
       ) : null}
       <button
         type="submit"
@@ -186,7 +186,7 @@ export function DeleteAccountForm() {
 
   return (
     <form onSubmit={onSubmit} style={{ display: "grid", gap: 12 }}>
-      <p style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: 13 }}>
+      <p style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: "var(--text-sm)" }}>
         This permanently deletes your account, every league you&apos;ve connected, and any encrypted
         league credentials. Cannot be undone.
       </p>
@@ -218,7 +218,7 @@ export function DeleteAccountForm() {
         />
       </div>
       {status.kind === "error" && status.message ? (
-        <p style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: 13 }}>{status.message}</p>
+        <p style={{ color: "var(--red, #e35e5e)", margin: 0, fontSize: "var(--text-sm)" }}>{status.message}</p>
       ) : null}
       <div style={{ display: "flex", gap: 8 }}>
         <button

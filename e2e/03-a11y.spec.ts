@@ -93,4 +93,70 @@ test.describe("a11y beyond what axe checks", () => {
     // above/below-50 verdict conveyed purely by red vs green.
     expect(body).toMatch(/league median \(50\)|vs League Median/i);
   });
+
+  test("every tab states the region it controls, and that region exists", async ({ page }) => {
+    // Design audit D-9. The product declared role="tab" in five panels with NO
+    // role="tabpanel" and no aria-controls anywhere: activating a tab announced
+    // a selection change, then dropped the user into unlabelled content with no
+    // stated relationship to the control they had just used. axe treats
+    // aria-controls as advisory, so this passed every scan for the whole life
+    // of the component.
+    for (const route of ["/analytics", "/draft", "/players", "/trades"]) {
+      await page.goto(route);
+      const tabs = page.locator('[role="tab"]');
+      const count = await tabs.count();
+      expect(count, `${route} should render tabs`).toBeGreaterThan(0);
+
+      for (let i = 0; i < count; i += 1) {
+        const controls = await tabs.nth(i).getAttribute("aria-controls");
+        expect(controls, `${route} tab ${i} must name the region it controls`).toBeTruthy();
+      }
+
+      // The SELECTED tab's region must actually be in the document and point
+      // back at the tab — a dangling aria-controls is worse than none.
+      const selected = page.locator('[role="tab"][aria-selected="true"]').first();
+      const target = await selected.getAttribute("aria-controls");
+      const tabIdAttr = await selected.getAttribute("id");
+      const panel = page.locator(`#${target}`);
+      await expect(panel, `${route}: the selected tab's panel must exist`).toHaveCount(1);
+      await expect(panel).toHaveAttribute("role", "tabpanel");
+      await expect(panel).toHaveAttribute("aria-labelledby", String(tabIdAttr));
+    }
+  });
+
+  test("each route names itself with a visible h1, not a screen-reader-only one", async ({ page }) => {
+    // UX question 1 ("what is this?"). Every app route's only <h1> was
+    // `sr-only`, so a sighted user landed in a stack of chrome — wordmark,
+    // season chip, league select, mode pill, governance strip — with nothing
+    // naming the page.
+    for (const route of ["/dashboard", "/players", "/analytics", "/draft", "/waivers", "/trades", "/reports"]) {
+      await page.goto(route);
+      const h1 = page.locator("main h1");
+      await expect(h1, `${route} must have exactly one h1`).toHaveCount(1);
+      await expect(h1).toBeVisible();
+      const box = await h1.boundingBox();
+      expect(box?.height ?? 0, `${route} h1 must not be visually hidden`).toBeGreaterThan(10);
+    }
+  });
+
+  test("solid amber is reserved for the primary action", async ({ page }) => {
+    // The loudest object on every route used to be a solid-amber,
+    // NON-INTERACTIVE season chip, while the recommended action sat behind a
+    // 10px ghost pill. Amber is the product's action colour; spending it on a
+    // label inverts the hierarchy.
+    await page.goto("/dashboard");
+    const amberSolid = await page.evaluate(() => {
+      const hits: string[] = [];
+      for (const el of Array.from(document.querySelectorAll("body *"))) {
+        const bg = getComputedStyle(el).backgroundColor;
+        // --amber #d7a857
+        if (bg === "rgb(215, 168, 87)") {
+          const interactive = el.closest("a, button, [role='button']") !== null;
+          if (!interactive) hits.push(`${el.tagName}.${el.className}`);
+        }
+      }
+      return hits;
+    });
+    expect(amberSolid, "solid amber must only appear on something you can use").toEqual([]);
+  });
 });

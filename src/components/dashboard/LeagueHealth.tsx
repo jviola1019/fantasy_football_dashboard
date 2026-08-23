@@ -73,7 +73,12 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
         }
   ];
   return (
-    <PanelCard id="league-health" titleId="lh-title" title="League Health" eyebrow="Your team's state at a glance.">
+    <PanelCard
+      id="league-health"
+      titleId="lh-title"
+      title="League Health"
+      eyebrow="Your team's state at a glance."
+    >
       <div className="kpi-row">
         {cards.map((c) => (
           <div key={c.label} className={`kpi-card kpi-${c.color}`}>

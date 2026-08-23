@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
 import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
 import { BarChart } from "@/components/charts/BarChart";
@@ -52,7 +52,6 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
       titleId="mi-title"
       title="Market Intelligence"
       eyebrow={EDGE_LABELS.marketEyebrow}
-      source={envelope?.sourceState}
     >
       {/* Adjacent to the numbers, on first paint — the SS3 precedent. Protocol 3
           measured this score and it does not identify mispriced players. */}
@@ -65,9 +64,10 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Market Intelligence tabs"
+        idBase="market-intel"
       />
 
-      <div className="tab-content">
+      <TabPanel idBase="market-intel" active={activeTab} className="tab-content">
         {activeTab === "Market Pulse" && (
           <>
             <TopInefficiencies players={marketMetrics.topInefficiencies} />
@@ -108,7 +108,7 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
         {activeTab === "Price Discovery" && (
           <PriceDiscoveryView players={players} />
         )}
-      </div>
+      </TabPanel>
     </PanelCard>
   );
 }

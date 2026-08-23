@@ -45,8 +45,17 @@ test.describe("app shell + dashboard", () => {
     await page.goto("/dashboard");
     const banner = page.locator(".governance-banner");
     await expect(banner).toBeVisible();
-    await expect(banner).toContainText(/Source state:/i);
-    await expect(banner).toContainText(/freshness/i);
+    // The banner is a labelled field row now, not a sentence (design audit
+    // 2026-08-22). Assert the FIELDS and their VALUES rather than the old
+    // prose, which is strictly stronger: the previous version passed on the
+    // word "freshness" appearing anywhere, without the value being present.
+    for (const label of ["Source state", "Freshness", "Confidence", "Validation"]) {
+      await expect(banner.locator(".gov-field-label", { hasText: new RegExp(`^${label}$`, "i") })).toHaveCount(1);
+    }
+    const values = banner.locator(".gov-field-value");
+    await expect(values).not.toHaveCount(0);
+    // Confidence must render as a real percentage, not an empty slot.
+    await expect(banner).toContainText(/\d+%/);
   });
 
   test("trade builder renders and accepts a player search", async ({ page }) => {

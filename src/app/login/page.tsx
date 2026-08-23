@@ -39,7 +39,7 @@ export default function LoginPage() {
           border: "1px solid rgba(255,255,255,0.06)"
         }}
       >
-        <h1 style={{ marginTop: 0, color: "var(--cream)", fontSize: 24 }}>Sign in to RAE</h1>
+        <h1 style={{ marginTop: 0, color: "var(--cream)", fontSize: "var(--text-xl)" }}>Sign in to RAE</h1>
         <p style={{ color: "var(--muted)", marginTop: 8 }}>
           Bring your Sleeper or ESPN league. Credentials are encrypted at rest.
         </p>

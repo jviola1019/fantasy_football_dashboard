@@ -47,7 +47,7 @@ export function RouteSidebar() {
           </svg>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-extrabold tracking-[0.14em] text-foreground">RAE</span>
-            <span className="text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+            <span className="text-micro uppercase tracking-[0.14em] text-muted-foreground">
               Roster Analytics Engine
             </span>
           </div>
@@ -66,7 +66,7 @@ export function RouteSidebar() {
                       <Link href={item.href} aria-current={active ? "page" : undefined}>
                         <span
                           className={cn(
-                            "grid size-5 shrink-0 place-items-center rounded text-[11px] font-semibold tabular-nums transition-colors",
+                            "grid size-5 shrink-0 place-items-center rounded text-xs font-semibold tabular-nums transition-colors",
                             // Quiet, instrument-like: the active route reads via
                             // a low-contrast tint + accent text, not a bright
                             // glowing chip. Selection emphasis comes from the
@@ -90,7 +90,7 @@ export function RouteSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <span className="px-2 py-1 text-[9px] uppercase tracking-[0.12em] text-muted-foreground group-data-[collapsible=icon]:hidden">
+        <span className="px-2 py-1 text-micro uppercase tracking-[0.12em] text-muted-foreground group-data-[collapsible=icon]:hidden">
           {NAV_ITEMS.length} routes
         </span>
       </SidebarFooter>

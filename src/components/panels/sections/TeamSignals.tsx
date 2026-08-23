@@ -32,7 +32,6 @@ export function TeamSignals({
       titleId="ts-title"
       title="Team Signals"
       eyebrow="Win odds, intel, and momentum."
-      source={envelope.sourceState}
     >
       <div className="bottom-row">
         <LineupWinProb sim={sim} />

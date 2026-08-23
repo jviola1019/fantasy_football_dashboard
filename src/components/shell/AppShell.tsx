@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { RouteSidebar } from "./RouteSidebar";
+import { RouteHeader } from "./RouteHeader";
 import { TopCommandBar } from "./TopCommandBar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import type { LeagueOption } from "../topbar/LeagueSwitcher";
@@ -43,6 +44,11 @@ export function AppShell({ mode, freshness, leagueOptions = [], activeLeagueId =
         />
         {/* pb-16 on mobile clears the fixed bottom nav; removed at md. */}
         <main id="rae-main" tabIndex={-1} className="flex-1 px-3 pb-16 pt-2 sm:px-4 md:pb-4">
+          {/* The route identifies itself FIRST, then its governance context.
+              Before this, `<main>` opened with an 11px amber governance strip
+              and the only <h1> was sr-only — the page had no visible title on
+              any route. Design audit 2026-08-22, D-8. */}
+          <RouteHeader mode={mode} />
           {banner}
           {children}
         </main>

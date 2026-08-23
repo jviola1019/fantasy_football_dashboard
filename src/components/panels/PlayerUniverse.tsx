@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
 import { marketInefficiency, narrativeVelocity, scarcityGap } from "@/lib/models";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
@@ -76,7 +76,6 @@ export function PlayerUniverse({ players, envelope }: Props) {
       titleId="pu-title"
       title="Player Universe"
       eyebrow="Explore the player ecosystem."
-      source={envelope?.sourceState}
       controls={
         <input
           className="galaxy-search"
@@ -93,79 +92,82 @@ export function PlayerUniverse({ players, envelope }: Props) {
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Player Universe tabs"
+        idBase="player-universe"
       />
 
-      {activeTab === "Universe" && (
-        <div className="universe-layout">
-          <div>
-            <GalaxyView
-              players={gridPlayers}
-              allPlayers={players}
-              selectedIdx={selectedIdx}
-              onSelect={setSelectedIdx}
-            />
-            {!searchQuery && players.length > gridPlayers.length ? (
-              <p className="small-note pu-grid-note">
-                Showing the top {gridPlayers.length} of {players.length} by value — search to find any player.
-              </p>
-            ) : null}
+      <TabPanel idBase="player-universe" active={activeTab}>
+        {activeTab === "Universe" && (
+          <div className="universe-layout">
+            <div>
+              <GalaxyView
+                players={gridPlayers}
+                allPlayers={players}
+                selectedIdx={selectedIdx}
+                onSelect={setSelectedIdx}
+              />
+              {!searchQuery && players.length > gridPlayers.length ? (
+                <p className="small-note pu-grid-note">
+                  Showing the top {gridPlayers.length} of {players.length} by value — search to find any player.
+                </p>
+              ) : null}
+            </div>
+            <div className="universe-sidebar">
+              {selected && <PlayerProfile player={selected} />}
+              <UniverseStats
+                count={players.length}
+                undervalued={undervalued}
+                avgIneff={avgIneff}
+                risingStars={risingStars}
+              />
+              {selected && (
+                <div className="radar-wrap">
+                  <div className="section-label">METRIC PROFILE</div>
+                  <RadarChart
+                    axes={[
+                      {
+                        label: "Value",
+                        value: selected.trueValue,
+                        unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
+                      },
+                      {
+                        label: "Opportunity",
+                        value: selected.opportunity,
+                        unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
+                      },
+                      {
+                        // Map signed momentum (−100..100) to a 0..100 position so a
+                        // NEGATIVE trend shows a SHORT spoke (consistent with the
+                        // signed value in the profile), not |momentum| which made a
+                        // −47 look identical to a +47.
+                        label: "Trending",
+                        value: (selected.trendingMomentum + 100) / 2,
+                        unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
+                      },
+                      { label: "Confidence", value: selected.confidence * 100 },
+                      { label: "Stability", value: 100 - selected.volatility },
+                    ]}
+                    max={100}
+                    size={140}
+                  />
+                  {anyAxisMissing ? (
+                    <p className="small-note pu-radar-note">
+                      Axes marked <code>*</code> have no integrated data source yet — radar polygon
+                      drops to 0 on those edges rather than show a fabricated reading.
+                    </p>
+                  ) : null}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="universe-sidebar">
-            {selected && <PlayerProfile player={selected} />}
-            <UniverseStats
-              count={players.length}
-              undervalued={undervalued}
-              avgIneff={avgIneff}
-              risingStars={risingStars}
-            />
-            {selected && (
-              <div className="radar-wrap">
-                <div className="section-label">METRIC PROFILE</div>
-                <RadarChart
-                  axes={[
-                    {
-                      label: "Value",
-                      value: selected.trueValue,
-                      unavailable: RADAR_AXIS_DEPS[0]!.dep != null && missing.has(RADAR_AXIS_DEPS[0]!.dep)
-                    },
-                    {
-                      label: "Opportunity",
-                      value: selected.opportunity,
-                      unavailable: RADAR_AXIS_DEPS[1]!.dep != null && missing.has(RADAR_AXIS_DEPS[1]!.dep)
-                    },
-                    {
-                      // Map signed momentum (−100..100) to a 0..100 position so a
-                      // NEGATIVE trend shows a SHORT spoke (consistent with the
-                      // signed value in the profile), not |momentum| which made a
-                      // −47 look identical to a +47.
-                      label: "Trending",
-                      value: (selected.trendingMomentum + 100) / 2,
-                      unavailable: RADAR_AXIS_DEPS[2]!.dep != null && missing.has(RADAR_AXIS_DEPS[2]!.dep)
-                    },
-                    { label: "Confidence", value: selected.confidence * 100 },
-                    { label: "Stability", value: 100 - selected.volatility },
-                  ]}
-                  max={100}
-                  size={140}
-                />
-                {anyAxisMissing ? (
-                  <p className="small-note pu-radar-note">
-                    Axes marked <code>*</code> have no integrated data source yet — radar polygon
-                    drops to 0 on those edges rather than show a fabricated reading.
-                  </p>
-                ) : null}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === "Tiers" && <UniverseTiers players={players} />}
-      {activeTab === "Comparison" && <UniverseComparison player={selected} players={players} />}
-      {activeTab === "Watchlist" && (
-        <UniverseWatchlist players={players} trendingUnavailable={missing.has("trending_momentum")} />
-      )}
-      {activeTab === "Projections" && <UniverseProjections envelope={envelope} players={players} />}
+        {activeTab === "Tiers" && <UniverseTiers players={players} />}
+        {activeTab === "Comparison" && <UniverseComparison player={selected} players={players} />}
+        {activeTab === "Watchlist" && (
+          <UniverseWatchlist players={players} trendingUnavailable={missing.has("trending_momentum")} />
+        )}
+        {activeTab === "Projections" && <UniverseProjections envelope={envelope} players={players} />}
+      </TabPanel>
     </PanelCard>
   );
 }

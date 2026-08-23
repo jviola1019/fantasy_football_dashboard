@@ -9,7 +9,7 @@ import { RadarChart } from "@/components/charts/RadarChart";
 import { derivePositionGrades } from "@/lib/derivedMetrics";
 import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
-import { PanelTabs } from "../ui/PanelTabs";
+import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -65,7 +65,6 @@ export function DraftIntelligence({ players, format }: Props) {
       titleId="dr-title"
       title="Draft Intelligence"
       eyebrow="Read the room. Anticipate the run."
-      source={players[0]?.sources[0]}
       controls={
         <span className="draft-controls">
           <span className="muted-text">{myRoster.length} mine · {taken.size} taken · {available.length} left</span>
@@ -80,28 +79,31 @@ export function DraftIntelligence({ players, format }: Props) {
         active={activeTab}
         onSelect={setActiveTab}
         ariaLabel="Draft Intelligence tabs"
+        idBase="draft-intel"
       />
 
-      {activeTab === "Live Board" && (
-        <LiveBoard
-          available={available}
-          myRoster={myRoster}
-          takenCount={taken.size}
-          onDraftMine={draftMine}
-          onDraftOpponent={draftOpponent}
-          onRelease={release}
-          recommendations={recommendations}
-        />
-      )}
-      {activeTab === "Recommendations" && (
-        <RecommendationQueue recommendations={recommendations} />
-      )}
-      {activeTab === "Tier Collapse" && (
-        <TierCollapseView signals={collapseSignals} grades={grades} />
-      )}
-      {activeTab === "Big Board" && (
-        <DraftBoardView recommendations={recommendations} />
-      )}
+      <TabPanel idBase="draft-intel" active={activeTab}>
+        {activeTab === "Live Board" && (
+          <LiveBoard
+            available={available}
+            myRoster={myRoster}
+            takenCount={taken.size}
+            onDraftMine={draftMine}
+            onDraftOpponent={draftOpponent}
+            onRelease={release}
+            recommendations={recommendations}
+          />
+        )}
+        {activeTab === "Recommendations" && (
+          <RecommendationQueue recommendations={recommendations} />
+        )}
+        {activeTab === "Tier Collapse" && (
+          <TierCollapseView signals={collapseSignals} grades={grades} />
+        )}
+        {activeTab === "Big Board" && (
+          <DraftBoardView recommendations={recommendations} />
+        )}
+      </TabPanel>
     </PanelCard>
   );
 }
