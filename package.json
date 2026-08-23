@@ -17,6 +17,7 @@
     "e2e": "playwright test",
     "e2e:install": "playwright install --with-deps chromium",
     "lighthouse": "lhci autorun",
+    "lighthouse:variance": "tsx scripts/lighthouse-variance.ts",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
     "check:advisories": "tsx scripts/check-lockfile-advisories.ts",
     "check:projection-units": "tsx scripts/check-projection-units.ts",
@@ -41,6 +42,7 @@
     "holdout:evaluate4": "tsx scripts/holdout-evaluate-4.ts",
     "verify:rotation": "tsx scripts/verify-rotation.ts",
     "reencrypt:credentials": "tsx scripts/reencrypt-credentials.ts",
+    "verify:inseason": "tsx scripts/verify-inseason-fidelity.ts",
     "holdout:evaluate6": "tsx scripts/holdout-evaluate-6.ts",
     "holdout:evaluate5": "tsx scripts/holdout-evaluate-5.ts",
     "anova:opportunity": "tsx scripts/anova-opportunity.ts"

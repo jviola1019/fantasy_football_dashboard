@@ -48,6 +48,12 @@ const config: VercelConfig = {
     "src/app/api/cron/opportunity-refresh/route.ts": {
       memory: 1024,
       maxDuration: 60
+    },
+    // Sleeper's season aggregate is ~1.9 MB and covers 8,000+ players before
+    // filtering. Same headroom as the other data crons.
+    "src/app/api/cron/stats-refresh/route.ts": {
+      memory: 1024,
+      maxDuration: 60
     }
   },
   crons: [
@@ -87,6 +93,12 @@ const config: VercelConfig = {
     // `opportunity` (role/usage) onto records, so Narrative/Liquidity/Waiver run
     // on free data instead of declaring opportunity unavailable.
     { path: "/api/cron/opportunity-refresh", schedule: "25 9 * * *" },
+    // 09:27 UTC. Season-to-date ACTUAL scoring — the half of the validated
+    // model that did not exist. Protocols 4 and 5 showed usage predicts
+    // rest-of-season scoring BEYOND points already scored, and RAE had usage
+    // and no points-to-date, so the one signal that survived out-of-sample
+    // testing could not be shipped. Runs before lifecycle-check.
+    { path: "/api/cron/stats-refresh", schedule: "27 9 * * *" },
     // Once daily at 09:30 UTC (after all data snapshots). Walks every stored
     // league and emits drift notifications (stacked bye weeks, FAAB drained,
     // injured starters). Vercel Hobby plan caps each cron at one run per day.

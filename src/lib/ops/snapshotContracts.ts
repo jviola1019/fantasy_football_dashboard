@@ -39,6 +39,15 @@ export const SNAPSHOT_CONTRACT = {
     warnAfterSeconds: 2 * DAY,
     expireAfterSeconds: 15 * DAY
   },
+  /**
+   * Season-to-date actuals. Daily cron; warn after two days (one missed run),
+   * expire at seven, which is when the prune window empties the table.
+   */
+  sleeperSeasonStats: {
+    source: "sleeper-season-stats",
+    warnAfterSeconds: 2 * DAY,
+    expireAfterSeconds: 7 * DAY
+  },
   espnNews: {
     source: "espn-news",
     warnAfterSeconds: DAY,
