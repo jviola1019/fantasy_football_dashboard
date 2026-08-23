@@ -198,6 +198,12 @@ export function buildLiveEnvelope({
   const rankingsMissing2 = opportunityActive
     ? rankingsMissing.filter((f) => f !== "opportunity")
     : rankingsMissing;
+  // A roster substitution must reach the user. `identityNote` is non-null only
+  // when ANOTHER team's roster is standing in for theirs, which would otherwise
+  // be invisible: every panel would compute against a stranger's team while the
+  // source read `validation: "valid"`. Audit 2026-08-22.
+  const identityFailure = snapshot.identityNote;
+
   const missingUnion = Array.from(
     new Set([...snapshot.source.missingFields, ...rankingsMissing2])
   ).filter((f) => !(opportunityActive && f === "opportunity"));
@@ -231,9 +237,16 @@ export function buildLiveEnvelope({
         "Identity from Sleeper, behavioral-market fields from FantasyPros ECR.",
         trendingAssumption,
         opportunityAssumption,
-        ...(universeNote ? [universeNote] : [])
+        ...(universeNote ? [universeNote] : []),
+        // Stated as an ASSUMPTION too, not only a failure string: the roster
+        // this envelope describes is an input to every downstream number, so a
+        // reader auditing assumptions must see it there.
+        ...(identityFailure ? [identityFailure] : [])
       ],
-      failure: null
+      // Surfaced through the existing failure channel, which GovernanceBanner,
+      // GovernancePanel and TeamSignals already render. A declared substitution
+      // nobody sees is no better than a silent one.
+      failure: identityFailure
     },
     leagueFormat: snapshot.format,
     weeklyProjections: weeklyProjections ?? null,

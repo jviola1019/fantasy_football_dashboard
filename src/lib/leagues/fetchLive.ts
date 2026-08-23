@@ -28,6 +28,29 @@ export interface LiveLeagueSnapshot {
   allRosters: PlayerMarketRecord[][];
   /** The user's own team's roster, when identifiable. */
   myRoster: PlayerMarketRecord[];
+  /**
+   * Whether `myRoster` genuinely belongs to THIS user.
+   *
+   * Audit 2026-08-22. Both platform paths fall back to team index 0 when
+   * identity cannot be resolved — a Sleeper user who omits `sleeperUsername`
+   * (it is `.optional()`) or renames themselves, or an ESPN co-manager whose
+   * SWID is not in `primaryOwner`/`owners`. Nothing recorded the substitution,
+   * so every panel, simulation, trade grade and keeper price was computed
+   * against a STRANGER'S roster and presented as the user's own — stamped
+   * `validation: "valid"`, with no banner.
+   *
+   * The fallback is kept: it is genuinely useful for a commissioner viewing a
+   * league they have no team in. It is now DECLARED, so the UI can say whose
+   * roster it is showing rather than implying it is yours.
+   */
+  identityResolved: boolean;
+  /**
+   * Non-null ONLY when another team's roster is being shown in place of the
+   * user's. Degraded paths returning an empty roster leave this null — nothing
+   * is misattributed, so there is nothing to warn about. Warn on this being
+   * non-null, not on `identityResolved` alone.
+   */
+  identityNote: string | null;
   source: SourceMeta;
   failure: string | null;
   /**
@@ -219,6 +242,8 @@ export async function fetchLeagueLive(
       league,
       allRosters: [],
       myRoster: [],
+      identityResolved: false,
+      identityNote: null,
       source: unavailableSource(`ESPN league ${league.externalLeagueId}`, "missing credentials"),
       failure: "missing credentials",
       format: null,
@@ -250,6 +275,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       league,
       allRosters: [],
       myRoster: [],
+      identityResolved: false,
+      identityNote: null,
       source: info.source.freshness === "unavailable" ? info.source : rosters.source,
       failure: info.source.failure ?? rosters.source.failure ?? "no rosters returned",
       format,
@@ -268,6 +295,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       league,
       allRosters: [],
       myRoster: [],
+      identityResolved: false,
+      identityNote: null,
       source: unavailableSource(
         `Sleeper league ${league.externalLeagueId}`,
         "no players snapshot — run /api/cron/players-refresh first"
@@ -301,10 +330,16 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
 
   // Resolve the user's roster_id via stored Sleeper username; fall back to
   // the first roster when the username is absent or unresolvable.
-  const myTeamId =
-    resolveSleeperRosterId(leagueUsers, sleeperRosters, league.sleeperUsername) ??
-    sleeperRosters[0]?.roster_id ??
-    null;
+  const resolvedRosterId = resolveSleeperRosterId(leagueUsers, sleeperRosters, league.sleeperUsername);
+  const myTeamId = resolvedRosterId ?? sleeperRosters[0]?.roster_id ?? null;
+  // Declare the substitution rather than performing it silently.
+  const sleeperIdentityResolved = resolvedRosterId != null;
+  const sleeperIdentityNote =
+    sleeperIdentityResolved || sleeperRosters.length === 0
+      ? null
+      : league.sleeperUsername
+        ? `Could not match Sleeper user "${league.sleeperUsername}" to a team in this league — showing the first team instead.`
+        : "No Sleeper username is saved for this league, so your team could not be identified — showing the first team instead.";
 
   const allRosters = sleeperRosters.map((r) =>
     materializeSleeperRoster(r, playersMap, league, provenance)
@@ -331,6 +366,8 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     league,
     allRosters,
     myRoster,
+    identityResolved: sleeperIdentityResolved,
+    identityNote: sleeperIdentityNote,
     source: rosters.source,
     failure: null,
     format,
@@ -474,6 +511,8 @@ async function fetchEspnLive(
       league,
       allRosters: [],
       myRoster: [],
+      identityResolved: false,
+      identityNote: null,
       source: result.source,
       failure: result.source.failure ?? "no teams returned",
       format,
@@ -522,11 +561,19 @@ async function fetchEspnLive(
   const myTeam = resolveEspnTeam(espnTeams, creds.swid);
   const myTeamIndex = myTeam ? espnTeams.indexOf(myTeam) : 0;
   const myRoster = allRosters[myTeamIndex] ?? [];
+  // Declare the substitution rather than performing it silently.
+  const espnIdentityResolved = myTeam != null;
+  const espnIdentityNote =
+    espnIdentityResolved || espnTeams.length === 0
+      ? null
+      : "Your ESPN account did not match any team in this league — showing the first team instead.";
 
   return {
     league,
     allRosters,
     myRoster,
+    identityResolved: espnIdentityResolved,
+    identityNote: espnIdentityNote,
     source: result.source,
     failure: null,
     format,
