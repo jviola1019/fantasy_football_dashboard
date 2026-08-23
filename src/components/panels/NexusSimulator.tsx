@@ -227,7 +227,7 @@ function OutcomeMultiverse({
           </filter>
         </defs>
         <circle cx="50" cy="150" r="12" fill="rgba(9,13,18,0.9)" stroke="rgba(123,183,206,0.6)" strokeWidth="1.5" />
-        <text x="50" y="154" textAnchor="middle" fontSize="8" fill="var(--blue)">NOW</text>
+        <text x="50" y="155" textAnchor="middle" fontSize="14" fill="var(--blue)">NOW</text>
         {outcomes.map((o, i) => {
           const cpX = 220;
           const d = `M 50 150 C ${cpX} ${150}, ${cpX + 80} ${o.y}, 460 ${o.y}`;
@@ -244,17 +244,37 @@ function OutcomeMultiverse({
                 transition={{ duration: reduceMotion ? 0 : 1.2 + i * 0.2, ease: "easeOut" }}
               />
               <circle cx="460" cy={o.y} r="8" fill="rgba(9,13,18,0.9)" stroke={o.color} strokeWidth="1.5" filter="url(#multiverseGlow)" />
-              <text x="470" y={o.y + 4} fontSize="9" fill={o.color}>{o.pct}%</text>
-              <text x="470" y={o.y - 6} fontSize="8" fill="var(--muted)">{o.label}</text>
             </g>
           );
         })}
         {players.length === 0 && (
-          <text x="280" y="150" textAnchor="middle" fontSize="12" fill="rgba(232,225,207,0.3)">
+          <text x="280" y="150" textAnchor="middle" fontSize="18" fill="rgba(232,225,207,0.3)">
             No player data
           </text>
         )}
       </svg>
+      {/* The outcome labels are HTML, not SVG <text>.
+          Audit 2026-08-23. They used to live inside the chart at 8 and 9 USER
+          UNITS, and this SVG is a 560-wide viewBox rendered around 371px — a
+          0.66 scale, so those labels reached the screen at roughly 5 and 6 CSS
+          pixels. Below the declared 9px floor, below anything the type scale
+          governs, and invisible to every gate: CSS tooling does not measure
+          scaled SVG user units.
+          Bumping them in place was not an option — the fan leaves ~90 user
+          units to the right of the nodes, and text large enough to survive the
+          scale would not fit. So the chart keeps the geometry and the labels
+          move out to where the type scale applies and they can reflow. */}
+      {players.length > 0 && (
+        <ul className="multiverse-legend">
+          {outcomes.map((o) => (
+            <li key={o.label} className="multiverse-legend-row">
+              <span className="multiverse-legend-dot" style={{ background: o.color }} aria-hidden="true" />
+              <span className="multiverse-legend-label">{o.label}</span>
+              <span className="multiverse-legend-pct">{o.pct}%</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

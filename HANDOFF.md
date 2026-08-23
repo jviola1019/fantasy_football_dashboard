@@ -541,3 +541,40 @@ it, `theme.ts` would just be a second place for the palette to drift.
 `typecheck` 0 · `lint` 0 · **vitest 1038 passed / 39 skipped** (up from 931) ·
 `build` clean · **Playwright 331 passed / 1 skipped / 0 failed**, exit code
 captured directly rather than through a pipe.
+
+---
+
+## Draft / free-agency / chart audit (2026-08-23)
+
+Detail in [reports/2026-08-20/REMEDIATION-PLAN.md](reports/2026-08-20/REMEDIATION-PLAN.md).
+
+**The draft state machine works and is now pinned.** 18 browser assertions on
+`/draft`: drafting to your team, marking an opponent pick, every dependent tab
+recomputing, release, and reset. Kept as `e2e/24-draft-board.spec.ts` — the
+existing specs asserted the panel renders, not that it responds.
+
+**Bye week was missing entirely.** `status: "bye"` said "out this week"; nothing
+said *which* week. FantasyPros has shipped `player_bye_week` in every snapshot
+and `enrich.ts` dropped it at the boundary while its own comment claimed
+otherwise — the same shape as P0-5. Now on the record (nullable, never
+defaulted), on the live board, the recommendation queue and the big board, with
+a same-position stacking warning that is worded, not just tinted.
+
+**I introduced a column misalignment and the test caught it.** Adding the Bye
+column replaced the TEAM cell instead of inserting beside it — seven headers
+over six cells, every value shifted one place left, every cell still plausible.
+A screenshot would not have caught it; counting cells did.
+
+**Charts: 59 surfaces, all drawn, all labelled.** Measured per tab, because
+charts behind tabs unmount — the first pass measured once at the end and found
+3 of them.
+
+**Layout: 30 page states × 4 assertions, all passing.** One real finding: the
+Outcome Multiverse labels rendered at ~5 CSS px (8 user units in a viewBox
+scaled 0.66), below the floor and invisible to every gate, because CSS tooling
+does not measure scaled SVG user units. The labels moved out to an HTML legend.
+
+### Gates
+
+`typecheck` 0 · `lint` 0 · **vitest 1092 passed / 39 skipped** · `build` clean ·
+draft spec **18/18** · chart audit **59/59** · layout audit **120/120**.

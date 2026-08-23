@@ -1033,10 +1033,24 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  border-radius: 3px;
+  padding: var(--space-2) 0;
+  /* D-7: one border level per panel. This row sits INSIDE a panel, so it gets a
+     left edge rather than a fourth side. */
+  border: none;
+  border-left: 2px solid var(--line);
+  padding-left: var(--space-3);
+  background: none;
+  border-radius: 0;
+}
+/* Bye week on the big board. Mono so the number lines up down the column, and
+   the "BYE" prefix so it can never be mistaken for a rank or a score. */
+.draft-board-bye {
+  font-family: var(--font-plex-mono), "Courier New", monospace;
+  font-size: var(--text-micro);
+  letter-spacing: .04em;
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .draft-board-rank {
   font-size: var(--text-xs);
@@ -2093,4 +2107,46 @@ td small { color: var(--muted); }
   .route-header-action-wrap { width: 100%; }
   .route-header-action { width: 100%; justify-content: center; }
   .route-header-basis { max-width: none; }
+}
+
+/* Bye-week clash marker on the draft board. The tint is reinforcement; the word
+   "clash" beside it is what carries the meaning (WCAG 1.4.1). */
+.draft-bye-flag {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+
+/* Outcome-multiverse legend. The labels moved OUT of the SVG (audit
+   2026-08-23): inside a 560-unit viewBox rendered at ~371px they reached the
+   screen at ~5px, below the type scale's floor and beyond the reach of any CSS
+   gate. Out here they are on the scale and they reflow. */
+.multiverse-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+.multiverse-legend-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--text-xs);
+}
+.multiverse-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  align-self: center;
+}
+.multiverse-legend-label { color: var(--muted); }
+.multiverse-legend-pct {
+  font-family: var(--font-plex-mono), "Courier New", monospace;
+  font-weight: 700;
+  color: var(--cream);
+  font-variant-numeric: tabular-nums;
 }

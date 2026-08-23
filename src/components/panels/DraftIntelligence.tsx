@@ -161,6 +161,33 @@ function LiveBoard({
 
   const matchCount = matches?.length ?? available.length;
 
+  /**
+   * Players whose bye week would STACK against a starter you already hold at
+   * the same position.
+   *
+   * Two running backs off in week 6 means an empty RB slot in week 6, which is
+   * a real cost the raw value columns cannot show. This is advisory and never
+   * removes a player from the board or reorders it -- a stacked bye is a reason
+   * to look twice, not a verdict, and the drafter decides.
+   *
+   * Unknown byes never clash: `byeWeek` is null when the source did not supply
+   * one, and a null must not be treated as equal to another null.
+   */
+  const byeClash = useMemo(() => {
+    const mineByPosWeek = new Map<string, number>();
+    for (const p of myRoster) {
+      if (p.byeWeek == null) continue;
+      const key = `${p.position}:${p.byeWeek}`;
+      mineByPosWeek.set(key, (mineByPosWeek.get(key) ?? 0) + 1);
+    }
+    const clash = new Set<string>();
+    for (const p of available) {
+      if (p.byeWeek == null) continue;
+      if ((mineByPosWeek.get(`${p.position}:${p.byeWeek}`) ?? 0) > 0) clash.add(p.id);
+    }
+    return clash;
+  }, [myRoster, available]);
+
   return (
     <div className="universe-layout">
       <div className="table-wrap" tabIndex={0} role="region" aria-label="Available players table">
@@ -184,6 +211,9 @@ function LiveBoard({
               <th>Player</th>
               <th>Position</th>
               <th>Team</th>
+              <th scope="col" title="NFL bye week — the week this player does not play">
+                Bye
+              </th>
               <th>True</th>
               <th>Edge</th>
               <th>Draft</th>
@@ -192,12 +222,12 @@ function LiveBoard({
           <tbody>
             {available.length === 0 && (
               <tr>
-                <td colSpan={6}>No available players (or empty envelope).</td>
+                <td colSpan={7}>No available players (or empty envelope).</td>
               </tr>
             )}
             {available.length > 0 && visible.length === 0 && (
               <tr>
-                <td colSpan={6}>No available players match “{query}”.</td>
+                <td colSpan={7}>No available players match “{query}”.</td>
               </tr>
             )}
             {visible.map((p) => (
@@ -210,6 +240,19 @@ function LiveBoard({
                 </td>
                 <td>{p.position}</td>
                 <td>{p.team ?? "—"}</td>
+                <td className={byeClash.has(p.id) ? "neu-text draft-bye-clash" : undefined}>
+                  {p.byeWeek == null ? (
+                    <span title="Bye week not available from the current source">—</span>
+                  ) : (
+                    <>
+                      {p.byeWeek}
+                      {/* The word, not only the colour (WCAG 1.4.1). A clash is
+                          information a drafter acts on, so it cannot be carried
+                          by a tint alone. */}
+                      {byeClash.has(p.id) && <span className="draft-bye-flag"> clash</span>}
+                    </>
+                  )}
+                </td>
                 <td>{Math.round(p.trueValue)}</td>
                 <td className={scarcityGap(p) >= 0 ? "pos-text" : "neg-text"}>
                   {scarcityGap(p) >= 0 ? "+" : ""}
@@ -303,6 +346,9 @@ function RecommendationQueue({ recommendations }: { recommendations: Recommendat
           <tr>
             <th>Player</th>
             <th>Position</th>
+            <th scope="col" title="NFL bye week — the week this player does not play">
+              Bye
+            </th>
             <th>Category</th>
             <th>Score</th>
             <th>Why</th>
@@ -311,13 +357,14 @@ function RecommendationQueue({ recommendations }: { recommendations: Recommendat
         <tbody>
           {recommendations.length === 0 && (
             <tr>
-              <td colSpan={5}>No recommendations.</td>
+              <td colSpan={6}>No recommendations.</td>
             </tr>
           )}
           {recommendations.map((rec) => (
             <tr key={rec.player.id}>
               <td>{rec.player.name}</td>
               <td>{rec.player.position}</td>
+              <td>{rec.player.byeWeek ?? "—"}</td>
               <td>
                 <span className={`fixture-badge`}>{rec.category}</span>
               </td>
@@ -432,6 +479,9 @@ function DraftBoardView({ recommendations }: { recommendations: Recommendation[]
               </span>
               <span className="pos-badge" data-pos={rec.player.position.toLowerCase()}>
                 {rec.player.position}
+              </span>
+              <span className="draft-board-bye" title="NFL bye week">
+                {rec.player.byeWeek == null ? "BYE —" : `BYE ${rec.player.byeWeek}`}
               </span>
               <span className="draft-board-category">{rec.category}</span>
               <div className="draft-board-bar-wrap" aria-hidden="true">

@@ -391,9 +391,27 @@ export function fpPlayerToRecord(
     ],
     rosterSlot: "FLEX",
     status: "active",
+    // FantasyPros ships this in every snapshot and it was dropped here. The
+    // field is a string upstream and may be absent, empty, or non-numeric, so
+    // anything that is not a plausible week becomes null rather than NaN or 0.
+    byeWeek: parseByeWeek(fp.player_bye_week),
     imageUrl: FP_DEFAULT_HEADSHOT,
     imageSource: "FantasyPros consensus rankings"
   };
+}
+
+/**
+ * FantasyPros reports the bye as a STRING and sometimes omits it entirely.
+ *
+ * Anything that is not a plausible NFL week returns null. Zero is explicitly not
+ * a bye week -- upstream uses it as a placeholder, and passing it through would
+ * put "BYE 0" next to a real draft decision.
+ */
+export function parseByeWeek(raw: unknown): number | null {
+  if (typeof raw === "number") return Number.isInteger(raw) && raw >= 1 && raw <= 22 ? raw : null;
+  if (typeof raw !== "string") return null;
+  const n = Number.parseInt(raw.trim(), 10);
+  return Number.isInteger(n) && n >= 1 && n <= 22 ? n : null;
 }
 
 /**

@@ -832,3 +832,115 @@ Still open, deliberately:
 Every new file scan added in this pass — the type scale, the cron gate, the
 palette — asserts **that it found files at all** before asserting anything about
 them. A scan over an empty set is instance number ten waiting to happen.
+
+---
+
+## Draft / free-agency audit (2026-08-23)
+
+Run as an interaction audit against a real browser, not by reading code. The
+throwaway script became `e2e/24-draft-board.spec.ts`, because a one-off audit
+proves a moment and a test proves it every run.
+
+### The state machine: 18 assertions, all passing
+
+`/draft` derives every panel from two sets — players you took, players an
+opponent took — and each has to recompute on every pick. It was the product's
+most stateful surface, and the existing specs asserted the panel **renders**,
+not that it **responds**.
+
+| behaviour | result |
+|---|---|
+| draft to your team increments mine, decrements left, leaves taken alone | pass |
+| the player leaves the board **and** appears on your roster | pass |
+| an opponent pick leaves the pool **without** joining your roster | pass |
+| recommendations, tier collapse and big board all exclude drafted players | pass |
+| release returns a pick to the pool | pass |
+| reset restores the board exactly | pass |
+
+### Bye week: it was not there at all
+
+`status: "bye"` answered *"is this player out this week"*. Nothing answered
+*"which week are they off"* — the question a draft board exists to help with.
+
+**FantasyPros has shipped `player_bye_week` in every rankings snapshot the whole
+time.** `enrich.ts` dropped it at the record boundary, and its own header
+comment claimed it passed it through. Identical shape to P0-5, where `fetchedAt`
+was dropped and a stale snapshot became "current": the data was there, and the
+boundary threw it away.
+
+Now: `byeWeek` on `PlayerMarketRecord` (nullable, never defaulted), a **Bye
+column** on the live board and the recommendation queue, a `BYE n` marker on the
+big board, and a **stacking warning** when a candidate shares a bye with a
+starter you already hold at the same position.
+
+`parseByeWeek` rejects `0` explicitly — upstream uses it as a placeholder, and
+passing it through would print "BYE 0" beside a real draft decision.
+
+The penalty is deliberately small (−3) and always accompanied by a stated
+reason. **A stacked bye is one bad week, not a bad player**; a penalty large
+enough to reorder a real value gap would be the model overruling the drafter on
+a judgement that is theirs. A test pins that a clearly better player still ranks
+first despite a clash.
+
+The fixture catalog was given internally consistent byes so the warning is
+**reachable in the demo** — teammates share a week (Gibbs and LaPorta, Detroit,
+week 6, different positions so not a clash) and two different teams share week 5
+(Bijan and McCaffrey, both RB, which **is** a clash). A guard nobody can trigger
+is indistinguishable from one that does not work.
+
+### A column misalignment I introduced, and the test that caught it
+
+Adding the Bye column, I **replaced** the TEAM cell instead of inserting beside
+it. The header kept seven columns while every body row had six, so every value
+shifted one place left: team codes vanished, bye weeks sat under TEAM, and true
+values sat under BYE.
+
+Nothing looked broken. Bye weeks are small integers and true values are
+two-digit numbers, so every cell was plausible under the wrong heading. **A
+screenshot would not have caught it.** Counting cells did, and
+`e2e/24-draft-board.spec.ts` now pins header count against body cell count on
+every row.
+
+### Free-agency pools
+
+`pools.test.ts` pins the season-mirror rule that had exactly one incidental
+assertion covering it: **pre-draft shows the whole league universe, post-draft
+shows free agents only, unknown falls back to your own roster.** The decisive
+assertion is that a rostered player never appears in the post-draft market pool
+— that is how a waiver panel starts recommending somebody else's starter.
+
+## Chart and layout audit (2026-08-23)
+
+### Charts — 59 surfaces, every one drawn and labelled
+
+Every route, **every tab**, measured while the tab was open. Charts behind tabs
+unmount when another tab is selected, so clicking through them and evaluating
+once at the end sees only the last one — which is how a chart audit reports "no
+charts" on a route full of them. The first run of this audit did exactly that
+and found 3 surfaces; measuring per tab found **59**.
+
+44 SVG + 15 grid surfaces across 8 routes: every one draws geometry, every one
+is labelled for assistive tech.
+
+**One finding was mine, not the product's.** The first pass counted a shape as
+"drawn" only if both width and height exceeded 0.5px, which reports every axis
+line as undrawn — a horizontal line has zero height by definition. It flagged
+the reliability diagram's x-axis, y-axis and diagonal while all three were fine.
+Fixed the audit rather than explaining it away; an audit that miscounts is the
+thing this audit exists to find.
+
+### Layout — 30 page states, 120 assertions, all passing
+
+10 routes × 3 viewports, checking horizontal overflow, hard-clipped text, empty
+panels, and type below the declared 9px floor.
+
+**One real finding: the Outcome Multiverse labels rendered at ~5 CSS pixels.**
+They lived inside the SVG at 8 and 9 **user units**, in a 560-wide viewBox
+rendered around 371px — a 0.66 scale. Below the type scale's floor, and
+invisible to every gate this repo has, because **CSS tooling does not measure
+scaled SVG user units**.
+
+Raising them in place was not available: the fan leaves ~90 user units to the
+right of the nodes, and text large enough to survive the scale would not fit. So
+the chart keeps the geometry and the labels moved out to an HTML legend, where
+the type scale applies and they reflow.

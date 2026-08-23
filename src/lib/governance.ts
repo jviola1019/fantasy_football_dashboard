@@ -34,6 +34,22 @@ export const PlayerMarketRecordSchema = z.object({
   sources: z.array(SourceMetaSchema),
   rosterSlot: z.string(),
   status: z.enum(["active", "questionable", "out", "ir", "bye", "unknown"]),
+  /**
+   * The player's NFL bye WEEK, or null when it is not known.
+   *
+   * Audit 2026-08-23. `status: "bye"` above answers "is this player out THIS
+   * week"; it says nothing about WHICH week they are off, which is the question
+   * a draft board has to answer. FantasyPros has shipped `player_bye_week` in
+   * every rankings snapshot the whole time and `enrich.ts` dropped it at the
+   * record boundary -- the same failure shape as P0-5, where `fetchedAt` was
+   * dropped and a stale snapshot became "current".
+   *
+   * NULLABLE and never defaulted. A missing bye renders as an em dash; guessing
+   * one would put a fabricated number next to a real draft decision.
+   *
+   * Optional in the schema so previously stored snapshots keep parsing.
+   */
+  byeWeek: z.number().int().min(1).max(22).nullable().optional(),
   imageUrl: z.string().url(),
   imageSource: z.string()
 });

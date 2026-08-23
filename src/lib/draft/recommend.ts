@@ -69,6 +69,15 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
   // empty roster has high coreRemaining (draft skill players); a nearly-set
   // roster has ~0 (now K/DEF become sensible). Works for any roster size without
   // hardcoding round numbers.
+  // How many players you already hold at each (position, bye week). Built once
+  // rather than per candidate.
+  const byeCounts = new Map<string, number>();
+  for (const p of input.myRoster) {
+    if (p.byeWeek == null) continue;
+    const key = `${p.position}:${p.byeWeek}`;
+    byeCounts.set(key, (byeCounts.get(key) ?? 0) + 1);
+  }
+
   const coreRemaining = CORE_POSITIONS.reduce(
     (s, pos) => s + Math.max(0, (targets[pos] ?? 0) - (myCounts[pos] ?? 0)),
     0
@@ -125,6 +134,25 @@ export function recommend(input: RecommendInput, limit = 10): Recommendation[] {
 
       if (player.trendingMomentum > 30) reasons.push(`trending tailwind +${player.trendingMomentum}`);
       if (player.fragility > 60) reasons.push(`fragility ${player.fragility} — discount applied`);
+
+      // Bye-week stacking (audit 2026-08-23). Two starters at the same position
+      // off in the same week means an empty slot that week -- a real cost the
+      // value columns cannot show.
+      //
+      // The penalty is SMALL and always accompanied by a stated reason. A
+      // stacked bye is one bad week, not a bad player, and burying a
+      // significantly better player over it would be the model overruling the
+      // drafter on a judgement that is theirs. It is surfaced, then weighted
+      // gently.
+      //
+      // A null bye never stacks: unknown is not equal to unknown.
+      const stacked = player.byeWeek == null ? 0 : (byeCounts.get(`${player.position}:${player.byeWeek}`) ?? 0);
+      if (stacked > 0) {
+        score -= 3;
+        reasons.push(
+          `bye week ${player.byeWeek} clashes with ${stacked} ${player.position} you already hold`
+        );
+      }
 
       return {
         player,
