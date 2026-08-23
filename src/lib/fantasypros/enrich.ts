@@ -15,7 +15,15 @@ import { positionReplacementRank } from "../league/lineupDemand";
 
 const PPR_BEHAVIORAL_FIELDS = [
   "trending_momentum", // requires Sleeper trending or ESPN-news adapter
-  "opportunity" // requires in-season target/snap data
+  "opportunity", // requires in-season target/snap data
+  // `fragility` was MISSING FROM THIS LIST while every live record was still
+  // created with fragility: 0 (src/lib/normalize.ts). The envelope therefore
+  // never declared it missing, so every guard downstream was dead code — and
+  // the DEF grade, which is entirely fragility-driven, printed a constant "B+"
+  // for every live user regardless of their actual defense
+  // (derivedMetrics: avg(fragility < 35 ? 6 : -4) => 6 => gradeFromScore(6)).
+  // Audit 2026-08-22.
+  "fragility" // requires an injury / snap-share adapter; none is integrated
 ];
 
 /**

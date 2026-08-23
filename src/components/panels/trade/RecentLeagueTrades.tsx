@@ -19,9 +19,17 @@ export function RecentLeagueTrades({ trades }: { trades: GradedTrade[] }) {
               <tr key={t.id}>
                 <td>{t.sideA.map((p) => p.name).join(", ") || "—"}</td>
                 <td>{t.sideB.map((p) => p.name).join(", ") || "—"}</td>
-                <td>{t.verdict.totalA} / {t.verdict.totalB}</td>
-                <td className={t.verdict.verdict === "balanced" ? "pos-text" : "neu-text"}>
-                  {t.verdict.verdict}
+                <td>{t.verdict.unpriced ? "—" : `${t.verdict.totalA} / ${t.verdict.totalB}`}</td>
+                {/* An unpriced trade shows the absence of a grade, not a grade.
+                    These previously read "balanced" because 0 vs 0 scores as a
+                    perfect tie — the strongest claim available, from no data. */}
+                <td
+                  className={
+                    t.verdict.unpriced ? "muted-note" : t.verdict.verdict === "balanced" ? "pos-text" : "neu-text"
+                  }
+                  title={t.verdict.unpriced ? "No trade values available for these players" : undefined}
+                >
+                  {t.verdict.unpriced ? "not priced" : t.verdict.verdict}
                 </td>
               </tr>
             ))}
