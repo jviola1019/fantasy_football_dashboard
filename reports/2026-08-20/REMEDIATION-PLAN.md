@@ -28,14 +28,21 @@ Ordered by *who is harmed and how invisibly*, not by reported severity:
 |---|---|---|
 | P0-1 | DEF grade was a constant "B+" for every live user; `fragility` never declared missing so every guard was dead code | **FIXED** `97c6774` |
 | P0-2 | Every ESPN trade graded "balanced, fairness 1.0" from an empty value map; half-priced trades graded "lopsided" | **FIXED** `97c6774` |
-| P0-3 | `myRoster` silently falls back to **another manager's team** when identity resolution fails, stamped `validation: "valid"` | **NEXT** |
+| P0-3 | `myRoster` silently falls back to **another manager's team** when identity resolution fails, stamped `validation: "valid"` | **FIXED** `cc4a412` |
 | P0-4 | Season-sim "confidence bands" measure Monte-Carlo replication noise but are labelled a confidence interval — **and one of the two displayed intervals did not contain its own point estimate** | **FIXED** — see §P0-4 below |
-| P0-5 | Stale opportunity snapshot presented as current; `fetchedAt` dropped so age is never checked, and `opportunity` is removed from `missingFields` regardless | **PLANNED** |
+| P0-5 | Stale opportunity snapshot presented as current; `fetchedAt` dropped so age is never checked, and `opportunity` is removed from `missingFields` regardless | **FIXED** — see §P0-5 below |
 
-P0-3 is the worst remaining item. A Sleeper user who omits `sleeperUsername`
-(it is optional) or renames themselves gets **roster_id 0's players** — every
-panel, simulation, trade grade and keeper price computed against a stranger's
-team, with no banner and no degradation.
+P0-3 was the worst of these. A Sleeper user who omits `sleeperUsername` (it is
+optional) or renames themselves got **roster_id 0's players** — every panel,
+simulation, trade grade and keeper price computed against a stranger's team,
+with no banner and no degradation. The fallback is kept, because it is genuinely
+useful for a commissioner viewing a league they have no team in; it is now
+DECLARED, so the UI can say whose roster it is showing rather than implying it
+is yours. `identityResolved` and `identityNote` are non-optional on
+`LiveLeagueSnapshot`, so the compiler enumerated all six construction sites, and
+`toEnvelope.test.ts` pins that the note reaches the disclosure channel.
+
+**All five P0 items are now closed.**
 
 ## P1 — silent wrongness and non-determinism
 
@@ -772,3 +779,56 @@ files at all, so a wrong path cannot make them pass vacuously.
 
 Use `var(--token)` in CSS and in `style={{}}`. Use `THEME` **only** where a
 `var()` cannot reach.
+
+---
+
+## Ledger
+
+| tier | items | status |
+|---|---|---|
+| **P0** — fabricated data reaching users | 5 | **5 fixed** |
+| **P1** — silent wrongness / non-determinism | 6 | **6 fixed** |
+| **P2** — our own validation | 7 | **6 fixed, 1 disclosed** (P2-7 needs a pre-registered protocol change) |
+| **P3** — coverage gaps | 6 | **6 covered** (2 required extracting the code first) |
+| **P4** — removals | 11 symbols | **11 removed** |
+| **D-1…D-4** — design, first pass | 4 | **4 fixed** |
+| **D-5…D-9** — design, deferred | 5 | **5 fixed** |
+
+Still open, deliberately:
+
+- **P2-5 snapshotting.** The input fingerprint makes runs comparable; it does not
+  make them reproducible. Snapshotting backtest inputs is a data-plumbing change.
+- **P2-7 grouped CV.** Holding out players and weeks together is a protocol
+  change requiring pre-registration. Swapping the CV scheme after seeing results
+  is what the five frozen protocols exist to forbid.
+- **§11 credential invalidation** remains **attested, not verified**. Only the
+  owner can replay the old `DB_INIT_TOKEN` against the deployment
+  (`npm run verify:rotation`). CI proves the repository is clean; it cannot
+  prove a live credential was invalidated.
+- **The unit suite flaked once** on DB-reset hook timeouts in
+  `throttle.test.ts` under full-suite concurrency — four failures in one run,
+  green in the two runs either side, and not reproducible since. Recorded rather
+  than dismissed: a suite that fails intermittently in a DB hook will eventually
+  be called "just flaky", and then it will hide something real. **Not the same
+  as the `activeLeague` coin flip**, which was diagnosed and fixed.
+
+### The pattern this audit is named after
+
+**Nine instances** of a check that passes without checking, now:
+
+1. `gitleaks` scanned 29 of 299 commits and reported clean.
+2. `| tail` masked a Playwright exit code — 4 failures reported as green.
+3. The CodeQL *workflow* was green while the *analysis* carried 8 alerts.
+4. A backspace byte in a regex made an e2e guard assert nothing for 5 commits.
+5. `vitest` passed while `typecheck` failed — vitest strips types.
+6. The `fragility` guard was tested with hand-built envelopes production never
+   produced.
+7. A test asserted the trade-fabrication bug as intended behaviour.
+8. **P0-4**: a bracketing test compared an interval to its own bootstrap mean,
+   never to the number on screen.
+9. **P2-1**: a "backtest" whose forecast was a monotone function of the outcome
+   it scored.
+
+Every new file scan added in this pass — the type scale, the cron gate, the
+palette — asserts **that it found files at all** before asserting anything about
+them. A scan over an empty set is instance number ten waiting to happen.
