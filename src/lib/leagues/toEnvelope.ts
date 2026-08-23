@@ -12,6 +12,8 @@ import {
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
 import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
+import { evaluateFreshness } from "../ops/freshness";
+import { SNAPSHOT_CONTRACT } from "../ops/snapshotContracts";
 import type { WeeklyProjectionByFormat } from "./scoringPoints";
 
 /**
@@ -70,8 +72,21 @@ export interface BuildEnvelopeOptions {
   /** Current NFL season ("2026") for the season-mirror. Defaults to the league's own season. */
   currentSeason?: string;
   /** FREE nflverse opportunity scores (normalized-name → snap-share 0-100). When
-   * present, `opportunity` is stamped onto records and dropped from missingFields. */
+   * present AND within its cron freshness contract, `opportunity` is stamped
+   * onto records and dropped from missingFields. */
   opportunityScores?: OpportunityMap | null;
+  /**
+   * When the opportunity snapshot was written. REQUIRED alongside the scores.
+   *
+   * Audit 2026-08-22, P0-5: this was previously dropped at the load boundary,
+   * so the envelope activated opportunity on PRESENCE alone. A snapshot of any
+   * age — the cron could have been dead for a month — was stamped onto every
+   * record and described as "a real role/usage proxy from the latest season's
+   * games", while `opportunity` was removed from `missingFields` so no panel
+   * could disclose it. Age is not optional metadata for a usage feed; it is the
+   * difference between a role proxy and a historical curiosity.
+   */
+  opportunityFetchedAt?: Date | string | null;
 }
 
 /**
@@ -110,12 +125,27 @@ export function buildLiveEnvelope({
   newsMomentumScores,
   playersSnapshot,
   currentSeason,
-  opportunityScores
+  opportunityScores,
+  opportunityFetchedAt
 }: BuildEnvelopeOptions): RAEEnvelope {
   const season0 = currentSeason ?? String(snapshot.league.season);
   const { draftState, season } = deriveLeagueMeta(snapshot, season0);
-  const oppScores = opportunityScores ?? null;
-  const opportunityActive = !!(oppScores && Object.keys(oppScores).length > 0);
+  // Opportunity is only ACTIVE when it is both present and inside the freshness
+  // contract the cron already declares (shared with /api/health so the operator
+  // view and the user view cannot disagree). An EXPIRED snapshot is treated as
+  // absent: `opportunity` stays in missingFields and panels render "—" rather
+  // than a stale snap share dressed up as current usage.
+  const oppFreshness = evaluateFreshness(
+    SNAPSHOT_CONTRACT.nflverseOpportunity,
+    opportunityFetchedAt ?? null,
+    new Date()
+  );
+  const oppPresent = !!(opportunityScores && Object.keys(opportunityScores).length > 0);
+  const oppExpired = oppFreshness.verdict === "expired" || oppFreshness.verdict === "missing";
+  const opportunityActive = oppPresent && !oppExpired;
+  const oppScores = opportunityActive ? (opportunityScores ?? null) : null;
+  const oppAgeDays =
+    oppFreshness.ageSeconds == null ? null : Math.floor(oppFreshness.ageSeconds / 86_400);
   const allRosters = snapshot.allRosters.map((r) => withOpportunity(r, oppScores));
 
   // Build the league universe + free agents when both the players snapshot and
@@ -217,9 +247,16 @@ export function buildLiveEnvelope({
     : proxyActive
       ? "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification."
       : "Trending momentum not derived; declared in missingFields.";
+  // The assumption states the AGE, always. "From the latest season's games" is a
+  // claim about recency, and a claim about recency has to carry the date it
+  // rests on or it is just a nicer-sounding version of no information.
+  const oppAgeSuffix = oppAgeDays == null ? "" : ` Snapshot is ${oppAgeDays} day${oppAgeDays === 1 ? "" : "s"} old.`;
   const opportunityAssumption = opportunityActive
-    ? "opportunity = nflverse snap share (free, CC-BY) — a real role/usage proxy from the latest season's games."
-    : "In-season opportunity not derived; declared in missingFields.";
+    ? `opportunity = nflverse snap share (free, CC-BY) — a real role/usage proxy.${oppAgeSuffix}` +
+      (oppFreshness.verdict === "stale" ? " Past its refresh window; treat as indicative, not current." : "")
+    : oppPresent
+      ? `In-season opportunity WITHHELD: the nflverse snapshot is ${oppFreshness.detail}. Declared in missingFields rather than shown as current.`
+      : "In-season opportunity not derived; declared in missingFields.";
 
   return {
     mode: "live",

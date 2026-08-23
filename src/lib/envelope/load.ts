@@ -185,7 +185,10 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             newsMomentumScores,
             playersSnapshot: playersSnapshot?.players ?? null,
             currentSeason: nflData?.season,
-            opportunityScores: oppSnapshot?.scores ?? null
+            opportunityScores: oppSnapshot?.scores ?? null,
+            // P0-5: the age travels WITH the scores. Dropping it here is what let
+            // a snapshot of any age be presented as current usage.
+            opportunityFetchedAt: oppSnapshot?.fetchedAt ?? null
           }),
           leagueOptions,
           activeLeagueId

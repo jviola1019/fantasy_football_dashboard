@@ -7,36 +7,37 @@ import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getLatestNewsSnapshot } from "@/lib/espn/newsSnapshot";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
 import { evaluateFreshness, type FreshnessContract, type FreshnessResult } from "@/lib/ops/freshness";
+import { SNAPSHOT_CONTRACT } from "@/lib/ops/snapshotContracts";
 
 export const runtime = "nodejs";
 
-const DAY = 24 * 3600;
 // Snapshot freshness contracts for the fixed-source-key sources that drive the
 // envelope. Surfaced (query-gated) for an uptime monitor /
 // scripts/check-cron-freshness.ts; intentionally does NOT flip the top-level
 // `status` (a behind cron during the off-season shouldn't read as "app down").
 // Projections (keyed per season-week) and KTC (per format) have no fixed key
 // to contract against — deferred deliberately, not forgotten.
+// The thresholds themselves live in `@/lib/ops/snapshotContracts` so the
+// ENVELOPE evaluates staleness against exactly the same numbers this endpoint
+// reports (audit 2026-08-22, P0-5).
 const SNAPSHOT_CONTRACTS: Array<{
   contract: FreshnessContract;
   load: () => Promise<{ fetchedAt: Date } | null>;
 }> = [
   {
-    contract: { source: "sleeper-players", warnAfterSeconds: DAY, expireAfterSeconds: 30 * 3600 },
+    contract: SNAPSHOT_CONTRACT.sleeperPlayers,
     load: () => getLatestPlayersSnapshot()
   },
   {
-    contract: { source: "fantasypros-ppr", warnAfterSeconds: DAY, expireAfterSeconds: 30 * 3600 },
+    contract: SNAPSHOT_CONTRACT.fantasyprosPpr,
     load: () => getLatestRankingsSnapshot("PPR")
   },
   {
-    // nflverse opportunity: daily cron, 14-day retention; warn after 2 days
-    // (one missed run), expire when the prune window would empty the table.
-    contract: { source: "nflverse-opportunity", warnAfterSeconds: 2 * DAY, expireAfterSeconds: 15 * DAY },
+    contract: SNAPSHOT_CONTRACT.nflverseOpportunity,
     load: () => getLatestOpportunitySnapshot("nfl")
   },
   {
-    contract: { source: "espn-news", warnAfterSeconds: DAY, expireAfterSeconds: 3 * DAY },
+    contract: SNAPSHOT_CONTRACT.espnNews,
     load: () => getLatestNewsSnapshot("espn-nfl")
   }
 ];
