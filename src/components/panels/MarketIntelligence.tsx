@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
+import { THEME } from "@/lib/theme";
 import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
 import { Heatmap2D, DEFAULT_COLOR } from "@/components/charts/Heatmap2D";
@@ -327,9 +328,11 @@ function SentimentVelocity({ players }: { players: PlayerMarketRecord[] }) {
   const negative = players.filter((p) => p.trendingMomentum < -5).length;
   const neutral = players.length - positive - negative;
   const items = [
-    { label: "Positive", value: positive, color: "#77d7b0" },
-    { label: "Neutral", value: neutral, color: "#8d9aa0" },
-    { label: "Negative", value: negative, color: "#d9866f" },
+    // From the theme, not from hex literals -- these reach SVG presentation
+    // attributes, which cannot resolve var(). Design audit 2026-08-22, D-5.
+    { label: "Positive", value: positive, color: THEME.green },
+    { label: "Neutral", value: neutral, color: THEME.muted },
+    { label: "Negative", value: negative, color: THEME.red },
   ];
   return (
     <div className="chart-wrap">

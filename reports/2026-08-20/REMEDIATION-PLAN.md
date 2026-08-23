@@ -41,12 +41,12 @@ team, with no banner and no degradation.
 
 | # | finding | status |
 |---|---|---|
-| P1-1 | `listLeagues` has no `ORDER BY`; `leagues[0]` is the default active league. Stable on SQLite, arbitrary on Postgres, and an UPDATE relocates the row | **PLANNED** |
-| P1-2 | `/api/leagues/[id]/refresh` returns **HTTP 200** with `teamCount: 0` when the fetch failed; docs tell callers to check `res.ok` | **PLANNED** |
-| P1-3 | `normalizePpr` maps any reception value outside {0, 0.5, 1} to standard — a 0.25/0.75/1.5 PPR league is silently mis-scored throughout | **PLANNED** |
-| P1-4 | Three-team trades collapsed into two sides; C's haul attributed to B | **PLANNED** |
-| P1-5 | `news-refresh` writes an empty snapshot as success, resetting the freshness clock while the feature is dark | **PLANNED** |
-| P1-6 | `createLeague` writes two rows with no transaction; a credential failure permanently bricks the league with a misleading error | **PLANNED** |
+| P1-1 | `listLeagues` has no `ORDER BY`; `leagues[0]` is the default active league. Stable on SQLite, arbitrary on Postgres, and an UPDATE relocates the row | **FIXED** |
+| P1-2 | `/api/leagues/[id]/refresh` returns **HTTP 200** with `teamCount: 0` when the fetch failed; docs tell callers to check `res.ok` | **FIXED** |
+| P1-3 | `normalizePpr` maps any reception value outside {0, 0.5, 1} to standard — a 0.25/0.75/1.5 PPR league is silently mis-scored throughout | **FIXED** |
+| P1-4 | Three-team trades collapsed into two sides; C's haul attributed to B | **FIXED** |
+| P1-5 | `news-refresh` writes an empty snapshot as success, resetting the freshness clock while the feature is dark | **FIXED** (+ 2 more crons with the same shape) |
+| P1-6 | `createLeague` writes two rows with no transaction; a credential failure permanently bricks the league with a misleading error | **FIXED** |
 
 ## P2 — our own validation is unreliable
 
@@ -55,13 +55,13 @@ they matter more than their user impact suggests.
 
 | # | finding | status |
 |---|---|---|
-| P2-1 | Brier backtest CSV path derives the forecast from the outcome it scores — AUC 1.0 by construction, written under the same headings as the legitimate path | **PLANNED** |
-| P2-2 | `fitLogisticCV` returns 0.5 for every row with one fold; caller reports the result as "the projections' TRUE calibration error" | **PLANNED** |
-| P2-3 | PAR curve pools season points across leagues with **different scoring formats** — positionally asymmetric distortion, the exact error `pointsCurve` was built to fix | **PLANNED** |
-| P2-4 | `spearman` has no tie handling; degenerate zero-variance buckets inject an arbitrary rank ordering instead of being inert | **PLANNED** |
-| P2-5 | Backtests fetch live data with no snapshot or input hash — "seeded and deterministic" is false across days | **PLANNED** |
-| P2-6 | `betweenTeamSigma` includes within-team sampling variance, over-dispersing the simulated field ~14% | **PLANNED** |
-| P2-7 | Leave-one-week-out is not leakage-free at player level; docstring claims it is | **PLANNED** |
+| P2-1 | Brier backtest CSV path derives the forecast from the outcome it scores — AUC 1.0 by construction, written under the same headings as the legitimate path | **FIXED** |
+| P2-2 | `fitLogisticCV` returns 0.5 for every row with one fold; caller reports the result as "the projections' TRUE calibration error" | **FIXED** |
+| P2-3 | PAR curve pools season points across leagues with **different scoring formats** — positionally asymmetric distortion, the exact error `pointsCurve` was built to fix | **FIXED** |
+| P2-4 | `spearman` has no tie handling; degenerate zero-variance buckets inject an arbitrary rank ordering instead of being inert | **FIXED** |
+| P2-5 | Backtests fetch live data with no snapshot or input hash — "seeded and deterministic" is false across days | **MITIGATED** — fingerprinted, not snapshotted |
+| P2-6 | `betweenTeamSigma` includes within-team sampling variance, over-dispersing the simulated field — **measured +8.4%**, not ~14% | **FIXED** |
+| P2-7 | Leave-one-week-out is not leakage-free at player level; docstring claims it is | **DISCLOSED** — a protocol change, not a code fix |
 
 ## P3 — coverage gaps
 
@@ -448,3 +448,327 @@ had been the only consumers of. Deleting them cascades into the element schemas,
 which are 10–15 lines each of documented upstream API contract — that is
 knowledge about Sleeper, not dead product code, and removing it was not part of
 what the coverage audit examined. Recorded here rather than done quietly.
+
+---
+
+## P1 — all six, and what they had in common
+
+None of these threw, logged, or degraded. Each produced a **confident, specific,
+wrong answer** in a place a user would never think to check. That is why they
+sit above the P2 backtest items despite looking smaller.
+
+### P1-1 · `listLeagues` had no `ORDER BY`
+
+`leagues[0]` is the **default active league** when no selection cookie is
+present, so the order of this one query decides whose roster, projections, trade
+prices and keeper costs a returning user sees. SQLite happened to return
+insertion order. Postgres is free to return anything, and an `UPDATE`
+physically relocates a row — so **editing one league's settings could change
+which league the app opened on.**
+
+Now `ORDER BY createdAt, id`. `createdAt` alone is not a total order: two
+leagues added in the same millisecond tie, which would reintroduce exactly the
+non-determinism this exists to remove.
+
+**This fix broke a test, and the test was the thing that was wrong.**
+`activeLeague.resolve.test.ts` created two leagues inside the same tick and
+asserted insertion order — a guarantee no database ever made. With the tie
+broken by a random uuid it passed or failed on a coin flip: two of four runs
+failed. The helper now gives leagues distinct timestamps, as a real user adding
+leagues seconds apart would, and the test additionally asserts the property that
+actually matters — **that repeated reads return the same order.** Three
+consecutive full runs, clean.
+
+### P1-2 · a failed refresh returned HTTP 200
+
+`fetchLeagueLive` degrades rather than throwing: on an upstream error it returns
+a snapshot with `failure` set and **no rosters**. The route serialized that as a
+normal 200 with `teamCount: 0` — indistinguishable from a league that genuinely
+has no rosters yet. The failure text was in the body, which no correct client
+reads on a 2xx, and `docs/account-isolation.md` tells callers to check `res.ok`.
+
+Now **502** when `failure` is set and no rosters came back: the request was
+well-formed and authorized, and the upstream platform is what failed. The full
+body still ships so the client can show *why*. `identityResolved` and
+`identityNote` are now in the payload too — P0-3's roster substitution has to
+reach API callers, not only the UI.
+
+### P1-3 · a 1.5 PPR league was called STANDARD
+
+`normalizePpr` returned 0 for anything not exactly 0, 0.5 or 1. The near-misses
+are bad; **1.5 PPR is the interesting case**, because it is a real and not-rare
+TE-premium format and 0 is the furthest possible answer from the truth. The
+settings screen reported *"STD (0 pt/reception)"* to an owner looking at a
+league that pays 1.5, and FantasyCalc was queried at `ppr=0`, pricing every
+receiving player low.
+
+It now **snaps to the nearest** supported value, `pprActual` carries the real
+figure, the settings screen and trade builder show the real figure, and
+`valuationAssumptions` states the approximation out loud when one was made.
+
+### P1-4 · three-team trades were graded as two-sided
+
+The bucketing rule was *"did this item go to team A?"* — everything else was
+swept into side B, **under side B's name**. In a three-team deal team C's haul
+was printed as team B's, and the fairness verdict compared A against B-plus-C.
+
+There is no pair of totals that answers "was this fair?" for three parties, so
+the honest output is a refusal: a `multi-team` verdict carrying `teamCount`,
+NaN fairness, a `+N more` label, and no third-team players folded into side B.
+Both platform paths had the defect; Sleeper's `roster_ids` states the
+participants outright, so there it did not even require inference.
+
+### P1-5 · empty snapshots written as success
+
+A news fetch that "succeeded" with zero articles was written and reported
+`ok: true` — the worst of both worlds: the feature is dark **and** the freshness
+clock has just been reset, so `/api/health` reports the source current while
+nothing anywhere says there are no articles behind the signal.
+
+Refusing to write leaves the previous snapshot in place, which is both more
+useful and more honest: it ages visibly against its contract instead of being
+replaced by nothing that looks new.
+
+**The class was assumed present until disproven, per the triage principle, and
+two more instances turned up:** `players-refresh` guarded `!players` but not an
+empty map, and `projections-refresh` guarded "every position failed" but not
+"positions responded and carried no players". `rankings-refresh` and
+`ktc-refresh` are safe by construction — their zod schemas require
+`players.min(1)`.
+
+### P1-6 · `createLeague` could permanently brick a league
+
+Two rows, no transaction. A failure between them left an ESPN league with no
+credentials: it could never refresh, reported a misleading error, and the
+duplicate guard then **blocked the user from re-adding it**. A transient failure
+produced a permanent dead row.
+
+A real transaction is not available here — `Db` is typed for better-sqlite3,
+whose drizzle transaction callback must be synchronous, while the production
+Postgres driver requires an async one. They are not reconcilable behind the
+shared type, and guessing wrong fails on exactly the driver that matters. So the
+window is closed from both ends instead: **encryption happens before any row is
+written** (so the likely failure — a missing or malformed key — cannot leave
+anything behind at all), and a failed credentials insert **deletes the league row
+and rethrows**, with the error saying explicitly what to do if the compensation
+itself fails.
+
+---
+
+## P2 — the tools we use to decide what is true
+
+These touch no user. They are how *we* decide what is true, which is why a
+defect here outlives every defect it hides.
+
+### P2-1 · a backtest that scored itself
+
+The CSV path sorted players by their **actual** PPR and used that rank as the
+"forecast" for whether the same actual PPR cleared a threshold. The predictor is
+a monotone function of the outcome, so **AUC is 1.0 by construction** and no
+skill is measured at all. The docstring described it as a "lower bound", which
+is exactly backwards — it is an upper bound of 1.0 on nothing.
+
+The path has one legitimate use, so it keeps it: **a harness self-test**. If the
+pipeline cannot score a perfect forecast as perfect, the pipeline is broken. So
+the AUC is now **asserted** (`< 0.999` sets a non-zero exit code) rather than
+reported, the report's H1 becomes *"Brier Harness SELF-TEST — not a backtest"*,
+and it opens with a banner saying the page measures nothing about the model.
+
+### P2-2 · an ECE computed from a constant
+
+`fitLogisticCV` behaves correctly with one fold: there is no out-of-fold
+training data, so it returns the max-entropy prior 0.5 rather than leaking the
+held-out outcomes. The **caller** then reported the ECE of that constant as
+*"the projections' TRUE calibration error"* — a number that is a property of the
+base rate, with the projections not in it at all.
+
+Now: fewer than two distinct weeks means no calibration model is reported. "We
+could not measure this" should look like absence, not like a measurement.
+
+### P2-3 · pooling points across scoring formats
+
+`toObservations` normalised for regular-season **length** and not for **scoring
+format**, and `lg.format` was sitting right there unused. A PPR league's WR1 and
+a STANDARD league's WR1 differ by the receptions they caught, so pooling lifts
+the WR and TE curves relative to RB and QB. That is a **positionally asymmetric
+distortion** — the exact error `pointsCurve` exists to remove from rank-ratio
+VBD, reintroduced one layer down.
+
+`PointsObservation` now carries `scoringFormat` (the compiler enumerated every
+construction site), and `PointsCurve` reports `scoringFormats` and
+`mixedScoringFormats`. The backtest prints a warning per curve when the pool
+mixes formats, and a second when a single-format curve is applied to a league of
+a different format. Today's five backtest leagues are all 10-team PPR, so the
+defect was **latent** — the fix stops it being silent, not currently wrong.
+
+### P2-4 · ranks that invented an ordering
+
+`rank()` assigned distinct sequential ranks by sort position, so `[5, 5, 5, 5]`
+came back as `[1, 2, 3, 4]`. A zero-variance bucket did not produce zero
+correlation; it produced an **arbitrary ordering invented from nothing**, which
+`spearman` then correlated against as though it meant something. Genuine ties
+anywhere in the data were broken by array order, so the same numbers in a
+different order gave a different answer.
+
+Mid-rank (average) tie handling now — which `scripts/holdout-evaluate-3.ts`
+already used, for exactly this reason. The shipped implementation did not, so
+the two disagreed.
+
+### P2-5 · "seeded and deterministic" was true of the arithmetic, not the run
+
+Every input is fetched **live** — the Sleeper projections and stats APIs, the
+nflverse release CSVs — and none of it is snapshotted. The same command on two
+different days scores different data, and nothing in the output said which. Two
+reports could disagree and both be correct.
+
+**Mitigated, not fixed.** The report now prints an FNV-1a **input fingerprint**
+over the scored rows, and says plainly that the inputs are live and not
+snapshotted. Identical fingerprints mean identical inputs; different ones mean
+the numbers are not comparable. That is the difference between *unreproducible*
+and *unreproducible and undetectable*. A real fix is to snapshot the inputs,
+which is a data-plumbing change, and it is recorded as still open.
+
+### P2-6 · the simulated field was over-dispersed — by 8.4%, not 14%
+
+A team's season mean is itself estimated from W weekly games, so
+
+```
+Var(observed season means) = Var(true strength) + Var(weekly) / W
+```
+
+`buildLeagueModels` used the raw standard deviation of season means, so the
+simulator drew each opponent's strength from an inflated spread **and then added
+weekly noise on top** — counting within-team variance twice. An over-dispersed
+field pushes playoff and championship probabilities away from the base rate,
+which is the direction that makes a model look more decisive than it is.
+
+**Measured rather than asserted.** `npm run measure:sigma` generates 4,000
+leagues with a known true spread:
+
+```
+true between-team sigma      14.000
+within-team sigma            25.000  (14 weeks, 12 teams)
+OLD estimator (raw stdev)    15.182   bias  +8.4%
+NEW estimator (components)   13.576   bias  -3.0%
+```
+
+The audit's "~14%" was again overstated. The residual −3.0% is the expected
+Jensen bias from taking the square root of a floored variance.
+
+**A second defect surfaced while fixing it:** `betweenTeamSigma || 1` coerced a
+measured zero to 1. That guard was harmless when zero could only come from a
+degenerate input, but the variance-components estimate makes zero a *legitimate*
+result — "these teams are not detectably different" — and coercing it
+substitutes a fabricated spread for a measured one. `seasonSim` only ever
+multiplies by it, so zero is safe. The floor stays on `withinTeamSigma`, where a
+zero really is a broken input.
+
+### P2-7 · what leave-one-week-out actually controls
+
+The docstring said "leave-one-week-out, so no leakage". Holding out a week does
+remove temporal leakage — no outcome from the scored week is in the training
+set. It does **not** make the folds independent, because the same players appear
+in every other week, so the fitted projection→probability mapping is partly
+learned from the very players it is then scored on.
+
+This is dependence, not outcome leakage: the model never sees a scored outcome,
+and the single feature is the projection rather than player identity, so the
+effect is bounded. But the effective sample size is closer to the number of
+distinct **players** than to the number of player-weeks, and the out-of-fold
+error is optimistic by an unmeasured amount.
+
+**Disclosed, not fixed.** A correct fix is grouped CV holding out players and
+weeks together, which is a protocol change requiring pre-registration — the
+discipline the five holdout protocols exist to enforce. Quietly swapping the CV
+scheme after seeing results is precisely what those protocols forbid.
+
+---
+
+## P3 — the untested surfaces, closed
+
+The coverage audit named six. All six now have tests, and two of them needed a
+structural change first, because **untestable and untested are not the same
+problem — the first causes the second.**
+
+| surface | what it guards | now |
+|---|---|---|
+| `timingSafe.ts` | every cron Bearer token + the DB init token | 8 tests |
+| `redact.ts` | the DB password not reaching a response body | 14 tests |
+| `requireUser.ts` | the single authorization choke point | 8 tests |
+| the cron gate | 7 routes | **extracted + 23 tests, incl. a file scan** |
+| `auth.ts` credentials | the one place a password becomes a session | **extracted + 8 tests** |
+| `toEnvelope.ts` | the object every panel on every route reads | 11 tests |
+
+### The cron gate was copy-pasted seven times
+
+Identical blocks in all seven route files, covered by a single parameterised
+test over a hard-coded list. Seven copies of a security check is seven chances
+for one to drift — to lose the `!expected` branch, to compare with `===` instead
+of `safeEqual` — and a test that enumerates known routes cannot notice the
+eighth route somebody adds without a gate at all.
+
+`requireCronAuth` is now one function, and `cronAuth.test.ts` **scans the
+filesystem**: every directory under `src/app/api/cron` must call it, and no
+route may read `process.env.CRON_SECRET` itself. It also asserts it found at
+least seven routes, so a wrong path cannot make the whole scan pass vacuously —
+which would be the exact failure this audit is named after.
+
+### The login path could not be imported
+
+`auth.ts` pulls in `next-auth`, and therefore `next/server`, so a unit test
+importing it dies at module load. That is why the function exchanging a password
+for a session had zero coverage while `auth.config.test.ts` sat beside it
+testing a **different file** — the edge-safe base config, which carries no
+providers at all and never touches a password.
+
+`authorizeCredentials` and `credentialsSchema` moved to
+`src/lib/auth/credentials.ts`, which imports no next-auth. `auth.ts` now imports
+them; runtime behaviour is unchanged. The tests pin the property that matters:
+**every rejection returns null and looks identical from outside** — a malformed
+email, an unknown account and a wrong password are indistinguishable, because
+any asymmetry is an account-enumeration oracle. They also pin that hostile
+`raw` input (numbers, arrays, objects with a `toString`, missing fields) returns
+null rather than throwing, since a throw here is a 500 on an unauthenticated
+endpoint.
+
+### What the new tests deliberately do NOT do
+
+`timingSafe.test.ts` makes no timing assertion. Timing in a JS test runner
+measures the scheduler, not the comparison, and would be precisely the kind of
+green check that isn't checking this audit keeps finding. It pins correctness,
+byte-not-code-unit comparison, and that hostile input cannot throw.
+
+---
+
+## D-5 — the chart palette, closed
+
+The last deferred design finding, and the one that needed a mechanism rather
+than an edit.
+
+**SVG presentation attributes cannot resolve `var()`.** `fill="var(--green)"`
+does not parse, so every chart hard-coded hex — and a whole **pre-repaint
+palette survived there** long after the tokens moved:
+
+| in the charts | the actual token |
+|---|---|
+| `#77d7b0` | `--green` `#35c08a` |
+| `#d9866f` | `--red` `#eb5f54` |
+| `#8d9aa0` | `--muted` `#8898aa` |
+| `#7bb7ce` | `--blue` `#5a9fc4` |
+| `#eaa53d` | `--amber` `#d7a857` |
+
+The charts were painted in the colours of a design that no longer existed, and
+**nothing in this repository could detect it.** A colour regression is invisible
+to typecheck, to lint, to axe and to Playwright alike — which is exactly why the
+finding was deferred rather than eyeballed, and exactly why a sweep alone would
+not have been a fix.
+
+`src/lib/theme.ts` is now the JS mirror of the CSS tokens. `theme.test.ts` is
+the point of the exercise: it fails the build when the JS and CSS palettes
+disagree, when a new CSS colour token has no mirror (with the exceptions listed
+explicitly rather than ignored), when two outcome buckets share a hue, and when
+any retired hex reappears in a component. Both file scans assert they found
+files at all, so a wrong path cannot make them pass vacuously.
+
+Use `var(--token)` in CSS and in `style={{}}`. Use `THEME` **only** where a
+`var()` cannot reach.

@@ -449,14 +449,95 @@ change wearing a costume.**
 
 ### Still open
 
-- **D-5 chart palette** — ~40 off-token colour literals in chart series. Needs a
-  visual-diff pass; a colour regression is invisible to every gate here.
-- **P1-1 … P1-6** and **P2-1 … P2-7** from the remediation plan.
-- **P3** coverage gaps (`auth.ts`, `requireUser.ts`, `timingSafe.ts`,
-  `redact.ts`, `toEnvelope.ts`).
+*(This list was written before the P1/P2/P3/D-5 pass below; see that section for
+what is now closed.)*
 - **The unit suite is intermittently flaky under full-suite concurrency.** One
   run showed 4 failures in `throttle.test.ts` / DB-reset hooks with
   `Hook timed out in 10000ms`; the same files pass in isolation and the next two
   full runs were green. A suite that fails intermittently in the DB hook will
   eventually be dismissed as "just flaky" and then hide something real. Not yet
   diagnosed.
+
+---
+
+## P1 / P2 / P3 / D-5 (2026-08-23)
+
+Full detail with measurements in
+[reports/2026-08-20/REMEDIATION-PLAN.md](reports/2026-08-20/REMEDIATION-PLAN.md).
+
+### P1 — all six closed
+
+`listLeagues` had no `ORDER BY` and `leagues[0]` is the default active league ·
+a failed refresh returned HTTP 200 with an empty roster · a **1.5 PPR league was
+classified STANDARD** and priced at `ppr=0` · **three-team trades were graded as
+two-sided with team C's haul under team B's name** · empty snapshots were written
+as success (two more crons had the same shape) · `createLeague` could
+permanently brick a league on a transient credential failure.
+
+**The P1-1 fix broke a test, and the test was the thing that was wrong.** It
+asserted insertion order on two leagues created in the same millisecond — a
+guarantee no database ever made. Two of four runs failed. Fixed properly; three
+consecutive clean full runs since.
+
+### P2 — six fixed, one disclosed
+
+- **P2-1** the CSV backtest path derived its forecast from the outcome it scored
+  (AUC 1.0 by construction) and called itself a "lower bound". Reframed as a
+  **harness self-test** with the AUC now *asserted*, and a banner saying the page
+  measures nothing about the model.
+- **P2-2** an ECE computed from a constant 0.5 was reported as "the projections'
+  TRUE calibration error". Now absent instead.
+- **P2-3** the PAR curve pooled season points across scoring formats — the same
+  positionally asymmetric distortion it exists to remove. `scoringFormat` is now
+  recorded and mixing is reported. **Latent today** (all five backtest leagues
+  are 10-team PPR), silent before.
+- **P2-4** `spearman` gave `[5,5,5,5]` the ranks `[1,2,3,4]` — an arbitrary
+  ordering invented from nothing. Mid-rank tie handling now.
+- **P2-5** every backtest input is fetched live and none is snapshotted, so
+  "seeded and deterministic" described the arithmetic and not the run.
+  **Mitigated**: an input fingerprint makes two runs comparable. Snapshotting is
+  still open.
+- **P2-6** `betweenTeamSigma` double-counted within-team variance. **Measured at
+  +8.4%**, not the reported ~14%, by a seeded 4,000-league simulation
+  (`npm run measure:sigma`). A second defect surfaced while fixing it:
+  `betweenTeamSigma || 1` coerced a *measured* zero to a fabricated 1.
+- **P2-7** leave-one-week-out was described as leakage-free. It removes temporal
+  leakage but not player-level dependence. **Disclosed, not fixed** — a correct
+  fix is grouped CV, which is a protocol change requiring pre-registration.
+
+### P3 — all six untested surfaces covered
+
+`timingSafe` · `redact` · `requireUser` · the cron gate · the credentials login
+path · `toEnvelope`. **Two needed a structural change first**, because
+untestable and untested are not the same problem and the first causes the
+second:
+
+- The **cron gate was copy-pasted into seven route files**. Extracted to
+  `requireCronAuth`, and `cronAuth.test.ts` now *scans the filesystem*: every
+  route under `src/app/api/cron` must call it, none may read `CRON_SECRET`
+  itself, and the scan asserts it found at least seven routes so a wrong path
+  cannot pass vacuously.
+- **The login path could not be imported** — `auth.ts` pulls in `next-auth` and
+  therefore `next/server`. That is why the one function exchanging a password
+  for a session had zero coverage while `auth.config.test.ts` sat beside it
+  testing a *different file*. `authorizeCredentials` moved to
+  `src/lib/auth/credentials.ts`, which imports no next-auth.
+
+### D-5 — the last deferred design finding
+
+SVG presentation attributes cannot resolve `var()`, so every chart hard-coded
+hex — and a whole **pre-repaint palette survived there**: `#77d7b0` where green
+is now `#35c08a`, `#d9866f` where red is `#eb5f54`, `#8d9aa0` where muted is
+`#8898aa`. The charts were painted in the colours of a design that no longer
+existed.
+
+`src/lib/theme.ts` is now the JS mirror of the CSS tokens, and `theme.test.ts`
+**fails the build if the two disagree**, if a new CSS colour token has no mirror,
+or if any retired hex reappears in a component. That test is the point — without
+it, `theme.ts` would just be a second place for the palette to drift.
+
+### Gates
+
+`typecheck` 0 · `lint` 0 · **vitest 1038 passed / 39 skipped** (up from 931) ·
+`build` clean · **Playwright 331 passed / 1 skipped / 0 failed**, exit code
+captured directly rather than through a pipe.

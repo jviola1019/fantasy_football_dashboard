@@ -17,6 +17,7 @@ import { ModelScenarioNotice } from "@/components/model/ModelScenarioNotice";
 import { ScenarioOutlook } from "@/components/model/ScenarioOutlook";
 import { structuralBaseline } from "@/lib/models/scenarioBand";
 import { PanelCard } from "../ui/PanelCard";
+import { THEME, OUTCOME_COLORS } from "@/lib/theme";
 import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 
 type Props = {
@@ -177,11 +178,15 @@ function OutcomeMultiverse({
   // are each ≥ 0 — no impossible >100% or negative percentages.
   const dist = deriveOutcomeDistribution(sim);
   const outcomes = [
-    { label: "Championship", pct: dist.championship, y: 50, color: "#d7a857" },
-    { label: "Top 3 Finish", pct: dist.topThree, y: 100, color: "#77d7b0" },
-    { label: "Wild Card", pct: dist.playoffs, y: 150, color: "#7bb7ce" },
-    { label: "Middle Pack", pct: dist.middlePack, y: 200, color: "#8d9aa0" },
-    { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: "#d9866f" },
+    // Colours come from OUTCOME_COLORS, not from hex literals. These are SVG
+    // presentation attributes (`stroke=`, `fill=`), which cannot resolve
+    // var(), which is exactly why a PRE-REPAINT palette survived here long
+    // after the tokens moved. Design audit 2026-08-22, D-5.
+    { label: "Championship", pct: dist.championship, y: 50, color: OUTCOME_COLORS.championship },
+    { label: "Top 3 Finish", pct: dist.topThree, y: 100, color: OUTCOME_COLORS.topThree },
+    { label: "Wild Card", pct: dist.playoffs, y: 150, color: OUTCOME_COLORS.playoffs },
+    { label: "Middle Pack", pct: dist.middlePack, y: 200, color: OUTCOME_COLORS.middlePack },
+    { label: "Bottom 3", pct: dist.bottomThree, y: 250, color: OUTCOME_COLORS.bottomThree },
   ];
 
   // Honest, useful heatmap: P(playoff outcome | regular-season wins) from the
@@ -388,7 +393,7 @@ function KeyDrivers({ sim, hasData }: { sim: SimulationResult; hasData: boolean 
   const items = sim.keyDrivers.map((d) => ({
     label: surname(d.name),
     value: Math.round(d.contribution * 10) / 10,
-    color: "#77d7b0",
+    color: THEME.green,
   }));
   const maxV = Math.max(...items.map((i) => i.value), 1);
   return (
@@ -405,7 +410,7 @@ function RiskOfRegret({ sim, hasData }: { sim: SimulationResult; hasData: boolea
   }
   const regret = sim.regretIndex;
   const level = regret > 60 ? "High" : regret > 30 ? "Moderate" : "Low";
-  const color = regret > 60 ? "#d9866f" : regret > 30 ? "#d7a857" : "#77d7b0";
+  const color = regret > 60 ? THEME.red : regret > 30 ? THEME.amber : THEME.green;
   const segments = [
     { label: level, value: regret, color },
     { label: "OK", value: 100 - regret, color: "rgba(255,255,255,0.06)" },

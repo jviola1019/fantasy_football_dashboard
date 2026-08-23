@@ -594,9 +594,12 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   color: var(--muted);
   margin-top: 6px;
 }
-.vol-legend-cyan  { color: #2fb6c4; }
-.vol-legend-purple { color: #8b7be0; }
-.vol-legend-amber  { color: #eaa53d; }
+/* Tokens, not literals. `#eaa53d` here was the PRE-REPAINT amber, surviving
+   next to two colours that happened to be spelled correctly -- the drift is
+   only visible once they sit side by side. Design audit 2026-08-22, D-5. */
+.vol-legend-cyan  { color: var(--teal); }
+.vol-legend-purple { color: var(--purple); }
+.vol-legend-amber  { color: var(--amber); }
 .vol-legend-ml    { margin-left: 6px; }
 
 /* ─── Narrative Momentum ─────────────────────────────────────────────────── */
