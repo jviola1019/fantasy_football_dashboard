@@ -60,7 +60,8 @@
 import { brierScore, kFoldCV, reliabilityDiagram, expectedCalibrationError } from "../src/lib/stats/distribution";
 import type { BrierForecast } from "../src/lib/stats/distribution";
 import { fitLogisticCV } from "../src/lib/stats/logistic";
-import { writeFileSync, readFileSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import { gzipSync, gunzipSync } from "node:zlib";
 import { join } from "node:path";
 
 const NFLVERSE_URL_2025_WEEK =
@@ -204,6 +205,52 @@ async function fetchSleeperProspective(): Promise<{
   return { rows, weeksLoaded, dnpCount };
 }
 
+
+/**
+ * Committed snapshot of the scored inputs (audit 2026-08-23, P2-5).
+ *
+ * Every source this script reads is fetched LIVE and none of it was persisted,
+ * so "seeded and deterministic" described the arithmetic and not the run: the
+ * same command on two different days scored different data. Two reports could
+ * disagree and both be correct, and nothing in either said which rows it had
+ * seen. The input fingerprint added earlier made that DETECTABLE; it did not
+ * make it reproducible.
+ *
+ * This does. `--refresh` fetches and writes the snapshot; every other run
+ * replays it. Same rule protocols 4 and 5 already follow, and the same reason:
+ * a result nobody else can regenerate is an anecdote.
+ */
+const PROSPECTIVE_SNAPSHOT = "reports/2026-08-20/brier-prospective.json.gz";
+
+interface ProspectiveSnapshot {
+  capturedAt: string;
+  season: number;
+  weeksLoaded: number;
+  dnpCount: number;
+  rows: ProspectiveRow[];
+}
+
+function readProspectiveSnapshot(): ProspectiveSnapshot | null {
+  try {
+    const raw = gunzipSync(readFileSync(PROSPECTIVE_SNAPSHOT)).toString("utf8");
+    const parsed = JSON.parse(raw) as ProspectiveSnapshot;
+    // A snapshot with no rows is not a snapshot -- fall through to a live fetch
+    // rather than scoring nothing and reporting it as a result.
+    if (!Array.isArray(parsed.rows) || parsed.rows.length === 0) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeProspectiveSnapshot(snap: ProspectiveSnapshot): void {
+  mkdirSync("reports/2026-08-20", { recursive: true });
+  writeFileSync(PROSPECTIVE_SNAPSHOT, gzipSync(Buffer.from(JSON.stringify(snap), "utf8")));
+  console.log(
+    `wrote ${PROSPECTIVE_SNAPSHOT} (${snap.rows.length} rows, ${snap.weeksLoaded} weeks, captured ${snap.capturedAt})`
+  );
+}
+
 // ── Forecast builders ───────────────────────────────────────────────────────
 
 /**
@@ -288,11 +335,19 @@ function baseRate(rows: ProspectiveRow[], pos: Position): { clim: number; n: num
  *
  * That is a dependence problem, not an outcome-leakage problem: the model never
  * sees a scored outcome, and the single feature is the projection, not player
- * identity — so the effect is bounded. But it means the effective sample size is
- * closer to the number of distinct PLAYERS than to the number of player-weeks,
- * and the out-of-fold error is optimistic by an unmeasured amount. Fixing it
- * properly needs grouped CV that holds out players and weeks together, which is
- * a protocol change, not a code tweak. Stated rather than fixed.
+ * identity -- so the effect is bounded.
+ *
+ * MEASURED 2026-08-23 by frozen protocol 6, and the caveat is now a number
+ * rather than a worry. Grouped-by-player 5-fold CV against leave-one-week-out,
+ * on the committed input snapshot, cluster-bootstrapped on player:
+ *
+ *     ECE(grouped) - ECE(week) = -0.0006, 95% CI [-0.0075, +0.0066]
+ *
+ * The interval includes zero, so there is NO DETECTABLE OPTIMISM at this sample
+ * size and the earlier claim that leave-one-week-out flatters the model is
+ * retracted. See reports/2026-08-20/holdout-result-6.md, including the honest
+ * caveat that all four positions individually point the other way while the
+ * pooled figure does not.
  */
 function buildLogisticCalibration(rows: ProspectiveRow[], pos: Position): BrierForecast[] {
   const threshold = THRESHOLDS[pos];
@@ -514,9 +569,39 @@ async function main() {
 
   let data: DataSource;
 
-  // Source 1: Sleeper prospective (projections vs actual stats)
-  console.log("Source 1: Sleeper 2025 projections vs actual stats...");
-  const { rows: prospRows, weeksLoaded, dnpCount } = await fetchSleeperProspective();
+  // Source 0: the committed snapshot (audit 2026-08-23, P2-5).
+  //
+  // Replayed by default so a result is reproducible from a clean checkout.
+  // `--refresh` goes to the network and rewrites it; that is the ONLY path that
+  // touches Sleeper, so an ordinary run cannot silently score different data
+  // than the run before it.
+  const refresh = process.argv.includes("--refresh");
+  const snapshot = refresh ? null : readProspectiveSnapshot();
+
+  let prospRows: ProspectiveRow[];
+  let weeksLoaded: number;
+  let dnpCount: number;
+  let inputMode: string;
+
+  if (snapshot) {
+    ({ rows: prospRows, weeksLoaded, dnpCount } = snapshot);
+    inputMode = `snapshot ${PROSPECTIVE_SNAPSHOT} captured ${snapshot.capturedAt}`;
+    console.log(`Source 0: replaying ${prospRows.length} rows from the committed snapshot (${snapshot.capturedAt}).`);
+  } else {
+    console.log("Source 1: Sleeper 2025 projections vs actual stats...");
+    ({ rows: prospRows, weeksLoaded, dnpCount } = await fetchSleeperProspective());
+    inputMode = "LIVE fetch (not snapshotted)";
+    if (prospRows.length > 100) {
+      writeProspectiveSnapshot({
+        capturedAt: new Date().toISOString(),
+        season: 2025,
+        weeksLoaded,
+        dnpCount,
+        rows: prospRows
+      });
+      inputMode = `LIVE fetch, written to ${PROSPECTIVE_SNAPSHOT}`;
+    }
+  }
   if (prospRows.length > 100) {
     console.log(`  → Loaded ${prospRows.length} startable player-weeks across ${weeksLoaded} weeks (${dnpCount} scored 0 for not playing).`);
     data = { kind: "prospective", rows: prospRows, weeksLoaded, dnpCount, season: 2025 };
@@ -562,6 +647,7 @@ async function main() {
     lines.push(`> **Two models per position:** (1) DISCRIMINATION — rank→prob (ordinal skill of projection order); (2) CALIBRATION — out-of-fold logistic mapping projected pts → P(≥ threshold), scored by Expected Calibration Error (the projections' true calibration error)  `);
     lines.push(`> **Coverage:** ${data.weeksLoaded} regular-season weeks, ${data.rows.length} startable player-weeks (${data.dnpCount} DNP scored 0)  `);
     lines.push(`> **Universe:** players projected ≥ threshold/2; no-shows scored 0 (no survivorship filter)  `);
+    lines.push(`> **Inputs:** ${inputMode}  `);
     // P2-5. Every source here is fetched LIVE and none of it is snapshotted, so
     // "seeded and deterministic" describes the arithmetic, not the run. Two
     // reports with different fingerprints scored different data and must not be
@@ -569,7 +655,7 @@ async function main() {
     lines.push(
       `> **Input fingerprint:** \`${fingerprintRows(
         data.rows.map((r) => `${r.player_id}|${r.week}|${r.proj_pts_ppr}|${r.actual_pts_ppr}`)
-      )}\` over ${data.rows.length} rows — the inputs are fetched LIVE and are NOT snapshotted, so a rerun on a different day scores different data. Compare two reports only when this value matches.  `
+      )}\` over ${data.rows.length} rows. Two reports are comparable only when this value matches.  `
     );
   } else {
     const src = (data as { source?: string }).source ?? "local";
@@ -591,7 +677,7 @@ async function main() {
         (data.rows as Array<{ player_id?: string; position: string; fantasy_points_ppr: number }>).map(
           (r, i) => `${r.player_id ?? i}|${r.position}|${r.fantasy_points_ppr}`
         )
-      )}\` over ${data.rows.length} rows (fetched live, not snapshotted — P2-5).  `
+      )}\` over ${data.rows.length} rows. Self-test inputs are not snapshotted; the page measures nothing about the model, so reproducing it exactly is not what it is for.  `
     );
   }
   lines.push("", "---", "");

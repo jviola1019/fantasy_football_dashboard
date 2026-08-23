@@ -6,6 +6,8 @@
 > **Two models per position:** (1) DISCRIMINATION — rank→prob (ordinal skill of projection order); (2) CALIBRATION — out-of-fold logistic mapping projected pts → P(≥ threshold), scored by Expected Calibration Error (the projections' true calibration error)  
 > **Coverage:** 17 regular-season weeks, 3573 startable player-weeks (218 DNP scored 0)  
 > **Universe:** players projected ≥ threshold/2; no-shows scored 0 (no survivorship filter)  
+> **Inputs:** snapshot reports/2026-08-20/brier-prospective.json.gz captured 2026-08-23T19:39:27.895Z  
+> **Input fingerprint:** `bba1d103` over 3573 rows. Two reports are comparable only when this value matches.  
 
 ---
 

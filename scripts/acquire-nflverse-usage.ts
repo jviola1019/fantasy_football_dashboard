@@ -14,6 +14,9 @@ import { gzipSync } from "node:zlib";
 
 const OUT_DIR = "reports/2026-08-20/nflverse";
 const BUNDLE = "reports/2026-08-20/nflverse-usage.json.gz";
+const QUOTE = String.fromCharCode(34);
+const LF = String.fromCharCode(10);
+const CR = String.fromCharCode(13);
 const UA = "RAE-audit/1.0 (model validation research; contact jviola1@vols.utk.edu)";
 
 /** Frozen in protocol 4 §3. */
@@ -58,6 +61,95 @@ const REQUIRED_COLUMNS: Record<string, readonly string[]> = {
   player_stats: ["player_id", "season", "week", "position", "fantasy_points_ppr"],
   snap_counts: ["season", "week", "player", "offense_snaps", "offense_pct"]
 };
+
+/**
+ * Every column any harness reads, per file kind.
+ *
+ * The archive is re-serialised down to exactly these (audit 2026-08-23). Two
+ * reasons, and the second is the one that matters:
+ *
+ * 1. Nothing unvalidated is persisted. What lands on disk is built from cells
+ *    that survived a parse, not from the response body.
+ * 2. It ends the `js/http-to-file-access` dataflow with a REAL structural
+ *    change rather than a suppression. `writeFileSync(dest, text)` writes the
+ *    HTTP response; `writeFileSync(dest, reserialize(...))` writes a string
+ *    this file constructed. The header check alone could not do that -- it
+ *    validated the body and then wrote the body.
+ *
+ * The union is taken across holdout-evaluate-4, holdout-evaluate-5 and
+ * anova-opportunity. Every harness reads columns BY NAME, so a subset is safe;
+ * dropping one a harness names would not be, which is why `reserialize`
+ * REJECTS a file missing any of them rather than writing a partial archive.
+ */
+const KEEP_COLUMNS: Record<string, readonly string[]> = {
+  player_stats: [
+    "player_id",
+    "player_display_name",
+    "season",
+    "season_type",
+    "week",
+    "position",
+    "carries",
+    "targets",
+    "target_share",
+    "wopr",
+    "fantasy_points_ppr"
+  ],
+  snap_counts: ["player", "season", "game_type", "week", "offense_snaps", "offense_pct"]
+};
+
+/** Minimal RFC-4180 reader; mirrors the harnesses so a round-trip is faithful. */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let field = "";
+  let row: string[] = [];
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i]!;
+    if (quoted) {
+      if (c === QUOTE) {
+        if (text[i + 1] === QUOTE) { field += QUOTE; i += 1; } else quoted = false;
+      } else field += c;
+    } else if (c === QUOTE) quoted = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === LF) { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== CR) field += c;
+  }
+  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+/** Quote only when a cell could otherwise change the shape of the row. */
+function csvCell(v: string): string {
+  return v.includes(QUOTE) || v.includes(",") || v.includes(LF) || v.includes(CR)
+    ? QUOTE + v.split(QUOTE).join(QUOTE + QUOTE) + QUOTE
+    : v;
+}
+
+/**
+ * Rebuild the file from parsed cells, keeping only the columns a harness reads.
+ *
+ * Returns null when a required column is absent, so a partial archive is never
+ * written -- a file that parses but is missing `carries` would produce a
+ * silently wrong protocol result, which is worse than no file.
+ */
+function reserialize(kind: string, text: string): string | null {
+  const keep = KEEP_COLUMNS[kind];
+  if (!keep) return null;
+  const rows = parseCsv(text);
+  const head = rows[0];
+  if (!head || head.length < 2) return null;
+  const idx = keep.map((c) => head.indexOf(c));
+  if (idx.some((i) => i < 0)) return null;
+
+  const out: string[] = [keep.join(",")];
+  for (const r of rows.slice(1)) {
+    // Ragged rows are dropped, exactly as every harness already drops them.
+    if (r.length !== head.length) continue;
+    out.push(idx.map((i) => csvCell(r[i] ?? "")).join(","));
+  }
+  return out.join(LF) + LF;
+}
 
 function isExpectedCsv(kind: string, text: string): boolean {
   const required = REQUIRED_COLUMNS[kind];
@@ -111,9 +203,16 @@ async function main(): Promise<void> {
         console.error(`${kind} ${season}: REJECTED — not the expected CSV (header is missing required columns)`);
         continue;
       }
-      writeFileSync(dest, text);
-      manifest[`${kind}_${season}`] = { rows: text.split("\n").length - 1, bytes: text.length, url };
-      console.log(`${kind} ${season}: ${text.split("\n").length - 1} rows`);
+      // The response body is never written. `reserialize` rebuilds the file
+      // from parsed cells, keeping only the columns a harness reads.
+      const archived = reserialize(kind, text);
+      if (archived == null) {
+        console.error(`${kind} ${season}: REJECTED — parsed, but a required column is missing`);
+        continue;
+      }
+      writeFileSync(dest, archived);
+      manifest[`${kind}_${season}`] = { rows: archived.split("\n").length - 2, bytes: archived.length, url };
+      console.log(`${kind} ${season}: ${archived.split("\n").length - 2} rows`);
     }
   }
 
