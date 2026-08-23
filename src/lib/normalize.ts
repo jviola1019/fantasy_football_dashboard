@@ -1,8 +1,8 @@
 import type { PlayerMarketRecord, SourceMeta } from "./governance";
 import type { SleeperPlayer } from "./sleeper/schemas";
 import { sleeperHeadshotUrl, sleeperFullName } from "./sleeper/players";
-import { espnLineupSlot, espnPosition, espnProTeam } from "./espn/positions";
-import type { EspnPlayerCore, EspnRosterEntry } from "./espn/schemas";
+import { espnPosition, espnProTeam } from "./espn/positions";
+import type { EspnPlayerCore } from "./espn/schemas";
 
 const ALLOWED_POSITIONS = new Set<PlayerMarketRecord["position"]>(["QB", "RB", "WR", "TE", "K", "DEF"]);
 
@@ -40,18 +40,6 @@ export function sleeperPlayerToRecord(
     imageUrl: sleeperHeadshotUrl(playerId),
     imageSource: "Sleeper headshot CDN"
   };
-}
-
-export function espnRosterEntryToRecord(
-  entry: EspnRosterEntry,
-  context: NormalizeContext
-): PlayerMarketRecord | null {
-  const player = entry.playerPoolEntry?.player;
-  if (!player) return null;
-  return espnPlayerToRecord(player, {
-    ...context,
-    rosterSlot: context.rosterSlot ?? espnLineupSlot(entry.lineupSlotId ?? null)
-  });
 }
 
 export function espnPlayerToRecord(

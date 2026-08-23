@@ -35,9 +35,6 @@ import { getDb, schema, type Db } from "../../db";
  * enforced server-side — never by asking the client to drop a cookie.
  */
 
-/** Claim name for the session generation carried inside the JWT. */
-export const SESSION_VERSION_CLAIM = "sv";
-
 export interface VerifiedUser {
   id: string;
   email: string | null;
