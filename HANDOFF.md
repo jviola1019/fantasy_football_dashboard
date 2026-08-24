@@ -627,3 +627,47 @@ Two tests failed as a result and **neither was a regression**: one asserted the
 fixture count as a magic number in a test about imagery, and one assumed a QB
 would survive into a top-8 that now holds six stronger players. Both were fixed
 to assert their intent.
+
+---
+
+## Sign-in (2026-08-23)
+
+**Authentication succeeded and the app said it hadn't.** The cookie was set,
+`/api/auth/session` returned the user, and the protected route rendered — while
+the topbar still offered a **"Sign in" button**. Most people read that as "it
+didn't work" and try again.
+
+Cause: the server action passed `redirectTo`, so Auth.js threw `NEXT_REDIRECT`
+and Next performed a **client-side** navigation. The React tree survives that,
+so `SessionProvider` kept the unauthenticated session it fetched on first mount
+and `useSession()` never refetched.
+
+**Two fixes were tried and measured not to work**, which is how the real cause
+surfaced: `router.refresh()` re-renders server components and never touches the
+session endpoint; `useSession().update()` changed nothing. Both were applied in
+the form's success branch — which the form's own comment said was unreachable
+(*"we never observe ok=true"*), so they were dead code.
+
+The fix is in the action: `redirect: false` lets it return normally, the client
+gets `ok: true`, and it performs a full document navigation that remounts the
+provider against the new cookie.
+
+**Every existing auth spec passed throughout.** They assert redirects and
+protected-route access; this was a state that *looked* wrong while being right
+underneath. `e2e/26-sign-in.spec.ts` now checks what a person actually sees —
+including that an unknown account and a wrong password produce the *identical*
+error, so the form is not an account-enumeration oracle.
+
+### Also fixed: no script could open a local SQLite database
+
+`src/db/index.ts` called a bare `require("better-sqlite3")`, which only exists
+when the bundler wraps the file as CJS. Under `tsx` — every script in
+`scripts/` — it failed with a bare "require is not defined" pointing at nothing.
+Now `createRequire(import.meta.url)` when `require` is absent.
+
+### Provisioning an account
+
+`npm run seed:account` creates or resets an account from `SEED_EMAIL` /
+`SEED_PASSWORD` / `DATABASE_URL` — **never from source**, because a password in
+git history cannot be un-published. Idempotent: on an existing account it resets
+the password *and revokes every outstanding session*. See DEPLOY_TO_VERCEL.md.

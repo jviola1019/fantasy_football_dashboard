@@ -96,3 +96,33 @@ npm run dev
 ```
 
 Without `DATABASE_URL`, the app uses `file:.data/rae.sqlite` automatically. No Postgres required for local dev.
+
+---
+
+## Provisioning an account (`npm run seed:account`)
+
+Added 2026-08-23. Creates or resets an account **from the environment** — the
+credential is never written into the repository.
+
+```bash
+DATABASE_URL='postgres://…' \
+SEED_EMAIL='you@example.com' \
+SEED_PASSWORD='…' \
+npm run seed:account
+```
+
+- **`DATABASE_URL` is required and never defaulted.** Silently seeding a local
+  SQLite file while you believe you are provisioning production is exactly the
+  kind of quiet mismatch this audit keeps finding, so the script makes you say
+  which database.
+- **Idempotent.** On an existing account it resets the password **and revokes
+  every outstanding session**. Resetting without revoking would leave a leaked
+  token alive; refusing outright would make it useless for the case people
+  actually hit, which is "I do not remember the password".
+- **The password is never printed and never stored in source.** `check:secrets`
+  scans every tracked file to keep it that way, and the burned-secret deny-list
+  exists because this repository has published a credential once already.
+
+Ordinary registration at `/login` works too and needs no script — this exists
+for provisioning an account you cannot register interactively, such as one on a
+production database.

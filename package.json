@@ -18,6 +18,7 @@
     "e2e:install": "playwright install --with-deps chromium",
     "lighthouse": "lhci autorun",
     "lighthouse:variance": "tsx scripts/lighthouse-variance.ts",
+    "seed:account": "tsx scripts/seed-account.ts",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
     "check:advisories": "tsx scripts/check-lockfile-advisories.ts",
     "check:projection-units": "tsx scripts/check-projection-units.ts",

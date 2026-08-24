@@ -1,5 +1,6 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { createRequire } from "node:module";
 import { sql } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as sqliteSchema from "./schema";
@@ -65,11 +66,23 @@ export function getDb(): Db {
   return cached;
 }
 
+/**
+ * `require` that also works when this module is loaded as ESM.
+ *
+ * better-sqlite3 is a native CJS addon and must be `require`d, not imported —
+ * but a bare `require` is only defined when the bundler wraps this file as CJS.
+ * Under `tsx` (used by every script in `scripts/`) it is not, and the failure is
+ * a bare "require is not defined" with nothing pointing at the driver.
+ *
+ * Found 2026-08-23 while writing `seed:account`, which could not open a local
+ * SQLite database at all. Every script that touches the DB shared the bug; only
+ * this one happened to try.
+ */
+const requireCjs = typeof require === "function" ? require : createRequire(import.meta.url);
+
 function createSqliteDb(filename: string): Db {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const BetterSqlite = require("better-sqlite3");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { drizzle } = require("drizzle-orm/better-sqlite3");
+  const BetterSqlite = requireCjs("better-sqlite3");
+  const { drizzle } = requireCjs("drizzle-orm/better-sqlite3");
   if (filename !== ":memory:") {
     try {
       mkdirSync(dirname(filename), { recursive: true });

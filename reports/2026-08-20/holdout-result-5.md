@@ -1,6 +1,6 @@
 # Holdout result 5 — what weight should opportunity carry?
 
-**Executed** 2026-08-23T19:59:52.001Z · **Protocol** [holdout-protocol-5.md](./holdout-protocol-5.md) (frozen `92616f7`)
+**Executed** 2026-08-24T02:43:22.752Z · **Protocol** [holdout-protocol-5.md](./holdout-protocol-5.md) (frozen `92616f7`)
 
 > Weight fitted on **2021–2024** (protocol 4's already-spent data), evaluated on **2017–2019**, which no protocol in this audit has touched. The weight was computed once and never adjusted.
 
