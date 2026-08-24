@@ -30,9 +30,10 @@ overstatement this audit spent 23 sections removing.
 | 6 | **Security** | **9 / 10** | All CI security gates green: gitleaks full-history (299 commits), OSV, dependency review, tracked-file scan, lockfile floors. **−1: six CodeQL alerts accepted with written justification rather than eliminated.** |
 | 7 | **Accessibility** | **10 / 10** | axe 0 serious/critical on every route, Lighthouse a11y 100, plus guards for what axe cannot see: skip link, live regions, tab↔tabpanel wiring, colour-plus-word signals. |
 | 8 | **Design & hierarchy** | **10 / 10** | All 9 design findings closed. Type scale enforced by test; `/analytics` 28 → 10 boxed regions; palette pinned against drift by `theme.test.ts`. |
-| 9 | **Test coverage** | **10 / 10** | 1,092 unit + 349 e2e. All six named coverage gaps closed, two of which required extracting the code before a test could exist at all. |
+| 9 | **Test coverage** | **9 / 10** | 1,117 unit + 381 e2e. All six named coverage gaps closed, two of which required extracting the code before a test could exist at all. **−1: on 2026-08-23 a total sign-in UX failure passed through every one of them** — the specs asserted redirects and protected-route access, and the bug was a state that looked wrong while being right underneath. Closed, but the miss is the point. |
 | 10 | **Draft & free agency** | **10 / 10** | 18 browser assertions on the draft state machine; bye week on the board with a stacking warning; pool-selection rules pinned (`pools.test.ts`). |
 | 11 | **Performance** | **measured properly now** | Was a single Lighthouse run of a ±12-point metric. Now **five runs, median assertion**, and every CI run prints its own per-run spread. See below. |
+| 12 | **Authentication & sign-in availability** | **9 / 10** | Sign-in now reaches the UI and not only the cookie; 12 browser assertions on what a person actually sees, including that an unknown account and a wrong password produce the identical error. `seed:account` provisions or resets an account from the environment. A missing `DATABASE_URL` on Vercel now fails the request loudly rather than falling back to an ephemeral file. **−1: the per-account lock is keyed on the typed email, so eight failed attempts from anywhere lock that account for fifteen minutes — a disclosed denial-of-service tradeoff, not a fixed one.** |
 
 ---
 
@@ -101,14 +102,76 @@ dismissed with written justification in
 `docs/security/codeql-adjudications.md`, including the failed prediction. An
 accepted alert is not an absent one, and the score says so.
 
+### Authentication — the sign-in that worked and said it hadn't
+
+Added 2026-08-23, after the eleven rows above were already scored.
+
+Authentication **succeeded**. The cookie was set, `/api/auth/session` returned
+the user, and the protected route rendered — and the topbar still offered a
+**"Sign in" button**. The one piece of chrome a person checks to confirm they
+are signed in was telling them they were not, and most people read that as "it
+did not work" and try again.
+
+The cause was `redirectTo` on the server action: Auth.js throws `NEXT_REDIRECT`,
+Next performs a **client-side** navigation, the React tree survives it, and
+`SessionProvider` keeps the unauthenticated session it fetched on first mount.
+`redirect: false` lets the action return normally so the client can do a full
+document navigation instead.
+
+Two fixes were tried before that one and **measured not to work** — which is how
+the real cause surfaced. Both lived in the form's success branch, and the form's
+own comment said that branch was unreachable. They were dead code.
+
+**Every existing auth spec passed throughout**, and 349 e2e assertions did too.
+That is why row 9 above is no longer a 10. The specs asserted redirects and
+protected-route access; this was a state that looked wrong while being right
+underneath, and nothing was looking at what the page said.
+
+Three further things came out of chasing it:
+
+- **No script could open a local SQLite database.** `src/db/index.ts` used a
+  bare `require`, which only exists when the bundler wraps the file as CJS —
+  under `tsx`, every script in `scripts/` failed with "require is not defined"
+  and nothing pointing at the driver. Every DB-touching script shared it; only
+  `seed:account` happened to try.
+- **A missing `DATABASE_URL` on Vercel was a silent downgrade.** The fallback to
+  a local SQLite file is right on a laptop and catastrophic on an ephemeral
+  per-invocation filesystem: a sign-up is accepted, written, and gone by the
+  next request, and the person is told their password is wrong for an account
+  they just made. `/api/health` reported `degraded`, but only to an operator
+  holding `CRON_SECRET`. Detectability is not disclosure. It now refuses, and
+  `RAE_ALLOW_EPHEMERAL_DB=1` is how you say you meant it. Measured: the build
+  still exits 0 — nothing prerendered touches the database — so the failure is
+  on the first database-backed request, not the deploy.
+- **A constant named `ALLOWED` held `allowed: false`.** Harmless only because
+  its one caller spread it and overrode the field. A second caller writing the
+  obvious `return ALLOWED` would have denied every sign-in in the product, and
+  the name would have made that read as correct in review.
+
+### The −1: account lockout is a denial-of-service surface
+
+Not fixed, because it is a policy call rather than a defect, and changing
+authentication policy quietly during a deploy is not the way to make one.
+
+`THROTTLE_RULES.account` is keyed on the **email the caller typed**, not on who
+they are: eight failures inside fifteen minutes lock that account for fifteen
+minutes. Anyone who knows an address can therefore keep its owner locked out
+indefinitely at eight requests per quarter hour, from any address, at no cost.
+
+The usual remedy is to key the lock on **account × IP** and keep a much wider
+account-wide cap for distributed attempts. Under the existing `ip` rule (30
+failures / 15 min) a single attacker's guess budget would be unchanged, so the
+cost is bounded — but it is still a deliberate loosening of an account-level
+control, and it should be decided rather than slipped in.
+
 ---
 
 ## Reproducing every line
 
 ```bash
 npm run typecheck && npm run lint && npm run test && npm run build
-npm run e2e                       # 349 passed / 1 skipped
-npm run check:secrets             # 325 tracked files
+npm run e2e                       # 381 passed / 1 skipped
+npm run check:secrets             # 338 tracked files
 npm run holdout:evaluate4         # PASSED — 958/452
 npm run holdout:evaluate5         # PASSED — w = 0.7613
 npm run holdout:evaluate6         # RETRACTED its own hypothesis
@@ -117,6 +180,7 @@ npm run anova:opportunity
 npm run measure:bands             # P0-4 magnitude
 npm run measure:sigma             # P2-6 magnitude, 4,000 simulated leagues
 npm run verify:inseason           # shipped ranker == protocol 5 (CI gate)
+DATABASE_URL=... SEED_EMAIL=... SEED_PASSWORD=... npm run seed:account
 npm run lighthouse:variance       # per-run Lighthouse spread
 npm run smoke                     # production, 13/13
 ```

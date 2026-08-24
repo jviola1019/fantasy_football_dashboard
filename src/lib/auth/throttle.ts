@@ -70,7 +70,16 @@ export interface ThrottleDecision {
   retryAfterMs: number;
 }
 
-const ALLOWED: ThrottleDecision = { allowed: false, blockedBy: null, retryAfterMs: 0 };
+/**
+ * The "nothing is blocking" decision.
+ *
+ * Audit 2026-08-23: this read `allowed: false` while being named ALLOWED. It
+ * was harmless only because its single caller spread it and overrode the field.
+ * A second caller writing the obvious `return ALLOWED` would have denied every
+ * sign-in in the product, and the name would have made that read as correct in
+ * review. Frozen so a returned reference cannot be mutated into a block.
+ */
+const ALLOWED: ThrottleDecision = Object.freeze({ allowed: true, blockedBy: null, retryAfterMs: 0 });
 
 export interface ThrottleState {
   attempts: number;
@@ -139,7 +148,7 @@ export async function checkThrottle(
       };
     }
   }
-  return { ...ALLOWED, allowed: true };
+  return ALLOWED;
 }
 
 const TABLE = "auth_attempts";

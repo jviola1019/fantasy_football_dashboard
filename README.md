@@ -79,7 +79,8 @@ Current implementation (all FREE — no paid feeds, no API keys beyond what's no
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `AUTH_SECRET` | Yes (prod/dev) | Auth.js session signing key. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. |
-| `DATABASE_URL` | No (defaults to `file:.data/rae.sqlite`) | SQLite for dev, Postgres URL for production (Vercel Marketplace Postgres / Neon). |
+| `DATABASE_URL` | No locally; **required on Vercel** | SQLite for dev, Postgres URL for production (Vercel Marketplace Postgres / Neon). Locally it defaults to `file:.data/rae.sqlite`. On Vercel the app **refuses to open a database without it** rather than falling back — that filesystem is ephemeral, so the fallback would accept sign-ups and lose them. The build still succeeds; the failure is loud on the first database-backed request. |
+| `RAE_ALLOW_EPHEMERAL_DB` | No | `1` to deploy to Vercel deliberately without a database. Accounts and leagues will not survive between requests; only set it for a fixture-only preview. |
 | `CREDENTIAL_ENCRYPTION_KEY` | Yes | Base64-encoded 32 bytes. Encrypts ESPN cookies and OAuth tokens at rest with AES-256-GCM. |
 | `RAE_ALLOW_FIXTURES` | No | `true` to render clearly labeled dev/test fixture records. Defaults to unavailable/missing states. |
 | `RAE_LIVE_TESTS` | No | `1` to enable live API round-trip vitest specs. |

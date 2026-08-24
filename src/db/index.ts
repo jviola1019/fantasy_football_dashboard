@@ -44,8 +44,46 @@ export function nowSql(db: Db) {
   return driverFor(db) === "postgres" ? sql`now()` : sql`(unixepoch() * 1000)`;
 }
 
-const url = process.env.DATABASE_URL ?? "file:.data/rae.sqlite";
-const isPostgres = url.startsWith("postgres://") || url.startsWith("postgresql://");
+/**
+ * Which database to open — and a REFUSAL rather than a silent downgrade.
+ *
+ * Audit 2026-08-23. The fallback used to be unconditional:
+ *
+ *   const url = process.env.DATABASE_URL ?? "file:.data/rae.sqlite";
+ *
+ * On a laptop that is exactly right. On Vercel it is the worst kind of wrong.
+ * The filesystem there is ephemeral and per-invocation, so a deployment with no
+ * DATABASE_URL would accept a sign-up, hash the password, write the row, set the
+ * cookie, and lose all of it. The next request gets a different sandbox with a
+ * different empty database. The account did not fail to be created; it was
+ * created and then ceased to exist — and nothing anywhere said so. The user is
+ * told their password is wrong for an account they just made.
+ *
+ * `/api/health` already reports `degraded` when DATABASE_URL is missing, which
+ * makes this DETECTABLE by an operator who thinks to look. It does not make it
+ * visible to the person losing their account. Detectability is not disclosure.
+ *
+ * `seed-account` already refuses to default DATABASE_URL for the same reason.
+ * The app defaulting while its own provisioning tool refuses is the tell.
+ *
+ * So: on Vercel, an absent DATABASE_URL is an error, not a default. A deliberate
+ * database-less deployment (a fixture-only preview) is still possible, but it
+ * has to be SAID rather than fallen into.
+ */
+export function resolveDatabaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const explicit = env.DATABASE_URL?.trim();
+  if (explicit) return explicit;
+  if (env.VERCEL && env.RAE_ALLOW_EPHEMERAL_DB !== "1") {
+    throw new Error(
+      "DATABASE_URL is not set on a Vercel deployment. The SQLite fallback would " +
+        "accept sign-ups onto an ephemeral per-invocation filesystem and lose them, " +
+        "so accounts would vanish and sign-in would fail with no explanation. " +
+        "Attach a database and set DATABASE_URL (DEPLOY_TO_VERCEL.md step 3), or set " +
+        "RAE_ALLOW_EPHEMERAL_DB=1 to deploy without persistence on purpose."
+    );
+  }
+  return "file:.data/rae.sqlite";
+}
 
 // Re-export the SQLite schema as the canonical shape. The Postgres schema is
 // column-compatible (same column names, same JS types); Drizzle's query builder
@@ -56,6 +94,8 @@ export const pgSchemaTables = pgSchema;
 
 export function getDb(): Db {
   if (cached) return cached;
+  const url = resolveDatabaseUrl();
+  const isPostgres = url.startsWith("postgres://") || url.startsWith("postgresql://");
   if (isPostgres) {
     activeDriver = "postgres";
     cached = createPostgresDb(url);

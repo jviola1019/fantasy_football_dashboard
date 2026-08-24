@@ -671,3 +671,38 @@ Now `createRequire(import.meta.url)` when `require` is absent.
 `SEED_PASSWORD` / `DATABASE_URL` — **never from source**, because a password in
 git history cannot be un-published. Idempotent: on an existing account it resets
 the password *and revokes every outstanding session*. See DEPLOY_TO_VERCEL.md.
+
+### Two more availability defects, found while verifying the sign-in fix
+
+**A missing `DATABASE_URL` on Vercel was a silent downgrade.** `src/db/index.ts`
+fell back to `file:.data/rae.sqlite` unconditionally. On a laptop that is right.
+On Vercel the filesystem is ephemeral and per-invocation, so a deployment with no
+database would accept a sign-up, hash the password, write the row, set the
+cookie, and lose all of it — then tell the person their password was wrong for an
+account they had just created. `/api/health` already reported `degraded`, but
+only to an operator holding `CRON_SECRET`. Detectability is not disclosure.
+
+`resolveDatabaseUrl()` now throws on Vercel instead, naming the consequence and
+the fix. Measured: `VERCEL=1 npx next build` with no `DATABASE_URL` still exits 0
+(nothing prerendered touches the database), so this fails the first
+database-backed request rather than the deploy. `RAE_ALLOW_EPHEMERAL_DB=1` — that exact value, so a stray `true` cannot
+switch the guard off — is how a fixture-only preview says it meant it. The
+local fallback is untouched and pinned by tests in both directions, because a
+guard that also fired locally would be a bigger outage than the one it prevents.
+The app defaulting while its own `seed:account` refused to default was the tell.
+
+**A constant named `ALLOWED` held `allowed: false`.** In `throttle.ts`, harmless
+only because its single caller spread it and overrode the field. A second caller
+writing the obvious `return ALLOWED` would have denied every sign-in in the
+product, and the name would have made that read as correct in review.
+
+### Still open, and deliberately not fixed here
+
+`THROTTLE_RULES.account` is keyed on the email the caller **typed**. Eight
+failures in fifteen minutes lock that account for fifteen minutes, so anyone who
+knows an address can keep its owner locked out indefinitely at eight requests per
+quarter hour. The usual remedy is keying on account × IP with a wider
+account-wide cap; under the existing IP rule a single attacker's guess budget
+would be unchanged. It is still a loosening of an account-level control, and
+that is the owner's call, not one to slip into a deploy. Recorded as the −1 on
+row 12 of the scorecard.
