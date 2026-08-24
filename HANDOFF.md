@@ -756,3 +756,14 @@ user@preview-abc.vercel.app               → (falls back)
 
 The e2e spec that asserted "the URL matches /login" passed the whole time. It
 now asserts the **origin** too.
+
+> **Correction to commit 9f6f9b6's gate line.** It reports `check:secrets 340
+> files`. The measured number is **338, unchanged by that commit** — the scan ran
+> before the two new files were tracked, and they would not have moved it anyway:
+> `isScannableDocPath` exempts `src/lib/security/` from the generic entropy
+> heuristic, because the modules there legitimately hold secret-shaped literals
+> (the timing-equaliser hash, deny-list digests, malformed-hash fixtures). Both
+> new files land in that directory, so they are covered by the burned-value path
+> and not by the heuristic. Amending would have meant a force push, which is not
+> mine to do; the record is corrected here instead. Worth knowing before anyone
+> reads a flat file count as coverage.
