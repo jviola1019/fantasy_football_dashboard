@@ -706,3 +706,53 @@ account-wide cap; under the existing IP rule a single attacker's guess budget
 would be unchanged. It is still a loosening of an account-level control, and
 that is the owner's call, not one to slip into a deploy. Recorded as the −1 on
 row 12 of the scorecard.
+
+### Sign-in was unreachable on every preview deployment
+
+Found by smoking the PR's own Vercel preview rather than trusting that it
+matched production. On the **preview** host:
+
+```
+$ curl -sD - https://…-8zrfpey1m-….vercel.app/settings/leagues
+HTTP/1.1 307 Temporary Redirect
+Location: https://fantasy-football-dashboard-seven.vercel.app/login
+Set-Cookie: __Secure-authjs.callback-url=https%3A%2F%2Ffantasy-football-dashboard-seven.vercel.app; …
+```
+
+An anonymous visitor to a protected route on a preview was sent to
+**production's** login page. Sign in there, come back to the preview, and you
+are still anonymous — the session cookie belongs to a different host. The
+`callback-url` cookie pinned to production on both hosts is consistent with
+`AUTH_URL` (or `NEXTAUTH_URL`) being set project-wide to the production URL; the
+code no longer depends on whether that is true.
+
+Two layers were involved and **neither alone was the fix**:
+
+1. `authorized: ({ auth }) => Boolean(auth?.user)` let the Auth.js middleware
+   wrapper perform the redirect against its own base URL. Changing only this
+   was measured to leave the redirect cross-origin.
+2. `new URL("/login", request.nextUrl.origin)` — `request.nextUrl` is itself
+   rewritten from `AUTH_URL` by next-auth before the handler runs, so the
+   "request origin" was never the request's origin.
+
+**The first repair was worse than the bug.** Rebuilding the origin from
+`x-forwarded-host` with a well-formedness regex was measured to be an open
+redirect: `x-forwarded-host: evil.com:99999` produced
+`Location: http://evil.com/login`. A regex rejects malformed hosts, not hostile
+ones, and the entire point of that header is that it comes from outside.
+
+`src/lib/security/loginRedirect.ts` now honours the header only when it names a
+host the **operator** already declared — `VERCEL_URL`, `VERCEL_BRANCH_URL`,
+`VERCEL_PROJECT_PRODUCTION_URL`. Off Vercel the allowlist is empty and behaviour
+is unchanged, which is why local dev, CI and Playwright are untouched. Measured
+after, with the hostile `AUTH_URL` still set:
+
+```
+x-forwarded-host: preview-abc.vercel.app  → https://preview-abc.vercel.app/login
+evil.com:99999                            → (falls back, no open redirect)
+evil.com,preview-abc.vercel.app           → (falls back)
+user@preview-abc.vercel.app               → (falls back)
+```
+
+The e2e spec that asserted "the URL matches /login" passed the whole time. It
+now asserts the **origin** too.

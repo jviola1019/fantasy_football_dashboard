@@ -130,4 +130,20 @@ test.describe("sign-in reaches the UI, not just the cookie", () => {
     await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
     await ctx.close();
   });
+
+  test("that redirect stays on the SAME ORIGIN", async ({ baseURL, browser }) => {
+    // On a Vercel preview it did not. The Auth.js middleware wrapper was doing
+    // the redirect and resolving /login against its own base URL, and AUTH_URL
+    // overrides trustHost — so an anonymous visit to /settings/leagues on a
+    // preview landed on PRODUCTION's login page. You would sign in there, come
+    // back, and still be anonymous, because the session cookie belongs to a
+    // different host. Sign-in was unreachable on every preview, silently, and a
+    // test that only matched /login passed the whole time.
+    const ctx = await browser.newContext();
+    const page = await ctx.newPage();
+    await page.goto("/settings/leagues");
+    await expect(page).toHaveURL(/\/login/, { timeout: 20_000 });
+    expect(new URL(page.url()).origin).toBe(new URL(baseURL!).origin);
+    await ctx.close();
+  });
 });

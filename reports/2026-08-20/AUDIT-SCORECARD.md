@@ -30,10 +30,10 @@ overstatement this audit spent 23 sections removing.
 | 6 | **Security** | **9 / 10** | All CI security gates green: gitleaks full-history (299 commits), OSV, dependency review, tracked-file scan, lockfile floors. **−1: six CodeQL alerts accepted with written justification rather than eliminated.** |
 | 7 | **Accessibility** | **10 / 10** | axe 0 serious/critical on every route, Lighthouse a11y 100, plus guards for what axe cannot see: skip link, live regions, tab↔tabpanel wiring, colour-plus-word signals. |
 | 8 | **Design & hierarchy** | **10 / 10** | All 9 design findings closed. Type scale enforced by test; `/analytics` 28 → 10 boxed regions; palette pinned against drift by `theme.test.ts`. |
-| 9 | **Test coverage** | **9 / 10** | 1,117 unit + 381 e2e. All six named coverage gaps closed, two of which required extracting the code before a test could exist at all. **−1: on 2026-08-23 a total sign-in UX failure passed through every one of them** — the specs asserted redirects and protected-route access, and the bug was a state that looked wrong while being right underneath. Closed, but the miss is the point. |
+| 9 | **Test coverage** | **9 / 10** | 1,130 unit + 383 e2e. All six named coverage gaps closed, two of which required extracting the code before a test could exist at all. **−1: on 2026-08-23 a total sign-in UX failure passed through every one of them** — the specs asserted redirects and protected-route access, and the bug was a state that looked wrong while being right underneath. Closed, but the miss is the point. |
 | 10 | **Draft & free agency** | **10 / 10** | 18 browser assertions on the draft state machine; bye week on the board with a stacking warning; pool-selection rules pinned (`pools.test.ts`). |
 | 11 | **Performance** | **measured properly now** | Was a single Lighthouse run of a ±12-point metric. Now **five runs, median assertion**, and every CI run prints its own per-run spread. See below. |
-| 12 | **Authentication & sign-in availability** | **9 / 10** | Sign-in now reaches the UI and not only the cookie; 12 browser assertions on what a person actually sees, including that an unknown account and a wrong password produce the identical error. `seed:account` provisions or resets an account from the environment. A missing `DATABASE_URL` on Vercel now fails the request loudly rather than falling back to an ephemeral file. **−1: the per-account lock is keyed on the typed email, so eight failed attempts from anywhere lock that account for fifteen minutes — a disclosed denial-of-service tradeoff, not a fixed one.** |
+| 12 | **Authentication & sign-in availability** | **9 / 10** | Sign-in now reaches the UI and not only the cookie; 14 browser assertions on what a person actually sees, including that the login redirect stays on the origin you asked for and that an unknown account and a wrong password produce the identical error. `seed:account` provisions or resets an account from the environment. A missing `DATABASE_URL` on Vercel now fails the request loudly rather than falling back to an ephemeral file. **−1: the per-account lock is keyed on the typed email, so eight failed attempts from anywhere lock that account for fifteen minutes — a disclosed denial-of-service tradeoff, not a fixed one.** |
 
 ---
 
@@ -148,6 +148,28 @@ Three further things came out of chasing it:
   obvious `return ALLOWED` would have denied every sign-in in the product, and
   the name would have made that read as correct in review.
 
+### Sign-in was unreachable on every preview deployment
+
+Found by smoking the PR's own preview instead of assuming it matched production.
+An anonymous visit to a protected route on a **preview** host redirected to
+**production's** login page: sign in there, return to the preview, still
+anonymous, because the session cookie belongs to a different host.
+
+Two layers, and neither alone was the fix — the `authorized` callback let the
+Auth.js wrapper redirect against its own base URL, and `request.nextUrl` is
+itself rewritten from `AUTH_URL` by next-auth before the proxy handler runs, so
+the "request origin" was never the request's origin.
+
+**The first repair was worse than the bug.** Rebuilding the origin from
+`x-forwarded-host` behind a well-formedness regex was measured to be an open
+redirect — `evil.com:99999` produced `Location: http://evil.com/login`. A regex
+rejects malformed hosts, not hostile ones. The header is now honoured only for
+hosts the **operator** declared through Vercel's own system variables; off
+Vercel the allowlist is empty and nothing changes.
+
+The e2e spec asserting "the URL matches /login" passed throughout. It never
+looked at the origin. It does now.
+
 ### The −1: account lockout is a denial-of-service surface
 
 Not fixed, because it is a policy call rather than a defect, and changing
@@ -170,7 +192,7 @@ control, and it should be decided rather than slipped in.
 
 ```bash
 npm run typecheck && npm run lint && npm run test && npm run build
-npm run e2e                       # 381 passed / 1 skipped
+npm run e2e                       # 383 passed / 1 skipped
 npm run check:secrets             # 338 tracked files
 npm run holdout:evaluate4         # PASSED — 958/452
 npm run holdout:evaluate5         # PASSED — w = 0.7613
