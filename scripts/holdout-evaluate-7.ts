@@ -70,7 +70,12 @@ function fingerprintRows(keys: readonly string[]): string {
 function loadRows(): WeeklyRow[] {
   const snap = JSON.parse(gunzipSync(readFileSync(SNAPSHOT)).toString()) as { rows: WeeklyRow[] };
   const rows = snap.rows;
-  const fp = fingerprintRows(rows.map((r) => `${r.player_id}|${r.week}|${r.position}`));
+  // The SAME key construction brier-backtest.ts uses, including the values --
+  // player/week alone would not notice a projection or outcome changing under
+  // the same row set, which is exactly the kind of drift this guard is for.
+  const fp = fingerprintRows(
+    rows.map((r) => `${r.player_id}|${r.week}|${r.proj_pts_ppr}|${r.actual_pts_ppr}`)
+  );
   if (fp !== EXPECTED_FINGERPRINT) {
     console.error(
       `holdout-7: snapshot fingerprint ${fp} != protocol's ${EXPECTED_FINGERPRINT}. The input changed; ` +

@@ -871,3 +871,59 @@ resolved rather than assumed.
 55.1% of 12,224 players (54.7% of QB/RB/WR/TE), so the ESPN trade path resolves
 about half the catalog on the fallback providers — against none before. An
 improvement, not a fix. The Sleeper path is unaffected.
+
+---
+
+## Protocol 7 (2026-08-25) — trees and boosting lose; keep the logistic
+
+Protocol `reports/2026-08-25/holdout-protocol-7.md` (frozen `098f3c9`), harness
+`9a51dc8` committed before execution, result
+`reports/2026-08-25/holdout-result-7.md`.
+
+**First, the premise it was requested under needed correcting.** "All the Brier
+output looks worse than random" is true of one model and one document, not all of
+them. Against climatology on the committed snapshot:
+
+| pos | AUC | logistic Brier | climatology | Brier Skill Score |
+|---|---|---|---|---|
+| QB | 0.618 | 0.2368 | 0.2458 | **+3.7%** |
+| RB | 0.765 | 0.1969 | 0.2497 | **+21.2%** |
+| WR | 0.748 | 0.2036 | 0.2498 | **+18.5%** |
+| TE | 0.739 | 0.2059 | 0.2499 | **+17.6%** |
+
+RB/WR/TE beat the base rate by 17–21%. What *is* at or below random: the QB
+**rank→prob** model (0.2716 vs 0.2458), QB generally, and
+`docs/season-calibration.md` — which is synthetic self-consistency with the
+real-data backtest never run, and says so.
+
+**Result: nothing beat the baseline; seven of twelve comparisons lost
+significantly** after Holm–Bonferroni. Arm A (logistic on `proj_pts_ppr` alone)
+wins every position on Brier, ECE and AUC.
+
+The four-arm design is what makes that interpretable. Arm B — a logistic on the
+same eleven features — **also lost**, so the finding is not "trees are wrong
+here"; it is **the ten extra features carry no usable signal at this sample
+size**, and the flexible models then lose additionally by spending capacity on
+them. Boosting's ECE degraded 4–5× (QB 0.0331 → 0.1376), the textbook
+small-sample overfitting signature.
+
+Arm A reproduces `docs/brier-results.md` to four decimals at all four positions,
+so the baseline is verified to be the shipped model rather than a lookalike.
+
+**Honest limitation:** the boosting arm had no early stopping, which a GBM on
+512 rows needs. Adding it requires a validation split carved from the training
+folds — a different design that would have to be pre-registered. The claim is
+narrow: *these pre-registered hyperparameters lose.*
+
+**Disposition.** §8 pre-committed to deleting the code on a null. That conflicts
+with the stronger standing norm that every protocol reproduces from a committed
+archive — the reason protocols 1–3's refuted machinery is still here. The archive
+norm wins, and the tension is flagged rather than quietly reinterpreted. What §8
+protected against still holds: nothing from protocol 7 is wired into the product,
+and `audit-reachability.ts` classifies it as script-only.
+
+**Where the headroom actually is:** a second projection source (two independent
+projections disagreeing is real information; ten features derived from one are
+not), and opponent-adjusted context. Also: retire the QB rank→prob model from
+`brier-results.md` — it loses to climatology and shares a page with a model that
+beats it.
