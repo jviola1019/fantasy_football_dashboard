@@ -143,32 +143,19 @@ function build(seasons: string[]): Row[] {
     }));
 }
 
-/** Mid-rank Spearman, matching `src/lib/trade/backtest.ts` after P2-4. */
-function spearman(xs: number[], ys: number[]): number {
-  const rank = (values: number[]): number[] => {
-    const order = values.map((v, i) => [v, i] as const).sort((a, b) => a[0] - b[0]);
-    const ranks = new Array<number>(values.length);
-    for (let i = 0; i < order.length; ) {
-      let j = i;
-      while (j + 1 < order.length && order[j + 1]![0] === order[i]![0]) j += 1;
-      const mid = (i + j) / 2 + 1;
-      for (let k = i; k <= j; k += 1) ranks[order[k]![1]] = mid;
-      i = j + 1;
-    }
-    return ranks;
-  };
-  const rx = rank(xs);
-  const ry = rank(ys);
-  const n = xs.length;
-  const m = (n + 1) / 2;
-  let cov = 0, vx = 0, vy = 0;
-  for (let i = 0; i < n; i += 1) {
-    const dx = rx[i]! - m;
-    const dy = ry[i]! - m;
-    cov += dx * dy; vx += dx * dx; vy += dy * dy;
-  }
-  return vx === 0 || vy === 0 ? 0 : cov / Math.sqrt(vx * vy);
-}
+/**
+ * Mid-rank Spearman — imported, not reimplemented.
+ *
+ * This file used to carry its own copy under a comment reading "matching
+ * `src/lib/trade/backtest.ts` after P2-4". Two implementations of one statistic,
+ * with a comment asserting they agree, is a drift hazard wearing a disclaimer:
+ * the next correction to either one silently makes the comment false, and this
+ * script is the CI gate that proves the shipped ranker reproduces protocol 5.
+ *
+ * Importing it also gives `trade/backtest.ts` a caller that is not a test
+ * (audit 2026-08-24 reachability pass), which is what it should have had.
+ */
+import { spearman } from "../src/lib/trade/backtest";
 
 function main(): void {
   const rows = build(EVAL_SEASONS);

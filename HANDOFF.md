@@ -767,3 +767,107 @@ now asserts the **origin** too.
 > and not by the heuristic. Amending would have meant a force push, which is not
 > mine to do; the record is corrected here instead. Worth knowing before anyone
 > reads a flat file count as coverage.
+
+---
+
+## UI audit (2026-08-24) — spacing, tabbing, opacity, model outputs
+
+Full write-up: `reports/2026-08-24/ui-audit.md`. Reproduce with
+`npm run build && npm run start`, then `npm run audit:ui`. Standing gate:
+`e2e/27-ui-audit.spec.ts`, same module, runs in CI.
+
+Ten routes, every tab state. Ends at **0 findings** across all four checks, from
+42 dangling `aria-controls`, 6 target-size failures, 3 off-scale spacing values,
+and one route rendering governance its own way.
+
+**Three of the four checks were wrong before they were right**, and the wrong
+versions are the useful part of this record:
+
+- The opacity check **never ran** and reported zero. `Function.prototype.toString`
+  carries esbuild's `__name` wrapper into the page without the helper, so the
+  contrast function threw for every element. Caught only by injecting a canary
+  before believing the zero. That canary is now `--self-test` and covers the
+  target-size check too.
+- The target-size check was wrong twice — once too lax (reading the border box
+  called a control with a 44×44 pseudo-element hit area a violation), once wildly
+  too strict (169 findings, because it ignored WCAG 2.5.8's spacing exception).
+- The governance check, scoped per panel, produced twelve findings that were all
+  wrong: provenance is stated once per route here, and per-panel badges were
+  deliberately removed by an earlier audit. Acting on it would have re-added what
+  someone had taken out.
+
+**Three runs also measured a build that no longer existed** — an orphaned server
+held the port, every restart failed with `EADDRINUSE` into an unread log, and a
+correct fix looked like a failed one. The audit now refuses to report unless the
+served HTML contains the local `.next/BUILD_ID`.
+
+`npm run cache:rankings` fills the FantasyPros cache locally, so `/mock-draft`
+renders real data instead of its (correct, but uninformative) unavailable state.
+The Playwright database is seeded the same way so the e2e gate exercises the
+route with data.
+
+**Open, not defects:** FantasyPros returns 882 players for HALF against 527 for
+PPR and 517 for STD from the same scrape path — worth confirming before pool
+depth is used for anything. And `/mock-draft` is still built from inline style
+objects rather than the design system every other route uses; only its governance
+row was brought onto the shared component.
+
+---
+
+## Repository audit (2026-08-24) — reachability and removal
+
+Full write-up: `reports/2026-08-24/architecture-audit.md`. Reproduce with
+`npx tsx scripts/audit-reachability.ts`.
+
+The useful question is not "what is never imported" — that finds leaves and
+misses subtrees, because a module imported only by another dead module looks
+referenced. It is **reachability from something that runs**: Next entry points,
+`scripts/`, and the test suites.
+
+| | before | after |
+|---|---|---|
+| reached only by tests | 5 modules, 443 lines | **1 module, 14 lines** |
+| unreachable | 1 module, 93 lines | **0** |
+
+**540 lines deleted.** `components/ui/card.tsx` (imported by nothing);
+`lib/weather/*` (271 lines of an unwired data source that CLAUDE.md advertised —
+the guardrails were corrected in the same commit, because a listed data source is
+a claim); `lib/ktc/match.ts` (superseded by `keyValuesBySleeperId`).
+
+**Reading `ktc/match.ts` before deleting it caught a bug in its replacement.** It
+carried a position map noting KTC writes defenses as `DST` while the product
+writes `DEF`; the new resolver compared raw strings and would have missed every
+defense. `canonicalPosition()` exists because that module was read rather than
+assumed redundant.
+
+**One duplicate collapsed.** `verify-inseason-fidelity.ts` had its own mid-rank
+Spearman under a comment saying it matched `trade/backtest.ts` — two
+implementations of one statistic with a comment asserting they agree. It imports
+the real one now; the gate still reports gain 0.0195 vs protocol 5's 0.0195,
+difference 0.000006. That also gave `trade/backtest.ts` a non-test caller.
+
+### The defect this surfaced
+
+`trade/values.ts` had two keying schemes across three providers. FantasyCalc is
+keyed by Sleeper id; KeepTradeCut and DynastyProcess were keyed `position-name`
+with `sleeperId`/`espnId` null. `normalizeSleeperTrades` looks up by Sleeper id.
+So **whenever FantasyCalc was unavailable, every league trade graded as though
+both sides were empty** — not a wrong number, an absent one. The
+`values.size === 0` guard passed, because the map was populated and keyed by
+something nobody asked for.
+
+It survived because every test in `transactions.test.ts` hand-builds the map with
+Sleeper-id keys, so the provider→consumer boundary was never crossed by a test.
+Raw lowercase was never going to work anyway: 59 of 527 players (11.2%) in a
+cached FantasyPros snapshot have a name whose normalised form differs from its
+raw lowercase — Ja'Marr Chase, A.J. Brown, Marvin Harrison Jr.
+
+Fixed by `keyValuesBySleeperId`, reusing the FantasyPros normaliser, team
+aliasing and three-tier fallback. Ten tests, written first and confirmed failing
+before the fix existed. `missingFields` is now derived from what actually
+resolved rather than assumed.
+
+**Open:** measured against the live Sleeper endpoint, `espn_id` is present for
+55.1% of 12,224 players (54.7% of QB/RB/WR/TE), so the ESPN trade path resolves
+about half the catalog on the fallback providers — against none before. An
+improvement, not a fix. The Sleeper path is unaffected.

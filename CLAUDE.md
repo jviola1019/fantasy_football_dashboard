@@ -195,7 +195,13 @@ Every major UI change needs:
 - FantasyPros ECR — consensus value/ADP (daily cron scrape).
 - nflverse — snap-share opportunity (cron snapshot, CC-BY).
 - ESPN — league/roster (cookie-encrypted), player news/injury.
-- open-meteo — weather. FantasyCalc / KTC / DynastyProcess — trade values.
+- FantasyCalc / KTC / DynastyProcess — trade values.
+
+open-meteo (weather) was listed here and was never wired: `weather/openmeteo.ts`
+and `weather/stadiums.ts` were reachable only from their own test, and no surface
+in the product referenced weather at all. Removed 2026-08-24 rather than left
+looking connected — a data source listed in the guardrails is a claim, and this
+one had nothing behind it. Restore from git history if it is wired for real.
 
 Trending is a WAIVER signal (adds/drops of free agents); apply it to the market
 pool (universe/free agents), not a set roster, or the hype axis reads flat.
