@@ -100,7 +100,22 @@ export function UserMenu() {
           onSelect={(e) => {
             e.preventDefault();
             startTransition(async () => {
-              await signOut({ redirect: true, redirectTo: "/" });
+              // `redirect: false`, then navigate here — the same shape as the
+              // sign-in fix, for the same reason. Auth.js resolves its own
+              // redirect against AUTH_URL, not the request origin, so
+              // `redirectTo: "/"` on a Vercel preview navigated the browser to
+              // PRODUCTION's home page. Measured: the signout endpoint returned
+              // `{"url":"https://pretend-production.example.com/..."}` while
+              // being served from localhost. A relative assign is same-origin by
+              // construction.
+              await signOut({ redirect: false });
+              // A client navigation would leave SessionProvider holding the
+              // session it just discarded, so the topbar would keep naming an
+              // account nobody is signed into -- the sign-in bug in reverse.
+              // Suppressed with the reason rather than dodged by hiding the
+              // destination from the rule behind a constant.
+              // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full reload is required to rebuild the auth provider
+              window.location.assign("/");
             });
           }}
         >

@@ -80,7 +80,7 @@ export function Onboarding() {
         ))}
       </section>
 
-      <footer className="mt-auto pt-16 text-xs text-muted-foreground">
+      <footer className="mt-auto pt-12 text-xs text-muted-foreground">
         Real data. Real models. Model-governed decisions.
       </footer>
     </main>

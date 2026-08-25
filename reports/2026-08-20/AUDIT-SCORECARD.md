@@ -29,7 +29,7 @@ overstatement this audit spent 23 sections removing.
 | 5 | **Reproducibility** | **10 / 10** | Protocols 4, 5 and 6 reproduce byte-identically from committed archives; the Brier backtest now replays a committed input snapshot (verified by diffing two runs). |
 | 6 | **Security** | **9 / 10** | All CI security gates green: gitleaks full-history (299 commits), OSV, dependency review, tracked-file scan, lockfile floors. **−1: six CodeQL alerts accepted with written justification rather than eliminated.** |
 | 7 | **Accessibility** | **10 / 10** | axe 0 serious/critical on every route, Lighthouse a11y 100, plus guards for what axe cannot see: skip link, live regions, tab↔tabpanel wiring, colour-plus-word signals. |
-| 8 | **Design & hierarchy** | **10 / 10** | All 9 design findings closed. Type scale enforced by test; `/analytics` 28 → 10 boxed regions; palette pinned against drift by `theme.test.ts`. |
+| 8 | **Design & hierarchy** | **10 / 10** | All 9 design findings closed. Type scale enforced by test; `/analytics` 28 → 10 boxed regions; palette pinned against drift by `theme.test.ts`. **2026-08-24:** spacing, tabbing, opacity and route-level governance now measured across all ten routes in every tab state — 42 dangling `aria-controls`, 6 target-size failures and 3 off-scale spacing values closed. `reports/2026-08-24/ui-audit.md`. |
 | 9 | **Test coverage** | **9 / 10** | 1,130 unit + 383 e2e. All six named coverage gaps closed, two of which required extracting the code before a test could exist at all. **−1: on 2026-08-23 a total sign-in UX failure passed through every one of them** — the specs asserted redirects and protected-route access, and the bug was a state that looked wrong while being right underneath. Closed, but the miss is the point. |
 | 10 | **Draft & free agency** | **10 / 10** | 18 browser assertions on the draft state machine; bye week on the board with a stacking warning; pool-selection rules pinned (`pools.test.ts`). |
 | 11 | **Performance** | **measured properly now** | Was a single Lighthouse run of a ±12-point metric. Now **five runs, median assertion**, and every CI run prints its own per-run spread. See below. |
@@ -204,6 +204,8 @@ npm run measure:sigma             # P2-6 magnitude, 4,000 simulated leagues
 npm run verify:inseason           # shipped ranker == protocol 5 (CI gate)
 DATABASE_URL=... SEED_EMAIL=... SEED_PASSWORD=... npm run seed:account
 npm run lighthouse:variance       # per-run Lighthouse spread
+npm run audit:ui                  # spacing/tabbing/opacity/governance, 10 routes
+npm run cache:rankings            # fill the FantasyPros cache locally
 npm run smoke                     # production, 13/13
 ```
 

@@ -129,7 +129,13 @@ export function SignOutButton() {
       disabled={pending}
       onClick={() => {
         startTransition(async () => {
-          await signOut({ redirect: true, redirectTo: "/" });
+          // See UserMenu: Auth.js resolves its redirect against AUTH_URL, which
+          // sent preview users to production. Navigate here instead.
+          await signOut({ redirect: false });
+          // See UserMenu: a client navigation leaves the provider holding a
+          // session it just discarded.
+          // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- a full reload is required to rebuild the auth provider
+          window.location.assign("/");
         });
       }}
       style={{

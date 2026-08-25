@@ -26,8 +26,25 @@ export function tabId(idBase: string, tab: string): string {
   return `${idBase}-tab-${slug(tab)}`;
 }
 
-export function tabPanelId(idBase: string, tab: string): string {
-  return `${idBase}-panel-${slug(tab)}`;
+/**
+ * One id for the panel region, not one per tab.
+ *
+ * `TabPanel` renders exactly ONE element: the region whose contents change as
+ * tabs are selected. Giving that region a per-tab id meant its id changed on
+ * every switch, and every inactive tab's `aria-controls` referred to an element
+ * that did not exist — 42 dangling IDREFs across five routes (audit 2026-08-24),
+ * invisible to axe because `aria-controls` is advisory in its ruleset.
+ *
+ * Omitting the attribute on inactive tabs fixes the dangling reference and loses
+ * the relationship. Rendering every panel and hiding the inactive ones fixes
+ * both and mounts every chart in the product.
+ *
+ * A stable id is truthful and costs nothing: there is one region, every tab
+ * controls it, and the region names the tab currently driving it through
+ * `aria-labelledby`. Nothing dangles at any point in the interaction.
+ */
+export function tabPanelId(idBase: string): string {
+  return `${idBase}-panel`;
 }
 
 /**
@@ -94,7 +111,7 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, idBase, className
       aria-label={ariaLabel}
       aria-orientation="horizontal"
       className={cn(
-        "panel-tabs mb-4 flex max-w-full items-stretch gap-5 overflow-x-auto border-b border-border/60",
+        "panel-tabs mb-4 flex max-w-full items-stretch gap-4 overflow-x-auto border-b border-border/60",
         "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         className
       )}
@@ -110,7 +127,10 @@ export function PanelTabs({ tabs, active, onSelect, ariaLabel, idBase, className
             type="button"
             role="tab"
             id={tabId(idBase, tab)}
-            aria-controls={tabPanelId(idBase, tab)}
+            // Every tab points at the same region, because there is only one —
+            // see tabPanelId. This previously used a per-tab id, so only the
+            // selected tab's reference resolved.
+            aria-controls={tabPanelId(idBase)}
             aria-selected={isActive}
             tabIndex={isActive ? 0 : -1}
             onClick={() => onSelect(tab)}
@@ -153,7 +173,9 @@ export function TabPanel({
   return (
     <div
       role="tabpanel"
-      id={tabPanelId(idBase, active)}
+      // Stable id; the LABEL is what changes, naming whichever tab is driving
+      // the region right now.
+      id={tabPanelId(idBase)}
       aria-labelledby={tabId(idBase, active)}
       tabIndex={0}
       className={cn("focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rae-blue", className)}

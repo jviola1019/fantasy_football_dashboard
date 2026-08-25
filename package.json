@@ -24,6 +24,8 @@
     "check:projection-units": "tsx scripts/check-projection-units.ts",
     "check:exceptions": "tsx scripts/check-vuln-exceptions.ts",
     "smoke": "tsx scripts/smoke-vercel.ts",
+    "audit:ui": "tsx scripts/audit-ui.ts",
+    "cache:rankings": "tsx scripts/cache-rankings.ts",
     "calibrate:season": "tsx scripts/brier-season-sim.ts",
     "measure:bands": "tsx scripts/measure-scenario-bands.ts",
     "measure:sigma": "tsx scripts/measure-between-team-sigma.ts",
