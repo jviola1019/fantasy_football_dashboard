@@ -29,7 +29,9 @@ within Monte-Carlo error). They do **not** certify real-world accuracy.
 
 ## Real-data backtest
 
-_No real-data backtest run. Set `RAE_BACKTEST_FORECASTS` to a JSON file of completed-season forecasts to populate this section._
+_No real-data backtest run **through this harness**. Set `RAE_BACKTEST_FORECASTS` to a JSON file of completed-season forecasts to populate this section._
+
+A separate real-data backtest DOES exist: `scripts/backtest-sleeper-2025.ts` scores the season sim against completed public Sleeper leagues and writes `docs/season-backtest-2025.md`. Read its power section before citing it -- on the default single league it has ONE independent cluster, so it establishes no significance either.
 
 To run one, build a JSON array of `{ "prob": <preseason predicted playoff prob>,
 "outcome": 0|1 }` from completed Sleeper leagues and point

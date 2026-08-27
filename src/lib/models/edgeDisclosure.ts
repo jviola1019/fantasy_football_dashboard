@@ -81,5 +81,80 @@ export const EDGE_LABELS = {
    */
   metricName: "Scarcity gap",
   metricNameTitle: "Scarcity Gap",
-  panelTitle: "Scarcity Gaps"
+  panelTitle: "Scarcity Gaps",
+  /**
+   * ─── The 2026-08-26 pass: "mispricing" outlived "mispriced" ──────────────
+   *
+   * The 2026-08-22 rename replaced "edge" and "arbitrage" everywhere and left
+   * a whole second vocabulary standing, because both guards banned the exact
+   * string `mispriced` and neither banned the stem. So three live surfaces went
+   * on asserting the refuted claim while the tests written to forbid it passed:
+   *
+   *   - `MarketIntelligence` KPI sub  "Avg market mispricing index"  (/analytics)
+   *   - `PlayerUniverse` stat box     "Avg Market Mispricing"        (/players)
+   *   - `PlayerUniverse` stat box     "Undervalued"                  (/players)
+   *
+   * `e2e/20-model-failure-disclosure.spec.ts` even documents the intended rule
+   * in prose -- "any assertion of arbitrage, mispricing or exploitable
+   * inefficiency fails" -- while its regex read `mispriced`. The prose was
+   * right and the pattern was narrower than the prose. Third failure of this
+   * one guard: first a literal backspace byte made it vacuous, then it missed
+   * the "Arbitrage" tab, now the noun form. Both guards are now stem-based.
+   *
+   * WHY THESE LABELS ARE WRONG, not merely off-brand. `valuationGap` is
+   * |trueValue - perceivedValue| weighted by confidence. Protocol 3 D4 measured
+   * that exact construction: `trueValue` alone correlates 0.0628 with beating
+   * draft cost and `trueValue - perceivedValue` correlates 0.0579. Subtracting
+   * the consensus makes it slightly WORSE. So a gap between the two values is
+   * not evidence of mispricing, and "Undervalued" -- a bare count of
+   * `trueValue > perceivedValue` -- asserts precisely the bargain-finding the
+   * protocol failed to demonstrate.
+   *
+   * The quantity is real and worth showing. It is a dispersion measure: how far
+   * our positional re-weighting sits from the consensus. That is what it is now
+   * called.
+   */
+  /** was: "Market Inefficiency" (KPI tile, two panels). */
+  gapMagnitude: "Valuation Gap",
+  /** was: "Avg market mispricing index". */
+  gapMagnitudeSub: "Mean distance from consensus, confidence-weighted",
+  /** was: "TOP INEFFICIENCIES" (table heading). */
+  topGapsTable: "LARGEST VALUATION GAPS",
+  /** was: "Avg Market Mispricing" (Player Universe stat box). */
+  avgGapStat: "Avg Valuation Gap",
+  /** was: "Undervalued" -- a count of trueValue > perceivedValue. */
+  aboveConsensus: "Value Above Consensus",
+
+  /*
+   * The remaining seven surfaces, found by widening the guard to the stem.
+   * Directional wording is the subtle half: "Undervalued / Overvalued" asserts
+   * the market is WRONG and by implication that we are right. "Above / below
+   * consensus" states the same arithmetic and claims nothing protocol 3 refuted.
+   */
+  /** was: "Undervalued +N" (Top Insights row). */
+  aboveShort: "Above consensus",
+  /** was: "Overvalued -N" (Top Insights row). */
+  belowShort: "Below consensus",
+  /** was: "Biggest market mispricings." (Top Insights eyebrow, /dashboard). */
+  insightsEyebrow: "Largest gaps from consensus.",
+  /** was: "Undervalued (true > market)" (Price Discovery legend). */
+  scatterLegendAbove: "Above consensus (value > market)",
+  /** was: "Overvalued". */
+  scatterLegendBelow: "Below consensus",
+  /** was: "...points above the diagonal are undervalued". */
+  scatterAria:
+    "Scatter of RAE value versus market value; points above the diagonal are valued above consensus",
+  /**
+   * was: "fair value" on the y = x diagonal.
+   *
+   * The diagonal is where our value equals the market's. Labelling it "fair
+   * value" asserts that OUR number is the fair one and every deviation is the
+   * market's error -- the exact direction of claim protocol 3 could not
+   * demonstrate. It is a parity line.
+   */
+  scatterParity: "parity (value = market)",
+  /** was: "...distance from the dashed fair-value line = mispricing." */
+  scatterNote: "Each dot is a player; distance from the dashed parity line is the gap from consensus.",
+  /** was: "ranked by value mispricing only" (Narrative Engine, no-hype path). */
+  narrativeFallback: "gap from consensus"
 } as const;

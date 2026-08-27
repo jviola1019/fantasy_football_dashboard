@@ -173,10 +173,42 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     // product's own NAME could pass -- RAE was the "Reputation Arbitrage
     // Engine", so the largest type on every page asserted the exact claim
     // protocol 3 refuted. Renamed to Roster Analytics Engine on 2026-08-22.
-    const banned = /(arbitrage|exploit inefficien|mispriced)/i;
-    // Prove the guard is LIVE rather than vacuous: it must match a string it
-    // is supposed to catch. A dead regex is what this repair exists to prevent.
-    expect("Arbitrage Opps", "banned pattern must actually match").toMatch(banned);
+    // WIDENED TO STEMS 2026-08-26. The pattern used to read `mispriced`, while
+    // the comment four lines above it said the ban covered "mispricing". The
+    // prose was the correct rule and the regex was narrower than the prose, so
+    // TEN live strings across three routes asserted the refuted claim while this
+    // test passed:
+    //
+    //   /dashboard  "Biggest market mispricings."      (Top Insights eyebrow)
+    //   /dashboard  "Undervalued +N" / "Overvalued N"  (Top Insights rows)
+    //   /dashboard  "Market Inefficiency"              (League Health label)
+    //   /dashboard  "Avg Market Mispricing"            (League Health sub)
+    //   /analytics  "Market Inefficiency" + sub        (KPI tile)
+    //   /analytics  "TOP INEFFICIENCIES"               (table heading)
+    //   /analytics  "Undervalued (true > market)"      (Price Discovery legend)
+    //   /analytics  "fair value"                       (the y = x diagonal)
+    //   /analytics  "...= mispricing."                 (Price Discovery note)
+    //   /analytics  "ranked by value mispricing only"  (Narrative Engine)
+    //   /players    "Avg Market Mispricing" + "Undervalued"  (stat boxes)
+    //
+    // Third failure of this one guard: a literal backspace byte made it vacuous,
+    // then it missed the "Arbitrage" tab, now it missed the noun form. Matching
+    // stems rather than whole words is what stops a fourth.
+    const banned = /(arbitrage|inefficienc|mispric|underval|overval|fair.value)/i;
+    // Prove the guard is LIVE rather than vacuous: it must match every string it
+    // is supposed to catch. A dead regex is what this repair exists to prevent,
+    // and one canary only proves one alternative works.
+    for (const canary of [
+      "Arbitrage Opps",
+      "Biggest market mispricings.",
+      "Avg market mispricing index",
+      "Undervalued +7",
+      "Overvalued -3",
+      "TOP INEFFICIENCIES",
+      "fair value"
+    ]) {
+      expect(canary, `banned pattern must actually match ${canary}`).toMatch(banned);
+    }
     // The ONBOARDING route is checked too, and separately, because it has no
     // app command bar for gotoRoute to wait on -- and because it is where the
     // product name was displayed most prominently of all.
@@ -188,11 +220,25 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     //
     // Everywhere else the ban is absolute: any assertion of arbitrage,
     // mispricing or exploitable inefficiency fails.
+    // SCOPING FIX 2026-08-26. This read `textContent` off a clone of <body>,
+    // which includes the contents of every <script> -- and in a Next.js App
+    // Router page that means the entire RSC flight payload, i.e. the serialised
+    // props of every server component. So the guard was scanning internal field
+    // names, not user-visible copy. Widening the pattern to stems surfaced it
+    // immediately: `marketMetrics.valuationGapPct` and `topValuationGaps` are
+    // object KEYS in that payload and tripped the ban from inside a script tag.
+    //
+    // A wording guard is a claim about what a person reads on the page. Script
+    // payloads, stylesheets and template contents are none of that, so they are
+    // stripped before the text is taken. (The field names were also renamed in
+    // the same commit, so this is belt and braces -- but the scoping was wrong
+    // on its own terms and would have mis-fired again on the next prop name.)
     const assertedText = async () =>
       page.evaluate(() => {
         const clone = document.body.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll("script, style, noscript, template").forEach((n) => n.remove());
         clone.querySelectorAll(".model-scenario-banner, .model-scenario-inline").forEach((n) => n.remove());
-        return clone.innerText || clone.textContent || "";
+        return clone.textContent || "";
       });
 
     await page.goto("/");

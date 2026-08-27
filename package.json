@@ -48,7 +48,11 @@
     "verify:inseason": "tsx scripts/verify-inseason-fidelity.ts",
     "holdout:evaluate6": "tsx scripts/holdout-evaluate-6.ts",
     "holdout:evaluate5": "tsx scripts/holdout-evaluate-5.ts",
-    "anova:opportunity": "tsx scripts/anova-opportunity.ts"
+    "holdout:evaluate7": "tsx scripts/holdout-evaluate-7.ts",
+    "anova:opportunity": "tsx scripts/anova-opportunity.ts",
+    "brier:backtest": "tsx scripts/brier-backtest.ts",
+    "audit:reachability": "tsx scripts/audit-reachability.ts",
+    "holdout:acquire-players": "tsx scripts/acquire-mfl-players.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

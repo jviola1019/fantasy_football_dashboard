@@ -17,13 +17,6 @@ export const ESPN_PRO_TEAM_MAP: Record<number, string> = {
   25: "SF", 26: "SEA", 27: "TB", 28: "WSH", 29: "CAR", 30: "JAX", 33: "BAL", 34: "HOU"
 };
 
-export const ESPN_LINEUP_SLOT_MAP: Record<number, string> = {
-  0: "QB", 1: "TQB", 2: "RB", 3: "RB/WR", 4: "WR", 5: "WR/TE", 6: "TE",
-  7: "OP", 8: "DT", 9: "DE", 10: "LB", 11: "DL", 12: "CB", 13: "S", 14: "DB",
-  15: "DP", 16: "DST", 17: "K", 18: "P", 19: "HC", 20: "BE", 21: "IR",
-  23: "RB/WR/TE", 24: "ER", 25: "Rookie"
-};
-
 export function espnPosition(defaultPositionId: number | null | undefined): PlayerMarketRecord["position"] | null {
   if (defaultPositionId == null) return null;
   return ESPN_POSITION_MAP[defaultPositionId] ?? null;
@@ -34,7 +27,19 @@ export function espnProTeam(proTeamId: number | null | undefined): string | null
   return ESPN_PRO_TEAM_MAP[proTeamId] ?? null;
 }
 
-export function espnLineupSlot(lineupSlotId: number | null | undefined): string {
-  if (lineupSlotId == null) return "FLEX";
-  return ESPN_LINEUP_SLOT_MAP[lineupSlotId] ?? `SLOT_${lineupSlotId}`;
-}
+/*
+ * REMOVED 2026-08-26 -- `ESPN_LINEUP_SLOT_MAP` and `espnLineupSlot`.
+ *
+ * A lineupSlotId -> slot-name map and its accessor, neither of which anything
+ * ever called. `schemas.ts:20` parses `lineupSlotId` off the ESPN response and
+ * nothing consumes it; no ESPN code path sets `rosterSlot` at all.
+ *
+ * It was the unwired half of a feature. The visible half was worse: every live
+ * record carried a hardcoded `rosterSlot: "FLEX"`, so the product displayed a
+ * lineup slot it had never derived. That is fixed in the same commit --
+ * `rosterSlot` is nullable now and renders an em dash when unknown.
+ *
+ * Deleting rather than keeping it follows the precedent set when `weather/` was
+ * removed: code that looks connected and is not is a claim the product cannot
+ * support. Restore from git history if ESPN lineup slots are wired for real.
+ */

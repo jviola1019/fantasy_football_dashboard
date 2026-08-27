@@ -32,7 +32,19 @@ export const PlayerMarketRecordSchema = z.object({
   opportunity: z.number().min(0).max(100),
   confidence: z.number().min(0).max(1),
   sources: z.array(SourceMetaSchema),
-  rosterSlot: z.string(),
+  /**
+   * The lineup slot this player occupies, or null when it is not known.
+   *
+   * Audit 2026-08-26. This was a non-nullable string defaulted to "FLEX" on
+   * EVERY live path (`enrich.ts`, `normalize.ts`), and rendered verbatim in the
+   * Player Universe profile. So a demo showed RB1 / WR1 / QB2 and a real
+   * connected league showed FLEX for all several hundred players -- a hardcoded
+   * placeholder presented as data, which the guardrails forbid outright.
+   *
+   * Nullable, and never defaulted. Optional in the schema so previously stored
+   * snapshots keep parsing, exactly as `byeWeek` above.
+   */
+  rosterSlot: z.string().nullable(),
   status: z.enum(["active", "questionable", "out", "ir", "bye", "unknown"]),
   /**
    * The player's NFL bye WEEK, or null when it is not known.

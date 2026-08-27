@@ -14,7 +14,7 @@ import {
   chaosScore
 } from "./derivedMetrics";
 import { runNexusSimulation } from "./simulation";
-import { scarcityGap, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
+import { scarcityGap, valuationGap, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
 import type { PlayerMarketRecord } from "./governance";
 
 const sim = runNexusSimulation(fixturePlayers, {
@@ -55,9 +55,9 @@ describe("derivedMetrics — statistical properties", () => {
       expect(after).toBeGreaterThan(before);
     });
 
-    it("marketInefficiency: non-negative", () => {
+    it("valuationGap: non-negative", () => {
       for (const p of fixturePlayers) {
-        expect(marketInefficiency(p)).toBeGreaterThanOrEqual(0);
+        expect(valuationGap(p)).toBeGreaterThanOrEqual(0);
       }
     });
 
@@ -107,11 +107,11 @@ describe("derivedMetrics — statistical properties", () => {
       expect(["Inefficient", "Efficient"]).toContain(m.marketRegime);
     });
 
-    it("deriveMarketMetrics: topInefficiencies returns at most 5 players, all from input", () => {
+    it("deriveMarketMetrics: topValuationGaps returns at most 5 players, all from input", () => {
       const m = deriveMarketMetrics(fixturePlayers);
       const inputIds = new Set(fixturePlayers.map((p) => p.id));
-      expect(m.topInefficiencies.length).toBeLessThanOrEqual(5);
-      for (const p of m.topInefficiencies) expect(inputIds.has(p.id)).toBe(true);
+      expect(m.topValuationGaps.length).toBeLessThanOrEqual(5);
+      for (const p of m.topValuationGaps) expect(inputIds.has(p.id)).toBe(true);
     });
 
     it("deriveNarrativeMovers: gainers all have velocity > 0, decliners < 0", () => {

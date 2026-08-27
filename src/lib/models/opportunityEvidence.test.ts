@@ -47,9 +47,13 @@ describe("opportunity evidence (protocol 4)", () => {
   it("never claims the signal beats consensus at drafting", () => {
     const copy = [OPPORTUNITY_DETAIL, OPPORTUNITY_SHORT, OPPORTUNITY_SCOPE_LIMIT].join(" ");
     expect(OPPORTUNITY_SCOPE_LIMIT).toMatch(/in-season only/i);
-    expect(copy).not.toMatch(/\barbitrage\b/i);
-    expect(copy).not.toMatch(/\bmispriced?\b/i);
-    expect(copy).not.toMatch(/\bguarantee/i);
+    // STEMS 2026-08-26. The middle pattern matched "misprice" and "mispriced"
+    // and not "mispricing" -- the same one-suffix gap that let ten live surfaces
+    // keep asserting the refuted claim while two other guards passed. Third copy
+    // of that mistake in this repository, so it gets the same treatment.
+    const banned = /(arbitrage|mispric|underval|overval|inefficienc|guarantee)/i;
+    expect("market mispricing", "banned pattern must be live").toMatch(banned);
+    expect(copy, `opportunity copy overclaims: "${copy}"`).not.toMatch(banned);
   });
 
   it("discloses the mechanical component rather than implying hidden talent", () => {

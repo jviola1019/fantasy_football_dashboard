@@ -8,6 +8,7 @@ import { tierCollapseSignals, tiersByPosition } from "@/lib/draft/tiers";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { derivePositionGrades } from "@/lib/derivedMetrics";
 import { scarcityGap } from "@/lib/models";
+import { DRAFT_RECOMMENDATION_NOTE, DRAFT_TIER_NOTE } from "@/lib/draft/disclosure";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 
@@ -376,6 +377,7 @@ function RecommendationQueue({ recommendations }: { recommendations: Recommendat
           ))}
         </tbody>
       </table>
+      <p className="small-note">{DRAFT_RECOMMENDATION_NOTE}</p>
     </div>
   );
 }
@@ -432,6 +434,7 @@ function TierCollapseView({
             ))}
           </tbody>
         </table>
+        <p className="small-note">{DRAFT_TIER_NOTE}</p>
       </div>
       <div className="radar-wrap">
         <div className="section-label">POSITION STRENGTH RADAR</div>

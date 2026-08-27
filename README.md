@@ -63,14 +63,15 @@ Service boundaries:
 Preferred production adapters:
 - Sleeper API for public identity/league data where permitted.
 - NFLverse/nflfastR/nflreadr for historical and projection features.
-- Weather, injury, RSS/news, and sentiment feeds where legal and available.
+- Injury and RSS/news feeds where legal and available. (Aspirational — see the implemented list below for what is actually wired; weather is NOT, and sentiment is a threshold heuristic on market metrics, not detected news.)
 
 Current implementation (all FREE — no paid feeds, no API keys beyond what's noted):
 - **Sleeper** — identity/league/rosters, weekly projections (`api.sleeper.com`), 24h trending adds/drops (`trendingMomentum` proxy).
 - **FantasyPros** — consensus ECR/ADP per scoring (PPR / Half / Standard) → value, draft pool, the league universe.
 - **nflverse** — free, CC-BY snap counts → a real `opportunity` (role/usage) score, stamped onto records by the `/api/cron/opportunity-refresh` snapshot (`src/lib/nflverse/`). Replaces any paid snap-share/target-share feed; see [docs/data-sources.md](docs/data-sources.md) for the full free-source matrix.
 - **ESPN** — private-league rosters (encrypted cookies) + public news headline-velocity (a second `trendingMomentum` source).
-- **open-meteo** weather, FantasyCalc/KTC/DynastyProcess trade values — all free.
+- **FantasyCalc / KeepTradeCut / DynastyProcess** — trade values, three-tier source chain, all free.
+- **No weather feed.** `open-meteo` was listed here for months with nothing behind it: `src/lib/weather/` was reachable only from its own test and no surface referenced it. Deleted 2026-08-24 (commit `29e6744`) rather than left looking connected. A source named in this list is a claim about the product.
 - RAE still refuses to infer a metric it has no source for: any field without real data is declared in `missingFields` and renders "—", never a fabricated number.
 - Development fixtures exist only as clearly labeled dev/test fixtures. Enable with `RAE_ALLOW_FIXTURES=true`.
 
@@ -115,9 +116,13 @@ Open `http://localhost:3000`.
 
 ## Exact run commands
 
-Every script in `package.json`, grouped by what it is for. All 20 are listed —
-an earlier version of this section named only nine, so the security gates and
-model harnesses were effectively undiscoverable.
+Every script in `package.json`, grouped by what it is for.
+
+This section has now been wrong twice — it once listed nine of them, then
+claimed "all 20" while there were 42 — so the completeness claim is no longer
+made in prose. `src/lib/ops/readmeScripts.test.ts` fails if any script in
+`package.json` is missing from this file, which is the only version of that
+claim that cannot rot.
 
 ### Everyday
 
@@ -143,22 +148,43 @@ npm run lighthouse   # lhci autorun against next start
 ### Security gates
 
 ```bash
-npm run check:secrets     # scan tracked files for secret-shaped literals
-npm run check:advisories  # fail if the lockfile resolves below an advisory floor
-npm run check:exceptions  # fail on an expired vulnerability exception
+npm run check:secrets            # scan tracked files for secret-shaped literals
+npm run check:advisories         # fail if the lockfile resolves below an advisory floor
+npm run check:exceptions         # fail on an expired vulnerability exception
+npm run check:projection-units   # re-measure the projection unit contract
+```
+
+### Architecture and UI audits
+
+```bash
+npm run audit:reachability   # every module reachable from an app/script/test entry point
+npm run audit:ui             # spacing, tab wiring, opacity and governance, measured in a browser
+npm run lighthouse:variance  # repeat Lighthouse to separate signal from run-to-run noise
 ```
 
 ### Model harnesses
 
-These reach the network (public Sleeper data, no credentials) and are therefore
-reported, not CI-blocking.
+These reach the network (public Sleeper data, no credentials) unless noted, and
+are therefore reported, not CI-blocking.
 
 ```bash
+npm run brier:backtest           # weekly start/sit backtest -> docs/brier-results.md
+                                 #   replays a committed snapshot; --refresh to refetch
 npm run backtest:valuation       # out-of-sample backtest of the SHIPPED chain
+npm run backtest:sleeper         # season-sim backtest on real completed leagues
+npm run calibrate:season         # synthetic self-consistency check (NOT real-world)
 npm run sensitivity:replacement  # sweep the two replacement-model assumptions
-npm run calibrate:season         # synthetic self-consistency check
-npm run backtest:sleeper         # season-sim backtest on real weekly scores
+npm run verify:inseason          # prove the shipped in-season ranking IS protocol 4/5's
+npm run anova:opportunity        # variance decomposition of the opportunity signal
+npm run measure:bands            # derive scenario buckets from the sim, not multipliers
+npm run measure:sigma            # measure the between-team strength dispersion
 ```
+
+**Read [`reports/2026-08-06/backtest-valuation.md`](reports/2026-08-06/backtest-valuation.md)
+before trusting any probability this app displays.** The shipped valuation chain
+fails out-of-sample: Brier 0.3098 against a 0.2400 climatology baseline, AUC
+0.3058 with a 95% CI of [0.1333, 0.4450] — significantly worse than forecasting
+the league base rate. The simulation declares this in its own assumptions.
 
 ### Gated suites (skipped in CI by design)
 
@@ -176,39 +202,55 @@ npm run lighthouse
 
 ### Frozen holdout protocols
 
-Four protocols were each **frozen and committed before any metric was computed**,
-then executed once. Index and verdicts:
-[`reports/2026-08-20/README.md`](reports/2026-08-20/README.md).
+**Seven** protocols have each been **frozen and committed before any metric was
+computed**, then executed once. Index and verdicts for 1–6:
+[`reports/2026-08-20/README.md`](reports/2026-08-20/README.md); protocol 7 is in
+[`reports/2026-08-25/`](reports/2026-08-25/).
 
 ```bash
-npm run holdout:evaluate         # protocol 1 — shipped season model
-npm run holdout:evaluate2        # protocol 2 — larger external holdout
-npm run holdout:evaluate3        # protocol 3 — the reputation edge
-npm run holdout:acquire-usage    # protocol 4 — fetch/archive nflverse usage data
-npm run holdout:evaluate4        # protocol 4 — does opportunity add over production?
-npm run holdout:evaluate4 -- --self-test   # arithmetic only; never touches the data
+npm run holdout:evaluate    # 1 - shipped season model             NOT VALIDATED
+npm run holdout:evaluate2   # 2 - larger external holdout          NOT VALIDATED
+npm run holdout:evaluate3   # 3 - the reputation edge              NOT DEMONSTRATED
+npm run holdout:evaluate4   # 4 - does opportunity add?            PASSED
+npm run holdout:evaluate5   # 5 - does the weight generalise?      DIRECTION ONLY
+npm run holdout:evaluate6   # 6 - is leave-one-week-out optimistic?
+npm run holdout:evaluate7   # 7 - trees and boosting               ALL LOST
 ```
 
-Each reproduces from a committed archive with no network. **Protocol 4 is the only
-one that passed** — in-season opportunity adds beyond points scored to date
-(partial ρ 0.2289, holding within position, 452 players). Its out-of-fold gain is
-**+0.0137** and its scope is **in-season only**; see
-[`holdout-result-4.md`](reports/2026-08-20/holdout-result-4.md) before relying on
-it.
+Acquisition and diagnostic harnesses for the same protocols:
 
-**Read [`reports/2026-08-06/backtest-valuation.md`](reports/2026-08-06/backtest-valuation.md)
-before trusting any probability this app displays.** The shipped valuation chain
-fails out-of-sample: Brier 0.3098 against a 0.2400 climatology baseline, AUC
-0.3058 with a 95% CI of [0.1333, 0.4450] — significantly worse than forecasting
-the league base rate. The simulation declares this in its own assumptions.
+```bash
+npm run holdout:acquire           # MFL draft holdout
+npm run holdout:acquire-players   # MFL player catalogue
+npm run holdout:acquire-brackets  # MFL playoff brackets (ground-truth labels)
+npm run holdout:acquire-usage     # nflverse usage data (protocol 4)
+npm run holdout:diagnostics       # post-hoc diagnostics on an executed protocol
+npm run holdout:validate-labels   # verify the outcome labels themselves
+```
+
+Each reproduces from a committed archive with no network, and each evaluator
+accepts `-- --self-test` to exercise its arithmetic without touching the data.
+
+**Protocol 4 is the only one that passed** — in-season opportunity adds beyond
+points scored to date (partial ρ 0.2289, holding within position, 452 players).
+Its out-of-fold gain is **+0.0137** and its scope is **in-season only**; see
+[`holdout-result-4.md`](reports/2026-08-20/holdout-result-4.md) before relying on
+it. Protocol 7 returned a clean negative: gradient boosting and random forests
+both lost to the single-feature logistic at every position, and a logistic on the
+same expanded features lost too — so the extra features, not the model class, are
+what carry no signal
+([`holdout-result-7.md`](reports/2026-08-25/holdout-result-7.md)).
 
 ### Operations
 
 ```bash
-npm run smoke            # smoke-check a Vercel deployment
-npm run check:freshness  # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
-npm run verify:rotation  # prove a rotated secret's PREVIOUS value is now rejected
-npm run deploy           # currently aliases `next build` — see below
+npm run smoke                  # smoke-check a Vercel deployment
+npm run check:freshness        # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
+npm run verify:rotation        # prove a rotated secret's PREVIOUS value is now rejected
+npm run reencrypt:credentials  # re-wrap stored league credentials under a new key
+npm run seed:account           # create a local account for development
+npm run cache:rankings         # snapshot FantasyPros rankings into the local cache
+npm run deploy                 # currently aliases `next build` — see below
 ```
 
 `verify:rotation` reads secrets from the environment only, never prints them, and
@@ -383,13 +425,45 @@ RAE does not fabricate production intelligence. Every chart value is derived fro
 
 ## Continuous integration
 
-Every push and pull request runs three GitHub Actions jobs in parallel:
+Every push and pull request runs **eleven** jobs across three workflows. An
+earlier version of this section described three, and omitted the Postgres job —
+the one whose whole purpose is to fail when a suite is skipped rather than
+executed.
 
-1. **`quality`** — `npm ci && npx tsc --noEmit && npx eslint . && npx vitest run`.
-2. **`e2e`** — `npx playwright install --with-deps chromium && npx next build && npx playwright test`. Includes an axe accessibility scan (`e2e/03-a11y.spec.ts`) that fails the build on any `serious` or `critical` violation.
-3. **`lighthouse`** — `npx next build && npx lhci autorun`. Asserts Accessibility ≥ 90 (fail) and Performance ≥ 70, Best Practices ≥ 85, SEO ≥ 85 (warn).
+**`.github/workflows/ci.yml`** — four jobs:
 
-Workflow file: `.github/workflows/ci.yml`. Lighthouse config: `lighthouserc.json`. Playwright config: `playwright.config.ts`.
+1. **`typecheck + lint + vitest`** — `npm ci && npx tsc --noEmit && npx eslint . && npx vitest run`.
+2. **`postgres integration`** — the integration suite against a pinned
+   `postgres:17.5-alpine` service. **Fails if the suites were skipped instead of
+   run**, so they cannot silently stop running.
+3. **`playwright + axe`** — build, then Playwright across a chromium and a
+   mobile-chrome project. Includes an axe scan (`e2e/03-a11y.spec.ts`) that fails
+   on any `serious` or `critical` violation.
+4. **`lighthouse perf + a11y`** — `lhci autorun`, median of 5 runs over `/`,
+   `/login` and `/dashboard`. Accessibility ≥ 0.90 **fails**; Performance ≥ 0.70,
+   Best Practices ≥ 0.85 and SEO ≥ 0.85 warn.
+
+**`.github/workflows/security.yml`** — six jobs, daily cron plus every push:
+`lockfile advisory scan` (blocks — advisory floors + `npm audit --omit=dev`),
+`OSV lockfile scan (advisory, non-blocking)`, `dependency review`,
+`gitleaks secret scan`, `gitleaks FULL-HISTORY secret scan`, and
+`tracked-file secret scan`.
+
+**`.github/workflows/codeql.yml`** — `codeql (javascript-typescript)`.
+
+**Which of these actually gate a merge.** The `main-protection` ruleset requires
+six: `typecheck + lint + vitest`, `playwright + axe`, `lighthouse perf + a11y`,
+`gitleaks secret scan`, `dependency review` and `codeql`. Two caveats worth
+knowing, because a green tick is not self-explanatory:
+
+- `gitleaks secret scan` scans only the **pushed commit range**. The job that
+  walks all history is `gitleaks FULL-HISTORY secret scan`, and it is **not** in
+  the required list.
+- `OSV lockfile scan` is non-blocking by design and reports success even when it
+  finds High-severity issues — which is why its name says so. The blocking
+  lockfile gate is `lockfile advisory scan`.
+
+Lighthouse config: `lighthouserc.json`. Playwright config: `playwright.config.ts`.
 
 To run the suite locally:
 

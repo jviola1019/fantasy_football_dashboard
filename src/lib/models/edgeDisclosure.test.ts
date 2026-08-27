@@ -43,11 +43,14 @@ describe("no surface may re-assert the refuted claim", () => {
   // Protocol 3: across positions the signal is a roster-arithmetic artifact, and
   // within position it is INVERTED. Language implying exploitable mispricing is
   // therefore unsupported, whatever it is attached to.
+  // STEMS, not whole words (2026-08-26). "mispriced" was banned while
+  // "mispricing" shipped on three routes; matching the stem closes the family.
   const banned = [
-    "arbitrage play",
+    "arbitrage",
     "exploit inefficien",
-    "mispriced",
-    "undervalued",
+    "mispric",
+    "underval",
+    "overval",
     "bargain",
     "market edge",
     "beat the market",
@@ -88,9 +91,28 @@ describe("EDGE_LABELS after the 2026-08-22 rename", () => {
     // the same vocabulary, and a single-source guard is what stops it creeping
     // back one call site at a time — which is exactly how "Reputation Edge"
     // survived the first pass.
-    const banned = /(arbitrage|reputation|mispriced|exploit inefficien)/i;
+    // Stems again, and a negation escape hatch: `gapCountSub` has to be able to
+    // say "not proven bargains", which denies the claim rather than making it.
+    const banned = /(arbitrage|reputation|mispric|inefficienc|underval|overval|bargain)/i;
+    const negated = /not |no longer|does not|did not|rather than/i;
+    // The pattern must be live. Every alternative gets a canary, because a
+    // regex that matches only its first branch is the failure this guard has
+    // already suffered three times.
+    for (const canary of [
+      "arbitrage play",
+      "Reputation Edge",
+      "market mispricing",
+      "TOP INEFFICIENCIES",
+      "Undervalued",
+      "Overvalued",
+      "find bargains"
+    ]) {
+      expect(canary, `banned pattern must match ${canary}`).toMatch(banned);
+    }
     for (const [key, value] of Object.entries(EDGE_LABELS)) {
-      expect(value, `EDGE_LABELS.${key} uses refuted vocabulary`).not.toMatch(banned);
+      if (banned.test(value) && !negated.test(value)) {
+        expect.fail(`EDGE_LABELS.${key} asserts refuted vocabulary: "${value}"`);
+      }
     }
   });
 

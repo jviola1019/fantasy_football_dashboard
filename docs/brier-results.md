@@ -24,6 +24,10 @@
 | Resolution | 0.0633 | Sharpness beyond base rate |
 | Uncertainty | 0.2458 | Irreducible base-rate variance |
 | Check R−Res+U | 0.2716 | = Score ✓ |
+| **Climatology** | 0.2458 | Always forecast the base rate — the bar to clear |
+| **Brier Skill Score** | -10.5% | vs climatology; ≤ 0 means no skill |
+
+> **RETIRED — this model has no skill and must not be used.** Its Brier (0.2716) is worse than simply forecasting the QB base rate (0.2458), so a constant number beats it. Reported here only so the result stays reproducible; protocol 7 recommendation 3 (`reports/2026-08-25/holdout-result-7.md`). The calibration model below is the one with measured skill at this position.
 
 ### 5-Fold Cross-Validation (by week)
 
@@ -83,6 +87,8 @@ Obs.freq │
 | Resolution | 0.1620 | Sharpness beyond base rate |
 | Uncertainty | 0.2497 | Irreducible base-rate variance |
 | Check R−Res+U | 0.1981 | = Score ✓ |
+| **Climatology** | 0.2497 | Always forecast the base rate — the bar to clear |
+| **Brier Skill Score** | 20.7% | vs climatology; ≤ 0 means no skill |
 
 ### 5-Fold Cross-Validation (by week)
 
@@ -144,6 +150,8 @@ Obs.freq │
 | Resolution | 0.1688 | Sharpness beyond base rate |
 | Uncertainty | 0.2498 | Irreducible base-rate variance |
 | Check R−Res+U | 0.2103 | = Score ✓ |
+| **Climatology** | 0.2498 | Always forecast the base rate — the bar to clear |
+| **Brier Skill Score** | 15.8% | vs climatology; ≤ 0 means no skill |
 
 ### 5-Fold Cross-Validation (by week)
 
@@ -205,6 +213,8 @@ Obs.freq │
 | Resolution | 0.1880 | Sharpness beyond base rate |
 | Uncertainty | 0.2499 | Irreducible base-rate variance |
 | Check R−Res+U | 0.2147 | = Score ✓ |
+| **Climatology** | 0.2499 | Always forecast the base rate — the bar to clear |
+| **Brier Skill Score** | 14.1% | vs climatology; ≤ 0 means no skill |
 
 ### 5-Fold Cross-Validation (by week)
 
@@ -261,10 +271,10 @@ This is a **true prospective backtest**: pre-game projections vs post-game actua
 
 Mean Brier across positions: **0.2237**. 4/4 positions show positive Resolution (projection order carries signal: QB, RB, WR, TE). 3/4 beat the base-rate-only benchmark, i.e. Resolution > Reliability (RB, WR, TE).
 
-**Caveat:** QB has Reliability (0.089) ≥ Resolution (0.063) — the rank→prob mapping is mis-calibrated there and does not clear the base-rate-only forecast; treat its score as no better than climatology.
+**1 of 4 positions are RETIRED** (QB): the rank→prob model scores WORSE than always forecasting the base rate, so a constant number beats it — QB 0.2716 vs climatology 0.2458 (skill -10.5%). Use the calibration model at those positions. Protocol 7 recommendation 3.
 
 **Calibration model (out-of-fold logistic, projected pts → P(≥ threshold)).** Mean Brier **0.2108** vs the rank model's 0.2237; mean Expected Calibration Error (10-bin) **0.0270** vs the rank model's 0.0940. Lower ECE means the projected POINTS carry genuine probability information beyond rank order — mapping them through a fitted logistic yields better-calibrated start/sit probabilities and a defensible probability the production model can consume directly. ECE is occupancy-weighted |observed − forecast| over 10 bins — comparable across models, unlike the Murphy reliability term which over-bins the logistic's continuous probabilities.
 
-**Scope:** this backtest measures weekly *start/sit projection discrimination* only. The season simulator's `playoffProbability` / `championshipProbability` calibration (targets Brier ≤ 0.20 / ≤ 0.10) is a different quantity, measured separately by `scripts/brier-season-sim.ts` → `docs/season-calibration.md`.
+**Scope:** this backtest measures weekly *start/sit projection discrimination* only. The season simulator's `playoffProbability` / `championshipProbability` calibration (targets Brier ≤ 0.20 / ≤ 0.10) is a different quantity, measured separately — and by TWO harnesses that must not be confused. `scripts/brier-season-sim.ts` → `docs/season-calibration.md` is SYNTHETIC self-consistency: it checks the simulator against its own generative model and says nothing about real outcomes. `scripts/backtest-sleeper-2025.ts` → `docs/season-backtest-2025.md` is the REAL one, and it currently rests on a single league — one independent cluster — so it carries no significance either. Neither establishes that the season targets are met.
 
 See `docs/calibration.md` for the full calibration contract.

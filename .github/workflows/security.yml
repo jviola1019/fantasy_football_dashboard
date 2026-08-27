@@ -63,7 +63,15 @@ jobs:
         run: npm audit || true
 
   osv-scanner:
-    name: OSV lockfile scan
+    # ADVISORY, and the name now says so. This job runs with
+    # `continue-on-error: true`, so it reports SUCCESS even when the scanner
+    # exits 1 having found High-severity issues -- which it currently does
+    # (30 vulnerabilities across 17 packages, almost all dev-scope, several with
+    # no patched version published). Left non-blocking on purpose; renamed on
+    # 2026-08-26 because a check named "OSV lockfile scan" showing a green tick
+    # reads as "the lockfile is clean", and it is not evidence of that.
+    # The blocking lockfile gate is `lockfile advisory scan` below.
+    name: OSV lockfile scan (advisory, non-blocking)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -76,6 +84,21 @@ jobs:
         continue-on-error: true
 
   # Kept, but no longer the only line of defence. PR-only by nature.
+  #
+  # `continue-on-error: true` REMOVED 2026-08-26. This job is one of the six
+  # REQUIRED status checks in the `main-protection` ruleset, and with
+  # continue-on-error it reported success unconditionally -- a required check
+  # that could not fail, which is the same defect class as a test that asserts
+  # nothing. Verified against the ruleset:
+  #   gh api repos/.../rulesets/18698526 --jq '..|.required_status_checks?'
+  #   -> ["typecheck + lint + vitest", "playwright + axe",
+  #       "lighthouse perf + a11y", "gitleaks secret scan",
+  #       "dependency review", "codeql (javascript-typescript)"]
+  #
+  # It is now able to block. Scope is the PR DIFF, not the whole tree: the
+  # action fails only when a pull request INTRODUCES a dependency carrying a
+  # moderate-or-worse advisory. The ~30 advisories already resolved in the
+  # lockfile do not trip it, so this does not retroactively block `main`.
   dependency-review:
     if: github.event_name == 'pull_request'
     name: dependency review
@@ -86,7 +109,6 @@ jobs:
       - uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
-        continue-on-error: true
 
   gitleaks:
     name: gitleaks secret scan

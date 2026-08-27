@@ -28,13 +28,16 @@ export function LeagueHealth({ metrics, missingFields }: { metrics: CommandMetri
           color: metrics.scarcityGap >= 0 ? "pos" : "neg"
         },
     valuesUnavailable
-      ? { label: "Market Inefficiency", value: "—", sub: "Value data unavailable", color: "neu" }
+      ? { label: EDGE_LABELS.gapMagnitude, value: "—", sub: "Value data unavailable", color: "neu" }
       : {
-          label: "Market Inefficiency",
-          value: fmt(metrics.marketInefficiency, 1),
-          // marketInefficiency() = confidence-weighted |true − market| mispricing,
-          // NOT value-over-replacement — the old sub-label was factually wrong.
-          sub: "Avg Market Mispricing",
+          label: EDGE_LABELS.gapMagnitude,
+          value: fmt(metrics.valuationGap, 1),
+          // valuationGap() = confidence-weighted |true − market| distance,
+          // NOT value-over-replacement — an older sub-label claimed that and was
+          // factually wrong. The 2026-08-26 pass then removed the "mispricing"
+          // framing its replacement still carried: the distance is real, the
+          // claim that it locates a market error is what protocol 3 refuted.
+          sub: EDGE_LABELS.gapMagnitudeSub,
           color: "neu"
         },
     trendingUnavailable

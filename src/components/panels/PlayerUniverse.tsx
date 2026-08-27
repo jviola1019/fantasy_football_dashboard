@@ -6,7 +6,8 @@ import { asMetricSet, type PanelMetricKey } from "@/lib/panelState";
 import { PanelCard } from "../ui/PanelCard";
 import { PanelTabs, TabPanel } from "../ui/PanelTabs";
 import { DataUnavailable } from "../ui/DataUnavailable";
-import { marketInefficiency, narrativeVelocity, scarcityGap } from "@/lib/models";
+import { valuationGap, narrativeVelocity, scarcityGap } from "@/lib/models";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { deriveRisingStars } from "@/lib/derivedMetrics";
 import { RadarChart } from "@/components/charts/RadarChart";
 import { avg, trendingLabel, fmt, surname } from "@/lib/utils";
@@ -50,9 +51,9 @@ export function PlayerUniverse({ players, envelope }: Props) {
     ? filtered[0] ?? selectedBase
     : selectedBase;
   const risingStars = deriveRisingStars(players);
-  const avgIneff = avg(players.map(marketInefficiency));
+  const avgIneff = avg(players.map(valuationGap));
   // Real third stat (replaces the old hardcoded "176 Leagues Analyzed").
-  const undervalued = players.filter((p) => p.trueValue > p.perceivedValue).length;
+  const aboveConsensusCount = players.filter((p) => p.trueValue > p.perceivedValue).length;
 
   // The universe can be hundreds of players (whole-league pool). Show the top
   // slice by value when browsing; show all matches when searching — so the grid
@@ -115,7 +116,7 @@ export function PlayerUniverse({ players, envelope }: Props) {
               {selected && <PlayerProfile player={selected} />}
               <UniverseStats
                 count={players.length}
-                undervalued={undervalued}
+                aboveConsensusCount={aboveConsensusCount}
                 avgIneff={avgIneff}
                 risingStars={risingStars}
               />
@@ -266,19 +267,19 @@ function PlayerProfile({ player }: { player: PlayerMarketRecord }) {
           <b className={player.trendingMomentum >= 0 ? "pos-text" : "neg-text"}>{trending}</b>
         </div>
       </div>
-      <div className="profile-slot">{player.rosterSlot}</div>
+      <div className="profile-slot">{player.rosterSlot ?? "—"}</div>
     </div>
   );
 }
 
 function UniverseStats({
   count,
-  undervalued,
+  aboveConsensusCount,
   avgIneff,
   risingStars,
 }: {
   count: number;
-  undervalued: number;
+  aboveConsensusCount: number;
   avgIneff: number;
   risingStars: PlayerMarketRecord[];
 }) {
@@ -291,12 +292,12 @@ function UniverseStats({
           <small>Total Players</small>
         </div>
         <div className="stat-box">
-          <strong>{undervalued}</strong>
-          <small>Undervalued</small>
+          <strong>{aboveConsensusCount}</strong>
+          <small>{EDGE_LABELS.aboveConsensus}</small>
         </div>
         <div className="stat-box">
           <strong>{fmt(avgIneff, 1)}</strong>
-          <small>Avg Market Mispricing</small>
+          <small>{EDGE_LABELS.avgGapStat}</small>
         </div>
       </div>
       <div className="section-label mt8">RISING STARS</div>

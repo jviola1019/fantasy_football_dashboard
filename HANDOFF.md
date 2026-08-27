@@ -927,3 +927,46 @@ projections disagreeing is real information; ten features derived from one are
 not), and opponent-adjusted context. Also: retire the QB rank→prob model from
 `brier-results.md` — it loses to climatology and shares a page with a model that
 beats it.
+
+---
+
+## Final audit (2026-08-26) — models, statistics, duplication, branches
+
+Full report: [`reports/2026-08-26/final-audit.md`](reports/2026-08-26/final-audit.md).
+Branch `fix/2026-08-23-sign-in` (= PR #35). No merge, no deploy, no rotation,
+no history rewrite, no production database mutation.
+
+### Closed in this pass
+
+| # | Finding | Evidence |
+|---|---|---|
+| 1 | `confidenceInterval()` — `center ± (1−confidence)·18` rendered as `[lo, hi]` beside `trueValue`. Flagged by the 2026-06-09 audit (item 6 / rec 2), **never executed**, shipped 2.5 more months | removed; `src/lib/models.ts` records why nothing replaces it |
+| 2 | Season backtest called 10 within-league outcomes "independent" when exactly `playoff_teams` of `num_teams` qualify; no baseline, no interval | climatology + BSS + cluster bootstrap over leagues; `docs/season-backtest-2025.md` |
+| 3 | The committed season-backtest number was stale (0.1657 vs 0.1696) | regenerated; determinism verified across two runs |
+| 4 | QB rank→prob (BSS −10.5%) carried a footnote, not a verdict | per-position climatology + BSS + `RETIRED` banner in `docs/brier-results.md` |
+| 5 | **Ten** live surfaces still asserted mispricing / inefficiency / undervalued; both guards banned `mispriced` and missed `mispricing` | all renamed via `EDGE_LABELS`; both guards now stem-matched with a canary per alternative |
+| 6 | A literal 0x08 backspace byte in a regex — **again** | repaired; `src/lib/ops/sourceHygiene.test.ts` scans src/scripts/e2e for C0 bytes |
+| 7 | `rosterSlot: "FLEX"` hardcoded on every live record and rendered | nullable + em dash; `espnLineupSlot`/`ESPN_LINEUP_SLOT_MAP` (the unwired other half) removed |
+| 8 | `dependency review` is a REQUIRED check and had `continue-on-error: true` — it could not fail | removed (`security.yml`) |
+| 9 | `OSV lockfile scan` reports pass while exiting 1 with High findings | renamed `(advisory, non-blocking)`; not a required check, so safe to rename |
+| 10 | 3 scripts had no npm entry, incl. the generator of `docs/brier-results.md` | `brier:backtest`, `audit:reachability`, `holdout:acquire-players`; 46 total |
+| 11 | README "All 20 are listed" (42 existed, 20 unmentioned); "Four protocols" (7 exist); open-meteo still advertised | rewritten; `src/lib/ops/readmeScripts.test.ts` makes the claim mechanical |
+| 12 | `data-source-map.md`: 19 `reputationEdge` refs, 4 stale labels, 6 stale line refs, 1 row for a removed function | corrected |
+| 13 | `season-calibration.md` said "No real-data backtest run" while `season-backtest-2025.md` existed | both generators cross-reference and distinguish synthetic from real |
+| 14 | Draft `recommend`/`tiers` had no heuristic disclosure (last open 2026-06-09 rec) | `src/lib/draft/disclosure.ts` quotes the weights; `disclosure.test.ts` holds them to the code |
+| 15 | The wording guard read `textContent` off `<body>` — including the **RSC flight payload**, so it scanned serialised props, not the page. Widening the pattern surfaced it: `inefficiencyPct` / `topInefficiencies` matched from inside a `<script>` | helper now strips `script, style, noscript, template` |
+| 16 | The data model itself carried the refuted vocabulary | `marketInefficiency`→`valuationGap` (15), `topInefficiencies`→`topValuationGaps` (8), `inefficiencyPct`→`valuationGapPct` (4) |
+| 17 | A **third** narrow wording pattern, `/mispriced?/i` in `opportunityEvidence.test.ts` | widened to the shared stem set with a live canary |
+| 18 | README described three CI jobs; eleven run across three workflows, and it omitted the Postgres job whose purpose is failing when a suite is skipped | rewritten, including which six actually gate a merge |
+
+### Verified clean — do not re-derive
+
+- **All four merged branches landed in full.** `git log origin/main..<branch>` empty for each; every PR-body deliverable located at HEAD. Zero lost work.
+- **No divergent statistical implementations.** Spearman ×2 and AUC ×4 read side by side and agree. Remaining duplication is confined to `holdout-evaluate-*` archives (deliberate, documented).
+- `audit:reachability`: 0 unreachable modules.
+- Symbol-level dead-export scan is too noisy to act on (blind to same-file use). Two true positives: `espnLineupSlot` removed, `ensureSeasonStatsTable` kept (store self-heals; sibling is used).
+
+### Still open
+
+- **The validated weekly model does not ship.** `src/lib/stats/logistic.ts` is script-only; BSS +21.1/+18.5/+17.6% at RB/WR/TE. The only probabilities the product renders come from the chain that failed protocols 1–2. Surfacing it is a product decision, not a defect repair — top recommendation in the report.
+- Owner actions: ruleset (the required secret check is the diff-scoped one), PR #35 merge, 11 Dependabot PRs with a verified merge order, advisory floors for `brace-expansion`/`ip-address` **after** #23/#24, two merged branches deletable.

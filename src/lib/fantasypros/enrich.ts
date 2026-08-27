@@ -389,7 +389,10 @@ export function fpPlayerToRecord(
         )
       }
     ],
-    rosterSlot: "FLEX",
+    // NOT "FLEX". These are league-universe players ranked by consensus, not
+    // members of anyone's lineup, so there is no slot to report. See the
+    // field comment in governance.ts.
+    rosterSlot: null,
     status: "active",
     // FantasyPros ships this in every snapshot and it was dropped here. The
     // field is a string upstream and may be absent, empty, or non-numeric, so
