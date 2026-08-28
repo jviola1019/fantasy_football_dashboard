@@ -933,8 +933,14 @@ beats it.
 ## Final audit (2026-08-26) — models, statistics, duplication, branches
 
 Full report: [`reports/2026-08-26/final-audit.md`](reports/2026-08-26/final-audit.md).
-Branch `fix/2026-08-23-sign-in` (= PR #35). No merge, no deploy, no rotation,
-no history rewrite, no production database mutation.
+Committed `08ca10d`, pushed to `fix/2026-08-23-sign-in` (= PR #35, still OPEN).
+**No merge, no deploy, no rotation, no history rewrite, no production database
+mutation.** `origin/main` is unmoved at `2acf331`.
+
+Gates on the committed tree: typecheck 0 - lint 0 - build clean - vitest
+**1,225 passed / 39 skipped** - playwright **405 passed / 1 skipped** -
+check:secrets 346 files - advisories/exceptions OK - projection-units PASS -
+verify:inseason PASS (diff 0.000006) - reachability 0 unreachable.
 
 ### Closed in this pass
 

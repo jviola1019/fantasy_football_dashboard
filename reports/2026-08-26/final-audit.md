@@ -272,6 +272,14 @@ diff, so it fails only when a pull request *introduces* a moderate-or-worse
 advisory; the advisories already resolved in the lockfile do not retroactively
 block `main`.
 
+**Consequence for the Dependabot queue, stated up front.** `dependency review`
+can now block, and it fails when a PR *introduces* a moderate-or-worse advisory.
+Several of the open Dependabot PRs pull new transitive dependencies, so one of
+them may now fail a check that previously could not. **That is the gate working,
+not a regression** — but it is a change in behaviour the owner should expect
+before working through the merge order in §9. Verified on this PR: `dependency
+review` completed in 6s and passed with the flag removed.
+
 **`gitleaks secret scan` scans only the pushed commit range.** The repository
 already knows this — `security.yml:108-113` documents it and adds a
 `gitleaks FULL-HISTORY secret scan` job that walks all history. But the
