@@ -39,13 +39,83 @@ const ROUTES = [
   "/mock-draft"
 ] as const;
 
-/** Routes that are legitimately sparse, with the reason. */
-const MINIMA: Record<string, { textElements: number; focusables: number }> = {
-  "/login": { textElements: 5, focusables: 3 },
-  // Renders an honest unavailable state without a cached FantasyPros snapshot.
-  "/mock-draft": { textElements: 5, focusables: 1 }
+/**
+ * Floors on what the scan REACHED, per counter.
+ *
+ * Audit 2026-08-28. Only `textElements` and `focusables` were floored here, and
+ * that is the narrow half of the problem. `spacingBoxes`, `panels` and
+ * `sizedTextElements` were computed and never asserted in CI — only in
+ * `scripts/audit-ui.ts`, which is not a CI step. The spacing check inspects a
+ * hardcoded list of fourteen selectors, so renaming `.panel` in a redesign
+ * drops `spacingBoxes` toward zero, the check silently stops measuring, and
+ * this gate still passes because text and focusables are unchanged.
+ *
+ * That is the exact "green check that isn't checking" failure the whole harness
+ * exists to prevent, reachable by a CSS class rename. Every counter the scan
+ * emits is floored now.
+ */
+type Minima = {
+  textElements: number;
+  focusables: number;
+  spacingBoxes: number;
+  sizedTextElements: number;
+  panels: number;
 };
-const DEFAULT_MINIMA = { textElements: 20, focusables: 3 };
+
+const MINIMA: Record<string, Minima> = {
+  // Onboarding: a hero and a capability list, no PanelCard shells.
+  "/": { textElements: 20, focusables: 3, spacingBoxes: 3, sizedTextElements: 20, panels: 0 },
+  // The login form: a heading, two labelled inputs, a submit and a toggle.
+  // Measured zero boxes and zero panels — it is a form, not a dashboard.
+  "/login": { textElements: 5, focusables: 3, spacingBoxes: 0, sizedTextElements: 5, panels: 0 },
+  // Renders an honest unavailable state without a cached FantasyPros snapshot.
+  "/mock-draft": { textElements: 5, focusables: 1, spacingBoxes: 5, sizedTextElements: 20, panels: 1 }
+};
+const DEFAULT_MINIMA: Minima = {
+  textElements: 20,
+  focusables: 3,
+  spacingBoxes: 5,
+  sizedTextElements: 20,
+  panels: 1
+};
+
+/**
+ * Kinds that must be empty, and kinds that are ratchets.
+ *
+ * `type-scale` is not zero today and cannot be: the sub-floor SVG text on
+ * /analytics is chart work (redesign session 3) and the collapsed hierarchy is
+ * design work (session 4). Measured 2026-08-28 across BOTH viewport projects,
+ * so a redesign cannot make either worse while the count is driven down.
+ *
+ * `cta` measured zero on every route, so it blocks from the start.
+ *
+ * Lower these as the sessions land. When a route reaches zero, delete its entry
+ * — the `?? 0` default then holds it there permanently.
+ */
+const TYPE_SCALE_BASELINE: Record<string, number> = {
+  // 76 sub-floor SVG labels — heatmap cells at 6.9px and key-driver rows at
+  // 7.1px, both scaled down by their viewBox. Session 3 (chart kit) drives this
+  // to zero by moving the labels into HTML, the way NexusSimulator.tsx:236-247
+  // already did for its outcome labels.
+  //
+  // Measured at 90 before the scan deduped by element: an <svg><text> matches
+  // both "body *" and the explicit SVG query, so every SVG label was counted
+  // twice. 76 is the real number.
+  "/analytics": 76,
+  // One route-level hierarchy finding each: 63%, 70%, 84%, 87%, 70%, 94% of
+  // rendered text on the bottom two rungs against a 60% limit.
+  "/dashboard": 1,
+  "/players": 1,
+  "/draft": 1,
+  "/waivers": 1,
+  "/reports": 1,
+  "/mock-draft": 1,
+  // /trades passes at desktop width on its default tab (48%) and fails on
+  // mobile once the second tab is opened — the Recent League Trades table is
+  // almost entirely 11px. Only the tab-state sweep sees it, which is the whole
+  // reason that sweep exists.
+  "/trades": 1
+};
 
 /** Scan only once the reveal animations have settled — see WAIT_FOR_ANIMATIONS. */
 async function scan(page: Page): Promise<Scan> {
@@ -108,6 +178,29 @@ test.describe("UI audit", () => {
         wrap.appendChild(b);
       }
       document.body.appendChild(wrap);
+
+      // Sub-floor SVG text: font-size is in USER UNITS, so a viewBox scales it.
+      // 8 units in a 560-unit box laid out at 140 CSS px renders at 2px. This is
+      // the case getComputedStyle cannot see on its own — it reports 8.
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("viewBox", "0 0 560 100");
+      svg.setAttribute("width", "140");
+      svg.style.cssText = "position:fixed;top:300px;left:200px;z-index:99999";
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", "10");
+      text.setAttribute("y", "50");
+      text.setAttribute("font-size", "8");
+      text.textContent = "self-test: unreadably small";
+      svg.appendChild(text);
+      document.body.appendChild(svg);
+
+      // A second solid-amber CTA, to prove the "at most one" rule is live.
+      const rival = document.createElement("button");
+      rival.type = "button";
+      rival.textContent = "self-test: rival CTA";
+      rival.style.cssText =
+        "position:fixed;top:340px;left:200px;z-index:99999;background:rgb(215,168,87);padding:8px";
+      document.body.appendChild(rival);
     });
 
     const after = (await scan(page)).findings;
@@ -116,6 +209,14 @@ test.describe("UI audit", () => {
 
     expect(added("opacity"), "the opacity check must flag illegible text").toBeGreaterThan(0);
     expect(added("tabbing"), "the target-size check must flag crowded 12x12 buttons").toBeGreaterThan(0);
+    // Every check gets its own canary. A shared one only proves the first
+    // branch runs, which is how a partly-dead scan looks exactly like a clean
+    // page — the failure this whole harness exists to prevent.
+    expect(
+      added("type-scale"),
+      "the type-scale check must flag SVG text scaled below the 9px floor"
+    ).toBeGreaterThan(0);
+    expect(added("cta"), "the CTA check must flag a second competing amber button").toBeGreaterThan(0);
   });
 
   for (const route of ROUTES) {
@@ -123,19 +224,36 @@ test.describe("UI audit", () => {
       await page.goto(route);
       const { scanned, findings } = await scanEveryTabState(page);
 
-      // A route the scan never reached would report zero findings and look clean.
+      // A route the scan never reached would report zero findings and look
+      // clean. Every counter is floored, not just the two easy ones — a check
+      // whose element set has gone empty is indistinguishable from a page with
+      // nothing wrong.
       const minima = MINIMA[route] ?? DEFAULT_MINIMA;
-      expect(scanned.textElements ?? 0, `${route}: text elements scanned`).toBeGreaterThanOrEqual(
-        minima.textElements
-      );
-      expect(scanned.focusables ?? 0, `${route}: focusable elements scanned`).toBeGreaterThanOrEqual(
-        minima.focusables
-      );
+      for (const [counter, floor] of Object.entries(minima) as [keyof Minima, number][]) {
+        expect(
+          scanned[counter] ?? 0,
+          `${route}: the ${counter} check measured ${scanned[counter] ?? 0}, below its floor of ` +
+            `${floor}. Either the page genuinely lost content, or the selectors that feed this ` +
+            `check no longer match anything — which would make its zero findings meaningless.`
+        ).toBeGreaterThanOrEqual(floor);
+      }
 
+      // Blocking kinds: zero tolerance, unchanged.
+      const blocking = findings.filter((f) => f.kind !== "type-scale");
       expect(
-        findings.map((f) => `${f.kind}: ${f.selector} — ${f.detail}`),
+        blocking.map((f) => `${f.kind}: ${f.selector} — ${f.detail}`),
         `${route} UI audit findings`
       ).toEqual([]);
+
+      // Ratchet kind: must not grow. See TYPE_SCALE_BASELINE.
+      const typeFindings = findings.filter((f) => f.kind === "type-scale");
+      const allowed = TYPE_SCALE_BASELINE[route] ?? 0;
+      expect(
+        typeFindings.length,
+        `${route}: type-scale findings went from ${allowed} to ${typeFindings.length}. ` +
+          `Lower the baseline when you fix some; never raise it.\n` +
+          typeFindings.map((f) => `  ${f.selector} — ${f.detail}`).join("\n")
+      ).toBeLessThanOrEqual(allowed);
     });
   }
 });

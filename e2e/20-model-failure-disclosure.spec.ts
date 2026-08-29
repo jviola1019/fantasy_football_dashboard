@@ -194,7 +194,12 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
     // Third failure of this one guard: a literal backspace byte made it vacuous,
     // then it missed the "Arbitrage" tab, now it missed the noun form. Matching
     // stems rather than whole words is what stops a fourth.
-    const banned = /(arbitrage|inefficienc|mispric|underval|overval|fair.value)/i;
+    // `under-price` / `over-price` added 2026-08-28. The stem set above catches
+    // "undervalued" and "mispricing" and missed "the market over- or
+    // under-prices" -- which was the copy on the ONBOARDING route, the first
+    // screen anyone sees. Four passes of this guard, four different spellings of
+    // the same refuted claim; hyphenated verb forms are now covered too.
+    const banned = /(arbitrage|inefficienc|mispric|underval|overval|under.?price|over.?price|fair.value)/i;
     // Prove the guard is LIVE rather than vacuous: it must match every string it
     // is supposed to catch. A dead regex is what this repair exists to prevent,
     // and one canary only proves one alternative works.
@@ -205,7 +210,9 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
       "Undervalued +7",
       "Overvalued -3",
       "TOP INEFFICIENCIES",
-      "fair value"
+      "fair value",
+      "the market over- or under-prices",
+      "players the market underprices"
     ]) {
       expect(canary, `banned pattern must actually match ${canary}`).toMatch(banned);
     }

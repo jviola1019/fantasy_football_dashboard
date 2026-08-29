@@ -1,8 +1,13 @@
 import { transformSync } from "esbuild";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   IN_PAGE_AUDIT,
+  MIN_RENDERED_PX,
   SPACE_SCALE,
+  TYPE_SCALE,
+  nearestScaleStep,
   compositeOver,
   contrastRatio,
   effectiveContrast,
@@ -185,14 +190,84 @@ describe("the in-page program is well-formed", () => {
   });
 
   it("inlines the same helpers this file tests, rather than a second copy", () => {
-    for (const name of ["parseRgba", "compositeOver", "effectiveContrast", "isOffScale"]) {
+    for (const name of ["parseRgba", "compositeOver", "effectiveContrast", "isOffScale", "nearestScaleStep"]) {
       expect(IN_PAGE_AUDIT).toContain(`const ${name} =`);
     }
   });
 
+  it("binds TYPE_SCALE by name, because the closure does not survive serialisation", () => {
+    // The same defect SPACE_SCALE hit on its first run: `nearestScaleStep`
+    // refers to TYPE_SCALE by name, and Function.prototype.toString drops the
+    // closure, so the in-page binding must carry that exact identifier or the
+    // whole scan dies with a ReferenceError.
+    expect(IN_PAGE_AUDIT).toContain("const TYPE_SCALE =");
+    expect(IN_PAGE_AUDIT).toContain("const MIN_RENDERED_PX =");
+    expect(IN_PAGE_AUDIT).toContain("const BOTTOM_HEAVY_LIMIT =");
+  });
+
   it("reports how much it scanned, so a zero can be distinguished from a no-op", () => {
-    for (const counter of ["textElements", "focusables", "spacingBoxes", "panels", "targetsMeasured"]) {
+    for (const counter of [
+      "textElements",
+      "focusables",
+      "spacingBoxes",
+      "panels",
+      "targetsMeasured",
+      "sizedTextElements",
+      "primaryCtas"
+    ]) {
       expect(IN_PAGE_AUDIT).toContain(`out.scanned.${counter}`);
     }
+  });
+});
+
+describe("nearestScaleStep", () => {
+  it("maps each declared rung to itself", () => {
+    for (const step of TYPE_SCALE) expect(nearestScaleStep(step)).toBe(step);
+  });
+
+  it("absorbs sub-pixel browser rounding", () => {
+    // A computed 13.008px is still --text-sm. A gate that called that off-scale
+    // would fire on every route and be switched off within a week.
+    expect(nearestScaleStep(13.008)).toBe(13);
+    expect(nearestScaleStep(10.5)).toBe(11);
+    expect(nearestScaleStep(44.4)).toBe(44);
+  });
+
+  it("returns null for sizes genuinely off the ladder", () => {
+    // 14 and 18 are the classic ad-hoc values; both sit more than 1.5px from
+    // any rung.
+    expect(nearestScaleStep(14.9)).toBeNull();
+    expect(nearestScaleStep(18)).toBeNull();
+    expect(nearestScaleStep(30)).toBeNull();
+  });
+
+  it("refuses nonsense rather than guessing", () => {
+    expect(nearestScaleStep(0)).toBeNull();
+    expect(nearestScaleStep(-12)).toBeNull();
+    expect(nearestScaleStep(NaN)).toBeNull();
+    expect(nearestScaleStep(Infinity)).toBeNull();
+  });
+
+  it("does not silently accept the sub-floor SVG case", () => {
+    // fontSize="8" in a 560-unit viewBox laid out at ~360 CSS px renders around
+    // 5px. It must not round up to the 9px rung and disappear.
+    const rendered = 8 * (360 / 560);
+    expect(rendered).toBeLessThan(MIN_RENDERED_PX);
+    expect(nearestScaleStep(rendered)).toBeNull();
+  });
+});
+
+describe("the scale mirrors the stylesheet", () => {
+  it("matches globals.css:106-113 exactly, in order", () => {
+    // If the CSS ladder changes and this array does not, every bucket is wrong
+    // and the histogram quietly lies. typeScale.test.ts guards the CSS side;
+    // this guards that the audit is looking at the same ladder.
+    const css = readFileSync(join(__dirname, "..", "..", "app", "globals.css"), "utf8");
+    const declared = [...css.matchAll(/--text-[a-z0-9]+:\s*(\d+)px/g)].map((m) => Number(m[1]));
+    expect(declared).toEqual([...TYPE_SCALE]);
+  });
+
+  it("puts the floor on the bottom rung", () => {
+    expect(MIN_RENDERED_PX).toBe(TYPE_SCALE[0]);
   });
 });

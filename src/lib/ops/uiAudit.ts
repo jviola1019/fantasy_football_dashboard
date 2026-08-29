@@ -12,11 +12,72 @@
 /** The spacing scale declared in `globals.css`. */
 export const SPACE_SCALE = [0, 4, 8, 12, 16, 24, 32, 48] as const;
 
+/**
+ * The type scale declared in `globals.css:106-113`, in the same order.
+ *
+ * Mirrored here for the same reason `SPACE_SCALE` is: the audit has to know what
+ * the design system claims before it can say anything about what the page does.
+ * `src/app/typeScale.test.ts` already proves the CSS side is well-formed and
+ * strictly increasing; this array exists so the *runtime* side can be bucketed
+ * against it.
+ */
+export const TYPE_SCALE = [9, 11, 13, 16, 20, 26, 34, 44] as const;
+
+/**
+ * Share of rendered text allowed to sit on the bottom two rungs (9px and 11px).
+ *
+ * Set from measurement, not taste — see `reports/2026-08-28/`. The CSS side is
+ * 77% bottom-heavy (130 of 169 declarations), but CSS declarations and rendered
+ * elements are different populations: most of the DOM inherits 13px body copy
+ * and never declares a size at all. The gate is on what a reader actually sees.
+ */
+export const BOTTOM_HEAVY_LIMIT = 0.6;
+
+/**
+ * Smallest rendered text the design system permits, in CSS pixels.
+ *
+ * `--text-micro` is 9px and is licensed for dense grid labels only
+ * (`globals.css:91-102`). Anything that lands BELOW it is off the scale
+ * entirely, and the case that motivates this check is invisible to every other
+ * gate in the repo: `fontSize="8"` inside a 560-unit viewBox
+ * (`MarketIntelligence.tsx:422`) renders at roughly 5-6 CSS px once the viewBox
+ * scales it down. `typeScale.test.ts` cannot see it — it bans `font-size: Npx`
+ * in CSS and numeric `fontSize:` in style objects, not SVG presentation
+ * attributes, which are the one place a raw number is legitimate syntax.
+ *
+ * `NexusSimulator.tsx:236-247` already hit this and fixed it by moving the
+ * labels out of the SVG into HTML. Nothing stopped it coming back.
+ */
+export const MIN_RENDERED_PX = 9;
+
 export interface UiFinding {
-  kind: "spacing" | "tabbing" | "opacity" | "model-output";
+  kind: "spacing" | "tabbing" | "opacity" | "model-output" | "type-scale" | "cta";
   detail: string;
   selector: string;
   route?: string;
+}
+
+/** The scale step a rendered size belongs to, or null if it is off-scale. */
+export function nearestScaleStep(px: number): number | null {
+  if (!Number.isFinite(px) || px <= 0) return null;
+  let best: number | null = null;
+  let bestGap = Infinity;
+  for (const step of TYPE_SCALE) {
+    const gap = Math.abs(step - px);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = step;
+    }
+  }
+  // Sub-pixel tolerance only. Browsers round (a computed 13.008px is still
+  // --text-sm) but they do not round by whole pixels, so the budget is 0.75.
+  //
+  // A first version allowed 1.5px and was wrong at the top of the ladder, where
+  // the rungs are far apart: 14.9px is 1.1px from the 16px rung, so a loose
+  // tolerance swallowed it and called an off-scale size on-scale. The gaps grow
+  // from 2px at the bottom to 10px at the top, so a fixed generous tolerance
+  // means the check quietly stops working exactly where headings live.
+  return bestGap <= 0.75 ? best : null;
 }
 
 export interface Rgba {
@@ -117,15 +178,30 @@ export const WAIT_FOR_ANIMATIONS = `(() => new Promise((resolve) => {
   // animation-delay, and an element that mounts a frame later has not registered
   // its animation yet, so the snapshot came back empty and the scan measured a
   // fade in progress. A gate that fails one run in three is worse than no gate.
+  // Consecutive quiet frames required before declaring the page settled.
+  //
+  // One frame was not enough. A first version resolved after a single empty
+  // check and still caught a .section-label at "opacity 0.00" -- the very first
+  // frame of label-reveal -- on /trades under full-suite load. That route does
+  // a live FantasyCalc fetch, so its content lands late and its entrance
+  // animations register after a wait that has already finished. The scan then
+  // reported a 1.00:1 contrast failure against text that is simply not painted
+  // yet: a false accusation, and an intermittent one, which is worse than a
+  // consistent bug because it teaches people to re-run rather than look.
+  const QUIET_FRAMES = 3;
   const settle = () => {
     if (Date.now() - start > HARD_LIMIT_MS) { resolve(false); return; }
     const running = pending();
     if (running.length === 0) {
-      // Nothing running now — but give it a frame in case something is starting.
-      requestAnimationFrame(() => {
-        if (pending().length === 0) resolve(true);
-        else settle();
-      });
+      let quiet = 0;
+      const check = () => {
+        if (Date.now() - start > HARD_LIMIT_MS) { resolve(false); return; }
+        if (pending().length > 0) { settle(); return; }
+        quiet += 1;
+        if (quiet >= QUIET_FRAMES) { resolve(true); return; }
+        requestAnimationFrame(check);
+      };
+      requestAnimationFrame(check);
       return;
     }
     Promise.all(running.map((a) => a.finished.catch(() => undefined))).then(settle);
@@ -159,6 +235,12 @@ export const IN_PAGE_AUDIT = `(() => {
   // to SPACE_SCALE by name, so the in-page binding has to carry that name or
   // the scan dies with a ReferenceError. It did, first run.
   const SPACE_SCALE = ${JSON.stringify([...SPACE_SCALE])};
+  // Same closure-dropping rule as SPACE_SCALE above: nearestScaleStep refers to
+  // TYPE_SCALE by name, so the in-page binding must carry that exact name.
+  const TYPE_SCALE = ${JSON.stringify([...TYPE_SCALE])};
+  const BOTTOM_HEAVY_LIMIT = ${BOTTOM_HEAVY_LIMIT};
+  const MIN_RENDERED_PX = ${MIN_RENDERED_PX};
+  const nearestScaleStep = ${nearestScaleStep.toString()};
   const parseRgba = ${parseRgba.toString()};
   const compositeOver = ${compositeOver.toString()};
   const relativeLuminance = ${relativeLuminance.toString()};
@@ -221,12 +303,31 @@ export const IN_PAGE_AUDIT = `(() => {
     (el) => visible(el) && ownText(el).length > 0 && !el.closest("[aria-hidden='true']")
   );
   out.scanned.textElements = textEls.length;
+  // An element that is still animating has no settled style to judge.
+  //
+  // WAIT_FOR_ANIMATIONS settles the page before the scan, but the two are
+  // separate page.evaluate calls with an IPC round trip between them, and on a
+  // route whose content arrives late -- /trades does a live FantasyCalc fetch --
+  // an entrance animation can register in that gap. The scan then reads frame
+  // zero of label-reveal, sees opacity 0.00, and reports a 1.00:1 contrast
+  // failure against text that simply is not painted yet.
+  //
+  // Checked per element rather than globally so one late-mounting label does not
+  // suppress the whole route's findings. Counted, so the number is visible
+  // rather than silently swallowed.
+  const isAnimating = (el) => {
+    if (typeof el.getAnimations !== "function") return false;
+    return el.getAnimations({ subtree: false }).some((a) => a.playState === "running");
+  };
+
   let dimmed = 0;
+  let unsettled = 0;
   for (const el of textEls) {
     const s = getComputedStyle(el);
     const o = effectiveOpacity(el);
     if (o >= 0.999) continue;
     dimmed++;
+    if (isAnimating(el)) { unsettled++; continue; }
     if (el.closest("[disabled], [aria-disabled='true']")) continue;
     const fg = parseRgba(s.color);
     if (!fg) continue;
@@ -244,6 +345,10 @@ export const IN_PAGE_AUDIT = `(() => {
     }
   }
   out.scanned.dimmedTextElements = dimmed;
+  // Non-zero here means the page was still moving when it was measured. A
+  // persistently high count would mean the settle logic is losing the race,
+  // not that the page is clean.
+  out.scanned.unsettledTextElements = unsettled;
 
   /* ---------------- SPACING ---------------- */
   // Widened after the first pass reported zero: the original list covered
@@ -354,6 +459,144 @@ export const IN_PAGE_AUDIT = `(() => {
       "tabbing",
       sel(el),
       "target " + Math.round(c.w) + "x" + Math.round(c.h) + ", hit area under 24x24, and another target sits within 24px (WCAG 2.5.8)"
+    );
+  }
+
+  /* ---------------- TYPE SCALE ---------------- */
+  // Two questions, both about what a reader actually sees rather than what the
+  // stylesheet declares. typeScale.test.ts already proves the LADDER is
+  // well-formed; nothing proves the ladder is USED.
+  //
+  // 1. Is anything rendering below the floor? The motivating case is SVG text:
+  //    a font-size presentation attribute is in USER UNITS, and a viewBox scales
+  //    it. fontSize="8" in a 560-wide viewBox laid out at ~360 CSS px renders
+  //    around 5px. getComputedStyle reports 8; the reader sees 5.
+  // 2. Is the hierarchy collapsed? A scale whose bottom two rungs carry
+  //    everything is a scale in name only.
+  const renderedFontPx = (el) => {
+    const raw = parseFloat(getComputedStyle(el).fontSize);
+    if (!Number.isFinite(raw)) return null;
+    // SVG user units -> CSS px. The determinant's square root is the geometric
+    // mean of the x and y scales, which is the right single number for text
+    // that may be non-uniformly scaled.
+    if (el.ownerSVGElement && typeof el.getScreenCTM === "function") {
+      const m = el.getScreenCTM();
+      if (m) {
+        const det = Math.abs(m.a * m.d - m.b * m.c);
+        const scale = det > 0 ? Math.sqrt(det) : 1;
+        return raw * scale;
+      }
+    }
+    return raw;
+  };
+
+  // Deduped by ELEMENT. An <svg><text> is a descendant of body, so it matches
+  // "body *" AND the explicit SVG query below -- a first version counted every
+  // SVG label twice, which inflated the histogram, the bottom-heavy share and
+  // the finding count all at once. The explicit query still earns its place:
+  // tspan is not reliably picked up by the own-text filter.
+  const seenSized = new Set();
+  const sized = [];
+  const addSized = (el) => {
+    if (seenSized.has(el)) return;
+    seenSized.add(el);
+    const px = renderedFontPx(el);
+    if (px !== null) sized.push({ el: el, px: px });
+  };
+  for (const el of textEls) addSized(el);
+  for (const el of document.querySelectorAll("svg text, svg tspan")) {
+    if (visible(el) && ownText(el).length > 0) addSized(el);
+  }
+  out.scanned.sizedTextElements = sized.length;
+
+  const histogram = {};
+  let bottomHeavy = 0;
+  for (const s of sized) {
+    if (s.px < MIN_RENDERED_PX - 0.5) {
+      push(
+        "type-scale",
+        sel(s.el),
+        "renders at " + s.px.toFixed(1) + "px, below the " + MIN_RENDERED_PX + "px floor" +
+          (s.el.ownerSVGElement ? " (SVG user units scaled by the viewBox)" : "") +
+          " - text: " + JSON.stringify(ownText(s.el).slice(0, 32))
+      );
+      continue;
+    }
+    const step = nearestScaleStep(s.px);
+    const key = step === null ? "off-scale" : String(step);
+    histogram[key] = (histogram[key] || 0) + 1;
+    if (step === TYPE_SCALE[0] || step === TYPE_SCALE[1]) bottomHeavy++;
+  }
+  // Only NUMBERS go in out.scanned: the multi-tab merger in
+  // e2e/27-ui-audit.spec.ts folds passes together with Math.max, and an object
+  // there becomes NaN. The histogram is diagnostic, so it rides in the finding
+  // detail where it is read by a human, not maxed by a machine.
+  out.scanned.bottomHeavyShare = sized.length > 0 ? bottomHeavy / sized.length : 0;
+  out.scanned.offScaleTextElements = histogram["off-scale"] || 0;
+
+  // Route-scoped, like the governance check: "this page's hierarchy is
+  // collapsed" is a statement about the page, not about any one element.
+  //
+  // The 40-element floor is a claim about what the check can meaningfully
+  // measure, not a number chosen to make a route pass. Below roughly forty
+  // sized elements a page does not have a hierarchy to judge -- it has a
+  // fragment: an empty state, an error state, or a partial render. Ranking is a
+  // property of a populated screen.
+  //
+  // It also removes a real flake. /trades fetches FantasyCalc over the live
+  // network during SSR; under full-suite load that degrades, the page drops to
+  // a fraction of its content, and the surviving elements are proportionally
+  // more small text. The route passed alone and failed in the suite -- the
+  // check was reading a degraded render and calling it a design defect.
+  if (sized.length >= 40 && out.scanned.bottomHeavyShare > BOTTOM_HEAVY_LIMIT) {
+    // The detail is DELIBERATELY constant. Callers union findings across every
+    // tab state and dedupe on kind|selector|detail, so a message carrying the
+    // measured share or the histogram produces a different string per tab and
+    // the same single problem is counted four or six times. The measurement
+    // still ships -- as out.scanned.bottomHeavyShare, which the merger maxes.
+    push(
+      "type-scale",
+      "route",
+      "hierarchy collapsed: more than " + Math.round(BOTTOM_HEAVY_LIMIT * 100) +
+        "% of rendered text sits on the bottom two rungs (" + TYPE_SCALE[0] + "px/" + TYPE_SCALE[1] +
+        "px) - see scanned.bottomHeavyShare for the measured value"
+    );
+  }
+
+  /* ---------------- PRIMARY CTA ---------------- */
+  // AT MOST one, never "exactly one". RouteHeader.tsx:34-42 argues, correctly,
+  // that inventing a button for a route with no distinct action is fabricating
+  // an affordance -- the interface equivalent of fabricating a number. Six of
+  // seven analysis routes deliberately have none, and this gate must not push
+  // anyone to add them. What it prevents is the opposite failure: amber
+  // spreading until nothing is primary.
+  //
+  // "Primary" is defined the way e2e/03-a11y.spec.ts already defines it -- a
+  // solid --amber background -- so the two gates cannot disagree about what a
+  // CTA is.
+  const AMBER = parseRgba("rgb(215, 168, 87)");
+  // Off-screen-until-focused affordances are not CTAs. The skip link is amber
+  // and is the FIRST tab stop on every route by design (e2e/03-a11y.spec.ts
+  // asserts exactly that), so a naive count reported "2 competing CTAs" on all
+  // ten routes -- an accusation aimed at the accessibility feature. Excluded by
+  // geometry rather than by class name, so the rule survives a rename and also
+  // covers any other skip-target added later.
+  const onScreen = (el) => {
+    const r = el.getBoundingClientRect();
+    return r.bottom > 0 && r.right > 0 && r.top < window.innerHeight && r.left < window.innerWidth;
+  };
+  const ctas = [...document.querySelectorAll("a, button, [role='button']")].filter((el) => {
+    if (!visible(el) || !onScreen(el)) return false;
+    const bg = parseRgba(getComputedStyle(el).backgroundColor);
+    if (!bg || bg.a < 0.9) return false;
+    return Math.abs(bg.r - AMBER.r) < 8 && Math.abs(bg.g - AMBER.g) < 8 && Math.abs(bg.b - AMBER.b) < 8;
+  });
+  out.scanned.primaryCtas = ctas.length;
+  if (ctas.length > 1) {
+    push(
+      "cta",
+      "route",
+      ctas.length + " primary (amber) CTAs compete on one route: " + ctas.map(sel).join(", ")
     );
   }
 
