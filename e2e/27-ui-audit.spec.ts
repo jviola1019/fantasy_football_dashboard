@@ -68,8 +68,26 @@ const MINIMA: Record<string, Minima> = {
   // The login form: a heading, two labelled inputs, a submit and a toggle.
   // Measured zero boxes and zero panels — it is a form, not a dashboard.
   "/login": { textElements: 5, focusables: 3, spacingBoxes: 0, sizedTextElements: 5, panels: 0 },
-  // Renders an honest unavailable state without a cached FantasyPros snapshot.
-  "/mock-draft": { textElements: 5, focusables: 1, spacingBoxes: 5, sizedTextElements: 20, panels: 1 }
+  /*
+   * /mock-draft renders TWO different pages, and the floors must describe the
+   * smaller one.
+   *
+   * `page.tsx:19-20` reads a cached FantasyPros snapshot and returns an honest
+   * unavailable state when there is none. A development machine has one, so the
+   * route renders a full draft board (250 sized elements, 7 boxes, 1 panel). CI
+   * starts from an empty database, so it renders the unavailable state: 7 sized
+   * elements, 2 boxes, 0 panels.
+   *
+   * The first version of these floors was calibrated locally and failed CI on
+   * every viewport -- measuring in an environment the gate does not run in. The
+   * numbers below are the CI state, reproduced locally with
+   * `DATABASE_URL=file:.data/ci-repro.sqlite`.
+   *
+   * `panels: 0` means the governance check is skipped on this route in CI. That
+   * is correct rather than a hole: an unavailable state has no model numbers to
+   * govern, which is the condition the check keys on.
+   */
+  "/mock-draft": { textElements: 5, focusables: 1, spacingBoxes: 2, sizedTextElements: 5, panels: 0 }
 };
 const DEFAULT_MINIMA: Minima = {
   textElements: 20,
@@ -109,6 +127,10 @@ const TYPE_SCALE_BASELINE: Record<string, number> = {
   "/draft": 1,
   "/waivers": 1,
   "/reports": 1,
+  // 1 locally, where a cached snapshot makes this a full draft board; 0 in CI,
+  // where it degrades to the unavailable state. Held at the LOCAL maximum so a
+  // development run cannot false-fail, while the floors above are held at the CI
+  // minimum so CI cannot. A route with two renderings needs both bounds.
   "/mock-draft": 1,
   // /trades passes at desktop width on its default tab (48%) and fails on
   // mobile once the second tab is opened — the Recent League Trades table is

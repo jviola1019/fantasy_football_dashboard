@@ -147,6 +147,32 @@ One gate that is trusted beats two that overlap.
 
 ---
 
+## The floors were calibrated in the wrong environment
+
+CI failed the first push: `/mock-draft: the spacingBoxes check measured 2, below
+its floor of 5`, on both viewport projects.
+
+`/mock-draft` renders **two different pages**. `page.tsx:19-20` reads a cached
+FantasyPros snapshot and returns an honest unavailable state when there is none.
+A development machine has that snapshot, so the route renders a full draft board:
+250 sized elements, 7 boxes, 1 panel. CI starts from an empty database, so it
+renders the unavailable state: **7 sized elements, 2 boxes, 0 panels**.
+
+I measured the rich version and floored against it. The floor was not wrong about
+the page; it was measured in an environment the gate does not run in — the same
+category of error as trusting a stale build, and one a passing local run cannot
+reveal.
+
+Reproduced locally with `DATABASE_URL=file:.data/ci-repro.sqlite` rather than
+guessing from the CI log, then **every route re-measured against the empty
+database**, so the fix covers the whole gate rather than the one counter that
+happened to fail first. Only `/mock-draft` was miscalibrated; the other nine had
+margin.
+
+The route now carries both bounds, which is what a page with two renderings needs:
+floors at the CI minimum so CI cannot false-fail, and the type-scale ratchet at
+the local maximum so a development run cannot either.
+
 ## Ratchets, and why they are ratchets
 
 `typeScale.test.ts` bans raw font sizes outright — it can, because the type system
