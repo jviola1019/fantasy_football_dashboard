@@ -98,7 +98,7 @@ export function NoLeagueCTA() {
               borderRadius: 8,
               fontSize: "var(--text-base)",
               fontWeight: 600,
-              letterSpacing: 0.2,
+              letterSpacing: "0.02em",
               textDecoration: "none",
               border: "1px solid var(--amber)",
               boxShadow: "0 1px 0 rgba(0,0,0,0.4)"
@@ -115,7 +115,7 @@ export function NoLeagueCTA() {
               borderRadius: 8,
               fontSize: "var(--text-base)",
               fontWeight: 500,
-              letterSpacing: 0.2,
+              letterSpacing: "0.02em",
               textDecoration: "none",
               border: "1px solid rgba(255,255,255,0.18)"
             }}
@@ -128,7 +128,7 @@ export function NoLeagueCTA() {
             margin: "16px 0 0",
             fontSize: "var(--text-xs)",
             color: "var(--muted)",
-            letterSpacing: 0.4
+            letterSpacing: "0.04em"
           }}
         >
           Account settings · <Link href="/settings/account" style={{ color: "var(--cream)" }}>profile</Link> · <Link href="/login" style={{ color: "var(--cream)" }}>switch accounts</Link>

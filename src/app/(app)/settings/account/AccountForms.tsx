@@ -21,7 +21,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   marginBottom: 4,
   textTransform: "uppercase",
-  letterSpacing: 0.4
+  letterSpacing: "0.04em"
 };
 
 const buttonStyle: React.CSSProperties = {

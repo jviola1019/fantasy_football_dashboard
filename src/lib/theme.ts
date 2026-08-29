@@ -40,6 +40,27 @@ export const THEME = {
 export type ThemeColor = keyof typeof THEME;
 
 /**
+ * A palette colour at a given alpha, as an `rgba()` string.
+ *
+ * SVG presentation attributes cannot resolve `var()`, which is why `THEME`
+ * exists at all — but charts also need *translucent* fills, and every one of
+ * them had been writing its own `rgba(...)` literal instead. That is how
+ * `#4dd9c0` got into `RadarChart`: a mint that appears in neither `THEME` nor
+ * `globals.css`, and that `theme.test.ts` could not see because it guards the
+ * tokens against the stylesheet, not against a literal typed into a component.
+ *
+ * Takes a `#rrggbb` from `THEME` so the alpha variant cannot drift from the
+ * solid one.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) throw new Error(`withAlpha expects #rrggbb from THEME, received ${JSON.stringify(hex)}`);
+  const [r, g, b] = [m[1], m[2], m[3]].map((h) => parseInt(h as string, 16));
+  const a = Math.min(1, Math.max(0, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+/**
  * The five mutually exclusive season-outcome buckets, in rank order.
  *
  * Ordered best → worst, and coloured so the ordering is legible without reading

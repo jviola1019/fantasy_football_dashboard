@@ -122,7 +122,7 @@ const seasonBadgeStyle: React.CSSProperties = {
   borderRight: "none",
   borderRadius: "7px 0 0 7px",
   padding: "0 9px",
-  letterSpacing: 0.4,
+  letterSpacing: "0.04em",
   whiteSpace: "nowrap"
 };
 
@@ -144,7 +144,7 @@ const selectStyle: React.CSSProperties = {
   padding: "0 26px 0 10px",
   fontSize: "var(--text-sm)",
   fontWeight: 500,
-  letterSpacing: 0.2,
+  letterSpacing: "0.02em",
   cursor: "pointer",
   maxWidth: 240,
   height: "100%"
@@ -181,7 +181,7 @@ const glyphStyle: React.CSSProperties = {
 };
 
 const labelTextStyle: React.CSSProperties = {
-  letterSpacing: 0.2,
+  letterSpacing: "0.02em",
   maxWidth: 180,
   overflow: "hidden",
   textOverflow: "ellipsis",

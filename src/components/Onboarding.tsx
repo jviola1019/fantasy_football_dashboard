@@ -10,7 +10,7 @@ export function Onboarding() {
   return (
     <main className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-10 sm:py-16">
       <header className="flex items-baseline gap-3">
-        <span className="text-lg font-extrabold tracking-[0.16em] text-rae-blue">RAE</span>
+        <span className="text-lg font-bold tracking-[0.16em] text-rae-blue">RAE</span>
         <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Roster Analytics Engine
         </span>

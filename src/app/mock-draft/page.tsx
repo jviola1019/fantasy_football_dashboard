@@ -100,7 +100,7 @@ const h1Style: React.CSSProperties = {
   color: "var(--cream)",
   margin: 0,
   fontSize: "var(--text-2xl)",
-  letterSpacing: 0.2
+  letterSpacing: "0.02em"
 };
 
 const h2Style: React.CSSProperties = {

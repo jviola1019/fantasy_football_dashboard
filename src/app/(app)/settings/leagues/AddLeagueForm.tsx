@@ -14,7 +14,7 @@ const input: React.CSSProperties = {
   fontSize: "var(--text-sm)"
 };
 
-const label: React.CSSProperties = { color: "var(--muted)", fontSize: "var(--text-xs)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 };
+const label: React.CSSProperties = { color: "var(--muted)", fontSize: "var(--text-xs)", display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" };
 
 export function AddLeagueForm() {
   const router = useRouter();

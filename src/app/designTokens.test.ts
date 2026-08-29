@@ -7,18 +7,20 @@ import { describe, expect, it } from "vitest";
  * Ratchets for the token systems that have no static guard yet.
  *
  * `typeScale.test.ts` bans raw `font-size` outright, and it can, because the
- * type system was driven to zero raw sizes before the ban went in. Spacing,
- * tracking and colour are not there yet — measured 2026-08-28:
+ * type system was driven to zero raw sizes before the ban went in. Spacing and
+ * colour are not there yet. Measured at the start of session 1, and again after
+ * session 2:
  *
- *   - 166 off-scale px values across 303 spacing declarations (55%)
- *   - 14 unitless `letterSpacing:` in style objects
- *   - 86 colour literals in .tsx/.ts outside `src/lib/theme.ts`
+ *   | system   | s1  | s2  | status                                   |
+ *   |----------|-----|-----|------------------------------------------|
+ *   | spacing  | 166 | 166 | ratchet — deliberately untouched, see below |
+ *   | tracking |  14 |   0 | **now a ban**                            |
+ *   | colour   |  86 |  84 | ratchet                                  |
  *
- * An outright ban would fail the build today, and "fix 266 declarations" is not
- * a change anyone can review. So these are RATCHETS: the current count is
- * recorded, and the suite fails if it grows. Session 2 of the redesign drives
- * them down and tightens each baseline as it goes; when one reaches zero it
- * should be converted to an outright ban like `typeScale.test.ts`.
+ * An outright ban on all three would have failed the build on day one, and "fix
+ * 266 declarations" is not a change anyone can review. So they start as
+ * RATCHETS: the count is recorded and the suite fails if it grows. When one
+ * reaches zero it graduates to a ban, which is what tracking just did.
  *
  * A ratchet is weaker than a ban and stronger than nothing. What it buys is
  * that a redesign touching hundreds of declarations cannot quietly make the
@@ -76,6 +78,20 @@ describe("spacing ratchet", () => {
     expect(BASELINE - offScaleCount()).toBeLessThanOrEqual(10);
   });
 
+  it("is unchanged by session 2, deliberately", () => {
+    // Session 2 was token hygiene: dead tokens, the sidebar bug, motion wiring,
+    // real font weights, tracking units. It did NOT normalise spacing, and that
+    // is a scoping decision rather than an oversight.
+    //
+    // 166 values across 303 declarations are mostly 6px, 2px, 10px, 3px and 5px
+    // -- hairline offsets and optical nudges that predate the scale. Snapping
+    // them changes padding on nearly every surface in the product, and doing that
+    // without looking at the result is how a "cleanup" ships a visual regression.
+    // It lands with session 4, where the density work puts the same surfaces
+    // under review anyway.
+    expect(offScaleCount()).toBe(166);
+  });
+
   it("detects an off-scale value", () => {
     // Canary: the matcher must actually reject something.
     expect(SPACE_SCALE.has(14)).toBe(false);
@@ -83,15 +99,12 @@ describe("spacing ratchet", () => {
   });
 });
 
-describe("tracking ratchet", () => {
-  // Measured 2026-08-28. These are not broken — React appends `px` to a
-  // unitless number, so `letterSpacing: 0.4` is 0.4px, which is close to the
-  // `.04em` the stylesheet uses at these sizes. The problem is that they are
-  // FIXED where the CSS is RELATIVE: 0.4px stays 0.4px when the type scales up,
-  // so the two systems drift apart precisely on the headings a redesign moves.
-  const BASELINE = 14;
-
-  function unitlessTracking(): string[] {
+describe("tracking — an outright ban, not a ratchet", () => {
+  // Reached zero in redesign session 2, so per the policy at the top of this
+  // file it graduates from a ratchet to a ban. All 14 became em values, which
+  // scale with type; a px value does not, so the two systems drifted apart
+  // exactly on the headings a redesign moves.
+  it("no style object sets a unitless letterSpacing", () => {
     const found: string[] = [];
     for (const f of FILES) {
       const text = readFileSync(f, "utf8");
@@ -99,20 +112,17 @@ describe("tracking ratchet", () => {
         found.push(`${f.slice(srcRoot.length).replace(/\\/g, "/")} = ${m[1]}`);
       }
     }
-    return found;
-  }
-
-  it("does not grow", () => {
-    const found = unitlessTracking();
     expect(
-      found.length,
-      `unitless letterSpacing went from ${BASELINE} to ${found.length}. ` +
-        `Use an em value so tracking scales with type:\n${found.join("\n")}`
-    ).toBeLessThanOrEqual(BASELINE);
+      found,
+      `React appends px to a unitless number, so these do not scale with type. ` +
+        `Use an em string:\n${found.join("\n")}`
+    ).toEqual([]);
   });
 
-  it("has a baseline that is actually current", () => {
-    expect(BASELINE - unitlessTracking().length).toBeLessThanOrEqual(3);
+  it("detects the pattern it bans", () => {
+    // Canary. A ban that matches nothing is indistinguishable from a clean tree.
+    const sample = 'style={{ letterSpacing: 0.4 }}';
+    expect([...sample.matchAll(/letterSpacing:\s*([0-9.]+)\s*[,}]/g)].length).toBe(1);
   });
 });
 
@@ -122,7 +132,9 @@ describe("colour-literal ratchet", () => {
   // reason THEME exists — and `theme.test.ts` already fails the build if THEME
   // drifts from the stylesheet. `uiAudit.ts` is exempt for the same reason: a
   // checker comparing against a colour needs that colour as a literal.
-  const BASELINE = 86;
+  // 86 -> 84 in session 2: RadarChart's two off-palette literals became
+  // THEME.teal via the new withAlpha helper.
+  const BASELINE = 84;
   const EXEMPT = ["lib/theme.ts", "lib/ops/uiAudit.ts"];
 
   function literals(): string[] {

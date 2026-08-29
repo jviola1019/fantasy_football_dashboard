@@ -2,7 +2,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { THEME, OUTCOME_COLORS } from "./theme";
+import { THEME, OUTCOME_COLORS, withAlpha } from "./theme";
 
 /**
  * The JS palette and the CSS palette must be the same palette.
@@ -120,5 +120,32 @@ describe("no component hard-codes a retired colour", () => {
       readFileSync(f, "utf8").toLowerCase().includes(hex)
     );
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("withAlpha", () => {
+  it("converts a palette hex to rgba", () => {
+    expect(withAlpha(THEME.teal, 0.18)).toBe("rgba(47, 182, 196, 0.18)");
+    expect(withAlpha(THEME.amber, 1)).toBe("rgba(215, 168, 87, 1)");
+  });
+
+  it("clamps alpha rather than emitting an invalid colour", () => {
+    expect(withAlpha(THEME.blue, 2)).toContain(", 1)");
+    expect(withAlpha(THEME.blue, -1)).toContain(", 0)");
+  });
+
+  it("refuses anything that is not a palette hex", () => {
+    // The point is that an alpha variant cannot drift from its solid. Accepting
+    // a shorthand or a bare name would let a caller pass something THEME does
+    // not contain — which is exactly how #4dd9c0 survived in RadarChart.
+    for (const bad of ["#fff", "teal", "rgb(1,2,3)", "", "#12345"]) {
+      expect(() => withAlpha(bad, 0.5)).toThrow();
+    }
+  });
+
+  it("round-trips every THEME colour", () => {
+    for (const [name, hex] of Object.entries(THEME)) {
+      expect(withAlpha(hex, 0.5), `THEME.${name}`).toMatch(/^rgba\(\d+, \d+, \d+, 0\.5\)$/);
+    }
   });
 });

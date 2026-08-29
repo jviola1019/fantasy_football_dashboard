@@ -111,7 +111,7 @@ export function NexusSimulator({ players, sim, scenarios, replicationRange, enve
             borderRadius: 8,
             fontSize: "var(--text-sm)",
             margin: "8px 0",
-            letterSpacing: 0.2
+            letterSpacing: "0.02em"
           }}
         >
           {dataStateNotice}
