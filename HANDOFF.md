@@ -976,3 +976,89 @@ verify:inseason PASS (diff 0.000006) - reachability 0 unreachable.
 
 - **The validated weekly model does not ship.** `src/lib/stats/logistic.ts` is script-only; BSS +21.1/+18.5/+17.6% at RB/WR/TE. The only probabilities the product renders come from the chain that failed protocols 1–2. Surfacing it is a product decision, not a defect repair — top recommendation in the report.
 - Owner actions: ruleset (the required secret check is the diff-scoped one), PR #35 merge, 11 Dependabot PRs with a verified merge order, advisory floors for `brace-expansion`/`ip-address` **after** #23/#24, two merged branches deletable.
+
+---
+
+## Redesign (2026-08-28 →) — 7 sessions, in progress
+
+**Plan** `~/.claude/plans/sequential-painting-reef.md` (outside the repo; this section
+is the in-repo resume point). **Branch** `fix/2026-08-23-sign-in` (PR #35, open).
+No merge, no deploy, no rotation, no history rewrite, no production database mutation.
+
+The redesign exists to execute the audit's one unexecuted recommendation — the
+validated weekly model that reaches no user — and the full redesign around it,
+because a calibrated probability needs a chart, a hierarchy and a governance frame
+to be legible.
+
+### Session state
+
+| # | session | status | commit | one-line result |
+|---|---|---|---|---|
+| S1 | gates + Lighthouse baseline | **DONE** | `047f852`, `7474ff0` | Every audit counter floored; new type-scale + CTA checks; reduced-motion spec; token ratchets |
+| S2 | token hygiene | **DONE** | `5ada383` | Sidebar was painting transparent; 51 faux bolds; 20 dead tokens → 1 |
+| S3 | chart kit | not started | — | |
+| S4 | hierarchy, density, CTAs | not started | — | |
+| S5 | the validated model panel | not started | — | |
+| S6 | landing page + React Bits | not started | — | |
+| S7 | re-verification | not started | — | |
+
+Reports: [`reports/2026-08-28/s1-gates.md`](reports/2026-08-28/s1-gates.md),
+[`s2-tokens.md`](reports/2026-08-28/s2-tokens.md),
+[`lighthouse-baseline.md`](reports/2026-08-28/lighthouse-baseline.md).
+
+### Decisions that bind the remaining sessions
+
+- **D1 — the weekly model ships as frozen coefficients.** Weekly projections are
+  pruned to 14 days and weekly actuals are not stored at all, so `fitLogisticCV` at
+  render time is impossible. Fit once from the committed snapshot (fingerprint
+  `bba1d103`), freeze `{intercept, coefficients}`, call `predictLogisticProba`.
+  Same precedent as `OPPORTUNITY_WEIGHT = 0.7613`. A `verify:weekly-prob` script
+  must prove the shipped constants reproduce the committed Brier/ECE.
+- **D2 — the "calibrated probability" ban is scoped, never weakened.**
+  `e2e/20-model-failure-disclosure.spec.ts` bans that phrase on three routes. It was
+  written when nothing was calibrated; one thing now is. The new panel earns the
+  phrase only inside its own disclosure block, and only by printing its measured ECE
+  and Brier skill inline. Its own commit — it relaxes the core anti-overclaiming guard.
+- **D3 — gates before pixels.** Shipped in S1.
+- **D4 — on CTAs the code wins and CLAUDE.md is amended.** `RouteHeader.tsx:34-42`
+  refuses to invent a CTA for a route with no distinct action, calling it *fabricating
+  an affordance*. That reasoning is stronger than the guardrail's "one primary CTA per
+  view", so the gate enforces **at most** one, and S4 amends CLAUDE.md to record the
+  exception.
+
+### React Bits — feasibility, already ruled
+
+Tailwind and Motion variants: adopt freely, zero new packages (`framer-motion` is
+already a dependency, carried today for a single `<motion.path>`). GSAP: allowed,
+one new dependency. **CSS variants that inject a `<style>` element: BLOCKED** —
+`style-src 'self' 'nonce-…'` has no `unsafe-inline` and
+`e2e/19-security-headers.spec.ts` asserts zero CSP violations across ten routes.
+WebGL: not CSP-blocked but reverses a documented product decision; case-by-case.
+
+Every React Bits component is JS-driven, and CSS-level reduced-motion cannot stop
+JS animation — so **each one must consult `useReducedMotion` explicitly**, the way
+`NexusSimulator.tsx:176` does. `e2e/29-reduced-motion.spec.ts` is what enforces it.
+
+### Carried into S3/S4, deliberately deferred
+
+- **76 sub-floor SVG labels on `/analytics`** — heatmap cells at 6.9px, key-driver
+  rows at 7.1px, scaled down by their viewBox. S3 moves them into HTML, as
+  `NexusSimulator.tsx:236-247` already did for its own labels.
+- **Type distribution 48–94% on the bottom two rungs.** The ladder is fine and fully
+  adhered to; only the usage is collapsed. S4.
+- **166 off-scale spacing values**, pinned at exactly 166 by a test so the deferral
+  stays visible. S4, where the same surfaces are under visual review anyway.
+- **84 colour literals** outside `theme.ts`, ratcheted. S3 as the chart kit lands.
+
+### Standing hazards
+
+- `/mock-draft` renders **two different pages** — a full board locally, an honest
+  unavailable state in CI, which has no FantasyPros snapshot. Any gate touching it
+  needs the CI numbers; reproduce with `DATABASE_URL=file:.data/ci-repro.sqlite`.
+- `/trades` fetches FantasyCalc over the live network during SSR, so its content and
+  its entrance animations arrive late under load. Two audit flakes have traced to it.
+- **Check `BUILD_ID` before believing any ad-hoc measurement.** A stale server cost
+  two investigations this week; `e2e/globalSetup.ts` guards the suite but not a
+  one-off script.
+- Lighthouse `/` performance swings 0.60–0.90 across five runs of identical code. A
+  regression there under ~0.30 is not measurable; compare distributions, not medians.
