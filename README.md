@@ -58,6 +58,109 @@ Service boundaries:
 5. **Rendering pipeline** — one request-cached resolver `src/lib/envelope/load.ts` (`loadEnvelope()`) feeds every route; `src/lib/envelope/derive.ts` (`deriveAppData`) computes pools/sim/metrics; `src/components/app/RouteView.tsx` and `ReportsView.tsx` are **server components** that run the seeded sim + bootstrap confidence bands on the server and stream plain data to the `"use client"` panels — so a ~2,500-iteration season Monte Carlo never blocks the client main thread (the panels only handle interactivity). Every panel reads from this one shared derivation, enforced by `src/lib/envelope/continuity.test.ts`.
 6. **Audit layer** — docs and UI banners expose stale, fixture, missing, unavailable, and validation states; an assumptions disclosure + ⓘ lineage tooltips surface assumptions and provenance at the point of use.
 
+## The pre/post-draft data model
+
+This is the single most load-bearing behaviour in the product and it was
+undocumented until 2026-08-31. Every market-facing panel shows a *different set
+of players* depending on whether your league has drafted.
+
+**Detection is automatic and per-league.** `detectSleeperDraftState`
+(`src/lib/leagues/draftState.ts`) reads Sleeper's `league.status`:
+
+| `league.status` | `draftState` |
+| --- | --- |
+| `pre_draft`, `drafting` | `pre` |
+| `in_season`, `complete` | `post` |
+| unusable → falls back to `draft.status`, then to roster fill | `pre` / `post` |
+
+ESPN publishes no draft-status string, so `detectEspnDraftState` infers from
+median roster fill against expected starters.
+
+**Pool selection** (`src/lib/envelope/derive.ts`):
+
+| `draftState` | `marketPool` is |
+| --- | --- |
+| `pre` | the whole league universe |
+| `post` | **free agents only** |
+| `unknown` | your own roster (the conservative fallback) |
+
+`marketPool` feeds Market Intelligence, Narrative Engine, Waiver Wire and Top
+Insights. `/players` and `/draft` deliberately keep the full universe in both
+states — a draft board's job does not change when the draft ends.
+
+**Free agency is computed, not fetched.** `buildFreeAgents` subtracts every
+rostered player in the league from the universe. Roster membership is fetched
+**live on every request** (no caching — all app routes are `force-dynamic`), so a
+player drafted seconds ago is gone from the list on the next page load. The
+subtraction happens on the **full** universe and only then is the list capped at
+`UNIVERSE_LIMIT = 600`, so a genuinely available deep player is never hidden
+behind a rostered one; when either list is truncated the real counts are disclosed
+in the source assumptions.
+
+**One league at a time.** The app renders the league named by the
+`rae_active_league` cookie, defaulting to your first. If you have both a drafted
+and an undrafted league connected, a "pre-draft" view may simply be the other
+league — check the league switcher first.
+
+**Which team is yours.** Sleeper leagues store an optional username, matched
+against the league's members to resolve your `roster_id`. Without it the app
+substitutes the first team in the league and **says so** on the settings page and
+in the governance banner. It is editable at `/settings/leagues`.
+
+## Snapshot and cron topology
+
+Eight daily crons write snapshot tables; the request path reads those snapshots
+and joins them against live league data. **Vercel runs cron jobs against the
+production deployment only** — a preview deployment never fires them.
+
+| cron | schedule (UTC) | writes | notes |
+| --- | --- | --- | --- |
+| `players-refresh` | 08:00 | `players_snapshots` | the ~19 MB Sleeper catalog |
+| `rankings-refresh` | 08:30 | `rankings_snapshots` | FantasyPros ECR, 3 scorings |
+| `ktc-refresh` | 09:00 | KTC snapshots | trade values, 2 variants |
+| `projections-refresh` | 09:15 | projections per `(season, week)` | no-ops outside the regular season |
+| `news-refresh` | 09:20 | `news_snapshots` | ESPN headlines, 100 |
+| `opportunity-refresh` | 09:25 | `opportunity_snapshots` | nflverse snap share + **the season it describes** |
+| `stats-refresh` | 09:27 | `season_stats_snapshots` | season-to-date rates for the validated model |
+| `lifecycle-check` | 09:30 | `notifications` | sweeps every league; writes no rosters |
+
+Each authenticates with `CRON_SECRET` and **returns 503 if it is unset** rather
+than failing open. Each refuses to overwrite a good snapshot with an empty one.
+The Hobby plan caps every cron at one run per day and may fire it up to 59 minutes
+from its stated hour, so the stagger above is intent, not a guarantee.
+
+## Freshness, and why vintage is a separate fact
+
+`src/lib/ops/snapshotContracts.ts` declares warn/expire windows per snapshot, and
+the same contracts drive both `/api/health?snapshots=1` and the user-facing
+disclosure — so the operator view and the product view cannot disagree.
+
+An expired opportunity snapshot is treated as **absent**: `opportunity` stays in
+`missingFields` and panels render an em dash rather than stale usage dressed up as
+current.
+
+**Snapshot age and data vintage are different facts, and both ship.** nflverse
+publishes snap counts per season, and the cron falls back a year when the current
+season has no file yet — on 2026-08-31, `snap_counts_2026.csv` returned 404 while
+2025 returned 200. A snapshot written last night can therefore contain last
+season's usage. Reporting only its age ("0 days old") was true and misleading, so
+the season the data describes is now persisted with it and stated separately. A
+snapshot written before that change says its vintage is unrecorded rather than
+being assumed current.
+
+## The validated in-season ranking
+
+`src/lib/models/inSeasonScore.ts` is the one model here with a positive
+out-of-sample result — protocols 4 and 5, replicated on disjoint seasons. It ranks
+on `z(pointsPerGame) + 0.7613 · z(touchesPerGame)`, standardised within
+(season, position), and it is a **ranking, not a forecast**: no probability is
+implied, the measured gain is small (+0.0137 / +0.0195 Spearman), and it returns
+nothing at all before kickoff rather than degrading to a preseason guess.
+
+It needs `pointsPerGame` and `touchesPerGame`, which come from `stats-refresh`.
+Both are stamped onto the league universe, so they reach the free-agent pool the
+Waiver Wire board is handed — not only your own roster.
+
 ## Data sources
 
 Preferred production adapters:
