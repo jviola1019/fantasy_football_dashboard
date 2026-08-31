@@ -996,11 +996,14 @@ to be legible.
 |---|---|---|---|---|
 | S1 | gates + Lighthouse baseline | **DONE** | `047f852`, `7474ff0` | Every audit counter floored; new type-scale + CTA checks; reduced-motion spec; token ratchets |
 | S2 | token hygiene | **DONE** | `5ada383` | Sidebar was painting transparent; 51 faux bolds; 20 dead tokens → 1 |
-| S3 | chart kit | not started | — | |
-| S4 | hierarchy, density, CTAs | not started | — | |
-| S5 | the validated model panel | not started | — | |
-| S6 | landing page + React Bits | not started | — | |
-| S7 | re-verification | not started | — | |
+| S3 | **live-league correctness** | **DONE** | `c22e112` | D-A news provenance was false · D-B validated model unreachable · D-C usage vintage · D-D league identity. All four with tests shown to fail first. |
+| S4 | news surface + FAAB | not started | — | render headlines; unhide FAAB |
+| — | **MERGE PR #35 + verify production** | not started | — | owner action, after S4 |
+| S5 | chart kit | not started | — | 76 sub-floor SVG labels; `<ChartSummary>` |
+| S6 | hierarchy, density, CTAs | not started | — | type 48–94% bottom-heavy; 166 off-scale spacing deferred from S2 |
+| S7 | the validated model panel | not started | — | frozen coefficients (D1); scoped wording exemption (D2) |
+| S8 | landing page + React Bits | not started | — | six-card grid; Tailwind/Motion variants only |
+| S9 | docs + architecture audit + re-verification | not started | — | **README documents 3 of 8 crons**; pre/post-draft model absent entirely |
 
 Reports: [`reports/2026-08-28/s1-gates.md`](reports/2026-08-28/s1-gates.md),
 [`s2-tokens.md`](reports/2026-08-28/s2-tokens.md),
@@ -1062,3 +1065,51 @@ JS animation — so **each one must consult `useReducedMotion` explicitly**, the
   one-off script.
 - Lighthouse `/` performance swings 0.60–0.90 across five runs of identical code. A
   regression there under ~0.30 is not measurable; compare distributions, not medians.
+
+### Resume protocol — read this first if a session ended abruptly
+
+**State as of `c22e112`, pushed.** `origin/main` is `2acf331`. PR #35 open, unmerged.
+Nothing is uncommitted. Everything below is recoverable from the repository alone.
+
+**One command tells you where you are:**
+
+```bash
+git log --oneline -1 && gh pr checks 35 | sed 's/\thttps.*//'
+```
+
+**The single most important fact:** Vercel runs cron jobs against the **production
+deployment only** (their docs: *"Vercel makes an HTTP GET request to your project's
+production deployment URL"*). Production is `origin/main`, which is three weeks
+behind and wires **7** crons; the branch wires **8**. `stats-refresh` — the one that
+feeds the validated in-season model — has therefore **never run in production**.
+Until PR #35 merges, no amount of work on this branch changes what the deployed
+site shows. That is why the plan puts the merge after S4.
+
+**If `CRON_SECRET` was never set in Vercel**, all 8 crons return 503 forever
+(`cronAuth.ts:26-28`) while `/api/health` still reports `ok` — snapshot staleness
+deliberately does not flip the top-level status. Check this before concluding the
+crons work: `GET /api/health?snapshots=1` with `Authorization: Bearer $CRON_SECRET`.
+
+**Verified live facts** (2026-08-31, so re-check dates but not shapes):
+
+| fact | value |
+|---|---|
+| user's 2026 leagues | `Offline` `1395917841022074880` (**`in_season`**, draft `complete`) and `Creamy Les Coot 4.0` `1389332513259790336` (`pre_draft`) |
+| completed league | 10 rosters, 150 rostered, jviola1019 owns **roster_id 1** |
+| NFL state | 2026, `regular`, week 1, `season_start_date` 2026-09-09 |
+| nflverse snap counts | `snap_counts_2026.csv` **404**, `snap_counts_2025.csv` **200** |
+| Sleeper 2026 wk1 projections | exist — 746 RB rows, 101 with `pts_ppr` |
+
+**The app shows ONE league at a time**, chosen by the `rae_active_league` cookie,
+defaulting to `leagues[0]` (`load.ts:92-93`). One of these leagues is undrafted. If
+the site looks "not updated", check the league switcher before anything else.
+
+**Known open item, not yet chased:** one full `vitest` run reported
+`1 failed | 1256 passed`; two runs immediately after were clean at 1,257 and the
+log did not retain which test it was. Treated as a flake, **not** identified. Watch
+the next full run and capture the log with `npx vitest run > vt.log 2>&1` rather
+than piping to `tail`, which is what lost it.
+
+**Standing constraints that have never been relaxed:** no merge without human
+approval; no production deploy, credential rotation, history rewrite or force push;
+do not weaken a test, gate or disclosure to get green.
