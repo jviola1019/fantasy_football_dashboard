@@ -191,15 +191,19 @@ export function enrichWithFp(
    */
   format: LeagueFormat = DEFAULT_FORMAT
 ): PlayerMarketRecord {
-  const sources = [
-    ...record.sources,
-    withFpMissingFields(options.rankingsSource, options)
-  ];
   // trendingMomentum priority:
   //   1. ESPN headline-velocity score (newsMomentumScores) — real signal.
   //   2. Sleeper trending proxy (trendingAdds/Drops) — roster-move proxy.
   //   3. Zero (default) — declared missing in SourceMeta.
-  const newsScore = options.newsMomentumScores?.[record.id];
+  //
+  // Computed BEFORE `sources`, because the SourceMeta has to state which of
+  // those three actually supplied the number for THIS record. It previously
+  // claimed ESPN news for every record whenever the map was non-empty.
+  const newsScore = newsScoreFor(record.id, options.newsMomentumScores);
+  const sources = [
+    ...record.sources,
+    withFpMissingFields(options.rankingsSource, options, newsScore != null)
+  ];
   const trendingMomentum =
     newsScore != null
       ? newsScore
@@ -244,12 +248,49 @@ export function enrichWithFp(
   };
 }
 
-function withFpMissingFields(source: SourceMeta, options?: EnrichOptions): SourceMeta {
+/**
+ * The news score for a record, or undefined.
+ *
+ * Audit 2026-08-31 (D-A). `buildNewsWeightMap` keys its output by the BARE
+ * Sleeper player id — it iterates the Sleeper players map directly
+ * (`newsMatch.ts:59`) and emits `out[sleeperId]` (`:102`). A
+ * `PlayerMarketRecord.id` is `sleeper:<id>` (`normalize.ts:25`). Looking up
+ * `scores[record.id]` therefore missed on every player in the catalog: the
+ * ESPN news signal was dead code in production, every record silently fell
+ * through to the Sleeper add/drop proxy, and the SourceMeta went on announcing
+ * "trending_momentum from ESPN headline velocity".
+ *
+ * `trendingMomentumFromProxy` strips the prefix and says why it must
+ * (`trendingProxy.ts:44`). This is the same normalisation, in the one place
+ * that needed it and did not have it.
+ */
+export function newsScoreFor(
+  recordId: string,
+  scores: Record<string, number> | null | undefined
+): number | undefined {
+  if (!scores) return undefined;
+  const bare = recordId.startsWith("sleeper:") ? recordId.slice("sleeper:".length) : recordId;
+  return scores[bare] ?? scores[recordId];
+}
+
+function withFpMissingFields(
+  source: SourceMeta,
+  options?: EnrichOptions,
+  /**
+   * Did an ESPN news score actually land on this record? Distinct from "is a
+   * news map present" — a player with no articles legitimately falls back to
+   * the Sleeper proxy, and saying otherwise is a false provenance claim.
+   */
+  newsUsedForThisRecord = false
+): SourceMeta {
   // trending_momentum is no longer missing when news scores or the Sleeper
   // proxy is wired. opportunity stays missing always (in-season-only signal).
-  const hasNews = !!(options?.newsMomentumScores && Object.keys(options.newsMomentumScores).length > 0);
+  const hasNewsMap = !!(options?.newsMomentumScores && Object.keys(options.newsMomentumScores).length > 0);
   const hasProxy = !!(options?.trendingAdds && options?.trendingDrops);
-  const fieldsStillMissing = hasNews || hasProxy ? ["opportunity"] : PPR_BEHAVIORAL_FIELDS;
+  // The FIELD is present when either source can supply it; the ASSUMPTION must
+  // name the one that did.
+  const hasNews = hasNewsMap && newsUsedForThisRecord;
+  const fieldsStillMissing = hasNewsMap || hasProxy ? ["opportunity"] : PPR_BEHAVIORAL_FIELDS;
   const baseAssumptions = source.assumptions.length
     ? source.assumptions
     : ["FantasyPros consensus rankings + ownership; in-season opportunity not derived."];

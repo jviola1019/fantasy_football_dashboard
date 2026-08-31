@@ -197,6 +197,7 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             // P0-5: the age travels WITH the scores. Dropping it here is what let
             // a snapshot of any age be presented as current usage.
             opportunityFetchedAt: oppSnapshot?.fetchedAt ?? null,
+            opportunityDataSeason: oppSnapshot?.dataSeason ?? null,
             // The other half of the validated model. Null until the
             // stats-refresh cron has run; `rankInSeason` then declines to rank
             // rather than ranking on half the model.

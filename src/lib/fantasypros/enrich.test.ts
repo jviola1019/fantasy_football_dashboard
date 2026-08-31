@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_REPLACEMENT_MODEL, positionReplacementRank } from "./enrich";
+import { DEFAULT_REPLACEMENT_MODEL, enrichWithFp, positionReplacementRank } from "./enrich";
+import type { PlayerMarketRecord, SourceMeta } from "../governance";
 import { DEFAULT_FORMAT, type LeagueFormat, type LeagueStarters } from "../trade/format";
 
 /**
@@ -141,5 +142,117 @@ describe("replacement level follows the league (audit F-010)", () => {
     const twelveTeam = positionReplacementRank("RB", fmt({ numTeams: 12, ppr: 1 }));
     expect(eightTeam).toBeLessThan(tenTeamTwoFlex);
     expect(eightTeam).toBeLessThan(twelveTeam);
+  });
+});
+
+/**
+ * ESPN news momentum has to actually reach the record it is claimed for.
+ *
+ * Audit 2026-08-31, D-A. `buildNewsWeightMap` keys its scores by the BARE
+ * Sleeper player id, because it iterates the Sleeper players map directly
+ * (`newsMatch.ts:59`, `:102`). `PlayerMarketRecord.id` is `sleeper:<id>`
+ * (`normalize.ts:25`). The lookup in `enrichWithFp` used `record.id`, so it
+ * missed on every player in the catalog, silently fell through to the Sleeper
+ * add/drop proxy, and the SourceMeta still announced "trending_momentum from
+ * ESPN headline velocity".
+ *
+ * The sibling code path strips the prefix and says why it must
+ * (`trendingProxy.ts:44`). Nothing tested this one — `newsMomentumScores`
+ * appeared in zero test files.
+ */
+const newsRecord = (id: string): PlayerMarketRecord => ({
+  id,
+  name: "Test Player",
+  position: "WR",
+  team: "SF",
+  perceivedValue: 0,
+  trueValue: 0,
+  ownershipLeverage: 0,
+  fragility: 0,
+  trendingMomentum: 0,
+  volatility: 0,
+  opportunity: 0,
+  confidence: 0,
+  sources: [],
+  rosterSlot: null,
+  status: "active",
+  imageUrl: "https://sleepercdn.com/content/nfl/players/thumb/4046.jpg",
+  imageSource: "Sleeper headshot CDN"
+});
+
+const newsSource: SourceMeta = {
+  source: "FantasyPros ECR",
+  fetchedAt: new Date().toISOString(),
+  ttlSeconds: 86_400,
+  freshness: "fresh",
+  confidence: 0.85,
+  validation: "valid",
+  missingFields: [],
+  assumptions: [],
+  failure: null
+};
+
+describe("ESPN news momentum reaches the record (D-A)", () => {
+  it("matches a score keyed by the BARE sleeper id", () => {
+    // The map comes from Object.entries(playersSnapshot.players), so its keys
+    // never carry the "sleeper:" prefix that record.id does.
+    const out = enrichWithFp(
+      newsRecord("sleeper:4046"),
+      null,
+      { rankingsSource: newsSource, newsMomentumScores: { "4046": 73 } },
+      300,
+      "PPR"
+    );
+    expect(out.trendingMomentum).toBe(73);
+  });
+
+  it("still matches when a record id somehow carries no prefix", () => {
+    const out = enrichWithFp(
+      newsRecord("4046"),
+      null,
+      { rankingsSource: newsSource, newsMomentumScores: { "4046": 51 } },
+      300,
+      "PPR"
+    );
+    expect(out.trendingMomentum).toBe(51);
+  });
+
+  it("falls through to the Sleeper proxy for a player with no news", () => {
+    // Not every player is in the news. Absence must fall back, not zero out.
+    const out = enrichWithFp(
+      newsRecord("sleeper:9999"),
+      null,
+      {
+        rankingsSource: newsSource,
+        newsMomentumScores: { "4046": 73 },
+        trendingAdds: new Map([["9999", 100]]),
+        trendingDrops: new Map([["9999", 0]])
+      },
+      300,
+      "PPR",
+      { trendingAddsMax: 100, trendingDropsMax: 100 }
+    );
+    expect(out.trendingMomentum).toBeGreaterThan(0);
+  });
+
+  it("does not claim ESPN news as the source when no score landed", () => {
+    // The provenance bug underneath the key bug: `hasNews` was computed from
+    // the map being non-empty, not from a value being used. So every record
+    // announced ESPN headline velocity while carrying a Sleeper proxy number.
+    const out = enrichWithFp(
+      newsRecord("sleeper:9999"),
+      null,
+      {
+        rankingsSource: newsSource,
+        newsMomentumScores: { "4046": 73 },
+        trendingAdds: new Map([["9999", 100]]),
+        trendingDrops: new Map([["9999", 0]])
+      },
+      300,
+      "PPR",
+      { trendingAddsMax: 100, trendingDropsMax: 100 }
+    );
+    const claims = out.sources.flatMap((s) => s.assumptions).join(" ");
+    expect(claims).toMatch(/Sleeper/i);
   });
 });

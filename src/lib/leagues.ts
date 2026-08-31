@@ -214,6 +214,43 @@ export async function updateLeagueSettingsForUser(
   return row ? toRecord(row) : null;
 }
 
+/**
+ * Update the Sleeper username used to identify WHICH TEAM is yours.
+ *
+ * Audit 2026-08-31 (D-D). This was write-once at league-add time. When it is
+ * missing or does not match, `resolveSleeperRosterId` returns null and
+ * `fetchLive.ts:334` substitutes `sleeperRosters[0]` — a stranger's team. The
+ * substitution is declared, but the only remedy was to delete the league and
+ * re-add it, which throws away its keeper settings too.
+ *
+ * Kept separate from `updateLeagueSettingsForUser` on purpose. That function
+ * guards platform-DETECTED format (scoring, roster slots, team count), which
+ * must not be hand-editable or the app starts reporting settings the league
+ * itself disagrees with. This is the opposite kind of field: user-supplied
+ * identity that the platform cannot tell us, and that only the owner can
+ * confirm. Merging the two would blur a distinction the comment above relies on.
+ *
+ * An empty string clears it, which is a legitimate choice — the app then says
+ * plainly that it is showing the first team rather than pretending otherwise.
+ */
+export async function updateLeagueIdentityForUser(
+  db: Db,
+  userId: string,
+  leagueId: string,
+  sleeperUsername: string | null
+): Promise<LeagueRecord | null> {
+  const existing = await getLeagueForUser(db, userId, leagueId);
+  if (!existing) return null;
+  const trimmed = sleeperUsername?.trim() ?? "";
+  const updated = await db
+    .update(schema.leagues)
+    .set({ sleeperUsername: trimmed.length > 0 ? trimmed : null })
+    .where(and(eq(schema.leagues.id, leagueId), eq(schema.leagues.userId, userId)))
+    .returning();
+  const row = updated[0];
+  return row ? toRecord(row) : null;
+}
+
 export async function deleteLeagueForUser(db: Db, userId: string, leagueId: string): Promise<boolean> {
   const result = await db
     .delete(schema.leagues)

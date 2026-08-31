@@ -46,6 +46,56 @@ export const OpportunityMapSchema = z.record(
 export type OpportunityMap = z.infer<typeof OpportunityMapSchema>;
 
 /**
+ * What actually gets persisted: the scores plus the SEASON THEY DESCRIBE.
+ *
+ * Audit 2026-08-31 (D-C). The cron resolves a season and falls back a year when
+ * the current one has no data yet — verified live on 2026-08-31:
+ * `snap_counts_2026.csv` returns 404 while `snap_counts_2025.csv` returns 200,
+ * so the whole product was running on 2025 snap share. `usedSeason` was returned
+ * in the cron's HTTP response and then discarded, because the payload had
+ * nowhere to put it.
+ *
+ * The consequence was a true statement that misled: the envelope's freshness
+ * check measures SNAPSHOT AGE, so a snapshot written last night containing
+ * last season's data is `fresh`, and the assumption read "a real role/usage
+ * proxy. Snapshot is 0 days old." Age and vintage are different facts, and a
+ * product that shows one while implying the other is not traceable.
+ *
+ * A UNION, not a replacement: snapshots written before this change are a bare
+ * scores record and must keep parsing, the same treatment `byeWeek` got when it
+ * became nullable.
+ */
+export const OpportunityPayloadSchema = z.union([
+  z.object({
+    /** The nflverse season these snap shares come from, e.g. "2025". */
+    dataSeason: z.string().min(4),
+    scores: OpportunityMapSchema
+  }),
+  OpportunityMapSchema
+]);
+export type OpportunityPayload = z.infer<typeof OpportunityPayloadSchema>;
+
+/** Normalise either payload shape to `{ dataSeason, scores }`. */
+export function readOpportunityPayload(
+  payload: OpportunityPayload
+): { dataSeason: string | null; scores: OpportunityMap } {
+  // Discriminated on `dataSeason` being a STRING, not on key presence. `in`
+  // cannot separate these shapes: the legacy form is a Record whose keys are
+  // arbitrary player names, so a key literally called "scores" is type-legal.
+  // Only the value type distinguishes them — a legacy record's values are always
+  // objects, never strings.
+  if (payload && typeof payload === "object") {
+    const maybe = payload as { dataSeason?: unknown; scores?: unknown };
+    if (typeof maybe.dataSeason === "string" && maybe.scores && typeof maybe.scores === "object") {
+      return { dataSeason: maybe.dataSeason, scores: maybe.scores as OpportunityMap };
+    }
+  }
+  // Legacy snapshot: real scores, unknown vintage. `null` is the honest answer —
+  // guessing the current season is exactly the error this change exists to fix.
+  return { dataSeason: null, scores: payload as OpportunityMap };
+}
+
+/**
  * Normalize a player name for cross-source joining: lowercase, drop generational
  * suffixes (Jr/Sr/II/III/IV/V), strip everything but a–z. Mirrors the loose
  * matching used elsewhere so nflverse "A.J. Brown" joins "AJ Brown".

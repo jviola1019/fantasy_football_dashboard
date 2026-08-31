@@ -5,6 +5,7 @@ import { listLeagues } from "@/lib/leagues";
 import { AddLeagueForm } from "./AddLeagueForm";
 import { LeagueList } from "./LeagueList";
 import { LeagueSettingsForm } from "./LeagueSettingsForm";
+import { LeagueIdentityForm } from "./LeagueIdentityForm";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "League Settings" };
@@ -38,6 +39,12 @@ export default async function LeaguesSettingsPage() {
         <section key={league.id} style={panel}>
           <h2 style={h2}>{league.label} — settings</h2>
           <LeagueSettingsForm leagueId={league.id} label={league.label} format={league.settings} />
+          <LeagueIdentityForm
+            leagueId={league.id}
+            label={league.label}
+            platform={league.platform}
+            sleeperUsername={league.sleeperUsername}
+          />
         </section>
       ))}
     </div>
