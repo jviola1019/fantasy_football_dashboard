@@ -1056,6 +1056,31 @@ the field), the panel and the lifecycle alert read the **same object** so they
 cannot disagree, and an unresolved identity marks nobody's row as yours rather
 than repeating D-D.
 
+### MERGED — production is no longer three weeks behind
+
+PR #35 merged 2026-09-01 (owner-authorised), squash commit `d08ff77`.
+`origin/main` moved `2acf331` → `d08ff77` after 14/14 CI at `9c2fe07`.
+
+This is the change that matters, because **Vercel runs cron jobs against the
+production deployment only**. Until the merge, nothing on the branch could affect
+what the deployed site showed, and production wired **7** crons where the branch
+wired 8 — so `stats-refresh` had never run in production, which was a second,
+independent reason the one validated model was dark there.
+
+Verified against production after the deploy:
+
+| check | result |
+|---|---|
+| `npm run smoke` | 13/13 pass (same as the pre-merge baseline) |
+| `/waivers` copy | now *"This league does not use FAAB"*, naming `waiver_type 2` — the retired *"budgets not connected"* string is gone |
+| `/players` | carries the `PLAYER NEWS` surface |
+| all 8 cron routes | HTTP **403** each — present, auth-gated, `CRON_SECRET` set. `stats-refresh` exists in production for the first time. |
+
+**Still unverified, and only the first cron cycle can settle it:** that the crons
+*succeed*, not merely that they are authorised. `/api/health?snapshots=1` is
+bearer-gated by design (SEC-03), so snapshot freshness needs the operator —
+`npm run check:freshness` with `CRON_SECRET` in the environment, after 09:30 UTC.
+
 ### `CRON_SECRET` — answered, without holding the secret
 
 Listed as an outstanding owner action since the redesign began, and carried as
