@@ -360,6 +360,8 @@ function VolatilitySurface({ sim }: { sim: SimulationResult }) {
           data={heat.data}
           colorScale={(v) => DEFAULT_COLOR(heat.maxCell > 0 ? v / heat.maxCell : 0)}
           caption={heat.caption}
+          rowAxisLabel="Outcome"
+          colAxisLabel="Wins"
         />
       ) : (
         <p className="muted-note">No simulated seasons to chart yet.</p>
@@ -411,15 +413,24 @@ function PriceDiscoveryView({ players }: { players: PlayerMarketRecord[] }) {
         <span className="legend-dot pd-dot-under" /> {EDGE_LABELS.scatterLegendAbove}
         <span className="legend-dot pd-dot-over legend-dot-ml" /> {EDGE_LABELS.scatterLegendBelow}
       </div>
-      <svg viewBox={`0 0 ${PD_W} ${PD_H}`} width="100%" role="img"
-        aria-label={EDGE_LABELS.scatterAria}
+      {/* S5. Every <text> that used to live inside this SVG is now HTML.
+          `fontSize="8"` is EIGHT USER UNITS, and this viewBox is laid out at
+          whatever width the panel gets: on a 390px phone the UI audit measured
+          all six labels reaching the screen at 4.4px. Nothing in CSS could
+          reach them, because SVG presentation attributes cannot resolve a
+          var(). The desktop-only audit run never saw this; the mobile project
+          did, which is the entire reason both viewports are scanned.
+          The point labels are positioned as a percentage of the same scales the
+          circles use, so a name stays attached to its dot while being real text
+          at a real size. */}
+      <div className="pd-scatter-wrap">
+      <svg viewBox={`0 0 ${PD_W} ${PD_H}`} width="100%" aria-hidden="true"
         className="pd-scatter">
         {/* axes */}
         <line x1={PD_PAD} y1={PD_H - PD_PAD} x2={PD_W - PD_PAD} y2={PD_H - PD_PAD} stroke="var(--line)" strokeWidth="1" />
         <line x1={PD_PAD} y1={PD_PAD} x2={PD_PAD} y2={PD_H - PD_PAD} stroke="var(--line)" strokeWidth="1" />
         {/* parity diagonal y = x — where our value equals the market's */}
         <line x1={x(0)} y1={y(0)} x2={x(maxV)} y2={y(maxV)} stroke="rgba(141,154,160,0.45)" strokeWidth="1" strokeDasharray="4 3" />
-        <text x={x(maxV) - 4} y={y(maxV) - 6} fontSize="8" fill="var(--muted)" textAnchor="end">{EDGE_LABELS.scatterParity}</text>
         {/* points */}
         {pts.map((p) => {
           const under = p.trueValue >= p.perceivedValue;
@@ -432,17 +443,44 @@ function PriceDiscoveryView({ players }: { players: PlayerMarketRecord[] }) {
                 fill={under ? "var(--green)" : "var(--red)"} opacity={big ? 0.95 : 0.6}>
                 <title>{`${p.name} — market ${p.perceivedValue}, true ${p.trueValue} (${under ? "+" : ""}${p.trueValue - p.perceivedValue})`}</title>
               </circle>
-              {big && (
-                <text x={cx + 5} y={cy - 4} fontSize="8" fill="var(--cream)">{surname(p.name)}</text>
-              )}
             </g>
           );
         })}
-        <text x={PD_W - PD_PAD} y={PD_H - PD_PAD + 14} fontSize="8" fill="var(--muted)" textAnchor="end">Market value →</text>
-        <text x={PD_PAD - 6} y={PD_PAD - 6} fontSize="8" fill="var(--muted)">True value ↑</text>
       </svg>
+        {pts
+          .filter((p) => labelled.has(p.id))
+          .map((p) => (
+            <span
+              key={p.id}
+              className="pd-point-label"
+              style={{
+                left: `${(x(p.perceivedValue) / PD_W) * 100}%`,
+                top: `${(y(p.trueValue) / PD_H) * 100}%`
+              }}
+            >
+              {surname(p.name)}
+            </span>
+          ))}
+        <span className="pd-axis-y">True value &uarr;</span>
+        <span className="pd-axis-x">Market value &rarr;</span>
+        <span className="pd-parity-label">{EDGE_LABELS.scatterParity}</span>
+      </div>
       <p className="small-note">
         {EDGE_LABELS.scatterNote} {pts.length} players shown.
+      </p>
+      {/* The SVG is aria-hidden, so this is the accessible representation of the
+          plot. It carries the same three labelled mispricings the graphic
+          highlights, with their actual numbers. */}
+      <p className="sr-only">
+        {EDGE_LABELS.scatterAria} Largest mispricings:{" "}
+        {pts
+          .filter((p) => labelled.has(p.id))
+          .map(
+            (p) =>
+              `${p.name}, market ${p.perceivedValue}, true ${p.trueValue}`
+          )
+          .join("; ")}
+        .
       </p>
     </div>
   );

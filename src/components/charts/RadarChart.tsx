@@ -1,4 +1,5 @@
 import { THEME, withAlpha } from "@/lib/theme";
+import { ChartFigure } from "./ChartFigure";
 
 type RadarAxis = {
   label: string;
@@ -56,13 +57,8 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
     .join(", ");
 
   return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      width={size}
-      height={size}
-      role="img"
-      aria-label={`Metric profile. ${summary}`}
-    >
+    <ChartFigure summary={`Metric profile. ${summary}`}>
+      <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
       {levels.map((level) => (
         <polygon
           key={level}
@@ -119,5 +115,6 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
         );
       })}
     </svg>
+    </ChartFigure>
   );
 }

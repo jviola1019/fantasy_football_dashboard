@@ -297,10 +297,20 @@ npm run backtest:sleeper         # season-sim backtest on real completed leagues
 npm run calibrate:season         # synthetic self-consistency check (NOT real-world)
 npm run sensitivity:replacement  # sweep the two replacement-model assumptions
 npm run verify:inseason          # prove the shipped in-season ranking IS protocol 4/5's
+npm run fit:weekly-prob          # refit the weekly start/sit logistic from the snapshot
+npm run verify:weekly-prob       # prove the SHIPPED constants reproduce it, offline
 npm run anova:opportunity        # variance decomposition of the opportunity signal
 npm run measure:bands            # derive scenario buckets from the sim, not multipliers
 npm run measure:sigma            # measure the between-team strength dispersion
 ```
+
+`verify:weekly-prob` is the only one here that needs **no network at all** — it
+replays the committed input snapshot — so it is the one gate that can prove a
+shipped model constant is still what the data produces. It refits all four
+positions, checks each intercept and coefficient to 1e-9, and cross-checks the
+out-of-fold Brier and ECE against the numbers **parsed out of**
+`docs/brier-results.md` rather than retyped, so the code and the published claim
+cannot drift apart silently.
 
 **Read [`reports/2026-08-06/backtest-valuation.md`](reports/2026-08-06/backtest-valuation.md)
 before trusting any probability this app displays.** The shipped valuation chain

@@ -73,7 +73,16 @@ locally with the gate set when verifying real integrations.
 ## Design Principles
 
 - Onboarding first.
-- One primary CTA per view.
+- **At most** one primary CTA per view — never invent one.
+  Amended 2026-09-01 (redesign decision D4). This read "one primary CTA per
+  view", which a reader can fairly take as a requirement that every view have
+  one. `RouteHeader.tsx` already refused that, and its reasoning is the stronger
+  one: most routes here are analytical surfaces whose content IS the thing you
+  came for, a button that scrolls the page you are already on is noise, and
+  inventing an action for a route that has none is *fabricating an affordance* —
+  the interface equivalent of fabricating a number, which the rules above
+  forbid outright. The gate in `e2e/27-ui-audit.spec.ts` enforces **at most**
+  one, and `/mock-draft` legitimately has zero.
 - Progressive disclosure.
 - Clear KPI hierarchy.
 - Fewer simultaneous panels.

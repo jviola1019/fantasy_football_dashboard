@@ -1,3 +1,5 @@
+import { ChartFigure } from "./ChartFigure";
+
 type Segment = { label: string; value: number; color: string };
 
 type DonutChartProps = {
@@ -21,13 +23,8 @@ export function DonutChart({ segments, centerLabel, centerValue }: DonutChartPro
   const summary = segments.map((seg) => `${seg.label} ${seg.value}`).join(", ");
 
   return (
-    <svg
-      viewBox="0 0 140 140"
-      width="140"
-      height="140"
-      role="img"
-      aria-label={`${centerLabel}: ${centerValue}. ${summary}`}
-    >
+    <ChartFigure summary={`${centerLabel}: ${centerValue}. ${summary}`}>
+      <svg viewBox="0 0 140 140" width="140" height="140">
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="14" />
       {segments.map((seg, i) => {
         const dash = fractions[i]! * circumference;
@@ -54,5 +51,6 @@ export function DonutChart({ segments, centerLabel, centerValue }: DonutChartPro
         {centerLabel}
       </text>
     </svg>
+    </ChartFigure>
   );
 }

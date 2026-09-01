@@ -15,6 +15,7 @@ import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 import { selectProjectionForFormat } from "@/lib/leagues/scoringPoints";
 import { PlayerNews } from "./sections/PlayerNews";
+import { WeeklyStartProbability } from "./sections/WeeklyStartProbability";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -453,10 +454,18 @@ function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; pl
   const meta = envelope?.weeklyProjectionsMeta ?? null;
   if (!proj || Object.keys(proj).length === 0) {
     return (
-      <DataUnavailable
-        title="No weekly projections yet"
-        description="Sleeper weekly point projections populate during the regular season (via the projections cron). Off-season or pre-cron, there is nothing real to rank here."
-      />
+      <div className="table-wrap">
+        <DataUnavailable
+          title="No weekly projections yet"
+          description="Sleeper weekly point projections populate during the regular season (via the projections cron). Off-season or pre-cron, there is nothing real to rank here."
+        />
+        {/* S7: the probability panel renders REGARDLESS. It carries the measured
+            calibration of a frozen model, which does not depend on whether this
+            week's projections have arrived — and putting it behind this early
+            return meant the evidence for the product's one calibrated model was
+            invisible in exactly the state CI runs in. */}
+        <WeeklyStartProbability players={players} envelope={envelope} />
+      </div>
     );
   }
   // Audit 2026-08-20 §7: the projection record carries all three scoring
@@ -506,6 +515,10 @@ function UniverseProjections({ envelope, players }: { envelope?: RAEEnvelope; pl
           ) : null}
         </>
       )}
+      {/* The projection is the input; the probability is what it is FOR. They
+          belong on one screen, in that order, rather than in two tabs showing
+          the same underlying data. */}
+      <WeeklyStartProbability players={players} envelope={envelope} />
     </div>
   );
 }

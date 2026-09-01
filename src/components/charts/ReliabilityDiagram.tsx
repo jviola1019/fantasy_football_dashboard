@@ -9,6 +9,8 @@
 // blank chart — consistent with the <DataUnavailable> pattern.
 
 import type { ReliabilityBin } from "@/lib/stats/distribution";
+import { ChartFigure } from "./ChartFigure";
+import { describeReliability } from "./describeReliability";
 
 const W = 280;
 const H = 200;
@@ -34,14 +36,12 @@ export function ReliabilityDiagram({ bins, caption }: Props) {
   const hasBins = bins && bins.length > 0;
 
   return (
-    <div style={{ display: "inline-block" }}>
-      <svg
-        width={W}
-        height={H}
-        role="img"
-        aria-label="Reliability diagram: observed frequency vs mean forecast probability"
-        style={{ overflow: "visible" }}
-      >
+    <ChartFigure
+      summary={describeReliability(bins)}
+      caption={caption}
+      className="reliability-figure"
+    >
+      <svg width={W} height={H} style={{ overflow: "visible" }}>
         {/* Axes */}
         <line
           x1={scaleX(0)}
@@ -149,21 +149,6 @@ export function ReliabilityDiagram({ bins, caption }: Props) {
           </text>
         )}
       </svg>
-
-      {caption && (
-        <div
-          style={{
-            fontSize: "var(--text-xs)",
-            lineHeight: 1.4,
-            color: "var(--muted)",
-            marginTop: 6,
-            maxWidth: W,
-            textAlign: "left"
-          }}
-        >
-          {caption}
-        </div>
-      )}
-    </div>
+    </ChartFigure>
   );
 }

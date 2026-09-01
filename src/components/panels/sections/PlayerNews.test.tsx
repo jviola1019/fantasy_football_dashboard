@@ -134,9 +134,11 @@ describe("FaabBoard renders dollars", () => {
   });
 
   it("draws every team and marks exactly one as yours", () => {
-    expect(html.match(/faab-row-mine/g) ?? []).toHaveLength(1);
-    expect(html.match(/class="faab-team"/g) ?? []).toHaveLength(3);
-    expect(html).toContain("you");
+    // Asserted through what a READER perceives — one row annotated "you", and
+    // one labelled bar per team — rather than through class names, which S5
+    // legitimately renamed when the panel adopted the shared BarChart.
+    expect(html.match(/of \$100 remaining/g) ?? []).toHaveLength(3);
+    expect(html.match(/· you/g) ?? []).toHaveLength(1);
   });
 
   it("gives every bar a text alternative", () => {
@@ -175,7 +177,7 @@ describe("FaabBoard renders dollars", () => {
     });
     const out = renderToStaticMarkup(<FaabBoard envelope={anon} />);
     expect(out).toContain("Your own team could not be identified");
-    expect(out).not.toContain("faab-row-mine");
+    expect(out).not.toContain("· you");
   });
 
   it("names the settings it read when the league does not use FAAB", () => {
