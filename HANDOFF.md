@@ -1056,6 +1056,47 @@ the field), the panel and the lifecycle alert read the **same object** so they
 cannot disagree, and an unresolved identity marks nobody's row as yours rather
 than repeating D-D.
 
+### OPEN — S5/S7 merged but NOT serving in production
+
+`main` is `a07c721`. CI was 14/14, the merge is clean, and the code is
+demonstrably on `main`. **The production site is still serving the previous
+build**, and this is unresolved as of 2026-09-01 18:45Z, ~25 minutes after the
+merge.
+
+Verified rather than assumed, in this order:
+
+| check | result |
+|---|---|
+| `git show main:src/app/globals.css` | 11 hits for the new chart classes, **0** for `faab-bar-track` (removed in S5) |
+| `main:src/lib/models/weeklyProbability.ts` | present |
+| local build of that tree | emits `chunks/14qf-wjrn8i7k.css`, containing the new classes |
+| production alias | serves `chunks/1sz_2s0klbjh7.css`, containing `faab-bar-track` and **none** of the new classes |
+| the deployment-specific URL for `a07c721` | serves the **same old chunks** |
+| `npm run smoke` | 13/13 — the old build is healthy, which is why smoke cannot see this |
+
+So the merge is sound and the artefact Vercel is serving is not built from it.
+**This needs the owner**: a redeploy from the Vercel dashboard with the build
+cache cleared. There is no Vercel CLI installed here and the Vercel MCP server is
+unauthorised in this session, so it cannot be triggered from the agent side.
+
+**Two inferences I made and then had to retract, recorded so nobody repeats
+them:**
+
+- *"The immutable asset path means the edge is serving a stale chunk under a
+  stable name."* No — the local build produces a **different** chunk name, so
+  names do track content.
+- *"The deployment completed in 2 seconds, so Vercel skipped the build."* No —
+  all three of today's production deployments show a 1–2 second create-to-success
+  gap, including the two that deployed correctly. GitHub's deployment record is
+  posted immediately and is **not** evidence that a build finished. It was the
+  only "confirmation" available, and it confirms nothing.
+
+**The lesson for the next verification:** `npm run smoke` passing and a green
+GitHub deployment status are both compatible with production serving a
+three-week-old build. The check that actually works is comparing a
+content-derived asset name, or a string only the new build contains, against the
+local build of the same commit.
+
 ### S5 + S7 — two findings worth carrying forward
 
 **A checker that cannot see its input reports success.** Two instances this
