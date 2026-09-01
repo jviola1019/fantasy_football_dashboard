@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildLiveEnvelope } from "./toEnvelope";
 import type { LiveLeagueSnapshot } from "./fetchLive";
-import type { PlayerMarketRecord, SourceMeta } from "../governance";
+import { RAEEnvelopeSchema, type PlayerMarketRecord, type SourceMeta } from "../governance";
 import type { FpEcrData } from "../fantasypros/types";
 import { rankInSeason } from "../models/inSeasonScore";
 
@@ -46,7 +46,12 @@ const player = (name: string): PlayerMarketRecord =>
     confidence: 0.5,
     rosterSlot: "RB",
     status: "active",
-    sources: []
+    sources: [],
+    // Present so the fixture is a SCHEMA-VALID record: the S4 test below parses
+    // a whole envelope, and a fixture that cannot survive its own schema would
+    // fail for reasons unrelated to what it is testing.
+    imageUrl: "https://sleepercdn.com/content/nfl/players/thumb/0.jpg",
+    imageSource: "sleeper-cdn"
   }) as unknown as PlayerMarketRecord;
 
 const snapshot = (over: Partial<LiveLeagueSnapshot> = {}): LiveLeagueSnapshot =>
@@ -59,7 +64,7 @@ const snapshot = (over: Partial<LiveLeagueSnapshot> = {}): LiveLeagueSnapshot =>
     source: src(),
     failure: null,
     format: null,
-    myFaabRemainingRatio: null,
+    faab: null,
     leagueRawData: { status: "complete", season: "2025" },
     draftStatus: null,
     ...over
@@ -317,5 +322,111 @@ describe("season rates reach the free-agent pool (D-B)", () => {
     const env = withUniverse({ seasonStats: null });
     const fas = env.freeAgents ?? [];
     expect(fas.every((p) => p.pointsPerGame == null)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S4 — the two feeds that were fetched and then discarded
+// ---------------------------------------------------------------------------
+
+describe("the envelope carries what the app already fetched", () => {
+  const faabState = {
+    total: 100,
+    teamCount: 2,
+    budgets: [
+      { teamId: "2", teamName: "Bob", isMine: false, total: 100, remaining: 90, ratio: 0.9 },
+      { teamId: "1", teamName: "Me", isMine: true, total: 100, remaining: 63, ratio: 0.63 }
+    ]
+  };
+
+  it("passes FAAB budgets through to the envelope", () => {
+    // Before S4 this stopped at the snapshot: the lifecycle cron alerted on the
+    // budget while /waivers told the user budgets were "not connected".
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({ faab: faabState }),
+      rankings: rankings(),
+      rankingsSource: src()
+    });
+    expect(env.faab).toEqual(faabState);
+  });
+
+  it("passes budgets through even when the rankings cache is empty", () => {
+    // A budget does not come from FantasyPros, so a cold rankings cache is no
+    // reason to hide it.
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({ faab: faabState }),
+      rankings: null,
+      rankingsSource: src()
+    });
+    expect(env.faab).toEqual(faabState);
+  });
+
+  it("carries a null budget for a league that does not use FAAB", () => {
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src()
+    });
+    expect(env.faab).toBeNull();
+  });
+
+  it("passes the news index and its provenance through", () => {
+    const playerNews = {
+      "sleeper:4046": [
+        {
+          articleId: 1,
+          headline: "Real headline",
+          publishedAt: "2026-08-31T12:00:00.000Z",
+          url: "https://www.espn.com/nfl/story/_/id/1"
+        }
+      ]
+    };
+    const playerNewsMeta = {
+      source: "ESPN NFL news",
+      fetchedAt: "2026-08-31T09:20:00.000Z",
+      articleCount: 100,
+      coveredPlayers: 1
+    };
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src(),
+      playerNews,
+      playerNewsMeta
+    });
+    expect(env.playerNews).toEqual(playerNews);
+    expect(env.playerNewsMeta).toEqual(playerNewsMeta);
+  });
+
+  it("validates against the envelope schema, so the panel's input is the parsed shape", () => {
+    // The panel reads `envelope.faab` and `envelope.playerNews` off a value that
+    // has been through RAEEnvelopeSchema. A field the schema does not know about
+    // is silently stripped there, and the panel would render "unavailable" for
+    // data that reached the loader intact.
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({ faab: faabState }),
+      rankings: rankings(),
+      rankingsSource: src(),
+      playerNews: {
+        "sleeper:4046": [
+          {
+            articleId: 1,
+            headline: "Real headline",
+            publishedAt: "2026-08-31T12:00:00.000Z",
+            url: null
+          }
+        ]
+      },
+      playerNewsMeta: {
+        source: "ESPN NFL news",
+        fetchedAt: "2026-08-31T09:20:00.000Z",
+        articleCount: 100,
+        coveredPlayers: 1
+      }
+    });
+    const parsed = RAEEnvelopeSchema.parse(env);
+    expect(parsed.faab?.budgets).toHaveLength(2);
+    expect(parsed.playerNews?.["sleeper:4046"]).toHaveLength(1);
+    expect(parsed.playerNewsMeta?.articleCount).toBe(100);
   });
 });

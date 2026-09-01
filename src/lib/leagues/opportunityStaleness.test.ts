@@ -72,7 +72,7 @@ const snapshot = (): LiveLeagueSnapshot =>
     source: src(),
     failure: null,
     format: null,
-    myFaabRemainingRatio: null,
+    faab: null,
     leagueRawData: { status: "complete", season: "2025" },
     draftStatus: null
   }) as unknown as LiveLeagueSnapshot;

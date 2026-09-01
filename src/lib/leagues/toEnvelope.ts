@@ -13,6 +13,7 @@ import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror 
 import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
 import { perGame, type SeasonStatsMap } from "../sleeper/seasonStats";
+import type { PlayerNewsIndex } from "../espn/newsMatch";
 import { evaluateFreshness } from "../ops/freshness";
 import { SNAPSHOT_CONTRACT } from "../ops/snapshotContracts";
 import type { WeeklyProjectionByFormat } from "./scoringPoints";
@@ -65,6 +66,14 @@ export interface BuildEnvelopeOptions {
    * source. Sleeper proxy stays as fallback when this is absent.
    */
   newsMomentumScores?: Record<string, number> | null;
+  /**
+   * The headlines behind those scores, grouped by record id (S4). Passed
+   * through untouched — the loader owns the grouping so this builder stays a
+   * pure shape transform.
+   */
+  playerNews?: PlayerNewsIndex | null;
+  /** Provenance for the headlines: snapshot age, article count, coverage. */
+  playerNewsMeta?: RAEEnvelope["playerNewsMeta"];
   /**
    * The full Sleeper players map (from the daily snapshot). When present with
    * rankings, the envelope builds `leagueUniverse` + `freeAgents` (Sprint 5).
@@ -166,6 +175,8 @@ export function buildLiveEnvelope({
   weeklyProjections,
   weeklyProjectionsMeta,
   newsMomentumScores,
+  playerNews = null,
+  playerNewsMeta = null,
   playersSnapshot,
   currentSeason,
   opportunityScores,
@@ -255,7 +266,12 @@ export function buildLiveEnvelope({
       season,
       leagueUniverse: null,
       freeAgents: null,
-      allRosters
+      allRosters,
+      // Neither depends on FantasyPros, so an empty rankings cache is no reason
+      // to hide a budget or a headline the app already holds.
+      faab: snapshot.faab,
+      playerNews,
+      playerNewsMeta
     };
   }
 
@@ -379,7 +395,13 @@ export function buildLiveEnvelope({
     season,
     leagueUniverse,
     freeAgents,
-    allRosters
+    allRosters,
+    // S4. Both come straight off inputs the app already had: the budgets from
+    // the same rosters payload that resolves membership, the headlines from the
+    // same news snapshot the momentum score is computed from.
+    faab: snapshot.faab,
+    playerNews,
+    playerNewsMeta
   };
 }
 

@@ -12,6 +12,7 @@ import { getDraft as getSleeperDraft } from "../sleeper/drafts";
 import { getLatestPlayersSnapshot } from "../sleeper/snapshot";
 import type { SleeperPlayersMap, SleeperRoster } from "../sleeper/schemas";
 import type { EspnTeam } from "../espn/schemas";
+import { buildSleeperFaabState, buildEspnFaabState, type FaabState } from "./faab";
 import { unavailableSource, type SourceMeta } from "../governance";
 import { parseEspnFormat, parseSleeperFormat, type LeagueFormat } from "../trade/format";
 import { getDb, type Db } from "../../db";
@@ -62,12 +63,17 @@ export interface LiveLeagueSnapshot {
    */
   format: LeagueFormat | null;
   /**
-   * The user's own roster's FAAB budget remaining as a ratio of total budget
-   * (0..1). Null when the league doesn't use FAAB, when the values cannot be
-   * extracted from the upstream payload, or when the platform doesn't expose
-   * the field (ESPN). Consumed by the lifecycle cron's FAAB-depleted rule.
+   * Every team's free-agent acquisition budget, in dollars, with the user's own
+   * flagged. Null when the league doesn't use FAAB or the budgets cannot be
+   * read from the upstream payload.
+   *
+   * S4: this replaced a lone `myFaabRemainingRatio`. The ratio was enough for
+   * the lifecycle cron's `faab-depleted` rule and nothing else, so `/waivers`
+   * said budgets were "not connected" while the alert engine was already
+   * firing on them. Both now read the same object — the cron takes
+   * `myFaabBudget(state)?.ratio`.
    */
-  myFaabRemainingRatio: number | null;
+  faab: FaabState | null;
   /**
    * The raw upstream league payload (Sleeper league object / ESPN settings),
    * so the season-mirror + draft-state derivation can read `status`,
@@ -94,62 +100,9 @@ export interface LiveLeagueSnapshot {
   injuryEvidence: InjuryEvidence;
 }
 
-/**
- * Pure helper — extract the user's FAAB-remaining ratio (0..1) from Sleeper's
- * league + roster settings. Returns null when the league isn't FAAB-style
- * (waiver_type 0 = rolling, 1 = reverse standings), when the total budget is
- * missing or non-positive, when the per-roster `waiver_budget_used` is absent,
- * or when the computed ratio falls outside [0, 1] (which would indicate
- * upstream corruption rather than a real condition).
- *
- * Exported so it can be unit-tested without spinning up a Sleeper fetch.
- */
-export function extractSleeperFaabRatio(
-  leagueSettings: Record<string, unknown> | null | undefined,
-  rosterSettings: Record<string, unknown> | null | undefined
-): number | null {
-  if (!leagueSettings || !rosterSettings) return null;
-  const totalRaw = leagueSettings.waiver_budget;
-  const usedRaw = rosterSettings.waiver_budget_used;
-  const total = typeof totalRaw === "number" ? totalRaw : null;
-  const used = typeof usedRaw === "number" ? usedRaw : 0; // Sleeper omits this when 0
-  if (total === null || total <= 0) return null;
-  const remaining = total - used;
-  if (remaining < 0 || remaining > total) return null;
-  return remaining / total;
-}
-
-/**
- * Pure helper — extract the user's FAAB-remaining ratio (0..1) from ESPN's
- * league settings + the user's team. ESPN exposes FAAB as
- * `settings.acquisitionSettings.{isUsingAcquisitionBudget, acquisitionBudget}`
- * and per-team `transactionCounter.acquisitionBudgetSpent`. Returns null unless
- * the league explicitly uses an acquisition budget (so we never surface FAAB
- * for a non-FAAB ESPN league), the total is positive, and the computed ratio is
- * a sane [0, 1]. Exported for unit testing without an ESPN fetch.
- */
-export function extractEspnFaabRatio(
-  leagueSettings: Record<string, unknown> | null | undefined,
-  team: Record<string, unknown> | null | undefined
-): number | null {
-  if (!leagueSettings || !team) return null;
-  const acqRaw = leagueSettings.acquisitionSettings;
-  if (!acqRaw || typeof acqRaw !== "object") return null;
-  const acq = acqRaw as Record<string, unknown>;
-  // Only FAAB-budget leagues. A non-FAAB league must not surface a ratio.
-  if (acq.isUsingAcquisitionBudget !== true) return null;
-  const total = typeof acq.acquisitionBudget === "number" ? acq.acquisitionBudget : null;
-  if (total === null || total <= 0) return null;
-  const tcRaw = team.transactionCounter;
-  const spentRaw =
-    tcRaw && typeof tcRaw === "object"
-      ? (tcRaw as Record<string, unknown>).acquisitionBudgetSpent
-      : undefined;
-  const spent = typeof spentRaw === "number" ? spentRaw : 0; // omitted ⇒ none spent
-  const remaining = total - spent;
-  if (remaining < 0 || remaining > total) return null;
-  return remaining / total;
-}
+// FAAB extraction lives in `./faab` — S4 moved it there when the return type
+// grew from a bare ratio to real dollars, so the /waivers panel and the
+// lifecycle alert read the same object rather than two derivations of it.
 
 // ---------------------------------------------------------------------------
 // Pure team-identification helpers (exported so they can be unit-tested)
@@ -247,7 +200,7 @@ export async function fetchLeagueLive(
       source: unavailableSource(`ESPN league ${league.externalLeagueId}`, "missing credentials"),
       failure: "missing credentials",
       format: null,
-      myFaabRemainingRatio: null,
+      faab: null,
       leagueRawData: null,
       draftStatus: null,
       injuryEvidence: { state: "unavailable", reason: "ESPN credentials missing" }
@@ -280,7 +233,7 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       source: info.source.freshness === "unavailable" ? info.source : rosters.source,
       failure: info.source.failure ?? rosters.source.failure ?? "no rosters returned",
       format,
-      myFaabRemainingRatio: null,
+      faab: null,
       leagueRawData,
       draftStatus: null,
       // No roster at all: status is not merely stale, it is unknown.
@@ -303,7 +256,7 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
       ),
       failure: "no players snapshot",
       format,
-      myFaabRemainingRatio: null,
+      faab: null,
       leagueRawData,
       draftStatus: null,
       // The snapshot IS the injury source. Without it there is no status at all.
@@ -349,12 +302,17 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     ? materializeSleeperRoster(myRosterRow, playersMap, league, provenance)
     : [];
 
-  const myFaabRemainingRatio = myRosterRow
-    ? extractSleeperFaabRatio(
-        info.data.settings ?? null,
-        myRosterRow.settings ?? null
-      )
-    : null;
+  // Every roster carries its own `waiver_budget_used`, so the league-wide
+  // budget board costs no extra call. `resolvedRosterId` — not `myTeamId` — is
+  // passed deliberately: when identity is unresolved nothing may be marked as
+  // the user's, or the panel would repeat D-D by attributing the first team's
+  // budget to them.
+  const faab = buildSleeperFaabState(
+    info.data.settings ?? null,
+    sleeperRosters,
+    leagueUsers,
+    resolvedRosterId
+  );
 
   // Backup draft-state signal: fetch the draft object's status. Bounded +
   // fails open so a slow/missing draft endpoint never blocks the homepage.
@@ -371,7 +329,7 @@ async function fetchSleeperLive(league: LeagueRecord): Promise<LiveLeagueSnapsho
     source: rosters.source,
     failure: null,
     format,
-    myFaabRemainingRatio,
+    faab,
     leagueRawData,
     draftStatus,
     injuryEvidence
@@ -516,7 +474,7 @@ async function fetchEspnLive(
       source: result.source,
       failure: result.source.failure ?? "no teams returned",
       format,
-      myFaabRemainingRatio: null,
+      faab: null,
       leagueRawData: espnRawData,
       draftStatus: null,
       injuryEvidence: {
@@ -577,12 +535,13 @@ async function fetchEspnLive(
     source: result.source,
     failure: null,
     format,
-    // ESPN FAAB: read settings.acquisitionSettings + the user's team
-    // transactionCounter. Null for non-FAAB leagues or when the team is
-    // unresolved. Feeds the lifecycle FAAB-depleted rule, same as Sleeper.
-    myFaabRemainingRatio: extractEspnFaabRatio(
+    // ESPN FAAB: settings.acquisitionSettings + each team's transactionCounter.
+    // Null for non-FAAB leagues. `myTeam?.id` rather than the index fallback,
+    // so an unresolved SWID marks nobody's budget as the user's.
+    faab: buildEspnFaabState(
       result.data.settings ?? null,
-      myTeam as unknown as Record<string, unknown> | null
+      espnTeams as unknown as Array<Record<string, unknown>>,
+      myTeam?.id ?? null
     ),
     leagueRawData: espnRawData,
     draftStatus: null,

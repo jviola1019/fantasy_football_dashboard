@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { LeagueFormatSchema } from "./trade/format";
 import { WeeklyProjectionByFormatSchema } from "./leagues/scoringPoints";
+import { FaabStateSchema } from "./leagues/faab";
+import { PlayerNewsIndexSchema } from "./espn/newsMatch";
 
 export const FreshnessStateSchema = z.enum(["fresh", "stale", "missing", "unavailable", "fixture"]);
 export type FreshnessState = z.infer<typeof FreshnessStateSchema>;
@@ -145,7 +147,31 @@ export const RAEEnvelopeSchema = z.object({
   freeAgents: z.array(PlayerMarketRecordSchema).nullable().optional(),
   // Every team's roster (not just the user's), so panels can verify the whole
   // league rather than a single team.
-  allRosters: z.array(z.array(PlayerMarketRecordSchema)).nullable().optional()
+  allRosters: z.array(z.array(PlayerMarketRecordSchema)).nullable().optional(),
+
+  // ── S4: two things the app already fetched and then threw away ────────────
+  // Every team's free-agent acquisition budget, in dollars. Null when the
+  // league does not use FAAB, or for fixture/unavailable envelopes.
+  faab: FaabStateSchema.nullable().optional(),
+  // ESPN headlines grouped by `PlayerMarketRecord.id`. The news-refresh cron
+  // has written these to `news_snapshots` daily since May; until S4 the only
+  // thing derived from them was a single momentum number per player, and the
+  // articles themselves were discarded inside the loader.
+  playerNews: PlayerNewsIndexSchema.nullable().optional(),
+  // Provenance for the block above: which snapshot, how old, how much of it
+  // matched. Required for the panel to state a source and a freshness rather
+  // than presenting headlines from nowhere.
+  playerNewsMeta: z
+    .object({
+      source: z.string(),
+      fetchedAt: z.string().datetime(),
+      /** Articles in the snapshot, matched or not. */
+      articleCount: z.number().int().nonnegative(),
+      /** Distinct players at least one article could be attributed to. */
+      coveredPlayers: z.number().int().nonnegative()
+    })
+    .nullable()
+    .optional()
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 

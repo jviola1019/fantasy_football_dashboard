@@ -10,7 +10,7 @@ import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { OpportunityEvidenceNotice } from "@/components/model/OpportunityEvidenceNotice";
 import { OPPORTUNITY_SCOPE_LIMIT } from "@/lib/models/opportunityEvidence";
 import { PanelCard } from "../ui/PanelCard";
-import { DataUnavailable } from "../ui/DataUnavailable";
+import { FaabBoard } from "./sections/FaabBoard";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -147,13 +147,11 @@ export function WaiverWire({ players, envelope }: Props) {
           ) : null}
         </div>
         <div className="universe-sidebar">
-          <div className="player-profile-card">
-            <div className="momentum-header">FAAB (FREE-AGENT BUDGET)</div>
-            <DataUnavailable
-              title="Free-agent acquisition budgets not connected"
-              description="Real waiver-budget bars need your league's waiver type and remaining-budget fields, surfaced via /api/leagues/[id]/refresh. No real budget data is integrated yet, so no placeholder bars are shown."
-            />
-          </div>
+          {/* S4: this said budgets were "not connected" while fetchLive was
+              already extracting them for both platforms and the lifecycle cron
+              was alerting on them. The panel is where a bid is decided, so the
+              budget belongs here. */}
+          <FaabBoard envelope={envelope} />
         </div>
       </div>
     </PanelCard>

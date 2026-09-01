@@ -148,6 +148,25 @@ the season the data describes is now persisted with it and stated separately. A
 snapshot written before that change says its vintage is unrecorded rather than
 being assumed current.
 
+## Free-agent budgets (FAAB)
+
+Every team's remaining waiver budget is read from the league payload already
+fetched for rosters, so the board on `/waivers` costs no extra call, and the
+same object feeds the lifecycle cron's `faab-depleted` alert — the panel and the
+alert cannot describe different numbers.
+
+**A budget is only shown when the league explicitly says it bids one.** Sleeper
+sends `settings.waiver_budget: 100` for *every* league whether or not it is used:
+measured 2026-08-31, both of this account's leagues report `waiver_type: 0`
+(rolling waiver priority) alongside `waiver_budget: 100`. Detection therefore
+requires `waiver_type === 2` on Sleeper and `isUsingAcquisitionBudget === true`
+on ESPN. A league that does not confirm it bids money gets the unavailable state,
+naming the settings that were read, rather than ten bars reading "$100 of $100".
+
+Budgets are shown for the whole league, richest first, because a budget only
+means something against the field: $40 is a strong position when the next-richest
+rival holds $12 and a weak one when three teams still hold $100.
+
 ## The validated in-season ranking
 
 `src/lib/models/inSeasonScore.ts` is the one model here with a positive
@@ -172,7 +191,7 @@ Current implementation (all FREE — no paid feeds, no API keys beyond what's no
 - **Sleeper** — identity/league/rosters, weekly projections (`api.sleeper.com`), 24h trending adds/drops (`trendingMomentum` proxy).
 - **FantasyPros** — consensus ECR/ADP per scoring (PPR / Half / Standard) → value, draft pool, the league universe.
 - **nflverse** — free, CC-BY snap counts → a real `opportunity` (role/usage) score, stamped onto records by the `/api/cron/opportunity-refresh` snapshot (`src/lib/nflverse/`). Replaces any paid snap-share/target-share feed; see [docs/data-sources.md](docs/data-sources.md) for the full free-source matrix.
-- **ESPN** — private-league rosters (encrypted cookies) + public news headline-velocity (a second `trendingMomentum` source).
+- **ESPN** — private-league rosters (encrypted cookies) + public news: headline-velocity feeds a second `trendingMomentum` source, and since 2026-08-31 the **headlines themselves** are surfaced on the player profile with their publication time and link. Before that the daily snapshot was reduced to one number per player and the articles were discarded, so the product showed a figure derived from reporting the reader could not see.
 - **FantasyCalc / KeepTradeCut / DynastyProcess** — trade values, three-tier source chain, all free.
 - **No weather feed.** `open-meteo` was listed here for months with nothing behind it: `src/lib/weather/` was reachable only from its own test and no surface referenced it. Deleted 2026-08-24 (commit `29e6744`) rather than left looking connected. A source named in this list is a claim about the product.
 - RAE still refuses to infer a metric it has no source for: any field without real data is declared in `missingFields` and renders "—", never a fabricated number.

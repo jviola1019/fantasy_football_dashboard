@@ -171,6 +171,7 @@ noted. Component files:
 | Player Profile (True/Market/Edge/Trending) | `trueValue`,`perceivedValue`,`scarcityGap`,`trendingMomentum` | FantasyPros ECR (+ trending) | `scarcityGap`, `trendingLabel` | `sourceState.fetchedAt` | FP 0.85 | profile hidden when no selection | n/a | `PlayerUniverse.tsx:229` | `utils.test.ts` (trendingLabel) |
 | Universe Stats (Total / Value Above Consensus / Avg Valuation Gap) | count, `trueValue>perceivedValue`, `marketInefficiency` avg | FantasyPros ECR | `marketInefficiency`, inline | `sourceState.fetchedAt` | FP 0.85 | counts reflect pool | derived from present | `PlayerUniverse.tsx:270` | `derivedMetrics.stats.test.ts` |
 | Rising Stars list | `narrativeVelocity` | ESPN news / Sleeper proxy | `deriveRisingStars` (`derivedMetrics.ts:233`) | `sourceState.fetchedAt` | — | ranks present records (0 hype if trending missing) | list shrinks | `PlayerUniverse.tsx:298` | `derivedMetrics.stats.test.ts` |
+| Player News (headline, age, link) | `envelope.playerNews[record.id][]`, `envelope.playerNewsMeta` | ESPN NFL news (`news-refresh` cron, daily 09:20) | `buildPlayerNewsIndex` (`espn/newsMatch.ts`); age vs `envelope.generatedAt` | `playerNewsMeta.fetchedAt`, stated in the panel | ESPN-attributed, no NLP, no scoring | `<DataUnavailable>` when no snapshot; explicit "no article mentions X" when covered-but-empty | named empty state, never blank | `panels/sections/PlayerNews.tsx` | `newsMatch.test.ts`, `e2e/30-news-and-faab.spec.ts` |
 | Metric Profile radar (Value/Oppty/Trending/Confidence/Stability) | `trueValue`,`opportunity`,`trendingMomentum`,`confidence`,`volatility` | ECR + nflverse snaps + trending | inline axis mapping; `RADAR_AXIS_DEPS` | `sourceState.fetchedAt` | FP 0.85 | axis drops to 0 + `*` footnote when its dep ∈ missingFields | per-axis dashed/zero | `PlayerUniverse.tsx:27`,`:119` | `panelState.test.ts` |
 | Tiers tab (value bands per position) | `trueValue`,`position` | FantasyPros ECR | `TIER_BANDS` inline | `sourceState.fetchedAt` | FP 0.85 | empty positions skipped | per-position skip | `PlayerUniverse.tsx:323` | — |
 | Comparison tab (True/Market/Edge/Trend vs peers) | `trueValue`,`perceivedValue`,`scarcityGap`,`trendingMomentum` | FantasyPros ECR | `scarcityGap` (same as all panels) | `sourceState.fetchedAt` | FP 0.85 | "Select a player…" prompt | prompt when no selection | `PlayerUniverse.tsx:358` | `derivedMetrics.stats.test.ts` |
@@ -246,11 +247,19 @@ CI bands and add a disclosure banner (`CI_MULTIPLIER`/`CI_LABEL`, lines 33–43)
 | Edge column | `scarcityGap` | FantasyPros ECR | `scarcityGap` | `sourceState.fetchedAt` | FP 0.85 | **column hidden** when `opportunity` missing (`showEdge`) | column dropped + disclosure note | `WaiverWire.tsx:34`,`:97` | `panelState.test.ts`, `derivedMetrics.stats.test.ts` |
 | Scarcity | count of startable (`trueValue≥50`) per position | FantasyPros ECR | `rankFreeAgents` (`WaiverWire.tsx:141`) | `sourceState.fetchedAt` | FP 0.85 | always real (value-based) | computed from present pool | `WaiverWire.tsx:103` | — |
 | Score | `trueValue` + edge·0.4 + `opportunity`·0.4 + scarcity·0.8 (edge/oppty only when present) | ECR + nflverse snaps | `rankFreeAgents` | `sourceState.fetchedAt` | FP 0.85 | value+scarcity only when `opportunity` missing | drops opportunity/edge terms | `WaiverWire.tsx:154` | — |
-| FAAB Budget | UNKNOWN — no FAAB data integrated into this panel | (waiver budget exists in `fetchLive` but not surfaced here) | — | n/a | — | always `<DataUnavailable>` (no placeholder bars) | static banner | `WaiverWire.tsx:119` | — |
+| FAAB board (per-team remaining budget, richest first) | `envelope.faab.budgets[]` = `{teamId, teamName, isMine, total, remaining, ratio}` | Sleeper `settings.waiver_type/waiver_budget` + per-roster `waiver_budget_used`; ESPN `acquisitionSettings` + per-team `transactionCounter` | `buildSleeperFaabState` / `buildEspnFaabState` (`lib/leagues/faab.ts`) | roster call (live, 120s TTL) | measured, not modelled | `<DataUnavailable>` naming the settings read, when the league is not FAAB | no board; "this league does not use FAAB" | `panels/sections/FaabBoard.tsx` | `faab.test.ts`, `toEnvelope.test.ts`, `e2e/30-news-and-faab.spec.ts` |
 
-> Note: `fetchLive.ts` does compute `myFaabRemainingRatio` (Sleeper `waiver_budget` /
-> ESPN `acquisitionSettings`), but it feeds the lifecycle cron, **not** this panel —
-> so the panel honestly shows "not connected."
+> **S4 (2026-08-31).** This row previously read *"UNKNOWN — no FAAB data integrated
+> into this panel"*, and the panel said budgets were "not connected", while
+> `fetchLive` extracted the budget for both platforms and the lifecycle cron fired
+> `faab-depleted` alerts on it. The panel and the alert now read the SAME object.
+>
+> **Detection requires an explicit FAAB flag.** Sleeper sends
+> `waiver_budget: 100` for every league whether or not it is bid — measured on
+> 2026-08-31 against both of this account's leagues, each `waiver_type: 0`
+> (rolling waivers) with `waiver_budget: 100`. Keying on the budget alone (which
+> the pre-S4 extractor did) reports a full budget for every Sleeper league, so
+> the gate is `waiver_type === 2`, mirroring ESPN's `isUsingAcquisitionBudget`.
 
 ---
 

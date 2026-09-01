@@ -997,13 +997,64 @@ to be legible.
 | S1 | gates + Lighthouse baseline | **DONE** | `047f852`, `7474ff0` | Every audit counter floored; new type-scale + CTA checks; reduced-motion spec; token ratchets |
 | S2 | token hygiene | **DONE** | `5ada383` | Sidebar was painting transparent; 51 faux bolds; 20 dead tokens → 1 |
 | S3 | **live-league correctness** | **DONE** | `c22e112` | D-A news provenance was false · D-B validated model unreachable · D-C usage vintage · D-D league identity. All four with tests shown to fail first. |
-| S4 | news surface + FAAB | not started | — | render headlines; unhide FAAB |
-| — | **MERGE PR #35 + verify production** | not started | — | owner action, after S4 |
+| S4 | **news surface + FAAB** | **DONE** | `<s4>` | Headlines now render with time + link · FAAB board is live and league-wide · **and the FAAB extractor was found to be wrong**: it keyed on `waiver_budget`, which Sleeper sends for every league, so it would have drawn a full budget board for two rolling-waiver leagues. Gate is now `waiver_type === 2`. |
+| — | **MERGE PR #35 + verify production** | **AUTHORISED 2026-09-01** | — | Owner approved the merge and the resulting production deploy; do it once S4's gates and CI are green. |
 | S5 | chart kit | not started | — | 76 sub-floor SVG labels; `<ChartSummary>` |
 | S6 | hierarchy, density, CTAs | not started | — | type 48–94% bottom-heavy; 166 off-scale spacing deferred from S2 |
 | S7 | the validated model panel | not started | — | frozen coefficients (D1); scoped wording exemption (D2) |
 | S8 | landing page + React Bits | not started | — | six-card grid; Tailwind/Motion variants only |
 | S9 | docs + architecture audit + re-verification | not started | — | **README documents 3 of 8 crons**; pre/post-draft model absent entirely |
+
+### S4 — what was actually wrong
+
+Two feeds were being fetched daily, parsed, validated, and then thrown away.
+
+**News.** `news-refresh` has written ESPN's NFL feed to `news_snapshots` every
+morning since May. `load.ts` reduced it to one momentum number per player and
+dropped the articles inside the same `if` block. So `/players` showed a
+"Trending" figure computed from real, attributable, timestamped reporting, and
+gave the reader no way to see any of it. The headlines now render on the player
+profile with their own publication time and ESPN link, plus the provenance line
+(how many articles, how many matched, snapshot age).
+
+The article URL needed no re-fetch and no migration: `EspnNewsArticleSchema` is
+`.passthrough()`, so `links.web.href` was already in every stored snapshot and
+simply undeclared. Verified live 2026-09-01 — 50 articles, 50 with a web link,
+50 with a `published` timestamp, 77 distinct athletes.
+
+**FAAB — and a defect the live data exposed.** `/waivers` said *"Free-agent
+acquisition budgets not connected … no real budget data is integrated yet"* while
+`fetchLive` was extracting the budget for both platforms and the lifecycle cron
+was firing `faab-depleted` alerts on it. The panel described the app's own state
+incorrectly, in the conservative direction — the failure mode a "never hide
+unavailable data" rule is least likely to catch.
+
+Fixing it surfaced a worse bug underneath. The inherited extractor decided a
+league used FAAB by checking that `settings.waiver_budget` was present. Measured
+against both of this account's real leagues on 2026-08-31:
+
+| league | id | `waiver_type` | `waiver_budget` |
+|---|---|---|---|
+| Offline | `1395917841022074880` | **0** (rolling) | 100 |
+| Creamy Les Coot 4.0 | `1389332513259790336` | **0** (rolling) | 100 |
+
+Sleeper emits `waiver_budget: 100` for every league whether or not anyone can bid
+it. The old rule therefore reports a full budget for **every Sleeper league**.
+That was invisible while the only consumer was the `<10%` alert — an unused
+budget sits at 100% and never trips it — and would have become a fabricated panel
+the moment S4 drew it: ten teams, "$100 of $100 left", in a league where no dollar
+can be spent. Detection now requires `waiver_type === 2`, mirroring ESPN's
+existing `isUsingAcquisitionBudget === true` rule.
+
+**Consequence to expect after the merge:** for *these two leagues* the FAAB board
+correctly shows the unavailable state, naming the settings it read. That is S4's
+exit criterion met on the "honest reason" branch, not the "real numbers" branch,
+and it is the right answer.
+
+Also in S4: the budget is now league-wide (a budget only means something against
+the field), the panel and the lifecycle alert read the **same object** so they
+cannot disagree, and an unresolved identity marks nobody's row as yours rather
+than repeating D-D.
 
 Reports: [`reports/2026-08-28/s1-gates.md`](reports/2026-08-28/s1-gates.md),
 [`s2-tokens.md`](reports/2026-08-28/s2-tokens.md),

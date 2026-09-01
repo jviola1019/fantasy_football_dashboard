@@ -14,6 +14,7 @@ import { avg, trendingLabel, fmt, surname } from "@/lib/utils";
 import { PlayerHeadshot } from "../PlayerHeadshot";
 import { fixtureHeadshotFallbacks } from "@/lib/fixtures";
 import { selectProjectionForFormat } from "@/lib/leagues/scoringPoints";
+import { PlayerNews } from "./sections/PlayerNews";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -114,6 +115,16 @@ export function PlayerUniverse({ players, envelope }: Props) {
             </div>
             <div className="universe-sidebar">
               {selected && <PlayerProfile player={selected} />}
+              {/* Directly under the profile, and directly under the "Trending"
+                  figure it explains — the reader can now see the reporting the
+                  number was computed from. */}
+              {selected && (
+                <PlayerNews
+                  playerId={selected.id}
+                  playerName={selected.name}
+                  envelope={envelope}
+                />
+              )}
               <UniverseStats
                 count={players.length}
                 aboveConsensusCount={aboveConsensusCount}

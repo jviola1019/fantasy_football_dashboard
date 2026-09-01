@@ -33,7 +33,14 @@ for (const vp of VIEWPORTS) {
     await expect(notice).toBeVisible();
 
     await page.screenshot({
-      path: `reports/2026-08-20/screens/waiver-opportunity-${vp.name}.png`,
+      // UNDATED on purpose. This wrote to `reports/2026-08-20/screens/` until
+      // 2026-09-01, so every later e2e run silently overwrote that dated audit's
+      // own evidence with the current build — the 2026-08-20 report claimed to
+      // show what the notice looked like on 2026-08-20 and showed today instead.
+      // Evidence that rewrites itself is not evidence. This path means "the
+      // current build"; a dated report that wants a frozen capture copies the
+      // file in deliberately.
+      path: `reports/screens/waiver-opportunity-${vp.name}.png`,
       fullPage: false
     });
 

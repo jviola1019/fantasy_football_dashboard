@@ -22,7 +22,12 @@ import { getNflState } from "@/lib/sleeper/league";
 import { getLatestProjectionsSnapshot } from "@/lib/sleeper/projectionsSnapshot";
 import { snapshotToWeeklyProjections } from "@/lib/sleeper/projections";
 import { getLatestNewsSnapshot } from "@/lib/espn/newsSnapshot";
-import { buildNewsWeightMap, normaliseMomentumScores } from "@/lib/espn/newsMatch";
+import {
+  buildNewsWeightMap,
+  normaliseMomentumScores,
+  buildPlayerNewsIndex,
+  type PlayerNewsIndex
+} from "@/lib/espn/newsMatch";
 import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
 
 // NoLeagueCTA is re-exported so the thin route pages can render it without
@@ -139,13 +144,29 @@ async function resolveEnvelope(): Promise<HomeResolution> {
         // ESPN news momentum (preferred over the Sleeper trending proxy when
         // available; enrich.ts handles priority). Both fail open to null.
         let newsMomentumScores: Record<string, number> | null = null;
+        // S4: the SAME snapshot, grouped rather than only counted. Until now
+        // this block reduced the articles to one number per player and dropped
+        // them — the product computed a "Trending" figure from real headlines
+        // and then showed the reader neither the headline nor a way to reach it.
+        let playerNews: PlayerNewsIndex | null = null;
+        let playerNewsMeta: RAEEnvelope["playerNewsMeta"] = null;
         if (newsSnapshot && playersSnapshot) {
-          const weightMap = buildNewsWeightMap(
-            newsSnapshot.articles,
-            playersSnapshot.players as Record<string, Record<string, unknown>>
-          );
+          const players = playersSnapshot.players as Record<string, Record<string, unknown>>;
+          const weightMap = buildNewsWeightMap(newsSnapshot.articles, players);
           const scores = normaliseMomentumScores(weightMap);
           if (Object.keys(scores).length > 0) newsMomentumScores = scores;
+          const index = buildPlayerNewsIndex(newsSnapshot.articles, players);
+          const coveredPlayers = Object.keys(index).length;
+          // The meta ships even when nothing matched: "0 of 100 articles could
+          // be attributed" is a real, useful state, and suppressing it would
+          // leave the panel unable to distinguish "no news" from "no snapshot".
+          playerNews = index;
+          playerNewsMeta = {
+            source: "ESPN NFL news",
+            fetchedAt: newsSnapshot.fetchedAt.toISOString(),
+            articleCount: newsSnapshot.articles.length,
+            coveredPlayers
+          };
         }
 
         // Weekly projections for the current regular-season week. Off-season or
@@ -191,6 +212,8 @@ async function resolveEnvelope(): Promise<HomeResolution> {
             weeklyProjections,
             weeklyProjectionsMeta,
             newsMomentumScores,
+            playerNews,
+            playerNewsMeta,
             playersSnapshot: playersSnapshot?.players ?? null,
             currentSeason: nflData?.season,
             opportunityScores: oppSnapshot?.scores ?? null,

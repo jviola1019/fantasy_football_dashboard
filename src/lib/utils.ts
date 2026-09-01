@@ -54,3 +54,31 @@ export function gradeFromScore(score: number): string {
   if (score > -14) return "C";
   return "D";
 }
+
+/**
+ * Age of `iso` as of `nowIso`, e.g. "3h ago" / "2d ago".
+ *
+ * Both ends are explicit on purpose. The obvious signature takes only the
+ * timestamp and calls `Date.now()` internally — which would produce a different
+ * string on the server than on the client milliseconds later, and React would
+ * report a hydration mismatch on a page that is otherwise deterministic.
+ * Callers pass `envelope.generatedAt`, so the age is stated relative to a single
+ * declared render instant that is itself visible in the governance banner.
+ *
+ * Returns null for an unparseable input rather than "NaN ago" — a headline
+ * whose age cannot be stated is dropped upstream, and this is the second guard.
+ */
+export function relativeAge(iso: string, nowIso: string): string | null {
+  const then = Date.parse(iso);
+  const now = Date.parse(nowIso);
+  if (Number.isNaN(then) || Number.isNaN(now)) return null;
+  const mins = Math.round((now - then) / 60000);
+  // A clock skew of a few minutes between ESPN and this host is normal and is
+  // not news from the future; anything ahead of "now" reads as just now.
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
