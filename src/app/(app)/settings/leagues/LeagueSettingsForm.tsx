@@ -114,6 +114,38 @@ export function LeagueSettingsForm({
             {format.provenance.note}
           </p>
         )}
+        {/*
+          Roster slots RAE did not fold into the starting lineup, named rather
+          than absorbed.
+
+          The starter mapper skips what it cannot map, so before this an
+          unrecognised slot contributed zero and the lineup above still looked
+          complete. Every version of that bug in this file has been expensive:
+          the ESPN slot 7/23 swap reported every ordinary-flex league as
+          superflex, and ESPN's OTHER two flex slots (3 = RB/WR, 5 = WR/TE) were
+          never mapped at all, so those leagues read as having no flex.
+
+          The two lists mean different things and are shown separately: one is a
+          scope decision RAE has made, the other is a gap RAE has.
+        */}
+        {format.unmodelledSlots && format.unmodelledSlots.length > 0 && (
+          <p className="muted" style={{ marginTop: 8, fontSize: "var(--text-xs)" }} role="note">
+            <strong>Not modelled:</strong> {format.unmodelledSlots.join(", ")}. RAE carries no
+            values for these positions, so they are excluded from the starting lineup above and from
+            every ranking. The rest of the league is unaffected.
+          </p>
+        )}
+        {format.unmappedSlots && format.unmappedSlots.length > 0 && (
+          <p
+            className="muted"
+            style={{ marginTop: 8, fontSize: "var(--text-xs)", color: "var(--amber)" }}
+            role="note"
+          >
+            <strong>Unrecognised roster slots:</strong> {format.unmappedSlots.join(", ")}. RAE does
+            not know what these are, so they are missing from the starting lineup above — treat
+            scarcity and lineup advice for this league as incomplete until they are supported.
+          </p>
+        )}
         <p className="muted" style={{ marginTop: 6, fontSize: "var(--text-xs)" }}>
           Read from the platform on every refresh. Items marked{" "}
           <strong>derived</strong> are inferred by RAE, not stated by the platform — check those

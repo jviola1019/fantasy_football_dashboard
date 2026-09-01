@@ -21,7 +21,20 @@ const addLeagueSchema = z.object({
   sleeperUsername: z.string().max(50).optional()
 });
 
-export type AddLeagueResult = { ok: true; leagueId: string } | { ok: false; error: string };
+export type AddLeagueResult =
+  | {
+      ok: true;
+      leagueId: string;
+      /**
+       * Something the user should know happened, that is not an error.
+       *
+       * Today this is only the season correction. It is a NOTE rather than a
+       * silent write because overriding what somebody typed without telling
+       * them is its own kind of dishonesty, even when the override is right.
+       */
+      note?: string;
+    }
+  | { ok: false; error: string };
 
 export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
   const user = await requireUser();
@@ -47,6 +60,7 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
   // Friendly duplicate pre-check — fail fast with a clear message before the
   // (network) verification, rather than letting createLeague's guard surface
   // as the generic "could not save" below. createLeague still enforces it.
+  // Repeated below against the RESOLVED season, which is the one that is stored.
   if (await findUserLeagueByExternal(getDb(), userId, platform, externalLeagueId, season)) {
     return { ok: false, error: "You've already added this league for that season." };
   }
@@ -65,19 +79,52 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
   }
   const detectedSettings: LeagueFormat = verification.format;
 
+  // THE PLATFORM'S SEASON WINS, AND THE USER IS TOLD.
+  //
+  // A Sleeper league id belongs to exactly one season — a renewal gets a new id,
+  // chained by `previous_league_id` — so the season box on this form asks the
+  // user to retype something the payload already states. Storing the typed value
+  // let a 2026 league be filed as 2019: every season-keyed lookup (weekly
+  // projections, season stats snapshots, the season mirror) would then look for
+  // a season the league is not in, and the SAME league could be added once per
+  // season typed, each row looking like a different league.
+  //
+  // `resolvedSeason` is null only when the platform declared nothing, and then
+  // the typed value is all there is.
+  const resolvedSeason = verification.resolvedSeason ?? season;
+  const seasonNote =
+    resolvedSeason !== season
+      ? `This league is ${platform === "sleeper" ? "Sleeper" : "ESPN"}'s ${resolvedSeason} season, not ${season} — saved as ${resolvedSeason}.`
+      : undefined;
+
+  // Re-check duplicates against the season actually being written. Without
+  // this, adding the same league under a second typed season passes the check
+  // above and then trips the unique constraint, surfacing as the generic
+  // "Could not save this league" — an internal-fault message for a mistake the
+  // user can understand and fix.
+  if (
+    resolvedSeason !== season &&
+    (await findUserLeagueByExternal(getDb(), userId, platform, externalLeagueId, resolvedSeason))
+  ) {
+    return {
+      ok: false,
+      error: `You've already added this league. It is the ${resolvedSeason} season, whatever season is typed here.`
+    };
+  }
+
   try {
     const league = await createLeague(getDb(), {
       userId,
       platform,
       externalLeagueId,
-      season,
+      season: resolvedSeason,
       label,
       credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined,
       settings: detectedSettings,
       sleeperUsername: platform === "sleeper" ? (sleeperUsername || undefined) : undefined
     });
     revalidatePath("/settings/leagues");
-    return { ok: true, leagueId: league.id };
+    return seasonNote ? { ok: true, leagueId: league.id, note: seasonNote } : { ok: true, leagueId: league.id };
   } catch {
     // Never surface a raw DB/driver error to the browser — it can leak internal
     // detail (table/constraint names, connection failures). Return a fixed,
