@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
-import { updateLeagueSettingsForUser } from "@/lib/leagues";
+import { updateLeagueIdentityForUser, updateLeagueSettingsForUser } from "@/lib/leagues";
 import { KeeperCostRuleSchema } from "@/lib/trade/format";
 import { getDb } from "@/db";
 import { createLeague, deleteLeagueForUser, findUserLeagueByExternal, getLeagueForUser } from "@/lib/leagues";
@@ -138,6 +138,48 @@ export async function confirmLeagueSettings(formData: FormData): Promise<AddLeag
   revalidatePath("/settings/leagues");
   revalidatePath("/draft");
   return { ok: true, leagueId };
+}
+
+const identitySchema = z.object({
+  leagueId: z.string().min(1),
+  // Empty is allowed and means "clear it" — the app then states plainly that it
+  // is showing the first team, which is honest. Sleeper usernames are short.
+  sleeperUsername: z.string().max(64).nullable().catch(null)
+});
+
+/**
+ * Set which Sleeper account is yours, so the app scores YOUR team.
+ *
+ * Audit 2026-08-31 (D-D). Without this the username was write-once at add time,
+ * and a missing or mistyped one silently substituted the first roster in the
+ * league — someone else's drafted team driving the roster view, the simulation,
+ * Roster Health and Next Best Actions. The only remedy was deleting the league
+ * and re-adding it, which discarded its keeper settings as well.
+ */
+export async function updateLeagueIdentity(formData: FormData): Promise<AddLeagueResult> {
+  const user = await requireUser();
+  if (!user) return { ok: false, error: "unauthenticated" };
+
+  const parsed = identitySchema.safeParse({
+    leagueId: formData.get("leagueId"),
+    sleeperUsername: formData.get("sleeperUsername")
+  });
+  if (!parsed.success) return { ok: false, error: "Invalid username input" };
+
+  const updated = await updateLeagueIdentityForUser(
+    getDb(),
+    user.id,
+    parsed.data.leagueId,
+    parsed.data.sleeperUsername
+  );
+  if (!updated) return { ok: false, error: "League not found" };
+
+  // Every surface that renders a roster is downstream of which team is "yours".
+  revalidatePath("/settings/leagues");
+  revalidatePath("/dashboard");
+  revalidatePath("/players");
+  revalidatePath("/waivers");
+  return { ok: true, leagueId: parsed.data.leagueId };
 }
 
 export async function removeLeague(leagueId: string): Promise<AddLeagueResult> {

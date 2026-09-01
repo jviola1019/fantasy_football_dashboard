@@ -21,7 +21,11 @@ describe("RAE visual/product contract", () => {
   });
 
   it("keeps roster and player imagery as validated remote metadata, not committed binary assets", () => {
-    expect(fixturePlayers).toHaveLength(8);
+    // A FLOOR, not an exact count. The claim this test makes is about imagery
+    // being remote metadata, and the catalog size is incidental to it -- pinning
+    // the exact number meant every legitimate addition failed a test that was
+    // not about counting. The floor still catches the catalog being gutted.
+    expect(fixturePlayers.length).toBeGreaterThanOrEqual(8);
     for (const player of fixturePlayers) {
       expect(player.rosterSlot).toBeTruthy();
       expect(player.status).toMatch(/active|questionable|out|ir|bye|unknown/);

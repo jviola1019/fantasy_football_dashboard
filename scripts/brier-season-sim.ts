@@ -68,7 +68,17 @@ function main(): void {
 
   // 2. Optional real backtest.
   const real = loadRealForecasts();
-  let realSection = "_No real-data backtest run. Set `RAE_BACKTEST_FORECASTS` to a JSON file of completed-season forecasts to populate this section._\n";
+  // A reader arriving here needs to know a real backtest DOES exist, run by a
+  // different harness -- otherwise "no real-data backtest run" reads as "nobody
+  // has ever checked this against reality", which stopped being true when
+  // scripts/backtest-sleeper-2025.ts landed. Audit 2026-08-26.
+  let realSection =
+    "_No real-data backtest run **through this harness**. Set `RAE_BACKTEST_FORECASTS` to a JSON " +
+    "file of completed-season forecasts to populate this section._\n\n" +
+    "A separate real-data backtest DOES exist: `scripts/backtest-sleeper-2025.ts` scores the season " +
+    "sim against completed public Sleeper leagues and writes `docs/season-backtest-2025.md`. Read its " +
+    "power section before citing it -- on the default single league it has ONE independent cluster, " +
+    "so it establishes no significance either.\n";
   if (real) {
     const s = scoreForecasts(real);
     const playoffPass = s.brier <= PLAYOFF_BRIER_TARGET;

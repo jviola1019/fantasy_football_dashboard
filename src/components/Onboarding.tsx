@@ -10,7 +10,7 @@ export function Onboarding() {
   return (
     <main className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-10 sm:py-16">
       <header className="flex items-baseline gap-3">
-        <span className="text-lg font-extrabold tracking-[0.16em] text-rae-blue">RAE</span>
+        <span className="text-lg font-bold tracking-[0.16em] text-rae-blue">RAE</span>
         <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
           Roster Analytics Engine
         </span>
@@ -80,7 +80,7 @@ export function Onboarding() {
         ))}
       </section>
 
-      <footer className="mt-auto pt-16 text-xs text-muted-foreground">
+      <footer className="mt-auto pt-12 text-xs text-muted-foreground">
         Real data. Real models. Model-governed decisions.
       </footer>
     </main>
@@ -90,7 +90,20 @@ export function Onboarding() {
 const CAPABILITIES: { title: string; body: string }[] = [
   {
     title: "Scarcity gap",
-    body: "Find players the market over- or under-prices versus their true value, with the gap and its drivers shown."
+    // The last surviving mispricing claim in the product, and the one the
+    // 2026-08-26 stem guard could not see: it bans `underval`, which does not
+    // match `under-prices`. Protocol 3 tested this quantity on 115 real drafts
+    // and found that within a position -- the choice a draft board actually
+    // asks you to make -- it performed slightly worse than chance. So the
+    // marketing surface may describe the distance from consensus, and may not
+    // promise that the distance locates a bargain.
+    // Phrased to deny the claim without naming it. The e2e guard bans the stem
+    // outright on this route and, unlike the unit guard, has no negation
+    // allowance -- disclosure blocks are excluded by CSS class, and a marketing
+    // card is not one. Rather than carve an exception into the product's main
+    // anti-overclaiming guard for a sentence that does not need the word, the
+    // copy says what the quantity IS and what it is not, in plain terms.
+    body: "How far each player sits from consensus value, and what drives the gap. Tested on 115 real drafts: it measures positional scarcity, not a market error."
   },
   {
     title: "Season simulation",

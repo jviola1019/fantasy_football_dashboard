@@ -12,7 +12,7 @@
 | 2 | **nflverse** | `https://github.com/nflverse/nflverse-data/releases/download/<tag>/<file>` — `snap_counts/snap_counts_2025.csv`, `depth_charts/depth_charts_2026.csv`, `stats_player/stats_player_week_2025.csv` | `opportunity` (snap %, target share, depth rank) | new (Phase 7) |
 | 3 | **Sleeper projections** | `https://api.sleeper.com/projections/nfl/<season>/<week>?season_type=regular` — **host is `api.sleeper.com` (NOT `.app`)**; `stats` has `pts_ppr`/`pts_half_ppr`/`pts_std` | weekly projections → Nexus/`trueValue` | partial (verify host) |
 | 4 | **ESPN scoreboard** | `https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard` → `events[].competitions[].odds[]` | spread/total → implied team totals | new (optional) |
-| 5 | **open-meteo** | `https://api.open-meteo.com/v1/forecast?...` | weather | already wired |
+| 5 | ~~**open-meteo**~~ | `https://api.open-meteo.com/v1/forecast?...` | weather | **REMOVED 2026-08-24** — this row said "already wired" and it was not. `src/lib/weather/` was reachable only from its own test and no surface in the product referenced weather at all. Deleted in commit `29e6744` rather than left looking connected. Restore from git history if it is wired for real. |
 | 6 | **The Odds API** | `https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?regions=us&markets=spreads,totals&apiKey=KEY` | odds cross-check (**500 req/mo** — cache 1/day) | optional |
 | 7 | **ESPN news** | `https://site.api.espn.com/apis/site/v2/sports/football/nfl/news` | headline velocity (2nd momentum) | already wired |
 | 8 | **FantasyPros ECR/ADP** | scrape `…/nfl/rankings/{consensus,half-point-ppr,standard}-cheatsheets.php` | `perceivedValue`, draft pool | already wired |

@@ -74,7 +74,7 @@ const dt: React.CSSProperties = {
   color: "var(--muted)",
   fontSize: "var(--text-xs)",
   textTransform: "uppercase",
-  letterSpacing: 0.4,
+  letterSpacing: "0.04em",
   alignSelf: "center"
 };
 

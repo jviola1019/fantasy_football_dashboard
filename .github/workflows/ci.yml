@@ -35,6 +35,13 @@ jobs:
       - run: npx tsc --noEmit
       - run: npx eslint .
       - run: npx vitest run
+      # The shipped in-season ranker must reproduce protocol 5's validated
+      # statistic on the archived evaluation set. This caught a real defect --
+      # the model used a sample sd where the validated harness used a population
+      # sd, which changes the pooled ranking -- and it would have shipped a model
+      # that merely resembled the one that was tested. Reads a committed archive;
+      # no network.
+      - run: npx tsx scripts/verify-inseason-fidelity.ts
 
   postgres:
     # Audit 2026-08-20 SS10. Without this job, 31 integration tests covering the
@@ -145,3 +152,17 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx next build
       - run: npx lhci autorun
+      # Report how much of the score above was noise. Asserts nothing; without
+      # it "the gate passed" cannot be told apart from "the gate got a lucky
+      # draw" (audit 2026-08-23). `if: always()` so a failed assertion still
+      # tells us whether the failure was real or a wide-spread draw.
+      - name: lighthouse run-to-run variance
+        if: always()
+        run: npx tsx scripts/lighthouse-variance.ts
+      - name: upload lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: reports/lighthouse
+          retention-days: 14

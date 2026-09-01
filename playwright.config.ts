@@ -27,6 +27,11 @@ export default defineConfig({
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
     { name: "mobile-chrome", use: { ...devices["Pixel 5"] } }
   ],
+  // Runs after webServer is up: refuses to test a server that is not serving the
+  // local build. `reuseExistingServer` below is silent about staleness, and on
+  // 2026-08-24 that cost three investigations — including a "regression" in the
+  // login redirect that was a wedged orphan from a cancelled run. See the file.
+  globalSetup: "./e2e/globalSetup.ts",
   webServer: {
     command: "npm run start",
     url: baseURL,

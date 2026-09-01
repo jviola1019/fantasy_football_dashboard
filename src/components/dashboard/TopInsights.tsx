@@ -2,6 +2,7 @@
 
 import type { PlayerMarketRecord } from "@/lib/governance";
 import { scarcityGap } from "@/lib/models";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { PanelCard } from "../ui/PanelCard";
 
 /**
@@ -21,7 +22,7 @@ export function TopInsights({ market }: { market: PlayerMarketRecord[] }) {
       id="top-insights"
       titleId="ti-title"
       title="Top Insights"
-      eyebrow="Biggest market mispricings."
+      eyebrow={EDGE_LABELS.insightsEyebrow}
     >
       {ranked.length === 0 ? (
         <p className="muted-note">No market data to surface insights.</p>
@@ -34,7 +35,9 @@ export function TopInsights({ market }: { market: PlayerMarketRecord[] }) {
                 <span className="ti-name">{p.name}</span>
                 <span className="ti-pos">{p.position}</span>
                 <span className="ti-edge">
-                  {e >= 0 ? `Undervalued +${rounded}` : `Overvalued ${rounded}`}
+                  {e >= 0
+                    ? `${EDGE_LABELS.aboveShort} +${rounded}`
+                    : `${EDGE_LABELS.belowShort} ${rounded}`}
                 </span>
               </li>
             );

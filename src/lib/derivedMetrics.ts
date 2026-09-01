@@ -1,24 +1,24 @@
 import type { PlayerMarketRecord } from "./governance";
 import type { LeagueFormat } from "./trade/format";
-import { scarcityGap, marketInefficiency, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
+import { scarcityGap, valuationGap, narrativeVelocity, chaosExposure, liquidityScore } from "./models";
 import { runNexusSimulation, deriveSeasonInputs, type SimulationResult } from "./simulation";
 import { avg, clamp, gradeFromScore } from "./utils";
 
 export type CommandMetrics = {
   scarcityGap: number;
-  marketInefficiency: number;
+  valuationGap: number;
   narrativeVelocity: number;
   leagueAdvantage: number;
   chaosExposure: number;
 };
 
 export type MarketMetrics = {
-  inefficiencyPct: number;
+  valuationGapPct: number;
   liquidityScore: number;
   largeGapCount: number;
   priceDiscoveryPct: number;
   marketRegime: string;
-  topInefficiencies: PlayerMarketRecord[];
+  topValuationGaps: PlayerMarketRecord[];
 };
 
 export type ScenarioRow = {
@@ -46,7 +46,7 @@ export function deriveCommandMetrics(players: PlayerMarketRecord[]): CommandMetr
   const leagueAdv = players.length ? clamp(50 + avgEdge * 2.8, 0, 100) : NaN;
   return {
     scarcityGap: avgEdge,
-    marketInefficiency: avg(players.map(marketInefficiency)),
+    valuationGap: avg(players.map(valuationGap)),
     narrativeVelocity: avg(players.map(narrativeVelocity)),
     leagueAdvantage: Math.round(leagueAdv),
     chaosExposure: avg(players.map(chaosExposure)),
@@ -62,9 +62,9 @@ export function deriveNarrativeMovers(players: PlayerMarketRecord[]) {
 }
 
 export function deriveMarketMetrics(players: PlayerMarketRecord[]): MarketMetrics {
-  const meanIneff = avg(players.map(marketInefficiency));
+  const meanIneff = avg(players.map(valuationGap));
   return {
-    inefficiencyPct: meanIneff,
+    valuationGapPct: meanIneff,
     liquidityScore: avg(players.map(liquidityScore)),
     largeGapCount: players.filter((p) => Math.abs(scarcityGap(p)) > 8).length,
     // Honest: the average week-to-week variance (volatility, 0-100), not a
@@ -72,7 +72,7 @@ export function deriveMarketMetrics(players: PlayerMarketRecord[]): MarketMetric
     priceDiscoveryPct: avg(players.map((p) => p.volatility)),
     // An empty pool has no market signal — don't assert "Efficient" on no data.
     marketRegime: players.length === 0 ? "Unknown" : meanIneff > 15 ? "Inefficient" : "Efficient",
-    topInefficiencies: [...players]
+    topValuationGaps: [...players]
       .sort((a, b) => Math.abs(scarcityGap(b)) - Math.abs(scarcityGap(a)))
       .slice(0, 5),
   };

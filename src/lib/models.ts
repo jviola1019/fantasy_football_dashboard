@@ -19,7 +19,7 @@ export function scarcityGap(player: PlayerMarketRecord): number {
   return round(player.trueValue - player.perceivedValue + player.ownershipLeverage * 0.18 - player.fragility * 0.08);
 }
 
-export function marketInefficiency(player: PlayerMarketRecord): number {
+export function valuationGap(player: PlayerMarketRecord): number {
   return round(Math.abs(player.trueValue - player.perceivedValue) * player.confidence + Math.max(0, player.ownershipLeverage) * 0.12);
 }
 
@@ -32,13 +32,37 @@ export function chaosExposure(player: PlayerMarketRecord): number {
 }
 
 export function liquidityScore(player: PlayerMarketRecord): number {
-  return round((player.opportunity * 0.6 + marketInefficiency(player) * 0.4) / 10);
+  return round((player.opportunity * 0.6 + valuationGap(player) * 0.4) / 10);
 }
 
-export function confidenceInterval(center: number, confidence: number): [number, number] {
-  const width = (1 - confidence) * 18;
-  return [round(Math.max(0, center - width)), round(Math.min(100, center + width))];
-}
+/*
+ * REMOVED 2026-08-26 — `confidenceInterval(center, confidence)`.
+ *
+ * It returned `center ± (1 - confidence) * 18` and was rendered as `[lo, hi]`
+ * immediately after `trueValue` in the Market Intelligence table, where a
+ * bracketed pair beside a point estimate reads as an interval estimate. It was
+ * not one. There was no sampling distribution behind it, no coverage guarantee
+ * and no relationship to any stated level — just a magic 18-point half-width
+ * scaled by a heuristic `confidence` (itself `1 - min(rank_std, 30) / 30`).
+ *
+ * The 2026-06-09 quant audit found this and recommended removing or relabelling
+ * it (`reports/audit-2026-06-09/02-quant-audit.md:37,69`, item 6 / S1). The
+ * recommendation was recorded and never executed; it shipped for another two
+ * and a half months. Closing it now.
+ *
+ * WHY NOTHING REPLACES IT. A real dispersion band is not derivable from the
+ * inputs on hand. FantasyPros gives `rank_std` — genuine expert disagreement —
+ * but in OVERALL rank units, while `ecrToTrueValue` is a function of POSITIONAL
+ * rank. Pushing an overall-rank sigma through a positional-rank transform is a
+ * unit error, which is the class of bug `npm run check:projection-units` exists
+ * to catch. Converting between the two depends on how other positions interleave
+ * and would be an assumption nobody has measured.
+ *
+ * So the expert-disagreement signal stays where it is already traceable: as
+ * `volatility` (`stdToVolatility`, `enrich.ts:123`), shown on the Player
+ * Universe metric radar. Fabricating a second, prettier version of it next to
+ * `trueValue` is what caused this.
+ */
 
 function round(value: number): number {
   return Math.round(value * 10) / 10;

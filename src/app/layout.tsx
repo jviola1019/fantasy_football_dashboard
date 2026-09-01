@@ -16,7 +16,13 @@ const bricolage = Bricolage_Grotesque({
 
 const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
+  // 700 added 2026-08-28. The stylesheet declared font-weight 700 thirty times
+  // and 800 ten times against a face list that stopped at 600, so the browser
+  // SYNTHESISED every bold -- a smeared approximation that differs per
+  // platform. 800 is collapsed to 700 rather than loading a fourth weight:
+  // 700-against-600 is a distinction a reader can see, 800-against-700 is not,
+  // and each extra weight costs two files here because italic is loaded too.
+  weight: ["300", "400", "500", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
   variable: "--font-plex-sans"

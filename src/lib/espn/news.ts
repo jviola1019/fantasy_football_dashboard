@@ -31,6 +31,26 @@ const EspnNewsCategorySchema = z
   })
   .passthrough();
 
+/**
+ * The article's canonical web URL, at `links.web.href`.
+ *
+ * S4: this was always present in the stored payload — the article schema is
+ * `.passthrough()`, so every unknown key survived parsing and was written to
+ * `news_snapshots` — but it was not declared, so nothing could read it without
+ * an `as any`. Declaring it makes existing snapshots yield a link with no
+ * re-fetch and no migration. Optional throughout: an article ESPN publishes
+ * without a web link renders as text rather than as a dead anchor.
+ */
+const EspnNewsLinksSchema = z
+  .object({
+    web: z
+      .object({ href: z.string().optional().nullable() })
+      .passthrough()
+      .optional()
+      .nullable()
+  })
+  .passthrough();
+
 export const EspnNewsArticleSchema = z
   .object({
     id: z.number().int(),
@@ -38,6 +58,7 @@ export const EspnNewsArticleSchema = z
     description: z.string().optional().nullable(),
     lastModified: z.string(),
     published: z.string().optional().nullable(),
+    links: EspnNewsLinksSchema.optional().nullable(),
     categories: z.array(EspnNewsCategorySchema).optional().default([])
   })
   .passthrough();

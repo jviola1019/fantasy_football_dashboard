@@ -3,7 +3,9 @@ import type { SourceMeta } from "../governance";
 import { evaluateFreshness, unavailableSource } from "../governance";
 import { pprApproximated } from "./format";
 import type { LeagueFormat } from "./format";
+import { normalizePlayerName, normalizeTeamCode } from "../fantasypros/match";
 import { getLatestKtcSnapshot } from "../ktc/snapshot";
+import { getLatestPlayersSnapshot } from "../sleeper/snapshot";
 import type { KtcVariant } from "../ktc/types";
 import type { LeagueType } from "./format";
 
@@ -131,6 +133,115 @@ export interface PlayerValue {
 export interface TradeValueData {
   values: Map<string, PlayerValue>;
   source: SourceMeta;
+}
+
+/** A Sleeper catalog entry, reduced to what identity resolution needs. */
+export interface IdentifiablePlayer {
+  sleeperId: string;
+  espnId?: string | null;
+  name: string;
+  position?: string | null;
+  team?: string | null;
+}
+
+/**
+ * Re-key a name-keyed value map by Sleeper id.
+ *
+ * WHY THIS EXISTS.
+ *
+ * Audit 2026-08-24. This file has three valuation providers and had two keying
+ * schemes: FantasyCalc carries Sleeper ids and is keyed by them, while
+ * KeepTradeCut and DynastyProcess publish names only and were keyed
+ * `position-name` with `sleeperId`/`espnId` left null.
+ *
+ * `normalizeSleeperTrades` looks up `valueMap.get(playerId)` with a SLEEPER id,
+ * and `indexByEspnId` re-keys by `pv.espnId`. So whenever FantasyCalc was
+ * unavailable and the code fell through to either backup, **every lookup missed
+ * and every league trade graded as though both sides were empty** — not a wrong
+ * number, an absent one. `loadLeagueTrades` guards on `values.size === 0`, and
+ * the map was not empty: it was populated, and keyed by something nobody asked
+ * for, so the guard passed and grading proceeded on nothing.
+ *
+ * It survived because every test in `transactions.test.ts` builds the value map
+ * by hand with Sleeper-id keys — correct for testing that consumer in
+ * isolation, and it meant the provider→consumer boundary was never crossed.
+ *
+ * MATCHING. Raw lowercase is not enough: 59 of 527 players in a FantasyPros
+ * snapshot (11.2%) have a name whose normalised form differs from its raw
+ * lowercase — Ja'Marr Chase, A.J. Brown, Amon-Ra St. Brown, Marvin Harrison Jr.,
+ * Kenneth Walker III. Two sources spelling the same player differently is the
+ * normal case, not the edge case, so this reuses the same normaliser and team
+ * aliasing the FantasyPros matcher uses, with the same three tiers.
+ *
+ * Unmatched entries KEEP their original key rather than being dropped. The trade
+ * pool is rendered by iterating `.values()`, so dropping them would shrink a
+ * list that was working in order to fix a lookup that was not.
+ */
+/**
+ * One spelling for a position, across sources that disagree about it.
+ *
+ * KTC and FantasyPros write defenses as "DST"; Sleeper writes "DEF"; some feeds
+ * write "D/ST" and kickers as "PK". Comparing the raw strings drops every
+ * defense to the weakest name-only tier, where "Ravens" and "Baltimore Ravens"
+ * may not meet at all. Found by reading `ktc/match.ts` — which carries this exact
+ * mapping and was never wired up — before deleting it.
+ */
+function canonicalPosition(pos: string | null | undefined): string | undefined {
+  if (!pos) return undefined;
+  const p = pos.toUpperCase().replace(/[^A-Z]/g, "");
+  if (p === "DST" || p === "DEF" || p === "DEFENSE") return "DEF";
+  if (p === "PK" || p === "K") return "K";
+  return p;
+}
+
+export function keyValuesBySleeperId(
+  values: Map<string, PlayerValue>,
+  catalog: ReadonlyArray<IdentifiablePlayer>
+): Map<string, PlayerValue> {
+  // Three tiers, most specific first — the same shape as buildFpIndex.
+  const byNamePosTeam = new Map<string, string>();
+  const byNamePos = new Map<string, string>();
+  const byName = new Map<string, string>();
+  for (const [key, pv] of values) {
+    const name = normalizePlayerName(pv.name);
+    const pos = canonicalPosition(pv.position);
+    const team = normalizeTeamCode(pv.team);
+    if (pos && team && !byNamePosTeam.has(`${name}|${pos}|${team}`)) {
+      byNamePosTeam.set(`${name}|${pos}|${team}`, key);
+    }
+    if (pos && !byNamePos.has(`${name}|${pos}`)) byNamePos.set(`${name}|${pos}`, key);
+    if (!byName.has(name)) byName.set(name, key);
+  }
+
+  const out = new Map<string, PlayerValue>();
+  const consumed = new Set<string>();
+  for (const player of catalog) {
+    if (!player.name) continue;
+    const name = normalizePlayerName(player.name);
+    const pos = canonicalPosition(player.position);
+    const team = normalizeTeamCode(player.team);
+
+    const key =
+      (pos && team ? byNamePosTeam.get(`${name}|${pos}|${team}`) : undefined) ??
+      (pos ? byNamePos.get(`${name}|${pos}`) : undefined) ??
+      byName.get(name);
+    if (!key) continue;
+
+    const pv = values.get(key);
+    if (!pv || consumed.has(key)) continue;
+    consumed.add(key);
+    out.set(player.sleeperId, {
+      ...pv,
+      sleeperId: player.sleeperId,
+      espnId: player.espnId ?? pv.espnId ?? null
+    });
+  }
+
+  // Everything the catalog did not claim stays exactly as it was.
+  for (const [key, pv] of values) {
+    if (!consumed.has(key)) out.set(key, pv);
+  }
+  return out;
 }
 
 const FantasyCalcEntrySchema = z.object({
@@ -319,6 +430,55 @@ export async function fetchKtcValues(
 }
 
 /** Fetch live trade values, governance-wrapped. */
+/**
+ * The Sleeper player catalog, reduced to identity fields.
+ *
+ * Returns an empty array on any failure, which makes `keyValuesBySleeperId` a
+ * no-op and restores the previous behaviour exactly. "No catalog cached yet" is
+ * a real state on a fresh deployment, and it must degrade to a name-keyed pool
+ * rather than to an empty one.
+ */
+async function sleeperIdentityCatalog(): Promise<IdentifiablePlayer[]> {
+  try {
+    const snapshot = await getLatestPlayersSnapshot();
+    if (!snapshot) return [];
+    const out: IdentifiablePlayer[] = [];
+    for (const [id, raw] of Object.entries(snapshot.players ?? {})) {
+      const p = raw as {
+        player_id?: string | null;
+        full_name?: string | null;
+        first_name?: string | null;
+        last_name?: string | null;
+        position?: string | null;
+        team?: string | null;
+        espn_id?: string | number | null;
+      };
+      const name =
+        p.full_name?.trim() || [p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+      if (!name) continue;
+      out.push({
+        sleeperId: p.player_id ?? id,
+        // The schema is `.passthrough()`, so espn_id survives even though it is
+        // not declared — and the ESPN trade path re-keys by it.
+        espnId: p.espn_id == null ? null : String(p.espn_id),
+        name,
+        position: p.position ?? null,
+        team: p.team ?? null
+      });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
+/** How many entries in a re-keyed map actually carry a Sleeper id. */
+function resolvedCount(values: Map<string, PlayerValue>): number {
+  let n = 0;
+  for (const pv of values.values()) if (pv.sleeperId) n += 1;
+  return n;
+}
+
 export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValueData> {
   const basis = valuationBasisFor(format);
   const url = buildFantasyCalcUrl(format);
@@ -353,7 +513,13 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
     // Secondary: KeepTradeCut cached snapshot. Daily cron at 09:00 UTC.
     try {
       const variant = ktcVariantForLeague(format);
-      const { values, fetchedAt } = await fetchKtcValues(format, variant);
+      const { values: named, fetchedAt } = await fetchKtcValues(format, variant);
+      // KTC publishes names, not ids. Resolve them against the Sleeper catalog
+      // so `normalizeSleeperTrades` and `indexByEspnId` can find these players
+      // at all — before this, falling back to KTC meant every league trade
+      // graded as though both sides were empty (audit 2026-08-24).
+      const values = keyValuesBySleeperId(named, await sleeperIdentityCatalog());
+      const ktcResolved = resolvedCount(values);
       // KTC stores a dynasty AND a redraft snapshot, so the secondary can serve
       // the league's real horizon rather than degrading to redraft.
       const provenance: ValuationProvenance = {
@@ -374,10 +540,14 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
           freshness: evaluateFreshness(fetchedAt, KTC_SNAPSHOT_TTL_SECONDS),
           confidence: 0.75,
           validation: "valid",
-          missingFields: ["sleeperId"],
+          // Stated from what actually resolved, not assumed. Claiming the ids
+          // are missing when they are present understates the data as surely as
+          // the reverse overstates it.
+          missingFields: ktcResolved === values.size ? [] : ["sleeperId"],
           assumptions: [
             ...valuationAssumptions(format, provenance),
             "FantasyCalc unavailable; using KeepTradeCut consensus values keyed by name.",
+            `${ktcResolved} of ${values.size} KTC players resolved to a Sleeper id by normalised name, position and team; the remainder are priced but cannot be matched to a league roster.`,
             `Primary failure: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`
           ],
           failure: null
@@ -386,7 +556,10 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
     } catch (ktcErr) {
       // Tertiary: DynastyProcess CSV.
       try {
-        const values = await fetchDynastyProcessValues(format);
+        const named = await fetchDynastyProcessValues(format);
+        // Same resolution as the KTC branch, for the same reason.
+        const values = keyValuesBySleeperId(named, await sleeperIdentityCatalog());
+        const dpResolved = resolvedCount(values);
         // DynastyProcess `values.csv` publishes DYNASTY trade values only — the
         // live header is player,pos,team,age,draft_year,ecr_1qb,ecr_2qb,ecr_pos,
         // value_1qb,value_2qb,scrape_date,fp_id, with no redraft column. For a
@@ -412,10 +585,11 @@ export async function fetchTradeValues(format: LeagueFormat): Promise<TradeValue
             // itself, so it costs more confidence than a same-horizon tertiary.
             confidence: basis === "dynasty" ? 0.6 : 0.45,
             validation: "valid",
-            missingFields: ["sleeperId"],
+            missingFields: dpResolved === values.size ? [] : ["sleeperId"],
             assumptions: [
               ...valuationAssumptions(format, provenance),
               "FantasyCalc + KTC both unavailable; using DynastyProcess ECR-derived values keyed by name.",
+              `${dpResolved} of ${values.size} DynastyProcess players resolved to a Sleeper id by normalised name, position and team; the remainder are priced but cannot be matched to a league roster.`,
               `Primary failure: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`,
               `Secondary failure: ${ktcErr instanceof Error ? ktcErr.message : String(ktcErr)}`
             ],

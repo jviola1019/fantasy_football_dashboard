@@ -200,6 +200,15 @@ export const opportunitySnapshots = pgTable("opportunity_snapshots", {
   payload: jsonb("payload").notNull()
 });
 
+/** Mirror of `seasonStatsSnapshots`; see the note on the SQLite side. */
+export const seasonStatsSnapshots = pgTable("season_stats_snapshots", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  source: text("source").notNull(),
+  fetchedAt: timestamp("fetchedAt", { mode: "date" }).notNull().defaultNow(),
+  sizeBytes: integer("sizeBytes").notNull(),
+  payload: jsonb("payload").notNull()
+});
+
 // ─── Snapshot-table DDL: single source of truth ──────────────────────────────
 // All snapshot tables (SNAPSHOT_TABLES below) share an identical shape.
 // Defining the DDL once here (and composing INIT_SQL + the runtime
@@ -213,7 +222,8 @@ export const SNAPSHOT_TABLES = [
   "ktc_snapshots",
   "projections_snapshots",
   "news_snapshots",
-  "opportunity_snapshots"
+  "opportunity_snapshots",
+  "season_stats_snapshots"
 ] as const;
 
 export type SnapshotTableName = (typeof SNAPSHOT_TABLES)[number];

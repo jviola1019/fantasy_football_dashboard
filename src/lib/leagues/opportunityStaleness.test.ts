@@ -72,7 +72,7 @@ const snapshot = (): LiveLeagueSnapshot =>
     source: src(),
     failure: null,
     format: null,
-    myFaabRemainingRatio: null,
+    faab: null,
     leagueRawData: { status: "complete", season: "2025" },
     draftStatus: null
   }) as unknown as LiveLeagueSnapshot;
@@ -176,5 +176,67 @@ describe("opportunity is only presented as current when it IS current", () => {
     // reading of "I don't know how old this is" is not "it is new".
     const env = build(null);
     expect(env.sourceState.missingFields).toContain("opportunity");
+  });
+});
+
+/**
+ * Data vintage is a different fact from snapshot age, and both must ship.
+ *
+ * Audit 2026-08-31 (D-C). nflverse publishes snap counts per season, and the
+ * cron falls back a year when the current season has no file yet — verified live
+ * on 2026-08-31: `snap_counts_2026.csv` returns 404, `snap_counts_2025.csv`
+ * returns 200. So the entire product was ranking a 2026 draft board on 2025 snap
+ * share while the only disclosure read "Snapshot is 0 days old".
+ *
+ * That sentence was true. It was also the wrong fact, which is worse than no
+ * fact, because it answers the question the reader was about to ask.
+ */
+describe("opportunity states the season its data came from (D-C)", () => {
+  const fresh = new Date();
+
+  it("names the season, and says so plainly when it is not the current one", () => {
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src({ source: "fantasypros-ppr" }),
+      currentSeason: "2026",
+      opportunityScores: { bijanrobinson: { score: 88, position: "RB", team: "ATL", games: 17 } },
+      opportunityFetchedAt: fresh,
+      opportunityDataSeason: "2025"
+    } as never);
+    const said = env.sourceState.assumptions.join(" ");
+    expect(said).toContain("2025 season");
+    expect(said).toMatch(/not 2026/);
+  });
+
+  it("does not imply a mismatch when the vintage IS the current season", () => {
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src({ source: "fantasypros-ppr" }),
+      currentSeason: "2026",
+      opportunityScores: { bijanrobinson: { score: 88, position: "RB", team: "ATL", games: 17 } },
+      opportunityFetchedAt: fresh,
+      opportunityDataSeason: "2026"
+    } as never);
+    const said = env.sourceState.assumptions.join(" ");
+    expect(said).toContain("2026 season");
+    expect(said).not.toMatch(/not 2026/);
+  });
+
+  it("admits ignorance for a snapshot written before the season was recorded", () => {
+    // Legacy snapshots are real data of unknown vintage. Guessing the current
+    // season would reintroduce exactly the defect this fixes.
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src({ source: "fantasypros-ppr" }),
+      currentSeason: "2026",
+      opportunityScores: { bijanrobinson: { score: 88, position: "RB", team: "ATL", games: 17 } },
+      opportunityFetchedAt: fresh,
+      opportunityDataSeason: null
+    } as never);
+    const said = env.sourceState.assumptions.join(" ");
+    expect(said).toMatch(/not recorded/i);
   });
 });

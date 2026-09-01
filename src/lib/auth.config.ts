@@ -35,10 +35,32 @@ export const authConfig = {
       return session;
     },
     /**
-     * Middleware gate (defense-in-depth alongside the page-level `auth()`
-     * checks). The matcher in middleware.ts only routes protected paths here, so
-     * a missing session ⇒ Auth.js redirects to `pages.signIn` (/login).
+     * Deliberately NOT a gate. It reports whether a session exists; the redirect
+     * is `src/proxy.ts`'s job.
+     *
+     * Audit 2026-08-23. When this returned `Boolean(auth?.user)`, the Auth.js
+     * middleware wrapper performed the redirect itself, resolving `/login`
+     * against ITS OWN base URL — and `AUTH_URL` overrides `trustHost`. On a
+     * Vercel preview with `AUTH_URL` pinned to the production host, an
+     * unauthenticated visit to `/settings/leagues` sent the user to
+     * PRODUCTION's login page. They would sign in there, come back, and still
+     * be anonymous, because the session cookie belongs to a different host.
+     * Sign-in was unreachable on every preview deployment, silently.
+     *
+     * This is half the fix and not sufficient alone — measured, after changing
+     * only this, the redirect was STILL cross-origin, because `request.nextUrl`
+     * is itself rewritten from AUTH_URL before the proxy handler runs. The other
+     * half is in `src/proxy.ts`, which now emits a RELATIVE Location.
+     *
+     * The proxy already gated `/settings` explicitly with the identical
+     * condition, because this callback's scope is the whole matcher and would
+     * have redirected anonymous visitors away from the onboarding page. So the
+     * gating is unchanged; only the origin the redirect lands on is.
+     * `requireUser()` remains the authoritative check.
      */
-    authorized: ({ auth }) => Boolean(auth?.user)
+    authorized: ({ auth }) => {
+      void auth;
+      return true;
+    }
   }
 } satisfies NextAuthConfig;

@@ -1,6 +1,6 @@
 # Holdout result 4 — does opportunity add over production to date?
 
-**Executed** 2026-08-23T19:35:42.686Z · **Protocol** [holdout-protocol-4.md](./holdout-protocol-4.md) (frozen `0cd6c2d`)
+**Executed** 2026-08-24T02:42:54.222Z · **Protocol** [holdout-protocol-4.md](./holdout-protocol-4.md) (frozen `0cd6c2d`)
 
 > Baseline is **production to date**, not a stale ADP. A week-9 waiver decision has eight weeks of results available. Features standardised within (season, position); all inference clustered on **player**.
 

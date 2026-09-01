@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { buildNewsWeightMap, normaliseMomentumScores } from "./newsMatch";
+import {
+  buildNewsWeightMap,
+  normaliseMomentumScores,
+  buildPlayerNewsIndex
+} from "./newsMatch";
+import { newsForPlayer } from "./newsLookup";
 import type { EspnNewsArticle } from "./news";
 
 // Stable "now" for all tests: 2026-05-29T12:00:00Z
@@ -142,5 +147,129 @@ describe("normaliseMomentumScores", () => {
     const scores = normaliseMomentumScores(weightMap);
     expect(scores["playerA"]).toBe(100);
     expect(scores["playerB"]).toBe(100);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildPlayerNewsIndex — the headlines, not just the count of them
+// ---------------------------------------------------------------------------
+
+function makeFullArticle(
+  id: number,
+  athleteIds: number[],
+  published: string,
+  extra: Partial<EspnNewsArticle> = {}
+): EspnNewsArticle {
+  return {
+    id,
+    headline: `Headline ${id}`,
+    lastModified: published,
+    published,
+    links: { web: { href: `https://www.espn.com/nfl/story/_/id/${id}` } },
+    categories: athleteIds.map((athleteId) => ({ type: "athlete", athleteId })),
+    ...extra
+  } as EspnNewsArticle;
+}
+
+describe("buildPlayerNewsIndex", () => {
+  it("keys by PlayerMarketRecord.id, NOT the bare Sleeper id", () => {
+    // The D-A canary. `buildNewsWeightMap` keys bare; its consumer looked up by
+    // record id and missed on every player for months. If this index ever
+    // reverts to bare keys, `envelope.playerNews[player.id]` silently returns
+    // nothing and the panel renders "no coverage" for a well-covered player —
+    // the same failure, in a place a reader would believe.
+    const index = buildPlayerNewsIndex([makeFullArticle(1, [4569618], MINUS_1H)], players);
+    expect(Object.keys(index)).toEqual(["sleeper:sleeperA"]);
+    expect(index["sleeperA"]).toBeUndefined();
+  });
+
+  it("carries the headline, an ISO timestamp and the article URL", () => {
+    const index = buildPlayerNewsIndex([makeFullArticle(7, [4569618], MINUS_1H)], players);
+    expect(index["sleeper:sleeperA"]).toEqual([
+      {
+        articleId: 7,
+        headline: "Headline 7",
+        publishedAt: new Date(MINUS_1H).toISOString(),
+        url: "https://www.espn.com/nfl/story/_/id/7"
+      }
+    ]);
+  });
+
+  it("falls back to lastModified when ESPN omits `published`", () => {
+    const article = makeFullArticle(8, [4569618], MINUS_1H);
+    delete (article as { published?: string | null }).published;
+    const index = buildPlayerNewsIndex([article], players);
+    expect(index["sleeper:sleeperA"]![0]!.publishedAt).toBe(new Date(MINUS_1H).toISOString());
+  });
+
+  it("sorts newest first and caps the list", () => {
+    const index = buildPlayerNewsIndex(
+      [
+        makeFullArticle(1, [4569618], MINUS_60H),
+        makeFullArticle(2, [4569618], MINUS_1H),
+        makeFullArticle(3, [4569618], MINUS_30H)
+      ],
+      players,
+      { maxPerPlayer: 2 }
+    );
+    expect(index["sleeper:sleeperA"]!.map((i) => i.articleId)).toEqual([2, 3]);
+  });
+
+  it("keeps articles older than the 72h momentum window", () => {
+    // The weighting drops >72h because stale attention is not momentum. A
+    // headline is still news, and hiding it would leave the reader unable to see
+    // WHY a player they are researching is quiet.
+    const index = buildPlayerNewsIndex([makeFullArticle(9, [4569618], MINUS_80H)], players);
+    expect(index["sleeper:sleeperA"]).toHaveLength(1);
+    expect(buildNewsWeightMap([makeArticle(9, [4569618], MINUS_80H)], players, NOW_MS).size).toBe(0);
+  });
+
+  it("never fabricates for an athlete Sleeper has no espn_id for", () => {
+    const index = buildPlayerNewsIndex([makeFullArticle(1, [999999], MINUS_1H)], players);
+    expect(index).toEqual({});
+  });
+
+  it("does not list the same article twice for one player", () => {
+    const dup = makeFullArticle(1, [4569618, 4569618], MINUS_1H);
+    expect(buildPlayerNewsIndex([dup], players)["sleeper:sleeperA"]).toHaveLength(1);
+  });
+
+  it("attributes a multi-player article to each player once", () => {
+    const index = buildPlayerNewsIndex([makeFullArticle(1, [4569618, 3054211], MINUS_1H)], players);
+    expect(Object.keys(index).sort()).toEqual(["sleeper:sleeperA", "sleeper:sleeperB"]);
+  });
+
+  it("nulls a non-absolute or missing link rather than emitting a broken one", () => {
+    // A relative href would fail `z.string().url()` and reject the WHOLE
+    // envelope, not just this link.
+    const relative = makeFullArticle(1, [4569618], MINUS_1H, {
+      links: { web: { href: "/nfl/story/_/id/1" } }
+    } as Partial<EspnNewsArticle>);
+    expect(buildPlayerNewsIndex([relative], players)["sleeper:sleeperA"]![0]!.url).toBeNull();
+    const none = makeFullArticle(2, [4569618], MINUS_1H, { links: null } as Partial<EspnNewsArticle>);
+    expect(buildPlayerNewsIndex([none], players)["sleeper:sleeperA"]![0]!.url).toBeNull();
+  });
+
+  it("drops an article whose timestamp cannot be parsed", () => {
+    // Better no headline than one whose age reads "NaN ago".
+    const bad = makeFullArticle(1, [4569618], "not-a-date");
+    expect(buildPlayerNewsIndex([bad], players)).toEqual({});
+  });
+});
+
+describe("newsForPlayer", () => {
+  const index = buildPlayerNewsIndex([makeFullArticle(1, [4569618], MINUS_1H)], players);
+
+  it("accepts the record id form", () => {
+    expect(newsForPlayer("sleeper:sleeperA", index)).toHaveLength(1);
+  });
+
+  it("also accepts a bare id, so no caller can repeat D-A", () => {
+    expect(newsForPlayer("sleeperA", index)).toHaveLength(1);
+  });
+
+  it("returns an empty list, never undefined, for an unknown player or absent index", () => {
+    expect(newsForPlayer("sleeper:nobody", index)).toEqual([]);
+    expect(newsForPlayer("sleeper:sleeperA", null)).toEqual([]);
   });
 });

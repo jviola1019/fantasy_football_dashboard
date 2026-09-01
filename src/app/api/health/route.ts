@@ -6,6 +6,8 @@ import { getLatestPlayersSnapshot } from "@/lib/sleeper/snapshot";
 import { getLatestRankingsSnapshot } from "@/lib/fantasypros/snapshot";
 import { getLatestNewsSnapshot } from "@/lib/espn/newsSnapshot";
 import { getLatestOpportunitySnapshot } from "@/lib/nflverse/opportunitySnapshot";
+import { getLatestSeasonStatsSnapshot } from "@/lib/sleeper/seasonStatsSnapshot";
+import { getNflState } from "@/lib/sleeper/league";
 import { evaluateFreshness, type FreshnessContract, type FreshnessResult } from "@/lib/ops/freshness";
 import { SNAPSHOT_CONTRACT } from "@/lib/ops/snapshotContracts";
 
@@ -35,6 +37,16 @@ const SNAPSHOT_CONTRACTS: Array<{
   {
     contract: SNAPSHOT_CONTRACT.nflverseOpportunity,
     load: () => getLatestOpportunitySnapshot("nfl")
+  },
+  {
+    contract: SNAPSHOT_CONTRACT.sleeperSeasonStats,
+    // Keyed by SEASON, not a fixed key: last year's totals are not this year's
+    // points-to-date, and reading them as such would be the P0-5 error again.
+    load: async () => {
+      const state = await getNflState();
+      const season = state.data?.season;
+      return season ? getLatestSeasonStatsSnapshot(season) : null;
+    }
   },
   {
     contract: SNAPSHOT_CONTRACT.espnNews,

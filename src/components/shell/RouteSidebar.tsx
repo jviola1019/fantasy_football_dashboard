@@ -46,7 +46,7 @@ export function RouteSidebar() {
             <circle cx="22.9" cy="6" r="2.1" fill="#d7a857" />
           </svg>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-extrabold tracking-[0.14em] text-foreground">RAE</span>
+            <span className="text-sm font-bold tracking-[0.14em] text-foreground">RAE</span>
             <span className="text-micro uppercase tracking-[0.14em] text-muted-foreground">
               Roster Analytics Engine
             </span>

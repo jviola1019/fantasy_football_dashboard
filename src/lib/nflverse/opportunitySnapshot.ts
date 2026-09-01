@@ -1,10 +1,15 @@
 import { makeSnapshotStore } from "../../db/snapshotStore";
-import { OpportunityMapSchema, type OpportunityMap } from "./opportunity";
+import {
+  OpportunityPayloadSchema,
+  readOpportunityPayload,
+  type OpportunityMap,
+  type OpportunityPayload
+} from "./opportunity";
 
-const store = makeSnapshotStore<OpportunityMap>({
+const store = makeSnapshotStore<OpportunityPayload>({
   table: "opportunity_snapshots",
   tableKey: "opportunitySnapshots",
-  schema: OpportunityMapSchema
+  schema: OpportunityPayloadSchema
 });
 
 export interface OpportunitySnapshot {
@@ -13,6 +18,15 @@ export interface OpportunitySnapshot {
   fetchedAt: Date;
   sizeBytes: number;
   scores: OpportunityMap;
+  /**
+   * The nflverse season these snap shares describe, or null for a snapshot
+   * written before the season was persisted (audit 2026-08-31, D-C).
+   *
+   * NOT the same fact as `fetchedAt`. A snapshot written last night can carry
+   * last season's data, because the cron falls back a year when the current
+   * season has no snap counts yet.
+   */
+  dataSeason: string | null;
 }
 
 /**
@@ -24,17 +38,21 @@ export interface OpportunitySnapshot {
 export async function getLatestOpportunitySnapshot(source: string): Promise<OpportunitySnapshot | null> {
   const rec = await store.getLatest(source);
   if (!rec) return null;
-  return { id: rec.id, source, fetchedAt: rec.fetchedAt, sizeBytes: rec.sizeBytes, scores: rec.payload };
+  const { dataSeason, scores } = readOpportunityPayload(rec.payload);
+  return { id: rec.id, source, fetchedAt: rec.fetchedAt, sizeBytes: rec.sizeBytes, scores, dataSeason };
 }
 
 export async function insertOpportunitySnapshot({
   source,
-  scores
+  scores,
+  dataSeason
 }: {
   source: string;
   scores: OpportunityMap;
+  /** The season the scores describe. Required on write — see D-C. */
+  dataSeason: string;
 }): Promise<{ id: string; sizeBytes: number }> {
-  const rec = await store.insert(source, scores);
+  const rec = await store.insert(source, { dataSeason, scores });
   return { id: rec.id, sizeBytes: rec.sizeBytes };
 }
 

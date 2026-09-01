@@ -6,6 +6,7 @@ import {
   reconcileLifecycleNotifications
 } from "@/lib/lifecycle/notifications";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
+import { myFaabBudget } from "@/lib/leagues/faab";
 import { getCurrentNflSeason } from "@/lib/schedule/season";
 import { pruneThrottle, THROTTLE_RETENTION_MS } from "@/lib/auth/throttle";
 import {
@@ -101,7 +102,11 @@ export async function GET(request: Request): Promise<Response> {
       leagueId: league.id,
       roster: snapshot.myRoster,
       byeSchedule,
-      faabRemainingRatio: snapshot.myFaabRemainingRatio,
+      // S4: read off the same league-wide budget object /waivers draws, so the
+      // alert and the panel can never describe different numbers. Null when the
+      // user's own team could not be identified — an unresolved identity must
+      // not alert on a stranger's budget.
+      faabRemainingRatio: myFaabBudget(snapshot.faab)?.ratio ?? null,
       injuredStarters,
       // Audit 2026-08-20 §9: pass the snapshot's OWN injury-evidence state so the
       // engine can only resolve injury alerts when the status behind them was

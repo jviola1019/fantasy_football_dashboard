@@ -52,7 +52,15 @@ export async function GET(request: Request): Promise<Response> {
       );
     }
 
-    const inserted = await insertOpportunitySnapshot({ source: OPP_SOURCE, scores });
+    // `usedSeason` is persisted, not merely reported. It used to appear only in
+    // this response body, so the envelope had no way to know whether it was
+    // holding current-season usage or last season's fallback, and disclosed
+    // snapshot AGE as if it settled the question (audit 2026-08-31, D-C).
+    const inserted = await insertOpportunitySnapshot({
+      source: OPP_SOURCE,
+      scores,
+      dataSeason: usedSeason
+    });
     const pruned = await pruneOldOpportunitySnapshots(OPP_SOURCE, KEEP_LAST_MS);
 
     return NextResponse.json({

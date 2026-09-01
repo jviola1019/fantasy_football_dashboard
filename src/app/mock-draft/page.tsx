@@ -4,6 +4,7 @@ import { rankingsSourceFromSnapshot } from "@/lib/leagues/toEnvelope";
 import { DraftIntelligence } from "@/components/panels/DraftIntelligence";
 import { BackToDashboard } from "@/components/ui/BackToDashboard";
 import { SourceFreshnessBadge } from "@/components/governance/SourceFreshnessBadge";
+import { GovernanceFields } from "@/components/shell/GovernanceBanner";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Mock Draft" };
@@ -41,12 +42,25 @@ export default async function MockDraftPage() {
       <Header
         meta={`${snapshot.data.players.length} players · updated ${snapshot.data.last_updated} · ${snapshot.data.total_experts} experts`}
       />
-      <div style={sourceStripStyle} role="status">
+      {/* The same governance row every other route shows.
+          Until 2026-08-24 this route stated its provenance its own way — a
+          source badge plus a sentence. The information was all present (this
+          SourceMeta carries confidence, validation, assumptions and missing
+          fields like any other), but shaped differently, so a reader had to
+          learn a second layout to answer the same question and the route-level
+          governance audit could not check it at all.
+
+          No league line: there is no league here, and inventing one would be the
+          opposite of the point. The "not your league" framing survives as the
+          note, because it is the single most important thing to understand about
+          this board. */}
+      <div style={sourceStripStyle}>
         <SourceFreshnessBadge sourceState={source} />
-        <span style={{ color: "var(--cream)" }}>
-          Consensus rankings — <b>not your league</b>. Recommendations are model-derived from the consensus board.
-        </span>
       </div>
+      <GovernanceFields
+        sourceState={source}
+        note="Consensus rankings — not your league. Recommendations are model-derived from the consensus board."
+      />
       <DraftIntelligence players={records} />
     </main>
   );
@@ -86,7 +100,7 @@ const h1Style: React.CSSProperties = {
   color: "var(--cream)",
   margin: 0,
   fontSize: "var(--text-2xl)",
-  letterSpacing: 0.2
+  letterSpacing: "0.02em"
 };
 
 const h2Style: React.CSSProperties = {

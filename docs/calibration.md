@@ -15,7 +15,7 @@ Status: **structural** — the simulation engine is deterministic, replayable, a
 
 | Metric | Definition | Bounds | Sensitivity |
 | --- | --- | --- | --- |
-| `reputationEdge` | `trueValue − perceivedValue + 0.18·ownershipLeverage − 0.08·fragility` | ±200 (theoretical), typically ±25 | monotone ↑ in `trueValue`, ↓ in `fragility` |
+| `scarcityGap` | `trueValue − perceivedValue + 0.18·ownershipLeverage − 0.08·fragility` | ±200 (theoretical), typically ±25 | monotone ↑ in `trueValue`, ↓ in `fragility` |
 | `marketInefficiency` | `|trueValue − perceivedValue|·confidence + 0.12·max(0, ownershipLeverage)` | ≥ 0 | rises with disagreement |
 | `narrativeVelocity` | `0.54·trendingMomentum + 0.28·volatility − 0.11·fragility` | ≈ ±90 | monotone ↑ in `trendingMomentum` |
 | `chaosExposure` | `0.45·volatility + 0.4·fragility + 0.15·|trendingMomentum|` | ≥ 0 | monotone ↑ in `volatility` |
@@ -61,7 +61,7 @@ To claim accuracy against real-world outcomes the engine needs all of:
 
 Wherever the dashboard displays a probability or rate computed from Monte Carlo output, it must also display the 95% confidence interval derived via `bootstrapCI` from `src/lib/stats/distribution.ts`. The CI uses 1000 bootstrap resamples, alpha = 0.05, and the same Mulberry32 RNG as the simulation engine — so the band is reproducible from `(seed, iterations, samples)` alone.
 
-For point estimates that are not Monte Carlo outputs (e.g. `reputationEdge` of a single player), no CI is displayed — the value is a deterministic function of inputs and uncertainty lives in the inputs themselves. Source confidence (`PlayerMarketRecord.confidence` ∈ [0, 1]) is surfaced verbatim in the source-state envelope.
+For point estimates that are not Monte Carlo outputs (e.g. `scarcityGap` of a single player), no CI is displayed — the value is a deterministic function of inputs and uncertainty lives in the inputs themselves. Source confidence (`PlayerMarketRecord.confidence` ∈ [0, 1]) is surfaced verbatim in the source-state envelope.
 
 ## Out-of-scope this pass
 

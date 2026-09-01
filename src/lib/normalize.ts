@@ -35,7 +35,7 @@ export function sleeperPlayerToRecord(
     opportunity: 0,
     confidence: 0,
     sources: [withMissingMarketFields(context.source)],
-    rosterSlot: context.rosterSlot ?? "FLEX",
+    rosterSlot: context.rosterSlot ?? null,
     status: mapSleeperStatus(player.injury_status, player.active),
     imageUrl: sleeperHeadshotUrl(playerId),
     imageSource: "Sleeper headshot CDN"
@@ -64,7 +64,7 @@ export function espnPlayerToRecord(
     opportunity: 0,
     confidence: 0,
     sources: [withMissingMarketFields(context.source)],
-    rosterSlot: context.rosterSlot ?? "FLEX",
+    rosterSlot: context.rosterSlot ?? null,
     status: mapEspnStatus(player.injuryStatus, player.active),
     imageUrl: `${ESPN_HEADSHOT_BASE}/${player.id}.png`,
     imageSource: "ESPN headshot CDN"

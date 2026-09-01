@@ -1,7 +1,8 @@
 import NextAuth from "next-auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { authConfig } from "@/lib/auth.config";
 import { buildCsp, CSP_HEADER_NAME, CSP_REPORT_ONLY } from "@/lib/security/csp";
+import { deploymentHosts, resolveLoginOrigin } from "@/lib/security/loginRedirect";
 
 // Next 16 "proxy" (formerly "middleware"), built from the adapter-free config so
 // the native DB driver is never imported at the edge.
@@ -33,6 +34,30 @@ function isProtected(pathname: string): boolean {
   return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+/**
+ * Where to send an anonymous visitor — see `loginRedirect.ts` for why this is
+ * not `new URL("/login", request.nextUrl.origin)`. Short version: `nextUrl` is
+ * rewritten from AUTH_URL by next-auth before this runs, which sent preview
+ * visitors to production's login page and made sign-in unreachable on every
+ * preview deployment.
+ */
+function loginUrl(request: NextRequest): URL {
+  const target = request.nextUrl.clone();
+  target.pathname = "/login";
+  target.search = "";
+
+  const origin = resolveLoginOrigin({
+    headerHost: request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+    forwardedProto: request.headers.get("x-forwarded-proto"),
+    allowed: deploymentHosts(process.env)
+  });
+  if (origin) {
+    target.host = origin.host;
+    target.protocol = origin.protocol;
+  }
+  return target;
+}
+
 export default auth((request) => {
   const nonce = crypto.randomUUID();
   const csp = buildCsp({
@@ -42,8 +67,7 @@ export default auth((request) => {
   });
 
   if (isProtected(request.nextUrl.pathname) && !request.auth?.user) {
-    const loginUrl = new URL("/login", request.nextUrl.origin);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(loginUrl(request));
   }
 
   // Next reads the CSP from the REQUEST headers to decide where to stamp the

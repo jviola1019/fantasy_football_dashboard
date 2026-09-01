@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildLiveEnvelope } from "./toEnvelope";
 import type { LiveLeagueSnapshot } from "./fetchLive";
-import type { PlayerMarketRecord, SourceMeta } from "../governance";
+import { RAEEnvelopeSchema, type PlayerMarketRecord, type SourceMeta } from "../governance";
 import type { FpEcrData } from "../fantasypros/types";
+import { rankInSeason } from "../models/inSeasonScore";
 
 /**
  * `toEnvelope.ts` assembles the object every panel on every route reads, and it
@@ -45,7 +46,12 @@ const player = (name: string): PlayerMarketRecord =>
     confidence: 0.5,
     rosterSlot: "RB",
     status: "active",
-    sources: []
+    sources: [],
+    // Present so the fixture is a SCHEMA-VALID record: the S4 test below parses
+    // a whole envelope, and a fixture that cannot survive its own schema would
+    // fail for reasons unrelated to what it is testing.
+    imageUrl: "https://sleepercdn.com/content/nfl/players/thumb/0.jpg",
+    imageSource: "sleeper-cdn"
   }) as unknown as PlayerMarketRecord;
 
 const snapshot = (over: Partial<LiveLeagueSnapshot> = {}): LiveLeagueSnapshot =>
@@ -58,7 +64,7 @@ const snapshot = (over: Partial<LiveLeagueSnapshot> = {}): LiveLeagueSnapshot =>
     source: src(),
     failure: null,
     format: null,
-    myFaabRemainingRatio: null,
+    faab: null,
     leagueRawData: { status: "complete", season: "2025" },
     draftStatus: null,
     ...over
@@ -208,5 +214,219 @@ describe("a roster substitution reaches the envelope (P0-3)", () => {
     expect(disclosure(build({ identityResolved: true, identityNote: null }))).not.toMatch(
       /Showing Team/i
     );
+  });
+});
+
+/**
+ * Season rates have to reach the pool the in-season board is actually given.
+ *
+ * Audit 2026-08-31 (D-B). `withSeasonRates` was applied at exactly two call
+ * sites, both setting `records` — the user's own roster. But `InSeasonBoard` is
+ * mounted inside `WaiverWire` (`WaiverWire.tsx:96`) and receives
+ * `players={d.marketPool}` (`RouteView.tsx:95`), and post-draft `marketPool` is
+ * `freeAgents` (`derive.ts:139`).
+ *
+ * So `pointsPerGame` / `touchesPerGame` were null for every free agent,
+ * `rankCohort` dropped all of them, and the ONE model in this product with a
+ * positive out-of-sample result (protocols 4 and 5) rendered "unavailable" for
+ * the whole season on every real league. It worked only in the anonymous demo,
+ * where `draftState` is absent so `marketPool` falls back to the hand-authored
+ * fixture rows.
+ */
+describe("season rates reach the free-agent pool (D-B)", () => {
+  const statsFor = (ids: string[]) =>
+    Object.fromEntries(
+      ids.map((id) => [id, { gp: 10, pts_ppr: 150, rec: 40, rush_att: 60 }])
+    ) as never;
+
+  const withUniverse = (extra: Record<string, unknown> = {}) =>
+    buildLiveEnvelope({
+      snapshot: snapshot({
+        // Rostered by someone else, so it lands in neither roster nor FA-by-luck.
+        allRosters: [[player("Rostered Guy")]],
+        myRoster: [player("Rostered Guy")]
+      }),
+      rankings: rankings(),
+      rankingsSource: src({ source: "fantasypros-ppr" }),
+      playersSnapshot: {
+        "fa-1": { player_id: "fa-1", full_name: "Free Agent One", position: "RB", team: "BBB", active: true },
+        "fa-2": { player_id: "fa-2", full_name: "Free Agent Two", position: "WR", team: "CCC", active: true }
+      },
+      ...extra
+    } as never);
+
+  it("stamps pointsPerGame onto free agents, not only the user's roster", () => {
+    const env = withUniverse({ seasonStats: statsFor(["sleeper:fa-1", "sleeper:fa-2"]) });
+    const fas = env.freeAgents ?? [];
+    expect(fas.length, "no free agents were built — fixture problem, not the defect").toBeGreaterThan(0);
+    const rated = fas.filter((p) => p.pointsPerGame != null);
+    expect(
+      rated.length,
+      "free agents carry no season rates, so rankInSeason drops every one of them"
+    ).toBeGreaterThan(0);
+  });
+
+  it("stamps them onto the league universe too", () => {
+    const env = withUniverse({ seasonStats: statsFor(["sleeper:fa-1", "sleeper:fa-2"]) });
+    const universe = env.leagueUniverse ?? [];
+    expect(universe.length).toBeGreaterThan(0);
+    expect(universe.some((p) => p.pointsPerGame != null)).toBe(true);
+  });
+
+  it("produces a NON-EMPTY in-season ranking from the post-draft pool", () => {
+    // The real exit criterion. Populating the field is necessary but not
+    // sufficient: rankCohort needs BOTH rates and a cohort of at least five per
+    // position (inSeasonScore.ts:64), and it is the ranking, not the field, that
+    // the user sees. This asserts the model the audit called unreachable is
+    // reachable from the pool the panel is actually handed.
+    const ids = ["fa-1", "fa-2", "fa-3", "fa-4", "fa-5", "fa-6"];
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({
+        allRosters: [[player("Rostered Guy")]],
+        myRoster: [player("Rostered Guy")]
+      }),
+      rankings: rankings(),
+      rankingsSource: src({ source: "fantasypros-ppr" }),
+      playersSnapshot: Object.fromEntries(
+        ids.map((id, i) => [
+          id,
+          { player_id: id, full_name: `Free Agent ${i}`, position: "RB", team: "BBB", active: true }
+        ])
+      ),
+      // Distinct rates, so the cohort has spread to rank on.
+      seasonStats: Object.fromEntries(
+        ids.map((id, i) => [
+          `sleeper:${id}`,
+          { gp: 10, pts_ppr: 100 + i * 15, rec: 20 + i * 4, rush_att: 40 + i * 6 }
+        ])
+      ) as never
+    } as never);
+
+    // Narrowed exactly as InSeasonBoard.tsx:24-27 does, so this exercises the
+    // production path rather than a friendlier one.
+    const withRates = (env.freeAgents ?? []).filter(
+      (p): p is PlayerMarketRecord & { pointsPerGame: number; touchesPerGame: number } =>
+        p.pointsPerGame != null && p.touchesPerGame != null
+    );
+    expect(withRates.length, "no free agent carries both rates").toBeGreaterThanOrEqual(5);
+    const ranked = rankInSeason(withRates);
+    expect(
+      ranked.size,
+      "the validated in-season ranking is still empty for a post-draft pool"
+    ).toBeGreaterThan(0);
+  });
+
+  it("leaves rates null when there are no season stats, rather than inventing them", () => {
+    // Before kickoff there are no games. Null is the honest answer, and
+    // rankCohort is built to drop the player rather than score half a model.
+    const env = withUniverse({ seasonStats: null });
+    const fas = env.freeAgents ?? [];
+    expect(fas.every((p) => p.pointsPerGame == null)).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// S4 — the two feeds that were fetched and then discarded
+// ---------------------------------------------------------------------------
+
+describe("the envelope carries what the app already fetched", () => {
+  const faabState = {
+    total: 100,
+    teamCount: 2,
+    budgets: [
+      { teamId: "2", teamName: "Bob", isMine: false, total: 100, remaining: 90, ratio: 0.9 },
+      { teamId: "1", teamName: "Me", isMine: true, total: 100, remaining: 63, ratio: 0.63 }
+    ]
+  };
+
+  it("passes FAAB budgets through to the envelope", () => {
+    // Before S4 this stopped at the snapshot: the lifecycle cron alerted on the
+    // budget while /waivers told the user budgets were "not connected".
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({ faab: faabState }),
+      rankings: rankings(),
+      rankingsSource: src()
+    });
+    expect(env.faab).toEqual(faabState);
+  });
+
+  it("passes budgets through even when the rankings cache is empty", () => {
+    // A budget does not come from FantasyPros, so a cold rankings cache is no
+    // reason to hide it.
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({ faab: faabState }),
+      rankings: null,
+      rankingsSource: src()
+    });
+    expect(env.faab).toEqual(faabState);
+  });
+
+  it("carries a null budget for a league that does not use FAAB", () => {
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src()
+    });
+    expect(env.faab).toBeNull();
+  });
+
+  it("passes the news index and its provenance through", () => {
+    const playerNews = {
+      "sleeper:4046": [
+        {
+          articleId: 1,
+          headline: "Real headline",
+          publishedAt: "2026-08-31T12:00:00.000Z",
+          url: "https://www.espn.com/nfl/story/_/id/1"
+        }
+      ]
+    };
+    const playerNewsMeta = {
+      source: "ESPN NFL news",
+      fetchedAt: "2026-08-31T09:20:00.000Z",
+      articleCount: 100,
+      coveredPlayers: 1
+    };
+    const env = buildLiveEnvelope({
+      snapshot: snapshot(),
+      rankings: rankings(),
+      rankingsSource: src(),
+      playerNews,
+      playerNewsMeta
+    });
+    expect(env.playerNews).toEqual(playerNews);
+    expect(env.playerNewsMeta).toEqual(playerNewsMeta);
+  });
+
+  it("validates against the envelope schema, so the panel's input is the parsed shape", () => {
+    // The panel reads `envelope.faab` and `envelope.playerNews` off a value that
+    // has been through RAEEnvelopeSchema. A field the schema does not know about
+    // is silently stripped there, and the panel would render "unavailable" for
+    // data that reached the loader intact.
+    const env = buildLiveEnvelope({
+      snapshot: snapshot({ faab: faabState }),
+      rankings: rankings(),
+      rankingsSource: src(),
+      playerNews: {
+        "sleeper:4046": [
+          {
+            articleId: 1,
+            headline: "Real headline",
+            publishedAt: "2026-08-31T12:00:00.000Z",
+            url: null
+          }
+        ]
+      },
+      playerNewsMeta: {
+        source: "ESPN NFL news",
+        fetchedAt: "2026-08-31T09:20:00.000Z",
+        articleCount: 100,
+        coveredPlayers: 1
+      }
+    });
+    const parsed = RAEEnvelopeSchema.parse(env);
+    expect(parsed.faab?.budgets).toHaveLength(2);
+    expect(parsed.playerNews?.["sleeper:4046"]).toHaveLength(1);
+    expect(parsed.playerNewsMeta?.articleCount).toBe(100);
   });
 });

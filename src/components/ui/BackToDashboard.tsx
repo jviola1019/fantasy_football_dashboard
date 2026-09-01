@@ -46,7 +46,7 @@ const style: React.CSSProperties = {
   border: "1px solid rgba(255,255,255,0.12)",
   borderRadius: 8,
   textDecoration: "none",
-  letterSpacing: 0.2,
+  letterSpacing: "0.02em",
   whiteSpace: "nowrap",
   transition: "border-color 120ms ease, background 120ms ease"
 };

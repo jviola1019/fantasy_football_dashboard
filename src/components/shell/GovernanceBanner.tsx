@@ -1,4 +1,4 @@
-import type { RAEEnvelope } from "@/lib/governance";
+import type { RAEEnvelope, SourceMeta } from "@/lib/governance";
 import { AssumptionsDrawer } from "@/components/governance/AssumptionsDrawer";
 
 /**
@@ -29,33 +29,30 @@ function Field({ label, value, tone }: { label: string; value: string; tone?: "p
   );
 }
 
-export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
-  const fmt = envelope.leagueFormat;
-  const draftState = envelope.draftState ?? "unknown";
-  const s = envelope.sourceState;
-
-  const scoring =
-    fmt?.scoringFormat === "PPR" ? "PPR" : fmt?.scoringFormat === "HALF" ? "Half-PPR" : "Standard";
-  const leagueValue = fmt
-    ? [
-        `${scoring} · ${fmt.numTeams}-team`,
-        envelope.season
-          ? `${envelope.season.completed ? `${envelope.season.completed}→` : ""}${envelope.season.upcoming}`
-          : null,
-        draftState === "unknown"
-          ? null
-          : draftState === "pre"
-            ? "pre-draft (full universe)"
-            : "post-draft (free agents)"
-      ]
-        .filter(Boolean)
-        .join(" · ")
-    : null;
-
-  // Tones map to the real enums, not to a guess. Freshness is
-  // fresh | stale | missing | unavailable | fixture; validation is
-  // valid | invalid | not-run. "fixture" and "not-run" are neutral states, not
-  // failures — colouring them red would overstate a problem that isn't one.
+/**
+ * The governance field row itself, decoupled from the envelope.
+ *
+ * Split out 2026-08-24. `/mock-draft` is a standalone route with no league and
+ * therefore no envelope, so it could not use this component and grew its own
+ * presentation instead: a source badge and a sentence. The information was all
+ * there — that route's `SourceMeta` carries confidence, validation, assumptions
+ * and missing fields like every other — but it was shaped differently, so a
+ * reader had to learn a second layout to answer the same question, and the
+ * route-level governance audit could not check it at all.
+ *
+ * Everything this needs is a `SourceMeta`. The league line is optional because
+ * on `/mock-draft` there genuinely is no league, and inventing one would be the
+ * opposite of the point.
+ */
+export function GovernanceFields({
+  sourceState: s,
+  leagueValue,
+  note
+}: {
+  sourceState: SourceMeta;
+  leagueValue?: string | null;
+  note?: string;
+}) {
   const freshTone =
     s.freshness === "fresh" ? "pos" : s.freshness === "stale" || s.freshness === "fixture" ? "neu" : "neg";
   const validTone = s.validation === "valid" ? "pos" : s.validation === "not-run" ? "neu" : "neg";
@@ -77,6 +74,7 @@ export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
         <Field label="Confidence" value={`${(s.confidence * 100).toFixed(0)}%`} />
         <Field label="Validation" value={s.validation} tone={validTone} />
       </div>
+      {note ? <p className="gov-banner-note">{note}</p> : null}
       {s.failure ? <p className="gov-banner-note gov-banner-failure">Failure: {s.failure}</p> : null}
       {s.missingFields.length > 0 ? (
         <p className="gov-banner-note">
@@ -87,4 +85,33 @@ export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
       <AssumptionsDrawer sourceState={s} />
     </div>
   );
+}
+
+export function GovernanceBanner({ envelope }: { envelope: RAEEnvelope }) {
+  const fmt = envelope.leagueFormat;
+  const draftState = envelope.draftState ?? "unknown";
+
+  const scoring =
+    fmt?.scoringFormat === "PPR" ? "PPR" : fmt?.scoringFormat === "HALF" ? "Half-PPR" : "Standard";
+  const leagueValue = fmt
+    ? [
+        `${scoring} · ${fmt.numTeams}-team`,
+        envelope.season
+          ? `${envelope.season.completed ? `${envelope.season.completed}→` : ""}${envelope.season.upcoming}`
+          : null,
+        draftState === "unknown"
+          ? null
+          : draftState === "pre"
+            ? "pre-draft (full universe)"
+            : "post-draft (free agents)"
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : null;
+
+  // Tones map to the real enums, not to a guess — see GovernanceFields, which
+  // owns that mapping now. Freshness is fresh | stale | missing | unavailable |
+  // fixture; validation is valid | invalid | not-run. "fixture" and "not-run"
+  // are neutral states, not failures.
+  return <GovernanceFields sourceState={envelope.sourceState} leagueValue={leagueValue} />;
 }

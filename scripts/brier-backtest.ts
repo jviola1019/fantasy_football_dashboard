@@ -782,7 +782,31 @@ async function main() {
     lines.push(`| Resolution | ${result.resolution.toFixed(4)} | Sharpness beyond base rate |`);
     lines.push(`| Uncertainty | ${result.uncertainty.toFixed(4)} | Irreducible base-rate variance |`);
     lines.push(`| Check R−Res+U | ${(result.reliability - result.resolution + result.uncertainty).toFixed(4)} | = Score ✓ |`);
+    // The comparison that decides whether a Brier score means anything: the
+    // climatology forecast (always predict the base rate) scores exactly
+    // `uncertainty` = p(1-p). A model that does not beat it has no skill, and
+    // until 2026-08-26 that fact was a footnote at the bottom of the report
+    // instead of a verdict beside the number. Protocol 7 recommendation 3.
+    const climBrier = result.uncertainty;
+    const skill = climBrier > 0 ? 1 - result.score / climBrier : 0;
+    lines.push(
+      `| **Climatology** | ${climBrier.toFixed(4)} | Always forecast the base rate — the bar to clear |`
+    );
+    lines.push(
+      `| **Brier Skill Score** | ${(skill * 100).toFixed(1)}% | vs climatology; ≤ 0 means no skill |`
+    );
     lines.push("");
+    if (skill <= 0) {
+      lines.push(
+        `> **RETIRED — this model has no skill and must not be used.** Its Brier ` +
+        `(${result.score.toFixed(4)}) is worse than simply forecasting the ${pos} base rate ` +
+        `(${climBrier.toFixed(4)}), so a constant number beats it. Reported here only so the ` +
+        `result stays reproducible; protocol 7 recommendation 3 ` +
+        `(\`reports/2026-08-25/holdout-result-7.md\`). The calibration model below is the one ` +
+        `with measured skill at this position.`
+      );
+      lines.push("");
+    }
 
     if (hasWeekFolds && weekFolded.length >= 2) {
       const cvResult = kFoldCV(weekFolded, Math.min(5, weekFolded.length), (_train, test) => {
@@ -863,13 +887,29 @@ async function main() {
       `${beat.length}/${posResults.length} beat the base-rate-only benchmark, i.e. Resolution > Reliability ` +
       `(${beat.map((r) => r.pos).join(", ") || "none"}).`
     );
-    const worst = [...posResults].sort((a, b) => (b.reliability - b.resolution) - (a.reliability - a.resolution))[0];
-    if (worst && worst.reliability > worst.resolution) {
+    // Retired positions, named in the summary rather than only in their own
+    // section. "Treat its score as no better than climatology" was the old
+    // wording and it was too kind: a negative skill score means WORSE than
+    // climatology, not equal to it. Audit 2026-08-26.
+    // `clim` on this summary object is the base RATE p, not a Brier score.
+    // Climatology Brier is p(1 - p) -- the same quantity the Murphy
+    // decomposition calls Uncertainty, which is why the two agree per section.
+    const climBrierOf = (p: number) => p * (1 - p);
+    const retired = posResults.filter((r) => climBrierOf(r.clim) > 0 && r.score >= climBrierOf(r.clim));
+    if (retired.length > 0) {
       lines.push("");
       lines.push(
-        `**Caveat:** ${worst.pos} has Reliability (${worst.reliability.toFixed(3)}) ≥ Resolution ` +
-        `(${worst.resolution.toFixed(3)}) — the rank→prob mapping is mis-calibrated there and does not ` +
-        `clear the base-rate-only forecast; treat its score as no better than climatology.`
+        `**${retired.length} of ${posResults.length} positions are RETIRED** ` +
+        `(${retired.map((r) => r.pos).join(", ")}): the rank→prob model scores WORSE than always ` +
+        `forecasting the base rate, so a constant number beats it — ` +
+        retired
+          .map(
+            (r) =>
+              `${r.pos} ${r.score.toFixed(4)} vs climatology ${climBrierOf(r.clim).toFixed(4)} ` +
+              `(skill ${((1 - r.score / climBrierOf(r.clim)) * 100).toFixed(1)}%)`
+          )
+          .join("; ") +
+        `. Use the calibration model at those positions. Protocol 7 recommendation 3.`
       );
     }
 
@@ -901,8 +941,14 @@ async function main() {
   lines.push(
     "**Scope:** this backtest measures weekly *start/sit projection discrimination* only. " +
       "The season simulator's `playoffProbability` / `championshipProbability` calibration " +
-      "(targets Brier ≤ 0.20 / ≤ 0.10) is a different quantity, measured separately by " +
-      "`scripts/brier-season-sim.ts` → `docs/season-calibration.md`."
+      "(targets Brier ≤ 0.20 / ≤ 0.10) is a different quantity, measured separately — and by " +
+      "TWO harnesses that must not be confused. " +
+      "`scripts/brier-season-sim.ts` → `docs/season-calibration.md` is SYNTHETIC " +
+      "self-consistency: it checks the simulator against its own generative model and says " +
+      "nothing about real outcomes. `scripts/backtest-sleeper-2025.ts` → " +
+      "`docs/season-backtest-2025.md` is the REAL one, and it currently rests on a single " +
+      "league — one independent cluster — so it carries no significance either. " +
+      "Neither establishes that the season targets are met."
   );
   lines.push("");
   lines.push("See `docs/calibration.md` for the full calibration contract.");

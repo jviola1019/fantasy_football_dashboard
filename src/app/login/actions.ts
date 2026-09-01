@@ -41,8 +41,30 @@ const inputSchema = z.object({
 
 export type AuthActionResult = { ok: true } | { ok: false; error: string };
 
-const DEFAULT_REDIRECT = "/settings/leagues";
 
+
+/**
+ * The sign-in cookie is set by `signIn`; the NAVIGATION is left to the client.
+ *
+ * Audit 2026-08-23. Both actions used to pass `redirectTo`, which makes Auth.js
+ * throw NEXT_REDIRECT and lets Next perform the navigation. That navigation is
+ * CLIENT-side: the React tree survives it, so `SessionProvider` keeps the
+ * unauthenticated session it fetched on first mount and `useSession()` in the
+ * topbar stays stale.
+ *
+ * The result was the worst kind of failure. Authentication SUCCEEDED, the
+ * protected route rendered, and the one piece of chrome a user checks to
+ * confirm it still offered them a "Sign in" button. Most people read that as
+ * "it did not work" and try again.
+ *
+ * It also made the form's success branch unreachable -- its own comment said
+ * "we never observe ok=true" -- so any fix applied there was dead code, which
+ * is how two attempts at this were measured to change nothing.
+ *
+ * With `redirect: false` the action returns normally, the client gets `ok:
+ * true`, and it performs a full document navigation that remounts the provider
+ * against the new cookie. Throttle clearing and failure recording are unchanged.
+ */
 export async function signInWithCredentials(formData: FormData): Promise<AuthActionResult> {
   const parsed = inputSchema.safeParse({
     email: formData.get("email"),
@@ -61,7 +83,7 @@ export async function signInWithCredentials(formData: FormData): Promise<AuthAct
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: DEFAULT_REDIRECT
+      redirect: false
     });
     await clearAccountThrottle(parsed.data.email);
     return { ok: true };
@@ -101,7 +123,7 @@ export async function registerWithCredentials(formData: FormData): Promise<AuthA
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: DEFAULT_REDIRECT
+      redirect: false
     });
     return { ok: true };
   } catch (error) {

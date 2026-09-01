@@ -45,7 +45,12 @@
   --color-accent-foreground: #f0ece4;
   --color-destructive: #eb5f54;
   --color-destructive-foreground: #0b1120;
-  --color-border: rgba(90, 159, 196, 0.12);
+  /* Matches --line exactly. These drifted: Tailwind borders painted
+     rgba(90,159,196,.12) while every hand-rolled rule painted
+     rgba(74,141,183,.12), so a shadcn-shelled panel and a legacy one had
+     visibly different hairlines. The legacy token is the source of truth
+     per the header comment above, so Tailwind adopts its value. */
+  --color-border: rgba(74, 141, 183, 0.12);
   --color-input: rgba(255, 255, 255, 0.12);
   --color-ring: #5a9fc4;
 
@@ -126,7 +131,6 @@
   --cream: #f0ece4;
   --muted: #8898aa;
   --amber: #d7a857;
-  --accent-warm: #d7a857;
   --green: #35c08a;
   --teal: #2fb6c4;
   /* Sprint 4: bump both colors to clear WCAG AA 4.5:1 against #18222f (--panel-2).
@@ -157,12 +161,7 @@
   --label-text: #d8dece;
   --notice-red: #f0736a;
   --band-extreme: #9d90e8;
-  --shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
   --panel-shadow: 0 2px 16px rgba(90, 159, 196, 0.08);
-  --sidebar-w: 56px;
-  --glow-green: none;
-  --glow-blue: none;
-  --glow-amber: none;
   --pos-qb: #ef5c7a;
   --pos-rb: #35c08a;
   --pos-wr: #5a9fc4;
@@ -177,27 +176,35 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-8: 48px;
-  --page-max: 1320px;
 
   /* Motion tokens — honored alongside `useReducedMotion`; durations stay short
      so the UI feels responsive, not animated-for-its-own-sake. */
-  --motion-fast: 120ms;
-  --motion-base: 200ms;
-  --motion-slow: 320ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /*
+   * Snapped to the values the stylesheet ACTUALLY used, rather than the other
+   * way round. These tokens were declared in August and referenced zero
+   * times; meanwhile 22 rules hard-coded a duration. Forcing the CSS onto the
+   * authored numbers would have slowed eleven hover transitions from 150ms to
+   * 200ms -- a real change in feel, made for tidiness. The used values are the
+   * ground truth for how the product behaves, so the tokens adopt them.
+   */
+  --motion-fast: 120ms;   /* was 120ms; 4 uses */
+  --motion-base: 150ms;   /* was 200ms; 11 uses at 150ms made that the real base */
+  --motion-slow: 280ms;   /* was 320ms; the 260/280/300 cluster */
+  /*
+   * The emphasized curve the reveals already use, now nameable.
+   *
+   * `--ease-out: cubic-bezier(0.2, 0.8, 0.2, 1)` sat beside these and was
+   * deleted: its only occurrence in the whole stylesheet was its own
+   * declaration. The rules use the `ease` / `ease-out` / `ease-in-out`
+   * keywords and this one bezier; an authored curve nothing adopted is the
+   * same dead weight as the fifteen tokens removed above.
+   */
+  --ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* State color tokens — one source of truth for the live/fixture/stale/missing/
    success/warning/risk semantics used by badges, banners, and panel states. */
 :root {
-  --state-live: var(--green);
-  --state-fixture: var(--amber);
-  --state-unavailable: var(--red);
-  --state-stale: var(--amber);
-  --state-success: var(--green);
-  --state-warning: var(--amber);
-  --state-risk: var(--red);
-  --state-info: var(--blue);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -411,7 +418,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
   border-radius: 3px 3px 0 0;
-  transition: color 150ms ease, background 150ms ease, border-color 150ms ease;
+  transition: color var(--motion-base) ease, background var(--motion-base) ease, border-color var(--motion-base) ease;
 }
 .time-tab:hover { color: var(--cream); background: rgba(90, 159, 196, 0.06); }
 .time-tab.active {
@@ -637,7 +644,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   background: none;
   font-size: var(--text-xs);
   border-radius: 0;
-  transition: background 150ms ease;
+  transition: background var(--motion-base) ease;
 }
 .mini-panel:hover { background: rgba(90, 159, 196, 0.04); }
 .mini-panel-title {
@@ -689,7 +696,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 }
 
 /* ─── Team Construction Score ───────────────────────────────────────────── */
-.overall-grade { font-size: var(--text-2xl); font-weight: 800; color: var(--green); text-align: center; margin: 6px 0; }
+.overall-grade { font-size: var(--text-2xl); font-weight: 700; color: var(--green); text-align: center; margin: 6px 0; }
 .position-grades { display: flex; flex-direction: column; gap: 3px; }
 .pos-grade-row { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 2px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .pos-label { color: var(--muted); }
@@ -713,7 +720,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .frag-name { color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
 .frag-pos { font-size: var(--text-micro); color: var(--muted); text-align: center; }
 .frag-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
-.frag-fill { display: block; height: 100%; width: var(--f, 0%); border-radius: 3px; transition: width 0.3s ease; }
+.frag-fill { display: block; height: 100%; width: var(--f, 0%); border-radius: 3px; transition: width var(--motion-slow) ease; }
 .frag-row[data-tier="low"] .frag-fill { background: var(--green); }
 .frag-row[data-tier="elev"] .frag-fill { background: var(--amber); }
 .frag-row[data-tier="high"] .frag-fill { background: var(--red); }
@@ -777,7 +784,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   border-radius: 2px;
   background: var(--green);
   width: var(--bar-w, 0%);
-  transition: width 0.3s ease;
+  transition: width var(--motion-slow) ease;
 }
 .player-row-metric {
   font-size: var(--text-xs);
@@ -863,7 +870,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   width: var(--bar-w, 0%);
   background: var(--bar-c, var(--green));
   border-radius: 4px;
-  transition: width 0.3s ease;
+  transition: width var(--motion-slow) ease;
 }
 .lp-value {
   font-size: var(--text-sm);
@@ -889,7 +896,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
      out-shouted both the panel title and the 26px route title, which is the
      exact inversion the header work exists to remove. One --text-xl per page. */
   font-size: var(--text-lg);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--green);
 }
 .league-pulse-edge-lbl {
@@ -916,7 +923,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  transition: border-color 0.12s, background 0.12s;
+  transition: border-color var(--motion-fast), background var(--motion-fast);
   text-align: left;
 }
 .player-grid-card:hover { border-color: rgba(74,141,183,0.4); background: rgba(74,141,183,0.06); box-shadow: var(--panel-shadow); }
@@ -942,7 +949,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 }
 .player-grid-card-value {
   font-size: var(--text-base);
-  font-weight: 800;
+  font-weight: 700;
   color: var(--green);
   text-align: right;
   margin-top: 2px;
@@ -988,7 +995,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   height: 100%;
   border-radius: 2px;
   width: var(--bar-w, 0%);
-  transition: width 0.3s ease;
+  transition: width var(--motion-slow) ease;
 }
 .narrative-bar-val {
   font-size: var(--text-xs);
@@ -1148,7 +1155,7 @@ td small { color: var(--muted); }
    value-intensity background and a real snap-share (usage) bar. */
 .heat-axis-hint { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: right; margin: 2px 0 4px; }
 .heat-row2 { display: grid; grid-template-columns: 26px repeat(var(--heat-cols, 8), minmax(56px, 1fr)); gap: 4px; align-items: stretch; margin: 4px 0; }
-.heat-pos { display: grid; place-items: center; font-size: var(--text-xs); font-weight: 800; color: var(--blue); }
+.heat-pos { display: grid; place-items: center; font-size: var(--text-xs); font-weight: 700; color: var(--blue); }
 .heat-cell2 {
   position: relative;
   min-width: 0;
@@ -1164,7 +1171,7 @@ td small { color: var(--muted); }
   overflow: hidden;
 }
 .heat-cell-name { font-size: var(--text-micro); font-weight: 600; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.heat-cell-val { font-size: var(--text-xs); font-weight: 800; color: var(--cream); font-variant-numeric: tabular-nums; line-height: 1; }
+.heat-cell-val { font-size: var(--text-xs); font-weight: 700; color: var(--cream); font-variant-numeric: tabular-nums; line-height: 1; }
 .heat-usage { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
 .heat-usage-fill { display: block; height: 100%; width: var(--u, 0%); border-radius: 2px; background: var(--green); }
 .heat-legend2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--text-micro); color: var(--muted); margin-top: 6px; }
@@ -1200,7 +1207,7 @@ td small { color: var(--muted); }
 .vub-bar { display: block; height: 100%; width: var(--w, 0%); border-radius: 4px; }
 .vub-bar-value { background: linear-gradient(90deg, rgba(90, 159, 196, 0.45), var(--blue)); }
 .vub-bar-usage { background: linear-gradient(90deg, rgba(53, 192, 138, 0.45), var(--green)); }
-.vub-value { font-size: var(--text-sm); font-weight: 800; color: var(--cream); text-align: right; font-variant-numeric: tabular-nums; }
+.vub-value { font-size: var(--text-sm); font-weight: 700; color: var(--cream); text-align: right; font-variant-numeric: tabular-nums; }
 .vub-edge { font-size: var(--text-xs); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ─── Player Universe ────────────────────────────────────────────────────── */
@@ -1248,7 +1255,7 @@ td small { color: var(--muted); }
 }
 .profile-name { font-size: var(--text-sm); font-weight: 600; color: var(--cream); }
 .profile-pos { font-size: var(--text-micro); color: var(--muted); margin-top: 2px; }
-.profile-rep { font-size: var(--text-xl); font-weight: 800; color: var(--green); }
+.profile-rep { font-size: var(--text-xl); font-weight: 700; color: var(--green); }
 .profile-metrics { display: flex; flex-direction: column; gap: 4px; }
 .profile-row { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 3px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .profile-row span { color: var(--muted); }
@@ -1263,12 +1270,51 @@ td small { color: var(--muted); }
 .rising-item { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 2px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .radar-wrap { padding: var(--space-3) 0 0; border: none; border-top: 1px solid var(--line); background: none; margin-top: var(--space-2); }
 .universe-sidebar { display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+/* ─── FAAB board (S4) ─────────────────────────────────────────────────────
+   Every team's remaining waiver budget, richest first. Reuses the existing bar
+   idiom (.player-row-bar) rather than inventing a second one; spacing values are
+   scale rungs only, per the pinned off-scale count. */
+.faab-board { padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.faab-lede { font-size: var(--text-xs); color: var(--muted); margin: 0 0 var(--space-2); }
+.faab-mine-amount { font-size: var(--text-base); color: var(--cream); }
+.faab-list { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.faab-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px auto; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); }
+.faab-row-mine { color: var(--cream); font-weight: 600; }
+.faab-team { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.faab-you { color: var(--amber); }
+.faab-bar-track { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; display: block; }
+.faab-bar { display: block; height: 100%; border-radius: 2px; background: var(--blue); width: var(--faab-w, 0%); transition: width var(--motion-slow) ease; }
+.faab-row-mine .faab-bar { background: var(--amber); }
+.faab-amount { font-family: var(--font-plex-mono), "Courier New", monospace; white-space: nowrap; }
+.faab-prov { margin-top: var(--space-2); }
+
+/* ─── Player news (S4) ────────────────────────────────────────────────────
+   Real ESPN headlines, each with its own publication time and link. Sizes come
+   off the scale and every spacing value is a scale rung — `designTokens.test.ts`
+   pins the off-scale count at exactly 166, so a new surface may not add one. */
+.player-news { padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.player-news-src { color: var(--muted); }
+.player-news-list { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.player-news-item { display: flex; flex-direction: column; gap: 0; }
+/* Body size, not caption size: the headline is the content of this card, and
+   the design audit's finding was that everything sat at the same 9-11px so size
+   ranked nothing. */
+/* `min-height` carries WCAG 2.2 SC 2.5.8: as a flex child the anchor blockifies,
+   so it is measured by `e2e/18-target-size.spec.ts` rather than exempted as an
+   inline link in a sentence — and a one-line headline at 13px/1.35 is ~18px. */
+.player-news-headline { display: flex; align-items: center; min-height: 24px; font-size: var(--text-sm); color: var(--cream); line-height: 1.35; text-decoration: none; }
+a.player-news-headline:hover { color: var(--blue); text-decoration: underline; }
+a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.player-news-age { font-size: var(--text-micro); color: var(--blue); font-family: var(--font-plex-mono), "Courier New", monospace; }
+.player-news-empty { margin-top: 0; }
+.player-news-prov { margin-top: var(--space-2); }
+
 /* Player Universe — working-tab views (Tiers / Comparison / Watchlist / Projections). */
 .pu-grid-note { margin-top: 6px; }
 .pu-radar-note { margin-top: 6px; }
 .universe-tiers { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
 .tier-pos-block { border: none; border-left: 2px solid var(--line); border-radius: 0; padding: var(--space-2) 0 var(--space-2) var(--space-3); background: none; }
-.tier-pos-head { font-size: var(--text-xs); font-weight: 800; letter-spacing: .08em; color: var(--blue); margin-bottom: 4px; }
+.tier-pos-head { font-size: var(--text-xs); font-weight: 700; letter-spacing: .08em; color: var(--blue); margin-bottom: 4px; }
 .tier-band-row { display: grid; grid-template-columns: 54px 1fr; gap: 6px; align-items: start; padding: 2px 0; }
 .tier-band-label { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 2px; }
 .tier-band-players { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -1326,7 +1372,7 @@ td small { color: var(--muted); }
 .narr-cols { display: flex; flex-direction: column; gap: 12px; }
 .narr-board { min-width: 0; }
 .narr-board-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
-.narr-board-title { font-size: var(--text-sm); font-weight: 800; letter-spacing: .06em; }
+.narr-board-title { font-size: var(--text-sm); font-weight: 700; letter-spacing: .06em; }
 .narr-sell { color: var(--red); }
 .narr-buy { color: var(--green); }
 .narr-board-sub { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
@@ -1388,20 +1434,10 @@ td small { color: var(--muted); }
    gets a delay via --stagger custom property. All respect prefers-reduced-
    motion (collapsed to instant at the bottom of this file).                */
 
-/* Panel-level entrance: applied to each .panel-card when it first mounts.
-   The delay is set inline via style="--stagger: Nms" by the panel renderer. */
-.panel-enter {
-  animation: panel-slide-in 260ms cubic-bezier(0.22, 1, 0.36, 1) var(--stagger, 0ms) both;
-}
-
-@keyframes panel-slide-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
 
 /* KPI card stagger: applied to each .kpi-card in order via nth-child delays. */
 .kpi-card {
-  animation: card-fade-in 200ms ease-out var(--stagger, 0ms) both;
+  animation: card-fade-in var(--motion-base) ease-out var(--stagger, 0ms) both;
 }
 @keyframes card-fade-in {
   from { opacity: 0; transform: translateY(4px); }
@@ -1414,7 +1450,7 @@ td small { color: var(--muted); }
 .draft-board-row,
 .kpi-card {
   will-change: transform;
-  transition: transform 120ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  transition: transform var(--motion-fast) ease, border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
 }
 .mini-panel:hover,
 .player-grid-card:hover,
@@ -1425,7 +1461,7 @@ td small { color: var(--muted); }
 
 /* Player row hover: subtle background reveal with no layout shift. */
 .player-row {
-  transition: background 100ms ease;
+  transition: background var(--motion-fast) ease;
 }
 .player-row:hover {
   background: rgba(90, 159, 196, 0.05);
@@ -1433,7 +1469,7 @@ td small { color: var(--muted); }
 
 /* Section label uppercase tracking animation (entrance only). */
 .section-label {
-  animation: label-reveal 180ms ease-out both;
+  animation: label-reveal var(--motion-base) ease-out both;
 }
 @keyframes label-reveal {
   from { opacity: 0; letter-spacing: .04em; }
@@ -1474,7 +1510,7 @@ td small { color: var(--muted); }
    collapses them to instant. */
 
 .data-unavailable {
-  animation: data-unavailable-reveal 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: data-unavailable-reveal var(--motion-slow) var(--ease-emphasized) both;
 }
 
 @keyframes data-unavailable-reveal {
@@ -1507,18 +1543,6 @@ td small { color: var(--muted); }
    instead of reading as a SaaS segmented switch. Styling lives in the
    component; this anchor remains for any consumer that targets `.panel-tabs`. */
 
-/* Panel tab body fade-through. Consumer panels add `data-state="enter"` on
-   the active tab body wrapper; the rule animates opacity from 0 -> 1 over
-   180ms. Outgoing tabs unmount immediately (React); the new tab fades in
-   so the swap reads as intentional rather than a flash. */
-[data-tab-fade] {
-  animation: tab-body-fade 180ms ease-out both;
-}
-
-@keyframes tab-body-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
 
 /* (prefers-reduced-motion reset is defined once near the top of this file) */
 
@@ -1612,7 +1636,7 @@ td small { color: var(--muted); }
   color: var(--cream);
   font-size: var(--text-base);
   outline: none;
-  transition: border-color .15s, box-shadow .15s;
+  transition: border-color var(--motion-base), box-shadow var(--motion-base);
 }
 .login-input:focus { border-color: rgba(74, 140, 247, .6); box-shadow: 0 0 0 2px rgba(74, 140, 247, .12); }
 .login-input-invalid { border-color: rgba(217, 134, 111, .7); }
@@ -1665,7 +1689,7 @@ td small { color: var(--muted); }
   font-weight: 600;
   font-size: var(--text-sm);
   cursor: pointer;
-  transition: opacity .15s;
+  transition: opacity var(--motion-base);
 }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -1678,7 +1702,7 @@ td small { color: var(--muted); }
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity .15s;
+  transition: opacity var(--motion-base);
 }
 .login-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 .login-switch {
@@ -1692,27 +1716,26 @@ td small { color: var(--muted); }
 }
 .login-switch:hover { color: var(--cream); }
 
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-@theme inline {
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}
+/*
+ * REMOVED 2026-08-28 — a dead `.dark {}` block and the `@theme inline` that
+ * pointed at it.
+ *
+ * `@theme` above declares the eight `--color-sidebar*` tokens as real hex
+ * values. This block redeclared all eight as `var(--sidebar…)`, and those were
+ * defined ONLY inside `.dark {}` — a class applied nowhere in the app (no
+ * `className="dark"`, no next-themes, no toggle). The later declaration won, so
+ * every sidebar colour resolved to nothing.
+ *
+ * Measured before removing, rather than assumed: on /dashboard the computed
+ * `--color-sidebar` was empty and the sidebar inner element, which carries
+ * `bg-sidebar`, painted `rgba(0, 0, 0, 0)` — fully transparent. The sidebar had
+ * no background at all and had been leaning on the page behind it.
+ *
+ * The `dark:` variant utilities inside the untouched shadcn primitives were
+ * already inert (the class is never applied) and are unaffected. Restoring a
+ * real light/dark mechanism means defining both palettes and applying the class,
+ * which is a product decision, not a token cleanup.
+ */
 
 /* ─── Trade Builder ─────────────────────────────────────────────────────────── */
 .trade-builder {
@@ -1748,7 +1771,7 @@ td small { color: var(--muted); }
   background: rgba(214, 226, 226, 0.06);
   color: var(--muted);
   border-radius: 2px;
-  transition: color .12s, border-color .12s;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
 }
 .trade-search-results li button:hover { color: var(--amber); border-color: rgba(215, 168, 87, 0.45); }
 
@@ -1788,7 +1811,7 @@ td small { color: var(--muted); }
   font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1;
-  transition: color .12s;
+  transition: color var(--motion-fast);
 }
 .trade-side li button:hover { color: var(--red); }
 
@@ -1914,7 +1937,7 @@ td small { color: var(--muted); }
   background: var(--red);
   color: var(--bg);
   font-size: var(--text-xs);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -2092,7 +2115,7 @@ td small { color: var(--muted); }
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  transition: opacity .15s;
+  transition: opacity var(--motion-base);
 }
 .route-header-action:hover { opacity: 0.88; }
 .route-header-basis {
@@ -2149,4 +2172,23 @@ td small { color: var(--muted); }
   font-weight: 700;
   color: var(--cream);
   font-variant-numeric: tabular-nums;
+}
+
+/* Limits block for the validated in-season ranking. Deliberately NOT
+   `.model-scenario-banner`: the waiver panel already carries exactly one
+   validated banner with the evidence, and this carries the limits specific to
+   the shipped ranking. Two banners saying overlapping things is repetition, not
+   disclosure. Green because the result is positive. */
+.in-season-note {
+  border-left: 2px solid var(--green);
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.in-season-note-head {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--green);
+  margin-bottom: var(--space-1);
 }

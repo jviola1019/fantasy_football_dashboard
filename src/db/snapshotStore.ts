@@ -15,7 +15,8 @@ export type SnapshotTableKey =
   | "ktcSnapshots"
   | "projectionsSnapshots"
   | "newsSnapshots"
-  | "opportunitySnapshots";
+  | "opportunitySnapshots"
+  | "seasonStatsSnapshots";
 
 /**
  * Generic snapshot-table store. Consolidates the get-latest / insert / prune /

@@ -12,7 +12,7 @@ import { BarChart } from "@/components/charts/BarChart";
 import type { SimulationResult } from "@/lib/simulation";
 import { buildOutcomeHeat } from "@/lib/outcomeHeat";
 import type { MarketMetrics } from "@/lib/derivedMetrics";
-import { scarcityGap, confidenceInterval } from "@/lib/models";
+import { scarcityGap } from "@/lib/models";
 import { EdgeDisclosureNotice } from "@/components/model/EdgeDisclosureNotice";
 import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { deriveAggregateValueIndex } from "@/lib/derivedMetrics";
@@ -71,16 +71,16 @@ export function MarketIntelligence({ players, marketMetrics, sim, envelope }: Pr
       <TabPanel idBase="market-intel" active={activeTab} className="tab-content">
         {activeTab === "Market Pulse" && (
           <>
-            <TopInefficiencies players={marketMetrics.topInefficiencies} />
+            <TopValuationGaps players={marketMetrics.topValuationGaps} />
             <div className="market-charts-row">
               <ValueUsageBoard players={players} />
             </div>
           </>
         )}
         {activeTab === EDGE_LABELS.gapsTab && (
-          <TopInefficiencies
+          <TopValuationGaps
             label={EDGE_LABELS.largeGaps}
-            players={marketMetrics.topInefficiencies.filter((p) => Math.abs(scarcityGap(p)) >= 8)}
+            players={marketMetrics.topValuationGaps.filter((p) => Math.abs(scarcityGap(p)) >= 8)}
           />
         )}
         {activeTab === "Liquidity Flow" && (
@@ -123,7 +123,7 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
   const cards = [
     // Inefficiency + volatility are unitless mispricing/variance INDICES
     // (0-100-ish), not percentages — show the raw index, no "%".
-    { label: "Market Inefficiency", value: fmt(metrics.inefficiencyPct, 1), sub: "Avg market mispricing index", color: "neu" },
+    { label: EDGE_LABELS.gapMagnitude, value: fmt(metrics.valuationGapPct, 1), sub: EDGE_LABELS.gapMagnitudeSub, color: "neu" },
     { label: "Liquidity Score", value: `${fmt(liq, 1)}/10`, sub: liq >= 6.5 ? "High" : liq >= 3.5 ? "Moderate" : "Low", color: liq >= 6.5 ? "pos" : "neu" },
     { label: EDGE_LABELS.gapCountLabel, value: String(metrics.largeGapCount), sub: EDGE_LABELS.gapCountSub, color: "neu" },
     { label: "Aggregate Value", value: valueIndex, sub: "Roster value index (ECR)", color: "neu" },
@@ -149,7 +149,7 @@ function MarketKPIRow({ metrics, players }: { metrics: MarketMetrics; players: P
   );
 }
 
-function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players: PlayerMarketRecord[]; label?: string }) {
+function TopValuationGaps({ players, label = EDGE_LABELS.topGapsTable }: { players: PlayerMarketRecord[]; label?: string }) {
   return (
     <div className="table-wrap" tabIndex={0} role="region" aria-label={label}>
       <div className="section-label">{label}</div>
@@ -173,16 +173,12 @@ function TopInefficiencies({ players, label = "TOP INEFFICIENCIES" }: { players:
           ) : (
             players.map((p) => {
               const edge = scarcityGap(p);
-              const ci = confidenceInterval(p.trueValue, p.confidence);
               return (
                 <tr key={p.id}>
                   <td>{p.name}</td>
                   <td>{p.position}</td>
                   <td>{p.perceivedValue}</td>
-                  <td>
-                    {p.trueValue}{" "}
-                    <small>[{ci[0]}, {ci[1]}]</small>
-                  </td>
+                  <td>{p.trueValue}</td>
                   <td className={edge >= 0 ? "pos-text" : "neg-text"}>
                     {edge >= 0 ? `+${edge}` : edge}
                   </td>
@@ -372,7 +368,9 @@ function VolatilitySurface({ sim }: { sim: SimulationResult }) {
   );
 }
 
-// Price Discovery as a value-vs-market SCATTER with a fair-value diagonal.
+// Price Discovery as a value-vs-market SCATTER with a PARITY diagonal (y = x).
+// Not a "fair value" line: that would assert our number is the fair one and the
+// market is in error, which is the claim protocol 3 could not demonstrate.
 // A 600-point twin line graph was unreadable; a scatter directly shows
 // mispricing: points ABOVE the diagonal are undervalued (true > market),
 // BELOW are overvalued. The N most valuable players are plotted (bounded).
@@ -410,18 +408,18 @@ function PriceDiscoveryView({ players }: { players: PlayerMarketRecord[] }) {
     <div className="chart-wrap">
       <div className="section-label">PRICE DISCOVERY — True vs Market Value</div>
       <div className="flow-legend">
-        <span className="legend-dot pd-dot-under" /> Undervalued (true &gt; market)
-        <span className="legend-dot pd-dot-over legend-dot-ml" /> Overvalued
+        <span className="legend-dot pd-dot-under" /> {EDGE_LABELS.scatterLegendAbove}
+        <span className="legend-dot pd-dot-over legend-dot-ml" /> {EDGE_LABELS.scatterLegendBelow}
       </div>
       <svg viewBox={`0 0 ${PD_W} ${PD_H}`} width="100%" role="img"
-        aria-label="Scatter of true value versus market value; points above the diagonal are undervalued"
+        aria-label={EDGE_LABELS.scatterAria}
         className="pd-scatter">
         {/* axes */}
         <line x1={PD_PAD} y1={PD_H - PD_PAD} x2={PD_W - PD_PAD} y2={PD_H - PD_PAD} stroke="var(--line)" strokeWidth="1" />
         <line x1={PD_PAD} y1={PD_PAD} x2={PD_PAD} y2={PD_H - PD_PAD} stroke="var(--line)" strokeWidth="1" />
-        {/* fair-value diagonal y = x */}
+        {/* parity diagonal y = x — where our value equals the market's */}
         <line x1={x(0)} y1={y(0)} x2={x(maxV)} y2={y(maxV)} stroke="rgba(141,154,160,0.45)" strokeWidth="1" strokeDasharray="4 3" />
-        <text x={x(maxV) - 4} y={y(maxV) - 6} fontSize="8" fill="var(--muted)" textAnchor="end">fair value</text>
+        <text x={x(maxV) - 4} y={y(maxV) - 6} fontSize="8" fill="var(--muted)" textAnchor="end">{EDGE_LABELS.scatterParity}</text>
         {/* points */}
         {pts.map((p) => {
           const under = p.trueValue >= p.perceivedValue;
@@ -444,7 +442,7 @@ function PriceDiscoveryView({ players }: { players: PlayerMarketRecord[] }) {
         <text x={PD_PAD - 6} y={PD_PAD - 6} fontSize="8" fill="var(--muted)">True value ↑</text>
       </svg>
       <p className="small-note">
-        Each dot is a player; distance from the dashed fair-value line = mispricing. {pts.length} players shown.
+        {EDGE_LABELS.scatterNote} {pts.length} players shown.
       </p>
     </div>
   );

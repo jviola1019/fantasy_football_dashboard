@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { LeagueFormatSchema } from "./trade/format";
 import { WeeklyProjectionByFormatSchema } from "./leagues/scoringPoints";
+import { FaabStateSchema } from "./leagues/faab";
+import { PlayerNewsIndexSchema } from "./espn/newsMatch";
 
 export const FreshnessStateSchema = z.enum(["fresh", "stale", "missing", "unavailable", "fixture"]);
 export type FreshnessState = z.infer<typeof FreshnessStateSchema>;
@@ -32,7 +34,19 @@ export const PlayerMarketRecordSchema = z.object({
   opportunity: z.number().min(0).max(100),
   confidence: z.number().min(0).max(1),
   sources: z.array(SourceMetaSchema),
-  rosterSlot: z.string(),
+  /**
+   * The lineup slot this player occupies, or null when it is not known.
+   *
+   * Audit 2026-08-26. This was a non-nullable string defaulted to "FLEX" on
+   * EVERY live path (`enrich.ts`, `normalize.ts`), and rendered verbatim in the
+   * Player Universe profile. So a demo showed RB1 / WR1 / QB2 and a real
+   * connected league showed FLEX for all several hundred players -- a hardcoded
+   * placeholder presented as data, which the guardrails forbid outright.
+   *
+   * Nullable, and never defaulted. Optional in the schema so previously stored
+   * snapshots keep parsing, exactly as `byeWeek` above.
+   */
+  rosterSlot: z.string().nullable(),
   status: z.enum(["active", "questionable", "out", "ir", "bye", "unknown"]),
   /**
    * The player's NFL bye WEEK, or null when it is not known.
@@ -50,6 +64,25 @@ export const PlayerMarketRecordSchema = z.object({
    * Optional in the schema so previously stored snapshots keep parsing.
    */
   byeWeek: z.number().int().min(1).max(22).nullable().optional(),
+  /**
+   * Season-to-date PPR points PER GAME, and (receptions + carries) per game.
+   *
+   * The half of the validated model that did not exist until 2026-08-23.
+   * Protocols 4 and 5 established that in-season usage predicts rest-of-season
+   * scoring BEYOND points already scored — and RAE had usage and no
+   * points-to-date, so the one signal that survived out-of-sample testing could
+   * not be ranked on. See `src/lib/models/inSeasonScore.ts`.
+   *
+   * PER GAME, because both protocols normalised that way: a player who missed
+   * six weeks has a smaller season total for a reason that says nothing about
+   * their rate.
+   *
+   * NULLABLE and never defaulted. Zero points is a real result; unknown is not,
+   * and `rankInSeason` drops a player missing either rather than scoring them
+   * on half the model.
+   */
+  pointsPerGame: z.number().nullable().optional(),
+  touchesPerGame: z.number().nonnegative().nullable().optional(),
   imageUrl: z.string().url(),
   imageSource: z.string()
 });
@@ -114,7 +147,31 @@ export const RAEEnvelopeSchema = z.object({
   freeAgents: z.array(PlayerMarketRecordSchema).nullable().optional(),
   // Every team's roster (not just the user's), so panels can verify the whole
   // league rather than a single team.
-  allRosters: z.array(z.array(PlayerMarketRecordSchema)).nullable().optional()
+  allRosters: z.array(z.array(PlayerMarketRecordSchema)).nullable().optional(),
+
+  // ── S4: two things the app already fetched and then threw away ────────────
+  // Every team's free-agent acquisition budget, in dollars. Null when the
+  // league does not use FAAB, or for fixture/unavailable envelopes.
+  faab: FaabStateSchema.nullable().optional(),
+  // ESPN headlines grouped by `PlayerMarketRecord.id`. The news-refresh cron
+  // has written these to `news_snapshots` daily since May; until S4 the only
+  // thing derived from them was a single momentum number per player, and the
+  // articles themselves were discarded inside the loader.
+  playerNews: PlayerNewsIndexSchema.nullable().optional(),
+  // Provenance for the block above: which snapshot, how old, how much of it
+  // matched. Required for the panel to state a source and a freshness rather
+  // than presenting headlines from nowhere.
+  playerNewsMeta: z
+    .object({
+      source: z.string(),
+      fetchedAt: z.string().datetime(),
+      /** Articles in the snapshot, matched or not. */
+      articleCount: z.number().int().nonnegative(),
+      /** Distinct players at least one article could be attributed to. */
+      coveredPlayers: z.number().int().nonnegative()
+    })
+    .nullable()
+    .optional()
 });
 export type RAEEnvelope = z.infer<typeof RAEEnvelopeSchema>;
 

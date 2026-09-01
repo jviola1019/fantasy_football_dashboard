@@ -185,9 +185,42 @@ test.describe("bye week is on the board", () => {
     await expect(page.locator("#draft-intelligence .draft-bye-flag").first()).toContainText(/clash/i);
   });
 
+
+  /** See the note in the test below. Returns the shared bye week. */
+  async function draftLowestRankedRbWithASharedBye(page: Page): Promise<string> {
+    const headers = await page.locator("#draft-intelligence table thead th").allInnerTexts();
+    const posIdx = headers.findIndex((h) => /^position$/i.test(h.trim()));
+    const byeIdx = headers.findIndex((h) => /^bye$/i.test(h.trim()));
+    const rows = page.locator("#draft-intelligence table tbody tr");
+    const n = await rows.count();
+    const rbs: Array<{ i: number; bye: string }> = [];
+    for (let i = 0; i < n; i += 1) {
+      const cells = rows.nth(i).locator("td");
+      const pos = (await cells.nth(posIdx).innerText()).trim();
+      const bye = (await cells.nth(byeIdx).innerText()).trim();
+      if (pos === "RB" && /^[0-9]+$/.test(bye)) rbs.push({ i, bye });
+    }
+    const group = rbs.filter((r) => rbs.filter((o) => o.bye === r.bye).length > 1);
+    expect(group.length, "two running backs must share a bye for this to be reachable").toBeGreaterThan(1);
+    // Board rows are ordered by score, so the LAST index in the group is the
+    // lowest-ranked of them.
+    const target = group[group.length - 1]!;
+    await rows.nth(target.i).locator(".draft-btn-mine").click();
+    return target.bye;
+  }
+
   test("the recommender states the clash as a reason", async ({ page }) => {
+    /**
+     * Draft the LOWEST-ranked running back among those sharing a bye.
+     *
+     * The queue shows the top eight, and the board is ordered by draft score.
+     * Drafting whichever shared-bye RB happened to come first could remove the
+     * only one the queue would have shown, and the test then failed on pool
+     * composition rather than on the feature. Taking the lowest-ranked of the
+     * group leaves the higher-ranked partner in the queue by construction.
+     */
     await page.goto("/draft");
-    const bye = await draftAnRbWithASharedBye(page);
+    const bye = await draftLowestRankedRbWithASharedBye(page);
     await page.getByRole("tab", { name: /Recommendations/i }).click();
     // Built without a template literal: escaping a \d through the layers that
     // produced this file dropped the backslash and left a literal "d+", so the

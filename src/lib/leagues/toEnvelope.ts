@@ -12,6 +12,8 @@ import {
 import { resolveSleeperSeasonMirror, resolveEspnSeasonMirror, type SeasonMirror } from "./mirrorLeague";
 import { buildLeagueUniverse, buildFreeAgents, UNIVERSE_LIMIT } from "./buildUniverse";
 import { normalizeOppName, type OpportunityMap } from "../nflverse/opportunity";
+import { perGame, type SeasonStatsMap } from "../sleeper/seasonStats";
+import type { PlayerNewsIndex } from "../espn/newsMatch";
 import { evaluateFreshness } from "../ops/freshness";
 import { SNAPSHOT_CONTRACT } from "../ops/snapshotContracts";
 import type { WeeklyProjectionByFormat } from "./scoringPoints";
@@ -65,6 +67,14 @@ export interface BuildEnvelopeOptions {
    */
   newsMomentumScores?: Record<string, number> | null;
   /**
+   * The headlines behind those scores, grouped by record id (S4). Passed
+   * through untouched — the loader owns the grouping so this builder stays a
+   * pure shape transform.
+   */
+  playerNews?: PlayerNewsIndex | null;
+  /** Provenance for the headlines: snapshot age, article count, coverage. */
+  playerNewsMeta?: RAEEnvelope["playerNewsMeta"];
+  /**
    * The full Sleeper players map (from the daily snapshot). When present with
    * rankings, the envelope builds `leagueUniverse` + `freeAgents` (Sprint 5).
    */
@@ -87,6 +97,23 @@ export interface BuildEnvelopeOptions {
    * difference between a role proxy and a historical curiosity.
    */
   opportunityFetchedAt?: Date | string | null;
+  /**
+   * The nflverse season the opportunity scores describe. Distinct from
+   * `opportunityFetchedAt`: the cron falls back a year when the current season
+   * has no snap counts yet, so a snapshot fetched today can hold last season's
+   * usage (audit 2026-08-31, D-C). Null for pre-D-C snapshots.
+   */
+  opportunityDataSeason?: string | null;
+  /**
+   * Season-to-date actuals by Sleeper player_id, from the stats-refresh cron.
+   *
+   * The half of the validated model that did not exist until 2026-08-23.
+   * Stamped onto records as `pointsPerGame` / `touchesPerGame` so
+   * `rankInSeason` can apply protocol 5's combination. Absent before kickoff
+   * and before the cron's first run, in which case the fields stay null and the
+   * in-season board says so rather than ranking on half the model.
+   */
+  seasonStats?: SeasonStatsMap | null;
 }
 
 /**
@@ -114,6 +141,31 @@ function deriveLeagueMeta(
   return { draftState, season: resolveEspnSeasonMirror(snapshot.league.season, draftState) };
 }
 
+/**
+ * Stamp season-to-date RATE stats onto records by Sleeper player_id.
+ *
+ * Per game, matching protocols 4 and 5 — a player who missed six weeks has a
+ * smaller season total for a reason that says nothing about their rate.
+ * `perGame` returns null when games played is unknown or zero, and a null rate
+ * stays null: `rankInSeason` drops the player rather than scoring them on half
+ * the model.
+ */
+function withSeasonRates(
+  records: PlayerMarketRecord[],
+  stats: SeasonStatsMap | null
+): PlayerMarketRecord[] {
+  if (!stats) return records;
+  return records.map((r) => {
+    // Records built from Sleeper carry the platform id; FantasyPros-only rows
+    // do not, and get nothing rather than a guessed match.
+    const line = stats[r.id] ?? null;
+    if (!line) return r;
+    const rate = perGame(line);
+    if (!rate) return r;
+    return { ...r, pointsPerGame: rate.points, touchesPerGame: rate.touches };
+  });
+}
+
 export function buildLiveEnvelope({
   snapshot,
   rankings,
@@ -123,13 +175,18 @@ export function buildLiveEnvelope({
   weeklyProjections,
   weeklyProjectionsMeta,
   newsMomentumScores,
+  playerNews = null,
+  playerNewsMeta = null,
   playersSnapshot,
   currentSeason,
   opportunityScores,
-  opportunityFetchedAt
+  opportunityFetchedAt,
+  opportunityDataSeason,
+  seasonStats
 }: BuildEnvelopeOptions): RAEEnvelope {
   const season0 = currentSeason ?? String(snapshot.league.season);
   const { draftState, season } = deriveLeagueMeta(snapshot, season0);
+  const currentSeasonForOpp = season0;
   // Opportunity is only ACTIVE when it is both present and inside the freshness
   // contract the cron already declares (shared with /api/health so the operator
   // view and the user view cannot disagree). An EXPIRED snapshot is treated as
@@ -168,7 +225,20 @@ export function buildLiveEnvelope({
       }),
       oppScores
     );
-    const sortedFull = [...full].sort((a, b) => b.trueValue - a.trueValue);
+    // Season rates are stamped HERE, on the sorted universe, because both
+    // `leagueUniverse` and `freeAgents` derive from it — one pass covers both.
+    //
+    // Audit 2026-08-31 (D-B). `withSeasonRates` was applied only where `records`
+    // is set, i.e. the user's own roster. But `InSeasonBoard` is mounted inside
+    // `WaiverWire` and is handed `marketPool`, which post-draft is `freeAgents`.
+    // Free agents carried no `pointsPerGame`, `rankCohort` dropped every one of
+    // them, and the only model here with a positive out-of-sample result showed
+    // "unavailable" all season on every real league — while appearing to work in
+    // the anonymous demo, which falls back to hand-authored fixture rows.
+    const sortedFull = withSeasonRates(
+      [...full].sort((a, b) => b.trueValue - a.trueValue),
+      seasonStats ?? null
+    );
     leagueUniverse = sortedFull.slice(0, UNIVERSE_LIMIT);
     // Free agents must come from the FULL universe minus rostered players, THEN
     // be capped — deriving from the display-capped leagueUniverse would hide a
@@ -185,7 +255,7 @@ export function buildLiveEnvelope({
     return {
       mode: "live",
       generatedAt: new Date().toISOString(),
-      records: withOpportunity(snapshot.myRoster, oppScores),
+      records: withSeasonRates(withOpportunity(snapshot.myRoster, oppScores), seasonStats ?? null),
       sourceState: degradedSourceState(snapshot.source, rankingsSource),
       leagueFormat: snapshot.format,
       weeklyProjections: weeklyProjections ?? null,
@@ -196,7 +266,12 @@ export function buildLiveEnvelope({
       season,
       leagueUniverse: null,
       freeAgents: null,
-      allRosters
+      allRosters,
+      // Neither depends on FantasyPros, so an empty rankings cache is no reason
+      // to hide a budget or a headline the app already holds.
+      faab: snapshot.faab,
+      playerNews,
+      playerNewsMeta
     };
   }
 
@@ -242,8 +317,21 @@ export function buildLiveEnvelope({
       ? "fresh"
       : "stale";
 
+  // Names the source that ACTUALLY supplied each number, and how far it reached.
+  //
+  // Audit 2026-08-31 (D-A). This said "from ESPN headline velocity" whenever the
+  // news map was non-empty. Two things were wrong with that. The map was keyed
+  // by bare Sleeper id and the lookup used `sleeper:<id>`, so it never matched
+  // and every number was really the Sleeper proxy — a false claim. And even once
+  // fixed, news only covers players who appeared in an article in the last 72
+  // hours; everyone else legitimately falls back to the proxy. A single-source
+  // sentence cannot describe a two-source signal, so this states both and counts
+  // the players news actually reached.
+  const newsCovered = newsActive ? Object.keys(newsMomentumScores ?? {}).length : 0;
   const trendingAssumption = newsActive
-    ? "trending_momentum from ESPN headline velocity (recency-weighted, 72h window). Not NLP sentiment classification."
+    ? proxyActive
+      ? `trending_momentum from ESPN headline velocity (recency-weighted, 72h window) for the ${newsCovered} players with recent coverage; Sleeper 24h trending adds/drops for the rest. Not NLP sentiment classification.`
+      : `trending_momentum from ESPN headline velocity (recency-weighted, 72h window) for the ${newsCovered} players with recent coverage; zero for the rest. Not NLP sentiment classification.`
     : proxyActive
       ? "trending_momentum proxied from Sleeper 24h trending adds/drops; not news/sentiment classification."
       : "Trending momentum not derived; declared in missingFields.";
@@ -251,8 +339,20 @@ export function buildLiveEnvelope({
   // claim about recency, and a claim about recency has to carry the date it
   // rests on or it is just a nicer-sounding version of no information.
   const oppAgeSuffix = oppAgeDays == null ? "" : ` Snapshot is ${oppAgeDays} day${oppAgeDays === 1 ? "" : "s"} old.`;
+  // Vintage, stated separately from age, because they are different facts and
+  // the age alone was actively misleading: on 2026-08-31 the product served
+  // 2025 snap share under "Snapshot is 0 days old", because nflverse has no
+  // 2026 file yet and the cron falls back a year (verified: snap_counts_2026.csv
+  // 404s, snap_counts_2025.csv 200s). Null means a pre-D-C snapshot whose
+  // vintage was never recorded — said plainly rather than guessed.
+  const oppSeasonSuffix =
+    opportunityDataSeason == null
+      ? " Season of this usage data is not recorded in the snapshot."
+      : currentSeasonForOpp != null && opportunityDataSeason !== currentSeasonForOpp
+        ? ` Usage is from the ${opportunityDataSeason} season, not ${currentSeasonForOpp} — nflverse has no ${currentSeasonForOpp} snap counts yet.`
+        : ` Usage is from the ${opportunityDataSeason} season.`;
   const opportunityAssumption = opportunityActive
-    ? `opportunity = nflverse snap share (free, CC-BY) — a real role/usage proxy.${oppAgeSuffix}` +
+    ? `opportunity = nflverse snap share (free, CC-BY) — a real role/usage proxy.${oppSeasonSuffix}${oppAgeSuffix}` +
       (oppFreshness.verdict === "stale" ? " Past its refresh window; treat as indicative, not current." : "")
     : oppPresent
       ? `In-season opportunity WITHHELD: the nflverse snapshot is ${oppFreshness.detail}. Declared in missingFields rather than shown as current.`
@@ -261,7 +361,7 @@ export function buildLiveEnvelope({
   return {
     mode: "live",
     generatedAt: new Date().toISOString(),
-    records: withOpportunity(enriched, oppScores),
+    records: withSeasonRates(withOpportunity(enriched, oppScores), seasonStats ?? null),
     sourceState: {
       source: `${snapshot.source.source} + ${rankingsSource.source}${opportunityActive ? " + nflverse snaps" : ""}`,
       fetchedAt: rankingsSource.fetchedAt,
@@ -295,7 +395,13 @@ export function buildLiveEnvelope({
     season,
     leagueUniverse,
     freeAgents,
-    allRosters
+    allRosters,
+    // S4. Both come straight off inputs the app already had: the budgets from
+    // the same rosters payload that resolves membership, the headlines from the
+    // same news snapshot the momentum score is computed from.
+    faab: snapshot.faab,
+    playerNews,
+    playerNewsMeta
   };
 }
 

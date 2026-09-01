@@ -4,6 +4,7 @@ import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
 import { scarcityGap } from "@/lib/models";
 import { PanelCard } from "../ui/PanelCard";
+import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -69,7 +70,7 @@ export function NarrativeEngine({ players, envelope }: Props) {
           </span>
         ) : (
           <span>
-            Trending/sentiment source not connected — ranked by <b>value mispricing</b> only. Connect a Sleeper league
+            Trending/sentiment source not connected — ranked by <b>{EDGE_LABELS.narrativeFallback}</b> only. Connect a Sleeper league
             to add the live hype axis.
           </span>
         )}

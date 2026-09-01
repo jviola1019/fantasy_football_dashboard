@@ -68,7 +68,7 @@ const contentStyle: React.CSSProperties = {
 const captionStyle: React.CSSProperties = {
   fontFamily: "var(--monospace-font, monospace)",
   fontSize: "var(--text-xs)",
-  letterSpacing: 0.3,
+  letterSpacing: "0.03em",
   color: "var(--muted)",
   textTransform: "uppercase",
   minWidth: 0,
@@ -80,7 +80,7 @@ const titleStyle: React.CSSProperties = {
   color: "var(--cream)",
   fontSize: "var(--text-base)",
   fontWeight: 600,
-  letterSpacing: 0.2,
+  letterSpacing: "0.02em",
   minWidth: 0,
   overflowWrap: "anywhere"
 };

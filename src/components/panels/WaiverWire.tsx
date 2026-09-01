@@ -1,5 +1,6 @@
 "use client";
 
+import { InSeasonBoard } from "./sections/InSeasonBoard";
 import { useMemo, useState } from "react";
 import type { PlayerMarketRecord, RAEEnvelope } from "@/lib/governance";
 import { derivePanelState } from "@/lib/panelState";
@@ -9,7 +10,7 @@ import { EDGE_LABELS } from "@/lib/models/edgeDisclosure";
 import { OpportunityEvidenceNotice } from "@/components/model/OpportunityEvidenceNotice";
 import { OPPORTUNITY_SCOPE_LIMIT } from "@/lib/models/opportunityEvidence";
 import { PanelCard } from "../ui/PanelCard";
-import { DataUnavailable } from "../ui/DataUnavailable";
+import { FaabBoard } from "./sections/FaabBoard";
 
 type Props = {
   players: PlayerMarketRecord[];
@@ -78,7 +79,21 @@ export function WaiverWire({ players, envelope }: Props) {
           one and opportunity is the validated one, so showing either alone would
           misrepresent what is driving the ranking. */}
       {showEdge ? <EdgeDisclosureNotice variant="banner" /> : null}
+      {/* EXACTLY ONE validated BANNER on this panel.
+          This one carries the evidence — 958 player-seasons, 452 players, the
+          out-of-fold move from 0.734 to 0.748. The in-season board below adds
+          the LIMITS specific to the shipped ranking (the weight, that its
+          magnitude did not generalise, that it is a ranking and not a
+          forecast) in its own block rather than as a second banner. Two
+          banners saying overlapping things is the "repetition is not
+          disclosure" error the per-panel source badges were removed for. */}
       {showEdge ? <OpportunityEvidenceNotice variant="banner" /> : null}
+
+      {/* The validated ranking goes FIRST and stays separate. The table below is
+          ordered partly by `scarcityGap`, which protocol 3 refuted; folding the
+          two together would produce a third ordering neither result covers, and
+          a reader could not tell which part they were trusting. */}
+      <InSeasonBoard players={players} />
 
       <div className="universe-layout">
         <div className="table-wrap" tabIndex={0} role="region" aria-label="Ranked free agents table">
@@ -132,13 +147,11 @@ export function WaiverWire({ players, envelope }: Props) {
           ) : null}
         </div>
         <div className="universe-sidebar">
-          <div className="player-profile-card">
-            <div className="momentum-header">FAAB (FREE-AGENT BUDGET)</div>
-            <DataUnavailable
-              title="Free-agent acquisition budgets not connected"
-              description="Real waiver-budget bars need your league's waiver type and remaining-budget fields, surfaced via /api/leagues/[id]/refresh. No real budget data is integrated yet, so no placeholder bars are shown."
-            />
-          </div>
+          {/* S4: this said budgets were "not connected" while fetchLive was
+              already extracting them for both platforms and the lifecycle cron
+              was alerting on them. The panel is where a bid is decided, so the
+              budget belongs here. */}
+          <FaabBoard envelope={envelope} />
         </div>
       </div>
     </PanelCard>

@@ -1,3 +1,5 @@
+import { THEME, withAlpha } from "@/lib/theme";
+
 type RadarAxis = {
   label: string;
   value: number;
@@ -85,7 +87,20 @@ export function RadarChart({ axes, max = 100, size = 160 }: RadarChartProps) {
           />
         );
       })}
-      <polygon points={dataPolygon} fill="rgba(77,217,192,0.18)" stroke="#4dd9c0" strokeWidth="1.5" />
+      {/*
+        THEME.teal, not #4dd9c0. That hex was in neither THEME nor globals.css --
+        an off-palette mint left over from a pre-repaint version, and the only
+        colour in the app outside the design system. theme.test.ts guards the
+        tokens against the stylesheet but cannot see a literal typed into a
+        component, which is why it survived. A deliberate small visual change:
+        the data polygon moves from #4dd9c0 to the system teal #2fb6c4.
+      */}
+      <polygon
+        points={dataPolygon}
+        fill={withAlpha(THEME.teal, 0.18)}
+        stroke={THEME.teal}
+        strokeWidth="1.5"
+      />
       {axes.map((axis, i) => {
         const p = point(axisAngle(i), r + 14);
         return (
