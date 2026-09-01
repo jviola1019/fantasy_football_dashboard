@@ -87,6 +87,26 @@ Changes:
   with no "you" row instead of a stranger's budget labelled as theirs — the D-D
   failure, not repeated.
 
+### A third bug, fixed as a side effect: the alert was firing on a stranger
+
+Worth stating separately because it was not in the plan and nobody had noticed
+it. The Sleeper path computed the ratio from `myRosterRow`, found via
+`myTeamId = resolvedRosterId ?? sleeperRosters[0].roster_id`. When the username
+was missing or unmatched — the exact D-D condition, which is common enough that
+S3 had to build an edit path for it — `myTeamId` fell through to **roster 0**,
+and `lifecycle-check` could therefore raise *"FAAB at 6% — fewer than 10% of your
+bidding budget remains"* about **another manager's budget**, addressed to the
+user, in a notification.
+
+Passing `resolvedRosterId` rather than the fallback ends it: nothing is marked as
+the user's, `myFaabBudget` returns null, and the rule is skipped rather than
+evaluated against someone else's team. Covered by *"marks nobody when identity is
+unresolved, rather than guessing"* in `faab.test.ts`.
+
+It needed a FAAB league to fire, and the `waiver_type` defect above means the
+extractor was mislabelling non-FAAB leagues as FAAB — so the two defects
+overlapped, and the second widened the blast radius of the first.
+
 ### The defect underneath: `waiver_budget` does not mean FAAB
 
 The inherited extractor decided a league used FAAB by checking that
