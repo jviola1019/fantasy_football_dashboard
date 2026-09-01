@@ -364,10 +364,35 @@ asymmetry it exposed — are in
 [`reports/2026-08-20/gated-suite-verification.md`](reports/2026-08-20/gated-suite-verification.md).
 
 ```bash
-RAE_LIVE_TESTS=1 npx vitest run src/lib/schedule/schedule.live.test.ts src/lib/trade/values.live.test.ts
-RAE_PG_TEST_URL=postgres://... npx vitest run src/db/postgres.integration.test.ts
+# Live network (Sleeper + FantasyCalc are public; ESPN needs the owner's cookies)
+RAE_LIVE_TESTS=1 npx vitest run \
+  src/lib/sleeper.live.test.ts \
+  src/lib/schedule/schedule.live.test.ts \
+  src/lib/trade/values.live.test.ts \
+  src/lib/leagues/integration.live.test.ts
+
+# Postgres — point at a THROWAWAY database; the suites drop and recreate tables
+RAE_PG_TEST_URL=postgres://user:pass@127.0.0.1:5432/rae_test npx vitest run \
+  src/db/postgres.integration.test.ts \
+  src/lib/auth/throttle.pg.integration.test.ts \
+  src/lib/lifecycle/reconcile.pg.integration.test.ts
+
 npm run lighthouse
 ```
+
+**Re-executed 2026-09-01**, so the skip count is accounted for rather than
+assumed. Of the 39 tests `npm run test` reports as skipped:
+
+| suite | tests | executed | result |
+|---|---|---|---|
+| `postgres.integration` + `throttle.pg` + `reconcile.pg` | 31 | yes — real PostgreSQL 17.11 | **31 passed** |
+| `sleeper.live`, `schedule.live`, `values.live`, `integration.live` | 7 | yes — live Sleeper + FantasyCalc | **7 passed** |
+| `espn.live` | 1 | **no** | needs `ESPN_S2` / `ESPN_SWID` / `ESPN_LEAGUE_ID`, which are private league credentials. It stays skipped rather than being faked. |
+
+`RAE_LIVE_SLEEPER_LEAGUE_ID` overrides the league `integration.live` runs
+against, and that suite asserts the **completed**-league season mirror — it now
+fails with that precondition named if it is pointed at an in-season league,
+rather than with a confusing mirror mismatch.
 
 ### Frozen holdout protocols
 

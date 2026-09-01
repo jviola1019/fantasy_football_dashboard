@@ -50,10 +50,12 @@ shapes in `src/lib/governance.ts`:
   **seeded** Monte Carlo (`mulberry32` + Box–Muller, `src/lib/rng.ts`,
   `src/lib/seasonSim.ts`). `deriveAppData` uses fixed `seed: 20260513`
   (`src/lib/envelope/derive.ts` (`deriveAppData`)); confidence-band replicates use
-  `seed + i` and now run **server-side** in `deriveConfidenceBands`
-  (`src/lib/envelope/derive.ts`) — RouteView/ReportsView are server components,
-  so the seeded sim + bootstrap bands never block the client main thread;
-  NexusSimulator only applies the data-state `widen()` on the client.
+  `seed + i` and run **server-side** in `deriveReplicationRange`
+  (`src/lib/envelope/derive.ts:59`) — RouteView/ReportsView are server components,
+  so the seeded sim + bootstrap bands never block the client main thread.
+  (Was `deriveConfidenceBands` plus a client-side `widen()`. Both are gone:
+  the rename came with audit P0-4's retraction of the "95% confidence"
+  framing, and `widen()` went with the multipliers below.)
 - **Trending = a waiver/news signal applied to the market pool, not sentiment NLP.**
   `trendingMomentum` priority ladder (`src/lib/fantasypros/enrich.ts` (`enrichRoster`)): (1) ESPN
   headline-velocity score, (2) Sleeper 24h trending adds/drops proxy
@@ -91,7 +93,7 @@ shapes in `src/lib/governance.ts`:
 | Fixture catalog | `src/lib/fixtures.ts` | demo records | `fixture` (1y) | 0.42 |
 
 **Envelope assembly:** live data is composed by `buildLiveEnvelope`
-(`src/lib/leagues/toEnvelope.ts` (`toRAEEnvelope`)); pools/sim/metrics are derived once per
+(`src/lib/leagues/toEnvelope.ts` (`buildLiveEnvelope`)); pools/sim/metrics are derived once per
 request by `deriveAppData` (`src/lib/envelope/derive.ts` (`deriveAppData`)) and routed to panels
 by `RouteView` (`src/components/app/RouteView.tsx`). Pool selection:
 Command Center / Nexus use the user's **roster** (`d.players`); Market /
@@ -126,7 +128,7 @@ noted. Component files:
 | LIVE / FIXTURE / UNAVAILABLE pill | `envelope.mode` | envelope assembler | — | n/a | — | command-bar pill shows live / fixture / unavailable | n/a | `governance/ModeBanner.tsx` | `03-a11y.spec.ts` |
 | Season notice (pre-draft / final) | `envelope.draftState`, `envelope.season` | Sleeper/ESPN draft-state + season-mirror (`leagues/draftState.ts`, `mirrorLeague.ts`) | `deriveLeagueMeta` (`toEnvelope.ts:81`) | envelope `generatedAt` | — | hidden when no season / no players | renders nothing | `dashboard/SeasonNotice.tsx` | `leagues/draftState.test.ts`, `mirrorLeague.test.ts` |
 | Scarcity Gap (KPI) | `trueValue`,`perceivedValue`,`ownershipLeverage`,`fragility` | FantasyPros ECR | `scarcityGap` → `deriveCommandMetrics` | `sourceState.fetchedAt` | FP 0.85 / valid | real number | `"—"` not used here; avg of present records | `models.ts:18`, `dashboard/LeagueHealth.tsx` | `derivedMetrics.stats.test.ts` |
-| Valuation Gap (KPI) | `trueValue`,`perceivedValue`,`confidence`,`ownershipLeverage` | FantasyPros ECR | `marketInefficiency` (`models.ts:22`) | `sourceState.fetchedAt` | FP 0.85 | unitless VOR index (no "%") | avg of present | `dashboard/LeagueHealth.tsx` | `derivedMetrics.stats.test.ts` |
+| Valuation Gap (KPI) | `trueValue`,`perceivedValue`,`confidence`,`ownershipLeverage` | FantasyPros ECR | `valuationGap` (`models.ts:22`) | `sourceState.fetchedAt` | FP 0.85 | unitless VOR index (no "%") | avg of present | `dashboard/LeagueHealth.tsx` | `derivedMetrics.stats.test.ts` |
 | Narrative Velocity (KPI) | `trendingMomentum`,`volatility`,`fragility` | ESPN news / Sleeper trending proxy | `narrativeVelocity` (`models.ts:26`) | `sourceState.fetchedAt` | — | renders `"—"` + "Data source not integrated" | `"—"` when `trending_momentum` ∈ missingFields | `dashboard/LeagueHealth.tsx` | `derivedMetrics.stats.test.ts`, `panelState.test.ts` |
 | League Advantage (KPI) | `scarcityGap` aggregate | FantasyPros ECR | `deriveCommandMetrics` (`derivedMetrics.ts:46`) | `sourceState.fetchedAt` | FP 0.85 | `"—"` when `NaN` (empty roster) | `"—"` for non-finite | `dashboard/LeagueHealth.tsx` | `derivedMetrics.stats.test.ts` |
 | Chaos Exposure (KPI) | `volatility`,`fragility`,`trendingMomentum` | FantasyPros + trending | `chaosExposure` (`models.ts:30`) | `sourceState.fetchedAt` | — | `"—"` when `trending_momentum` or `opportunity` missing | `"—"` per `missingFields` | `dashboard/LeagueHealth.tsx` | `derivedMetrics.stats.test.ts` |
@@ -147,12 +149,12 @@ noted. Component files:
 
 | UI label | data field | source adapter | derivation fn | freshness | confidence/validation | live/fixture/unavailable | fallback when missing | file:line | test |
 |---|---|---|---|---|---|---|---|---|---|
-| Valuation Gap (KPI) | `trueValue`,`perceivedValue`,`confidence`,`ownershipLeverage` | FantasyPros ECR | `deriveMarketMetrics`→`marketInefficiency` | `sourceState.fetchedAt` | FP 0.85 | raw VOR index | avg of present | `MarketIntelligence.tsx:115` | `derivedMetrics.stats.test.ts` |
-| Liquidity Score (KPI) | `opportunity`,`marketInefficiency` | nflverse snaps + ECR | `liquidityScore` (`models.ts:34`) | `sourceState.fetchedAt` | — | `/10` index | avg of present | `MarketIntelligence.tsx:116` | `derivedMetrics.stats.test.ts` |
+| Valuation Gap (KPI) | `trueValue`,`perceivedValue`,`confidence`,`ownershipLeverage` | FantasyPros ECR | `deriveMarketMetrics`→`valuationGap` | `sourceState.fetchedAt` | FP 0.85 | raw VOR index | avg of present | `MarketIntelligence.tsx:115` | `derivedMetrics.stats.test.ts` |
+| Liquidity Score (KPI) | `opportunity`,`valuationGap` | nflverse snaps + ECR | `liquidityScore` (`models.ts:34`) | `sourceState.fetchedAt` | — | `/10` index | avg of present | `MarketIntelligence.tsx:116` | `derivedMetrics.stats.test.ts` |
 | Arbitrage Opps (KPI) | count of `|scarcityGap|>8` | FantasyPros ECR | `deriveMarketMetrics` (`derivedMetrics.ts:70`) | `sourceState.fetchedAt` | FP 0.85 | integer count | 0 on empty | `MarketIntelligence.tsx:117` | `derivedMetrics.stats.test.ts` |
 | Aggregate Value (KPI) | sum of `perceivedValue` | FantasyPros ECR | `deriveAggregateValueIndex` (`derivedMetrics.ts` (`deriveNarrativeMovers`)) | `sourceState.fetchedAt` | FP 0.85 | unitless `"k"` index, NOT currency | `"—"` when total ≤ 0 | `MarketIntelligence.tsx:118` | `derivedMetrics.stats.test.ts` |
 | Volatility Index (KPI) | `volatility` (avg) | FantasyPros `rank_std` | `deriveMarketMetrics.priceDiscoveryPct` (`derivedMetrics.ts:73`) | `sourceState.fetchedAt` | FP 0.85 | avg variance index | avg of present | `MarketIntelligence.tsx:119` | `derivedMetrics.stats.test.ts` |
-| Market Regime (KPI) | mean `marketInefficiency` | FantasyPros ECR | `deriveMarketMetrics` (`derivedMetrics.ts` (`deriveCommandMetrics`)) | `sourceState.fetchedAt` | FP 0.85 | `"—"`/"No market data" on empty pool | `"Unknown"`→`"—"` when empty | `MarketIntelligence.tsx:120` | `derivedMetrics.stats.test.ts` |
+| Market Regime (KPI) | mean `valuationGap` | FantasyPros ECR | `deriveMarketMetrics` (`derivedMetrics.ts` (`deriveCommandMetrics`)) | `sourceState.fetchedAt` | FP 0.85 | `"—"`/"No market data" on empty pool | `"Unknown"`→`"—"` when empty | `MarketIntelligence.tsx:120` | `derivedMetrics.stats.test.ts` |
 | Largest Valuation Gaps table (Market/Value/Gap/Own%/Trend) | `perceivedValue`,`trueValue`,`scarcityGap`,`ownershipLeverage`,`trendingMomentum` | FantasyPros ECR (+ trending for arrow) | `scarcityGap` (`models.ts:18`) | `sourceState.fetchedAt` | FP 0.85 | "No validated market records..." row | empty-row message | `MarketIntelligence.tsx` | `derivedMetrics.stats.test.ts` |
 | Value × Usage Board (value bar, usage bar, edge) | `trueValue`, `opportunity`, `scarcityGap` | ECR + nflverse snaps | inline sort + `scarcityGap` | `sourceState.fetchedAt` | FP 0.85 | usage bar omitted when no snap data (`anyUsage`) | usage bar hidden; "No validated market records" | `MarketIntelligence.tsx:213` | `derivedMetrics.stats.test.ts` |
 | Liquidity Flow tab (bars by opportunity) | `opportunity` | nflverse snaps | sort by `opportunity` | `sourceState.fetchedAt` | — | `<DataUnavailable>` when `opportunity` missing | full banner | `MarketIntelligence.tsx:75`,`:184` | `panelState.test.ts` |
@@ -169,7 +171,7 @@ noted. Component files:
 |---|---|---|---|---|---|---|---|---|---|
 | Galaxy grid (cards, value, bar) | `trueValue`,`name`,`position`,`team`,`imageUrl` | FantasyPros ECR + Sleeper/ESPN identity | sort by `trueValue` | `sourceState.fetchedAt` | FP 0.85 | "No players found" | empty grid | `PlayerUniverse.tsx:171` | — |
 | Player Profile (True/Market/Edge/Trending) | `trueValue`,`perceivedValue`,`scarcityGap`,`trendingMomentum` | FantasyPros ECR (+ trending) | `scarcityGap`, `trendingLabel` | `sourceState.fetchedAt` | FP 0.85 | profile hidden when no selection | n/a | `PlayerUniverse.tsx:229` | `utils.test.ts` (trendingLabel) |
-| Universe Stats (Total / Value Above Consensus / Avg Valuation Gap) | count, `trueValue>perceivedValue`, `marketInefficiency` avg | FantasyPros ECR | `marketInefficiency`, inline | `sourceState.fetchedAt` | FP 0.85 | counts reflect pool | derived from present | `PlayerUniverse.tsx:270` | `derivedMetrics.stats.test.ts` |
+| Universe Stats (Total / Value Above Consensus / Avg Valuation Gap) | count, `trueValue>perceivedValue`, `valuationGap` avg | FantasyPros ECR | `valuationGap`, inline | `sourceState.fetchedAt` | FP 0.85 | counts reflect pool | derived from present | `PlayerUniverse.tsx:270` | `derivedMetrics.stats.test.ts` |
 | Rising Stars list | `narrativeVelocity` | ESPN news / Sleeper proxy | `deriveRisingStars` (`derivedMetrics.ts:233`) | `sourceState.fetchedAt` | — | ranks present records (0 hype if trending missing) | list shrinks | `PlayerUniverse.tsx:298` | `derivedMetrics.stats.test.ts` |
 | Player News (headline, age, link) | `envelope.playerNews[record.id][]`, `envelope.playerNewsMeta` | ESPN NFL news (`news-refresh` cron, daily 09:20) | `buildPlayerNewsIndex` (`espn/newsMatch.ts`); age vs `envelope.generatedAt` | `playerNewsMeta.fetchedAt`, stated in the panel | ESPN-attributed, no NLP, no scoring | `<DataUnavailable>` when no snapshot; explicit "no article mentions X" when covered-but-empty | named empty state, never blank | `panels/sections/PlayerNews.tsx` | `newsMatch.test.ts`, `e2e/30-news-and-faab.spec.ts` |
 | Metric Profile radar (Value/Oppty/Trending/Confidence/Stability) | `trueValue`,`opportunity`,`trendingMomentum`,`confidence`,`volatility` | ECR + nflverse snaps + trending | inline axis mapping; `RADAR_AXIS_DEPS` | `sourceState.fetchedAt` | FP 0.85 | axis drops to 0 + `*` footnote when its dep ∈ missingFields | per-axis dashed/zero | `PlayerUniverse.tsx:27`,`:119` | `panelState.test.ts` |
@@ -194,16 +196,24 @@ noted. Component files:
 ## Nexus Simulator (`analytics` + `dashboard`)
 `src/components/panels/NexusSimulator.tsx` · pool = user roster · gating via `derivePanelState(["trending_momentum","opportunity"])`
 
-The simulation **always runs**; missing behavioral fields only widen the displayed
-CI bands and add a disclosure banner (`CI_MULTIPLIER`/`CI_LABEL`, lines 33–43).
+The simulation **always runs**; missing behavioral fields add a disclosure banner
+(`NexusSimulator.tsx:34-44`).
+
+**Nothing is widened, and this line used to say it was.** `CI_MULTIPLIER` and
+`CI_LABEL` inflated the band 1.5× when a source was degraded and 2.5× when it was
+unavailable. Audit P0-4 removed them on 2026-08-22: multiplying a Monte-Carlo
+replication range by a number chosen for how a source *feels* produces a band that
+is neither the replication range nor any measured uncertainty — it is a made-up
+interval wearing the units of a real one. Missing inputs are now disclosed in
+words, and the band keeps meaning the one thing it can mean.
 
 | UI label | data field | source adapter | derivation fn | freshness | confidence/validation | live/fixture/unavailable | fallback when missing | file:line | test |
 |---|---|---|---|---|---|---|---|---|---|
 | SIMULATIONS count | `sim.params.iterations` | season sim params | `deriveAppData` (`seed 20260513`, 2500 iters) | sim `source` | seeded/deterministic | static count | n/a | `NexusSimulator.tsx:90` | `simulation.test.ts` |
-| CI disclosure banner | `panelState.status`, `weeklyProjectionsMeta` | `derivePanelState` + projections | `CI_MULTIPLIER`/`CI_LABEL` | `weeklyProjectionsMeta.fetchedAt` | — | "Speculative" / "Wide CI" / live-week label | banner widens CI 1.5×/2.5× | `NexusSimulator.tsx:62`,`:110` | `panelState.test.ts` |
+| Data-state disclosure banner | `panelState.status`, `weeklyProjectionsMeta` | `derivePanelState` + projections | — (qualitative only) | `weeklyProjectionsMeta.fetchedAt` | — | "Speculative" / live-week label | banner text only; the band is never rescaled | `NexusSimulator.tsx:34-44` | `panelState.test.ts` |
 | Outcome Multiverse (5 buckets) | `sim.championship/playoff/catastrophicRisk` | season Monte Carlo | `deriveOutcomeDistribution` (`derivedMetrics.ts:134`) | sim `source` | buckets sum to 100, each ≥0 | "No player data" overlay | normalized to 100% | `NexusSimulator.tsx:165` | `derivedMetrics.stats.test.ts` (outcome %) |
 | Outcome Multiverse heatmap | `sim.distribution` (wins×tier joint, seeded) | season Monte Carlo | `buildOutcomeHeat` (`outcomeHeat.ts:34`) | sim `source` | conditional, each column = 100% | "No simulated seasons to chart" | null heat → note | `NexusSimulator.tsx:188` | `outcomeHeat.test.ts` |
-| 95% Confidence Bands (Championship/Playoffs) | `sim.championshipProbability`,`playoffProbability` | seeded replicate sims (`seed+i`), **server-computed** (`deriveConfidenceBands`) | `bootstrapCI` (`stats/distribution.ts`) + client `widen` | sim `source` | bootstrap N=500, 20×800 iters; clamped `[0,100]` | "No data — confidence intervals unavailable" | empty-state note | `derive.ts` (`deriveConfidenceBands`), `NexusSimulator.tsx` (`ConfidenceBands`) | `continuity.test.ts`, `stats/distribution.test.ts` |
+| Scenario Outlook — replication range (Championship/Playoffs) | `sim.championshipProbability`,`playoffProbability` | seeded replicate sims (`seed+i`), **server-computed** (`deriveReplicationRange`) | `bootstrapCI` (`stats/distribution.ts`), N=500, alpha 0.05, seed 1019 | sim `source` | 20×800 iters; clamped `[0,100]`. **Not a confidence interval** — it measures how far the answer moves when the simulation is re-run, not whether the model is right; measured season calibration error is 16.13pp against a ±1.5pp range (audit P0-4) | "No data — scenario outlook unavailable" | empty-state note | `derive.ts:59` (`deriveReplicationRange`), `NexusSimulator.tsx:311-334` (`ScenarioBands`) | `continuity.test.ts`, `stats/distribution.test.ts` |
 | Scenario Comparison table (Champ/Top3/Playoffs/PF/PA/Rank) | best/baseline/worst sims; PF/PA from weekly means × weeks | season Monte Carlo | `deriveScenarioComparison` + `simToRow` (`derivedMetrics.ts:159`,`:86`) | sim `source` | clamped + well-ordered tiers | "No data available" | empty-state note | `NexusSimulator.tsx:335` | `derivedMetrics.stats.test.ts`, `simulation.test.ts` |
 | Key Drivers (proj pts/week bars) | `sim.keyDrivers[].contribution` = starter weekly mean | season sim starters | `runNexusSimulation` (`simulation.ts:157`) | sim `source` | real pts/week | "No data." | empty-state | `NexusSimulator.tsx:376` | `simulation.test.ts` |
 | Risk of Regret (donut + assumptions) | `sim.regretIndex` = `1 − playoffProbability` | season Monte Carlo | `runNexusSimulation` (`simulation.ts:169`) | sim `source` | clamped `[0,100]` | "No data." | empty-state | `NexusSimulator.tsx:397` | `simulation.test.ts` |

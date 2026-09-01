@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { resetDbForTests } from "../../db";
 import { authorizeCredentials, credentialsSchema } from "./credentials";
 import { createUserWithPassword } from "../users";
@@ -24,7 +24,28 @@ const PASSWORD = "correct-horse-battery";
 describe("authorizeCredentials", () => {
   let db: ReturnType<typeof resetDbForTests>;
 
-  beforeEach(async () => {
+  /**
+   * ONE fixture user for the whole file, not one per test.
+   *
+   * `beforeEach` created a user before each of the eight tests, and the hash is
+   * scrypt at N=65536, r=8, p=2 — the OWASP-listed profile chosen in
+   * `passwords.ts`, deliberately ~574ms and 64 MiB. Eight setups plus the
+   * verification each test performs (plus the timing-equalizer hash `users.ts`
+   * burns on every miss) put the hook at ~6.7s of its 10s budget on an idle
+   * machine, and it TIMED OUT on 2026-09-01 when the suite ran alongside a
+   * Playwright run. A hook spending two thirds of its budget when nothing else
+   * is happening is not a flake waiting to happen, it is one that already has.
+   *
+   * The cost factor is a security parameter and is NOT lowered for tests: that
+   * would test a hash the product does not use. What changes is how many times
+   * it is paid. Every test here is read-only — they authenticate and assert on
+   * the result; none writes — so a single shared account exercises exactly the
+   * same code path eight times fewer.
+   *
+   * If a test that MUTATES the user is ever added, it needs its own `describe`
+   * with its own reset; sharing this one would let it leak into the others.
+   */
+  beforeAll(async () => {
     db = resetDbForTests();
     await createUserWithPassword(db, { email: EMAIL, password: PASSWORD });
   });

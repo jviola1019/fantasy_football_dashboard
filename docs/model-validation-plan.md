@@ -32,7 +32,7 @@ So there are two simulators:
 |---|---|---|
 | Input | real weekly score distributions | players → `trueValue` → points |
 | Uses replacement level | no | **yes** (via `trueValue`) |
-| Uses `AVG_STARTER_PTS` | no | **yes** |
+| Uses `avgStarterPtsFor()` / `AVG_STARTER_PTS_PPR` | no | **yes** |
 | Drives the dashboard | no | **yes** |
 | Backtested | **yes** — Brier 0.1657 on 10 real team-seasons | **no — nothing** |
 

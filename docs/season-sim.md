@@ -38,7 +38,10 @@ of that (wins, outcome) pair rather than a re-scaled or fabricated value.
 
 ## The scoring model (two-level / hierarchical)
 
-All scores are in **weekly fantasy points (PPR)**.
+All scores are in **weekly fantasy points in the league's own scoring
+format**. `avgStarterPtsFor()` (`simulation.ts:98-102`) anchors the field at
+11.5 PPR / 10.5 half / 9.5 standard, and `deriveSeasonInputs` reads
+`params.scoringFormat`, so both sides of the comparison scale together.
 
 - **User team** has a fixed weekly distribution `N(meanWeekly, sigmaWeekly)`.
 - **Each opponent** draws a season strength `μ ~ N(field.meanWeekly,
@@ -53,9 +56,20 @@ fantasy season model.
 
 Starters = the top `rosterSlots` players by value. Per starter:
 
-- **weekly mean** — the player's real Sleeper `pts_ppr` projection on the live
-  path; off-season it is mapped from season-aggregate `trueValue`
-  (`11.5 + (trueValue − 50)·0.18`, so a median player ≈ 11.5 pts).
+- **weekly mean** — the player's real Sleeper projection on the live path;
+  off-season it is mapped from season-aggregate `trueValue` as
+  `avgStarterPtsFor(format) + (trueValue − STARTER_ANCHOR_TV)·0.18`
+  (`simulation.ts:158`).
+
+  **The anchor is `averageStartableTrueValue()` ≈ 79.2, not 50.** This
+  paragraph documented `11.5 + (trueValue − 50)·0.18` long after that formula
+  was removed, and the 50 was a unit error rather than a tuning choice:
+  startable trueValue is not centred on 50, so every team scored ~164 points
+  against a 115-point field, all 50 measured team-seasons came out at ~100%
+  playoff odds, and the season Brier was 0.4000 with AUC 0.5000 — a model
+  that had stopped discriminating at all. `simulation.ts:112-122` records the
+  measurement; `simulation.calibration.test.ts` pins the repair.
+  `MEDIAN_TV` now survives only in that comment.
 - **weekly sigma** — `4 + volatility·0.08`.
 
 `team.meanWeekly` = Σ starter means; `team.sigmaWeekly` = √(Σ starter variances)
