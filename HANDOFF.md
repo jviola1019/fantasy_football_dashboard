@@ -1104,11 +1104,18 @@ crons work: `GET /api/health?snapshots=1` with `Authorization: Bearer $CRON_SECR
 defaulting to `leagues[0]` (`load.ts:92-93`). One of these leagues is undrafted. If
 the site looks "not updated", check the league switcher before anything else.
 
-**Known open item, not yet chased:** one full `vitest` run reported
-`1 failed | 1256 passed`; two runs immediately after were clean at 1,257 and the
-log did not retain which test it was. Treated as a flake, **not** identified. Watch
-the next full run and capture the log with `npx vitest run > vt.log 2>&1` rather
-than piping to `tail`, which is what lost it.
+**Two flakes this session, both traced to the machine, not the code.** A full
+`vitest` run reported `1 failed | 1256 passed` and two immediately after were
+clean at 1,257 — the log was piped to `tail` so the identity was lost. Then the
+full Playwright run failed one spec with
+`net::ERR_NETWORK_IO_SUSPENDED at http://localhost:3000/analytics`, which is the
+host suspending its network mid-run, not a product defect; re-running that spec
+alone passed 34/34.
+
+The Playwright one is diagnosed. The vitest one is **not identified** and is only
+*consistent* with the same cause. On long runs capture with
+`npx vitest run > vt.log 2>&1` rather than piping to `tail`, and treat a single
+unreproduced failure as unexplained until it is named.
 
 **Standing constraints that have never been relaxed:** no merge without human
 approval; no production deploy, credential rotation, history rewrite or force push;
