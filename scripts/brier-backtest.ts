@@ -60,6 +60,7 @@
 import { brierScore, kFoldCV, reliabilityDiagram, expectedCalibrationError } from "../src/lib/stats/distribution";
 import type { BrierForecast } from "../src/lib/stats/distribution";
 import { fitLogisticCV } from "../src/lib/stats/logistic";
+import { fingerprintRows, prospectiveRowKey } from "../src/lib/stats/fingerprint";
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { join } from "node:path";
@@ -534,16 +535,6 @@ function rankAuc(forecasts: BrierForecast[]): number | null {
  *
  * FNV-1a over the sorted row keys -- dependency-free and stable across runs.
  */
-function fingerprintRows(keys: readonly string[]): string {
-  let h = 0x811c9dc5;
-  for (const key of [...keys].sort()) {
-    for (let i = 0; i < key.length; i += 1) {
-      h ^= key.charCodeAt(i);
-      h = Math.imul(h, 0x01000193) >>> 0;
-    }
-  }
-  return h.toString(16).padStart(8, "0");
-}
 
 function asciiBar(v: number, width = 20): string {
   const filled = Math.round(v * width);
@@ -654,7 +645,7 @@ async function main() {
     // compared as though they scored the same.
     lines.push(
       `> **Input fingerprint:** \`${fingerprintRows(
-        data.rows.map((r) => `${r.player_id}|${r.week}|${r.proj_pts_ppr}|${r.actual_pts_ppr}`)
+        data.rows.map(prospectiveRowKey)
       )}\` over ${data.rows.length} rows. Two reports are comparable only when this value matches.  `
     );
   } else {

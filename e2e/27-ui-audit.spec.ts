@@ -100,44 +100,59 @@ const DEFAULT_MINIMA: Minima = {
 /**
  * Kinds that must be empty, and kinds that are ratchets.
  *
- * `type-scale` is not zero today and cannot be: the sub-floor SVG text on
- * /analytics is chart work (redesign session 3) and the collapsed hierarchy is
- * design work (session 4). Measured 2026-08-28 across BOTH viewport projects,
- * so a redesign cannot make either worse while the count is driven down.
+ * `type-scale` findings come in TWO shapes, and S5 split them because one
+ * combined budget let each hide the other:
+ *
+ *   ELEMENT-LEVEL - a specific run of text rendering below the 9px floor. Now
+ *     BANNED outright. It was 76 on /analytics when the redesign began (heatmap
+ *     cells at 6.9px, key-driver rows at 7.1px, both SVG user units scaled down
+ *     by their viewBox) and S5 drove it to zero on every route by moving those
+ *     labels out of SVG and into HTML. Zero graduates a ratchet to a ban - the
+ *     policy set in session 1, applied here for the second time after
+ *     `tracking` in session 2.
+ *
+ *   ROUTE-LEVEL - one finding per route saying the type hierarchy has
+ *     collapsed: more than 60% of rendered text on the bottom two rungs. Design
+ *     work, owned by S6, so it stays a ratchet at 1 per route.
+ *
+ * A single budget of 76 meant /analytics could regain 75 sub-floor elements and
+ * still pass. It had also gone slack on its own: when S5 measured, the real
+ * count was 11, not 76 - the 76 was taken on a machine with a populated
+ * snapshot cache and never rechecked. A ratchet sitting 65 above reality is not
+ * a ratchet. Driving the element half to zero removes the problem rather than
+ * re-baselining it, because zero is the same number in both environments.
  *
  * `cta` measured zero on every route, so it blocks from the start.
- *
- * Lower these as the sessions land. When a route reaches zero, delete its entry
- * — the `?? 0` default then holds it there permanently.
  */
-const TYPE_SCALE_BASELINE: Record<string, number> = {
-  // 76 sub-floor SVG labels — heatmap cells at 6.9px and key-driver rows at
-  // 7.1px, both scaled down by their viewBox. Session 3 (chart kit) drives this
-  // to zero by moving the labels into HTML, the way NexusSimulator.tsx:236-247
-  // already did for its outcome labels.
-  //
-  // Measured at 90 before the scan deduped by element: an <svg><text> matches
-  // both "body *" and the explicit SVG query, so every SVG label was counted
-  // twice. 76 is the real number.
-  "/analytics": 76,
-  // One route-level hierarchy finding each: 63%, 70%, 84%, 87%, 70%, 94% of
-  // rendered text on the bottom two rungs against a 60% limit.
+
+/**
+ * Route-level hierarchy findings permitted per route. S6 drives these to zero.
+ * Measured 2026-08-28 across BOTH viewport projects: 63%, 70%, 84%, 87%, 70%
+ * and 94% of rendered text on the bottom two rungs against a 60% limit.
+ *
+ * /mock-draft is 1 locally, where a cached snapshot makes it a full draft board,
+ * and 0 in CI, where it degrades to the unavailable state - held at the LOCAL
+ * maximum so a development run cannot false-fail. /trades passes at desktop on
+ * its default tab (48%) and fails on mobile once the second tab is opened; only
+ * the tab-state sweep sees that, which is why the sweep exists.
+ */
+const HIERARCHY_BASELINE: Record<string, number> = {
   "/dashboard": 1,
   "/players": 1,
+  "/analytics": 1,
   "/draft": 1,
   "/waivers": 1,
   "/reports": 1,
-  // 1 locally, where a cached snapshot makes this a full draft board; 0 in CI,
-  // where it degrades to the unavailable state. Held at the LOCAL maximum so a
-  // development run cannot false-fail, while the floors above are held at the CI
-  // minimum so CI cannot. A route with two renderings needs both bounds.
   "/mock-draft": 1,
-  // /trades passes at desktop width on its default tab (48%) and fails on
-  // mobile once the second tab is opened — the Recent League Trades table is
-  // almost entirely 11px. Only the tab-state sweep sees it, which is the whole
-  // reason that sweep exists.
   "/trades": 1
 };
+
+/**
+ * The scanner emits route-level findings with the literal selector "route" and
+ * element-level ones with a real selector. Splitting on that is what lets each
+ * half be judged on its own terms.
+ */
+const isRouteLevel = (f: { selector?: string }) => f.selector === "route";
 
 /** Scan only once the reveal animations have settled — see WAIT_FOR_ANIMATIONS. */
 async function scan(page: Page): Promise<Scan> {
@@ -234,8 +249,16 @@ test.describe("UI audit", () => {
     // Every check gets its own canary. A shared one only proves the first
     // branch runs, which is how a partly-dead scan looks exactly like a clean
     // page — the failure this whole harness exists to prevent.
+    // Asserted against the ELEMENT-level half specifically. `added("type-scale")`
+    // alone would also be satisfied by a route-level hierarchy finding, and the
+    // element half is the one that is now a ban at zero — a ban whose detector
+    // has quietly stopped firing is indistinguishable from a clean page, which
+    // is the failure this whole harness exists to prevent.
+    const addedSubFloor =
+      after.filter((f) => f.kind === "type-scale" && !isRouteLevel(f)).length -
+      before.filter((f) => f.kind === "type-scale" && !isRouteLevel(f)).length;
     expect(
-      added("type-scale"),
+      addedSubFloor,
       "the type-scale check must flag SVG text scaled below the 9px floor"
     ).toBeGreaterThan(0);
     expect(added("cta"), "the CTA check must flag a second competing amber button").toBeGreaterThan(0);
@@ -267,14 +290,27 @@ test.describe("UI audit", () => {
         `${route} UI audit findings`
       ).toEqual([]);
 
-      // Ratchet kind: must not grow. See TYPE_SCALE_BASELINE.
       const typeFindings = findings.filter((f) => f.kind === "type-scale");
-      const allowed = TYPE_SCALE_BASELINE[route] ?? 0;
+
+      // BAN. Element-level sub-floor text reached zero in S5 and stays there.
+      const subFloor = typeFindings.filter((f) => !isRouteLevel(f));
       expect(
-        typeFindings.length,
-        `${route}: type-scale findings went from ${allowed} to ${typeFindings.length}. ` +
-          `Lower the baseline when you fix some; never raise it.\n` +
-          typeFindings.map((f) => `  ${f.selector} — ${f.detail}`).join("\n")
+        subFloor.length,
+        `${route}: ${subFloor.length} run(s) of text render below the 9px floor. ` +
+          `This is a ban, not a ratchet - text whose size is data belongs in HTML, ` +
+          `where it can use the type scale, not in SVG user units that a viewBox ` +
+          `shrinks.` +
+          subFloor.map((f) => ` [${f.selector}: ${f.detail}]`).join("")
+      ).toBe(0);
+
+      // RATCHET. Route-level hierarchy is S6's work; it may shrink, never grow.
+      const hierarchy = typeFindings.filter(isRouteLevel);
+      const allowed = HIERARCHY_BASELINE[route] ?? 0;
+      expect(
+        hierarchy.length,
+        `${route}: hierarchy findings went from ${allowed} to ${hierarchy.length}. ` +
+          `Lower the baseline when you fix some; never raise it.` +
+          hierarchy.map((f) => ` [${f.detail}]`).join("")
       ).toBeLessThanOrEqual(allowed);
     });
   }

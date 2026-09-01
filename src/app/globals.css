@@ -1270,6 +1270,58 @@ td small { color: var(--muted); }
 .rising-item { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 2px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .radar-wrap { padding: var(--space-3) 0 0; border: none; border-top: 1px solid var(--line); background: none; margin-top: var(--space-2); }
 .universe-sidebar { display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
+/* ─── Chart kit (S5) ──────────────────────────────────────────────────────
+   One bar idiom for the whole product. `BarChart` was an SVG whose labels were
+   user units scaled by a viewBox, so they rendered at 7.1px inside a mini-panel;
+   in HTML the type comes off the scale and reflows instead of shrinking.
+   Spacing uses scale rungs only — designTokens.test.ts pins the off-scale count
+   at exactly 166, so a new surface may not add one. */
+.chart-figure { margin: 0; }
+.chart-caption { font-size: var(--text-xs); line-height: 1.4; color: var(--muted); margin-top: var(--space-1); }
+
+.bar-chart { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
+.bar-row { display: grid; grid-template-columns: minmax(0, 1fr) 1fr auto; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); }
+.bar-row-emphasis { color: var(--cream); font-weight: 600; }
+.bar-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-note { color: var(--amber); }
+.bar-track { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; display: block; }
+.bar-fill { display: block; height: 100%; border-radius: 2px; background: var(--bar-color, var(--green)); width: var(--bar-pct, 0%); transition: width var(--motion-slow) ease; }
+.bar-row-emphasis .bar-fill { background: var(--bar-color, var(--amber)); }
+.bar-value { font-family: var(--font-plex-mono), "Courier New", monospace; white-space: nowrap; }
+
+/* Outcome heatmap as a real table: header cells name the row and column, so a
+   screen reader can traverse it as data instead of hearing one long aria-label
+   describing an image. */
+.heatmap-table { border-collapse: separate; border-spacing: 2px; width: 100%; table-layout: fixed; }
+.heatmap-table th { font-size: var(--text-micro); font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--label-text); padding: 0; }
+.heatmap-table thead th { text-align: center; padding-bottom: var(--space-1); }
+.heatmap-table tbody th { text-align: right; padding-right: var(--space-1); white-space: nowrap; }
+/* `color` is set per cell in JS from the cell's own luminance (cellContrast.ts);
+   no colour is declared here, so nothing can override that choice. */
+.heatmap-cell { font-size: var(--text-xs); text-align: center; border-radius: 3px; padding: var(--space-1) 0; }
+.heatmap-wrap { width: 100%; overflow-x: auto; }
+.multiverse-hint { max-width: 46ch; }
+
+/* Price Discovery scatter: geometry stays SVG, every label is HTML positioned
+   over it as a percentage of the same scales the circles use. */
+.pd-scatter-wrap { position: relative; width: 100%; }
+.pd-point-label { position: absolute; transform: translate(6px, -100%); font-size: var(--text-micro); color: var(--cream); white-space: nowrap; pointer-events: none; }
+.pd-axis-x { position: absolute; right: 0; bottom: 0; font-size: var(--text-micro); color: var(--muted); }
+.pd-axis-y { position: absolute; left: 0; top: 0; font-size: var(--text-micro); color: var(--muted); }
+.pd-parity-label { position: absolute; right: 0; top: 0; font-size: var(--text-micro); color: var(--muted); text-align: right; max-width: 50%; }
+
+/* ─── Weekly start probability (S7) ───────────────────────────────────────
+   The disclosure is not a footnote: it carries the measured calibration error
+   and Brier skill that license the word "calibrated" at all, so it is sized and
+   spaced as content rather than as fine print. */
+.weekly-prob { border-top: 1px solid var(--line); padding-top: var(--space-4); margin-top: var(--space-4); }
+.weekly-prob-weak { color: var(--yellow, var(--amber)); font-size: var(--text-micro); }
+.weekly-prob-disclosure { border-left: 2px solid var(--line); padding-left: var(--space-3); margin-top: var(--space-4); }
+.weekly-prob-heading { font-size: var(--text-sm); font-weight: 600; color: var(--cream); margin: 0 0 var(--space-2); }
+.weekly-prob-limits { margin: 0 0 var(--space-2); padding-left: var(--space-3); font-size: var(--text-xs); color: var(--muted); }
+.weekly-prob-limits li { margin-bottom: var(--space-1); }
+.heatmap-caption { font-size: var(--text-xs); color: var(--muted); font-family: var(--font-plex-mono), "Courier New", monospace; margin-top: var(--space-1); text-align: center; }
+
 /* ─── FAAB board (S4) ─────────────────────────────────────────────────────
    Every team's remaining waiver budget, richest first. Reuses the existing bar
    idiom (.player-row-bar) rather than inventing a second one; spacing values are
@@ -1277,15 +1329,6 @@ td small { color: var(--muted); }
 .faab-board { padding: var(--space-3) 0; border-top: 1px solid var(--line); }
 .faab-lede { font-size: var(--text-xs); color: var(--muted); margin: 0 0 var(--space-2); }
 .faab-mine-amount { font-size: var(--text-base); color: var(--cream); }
-.faab-list { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: 0; list-style: none; }
-.faab-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px auto; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); }
-.faab-row-mine { color: var(--cream); font-weight: 600; }
-.faab-team { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.faab-you { color: var(--amber); }
-.faab-bar-track { height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; display: block; }
-.faab-bar { display: block; height: 100%; border-radius: 2px; background: var(--blue); width: var(--faab-w, 0%); transition: width var(--motion-slow) ease; }
-.faab-row-mine .faab-bar { background: var(--amber); }
-.faab-amount { font-family: var(--font-plex-mono), "Courier New", monospace; white-space: nowrap; }
 .faab-prov { margin-top: var(--space-2); }
 
 /* ─── Player news (S4) ────────────────────────────────────────────────────

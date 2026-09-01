@@ -999,9 +999,9 @@ to be legible.
 | S3 | **live-league correctness** | **DONE** | `c22e112` | D-A news provenance was false · D-B validated model unreachable · D-C usage vintage · D-D league identity. All four with tests shown to fail first. |
 | S4 | **news surface + FAAB** | **DONE** | `<s4>` | Headlines now render with time + link · FAAB board is live and league-wide · **and the FAAB extractor was found to be wrong**: it keyed on `waiver_budget`, which Sleeper sends for every league, so it would have drawn a full budget board for two rolling-waiver leagues. Gate is now `waiver_type === 2`. |
 | — | **MERGE PR #35 + verify production** | **AUTHORISED 2026-09-01** | — | Owner approved the merge and the resulting production deploy; do it once S4's gates and CI are green. |
-| S5 | chart kit | not started | — | 76 sub-floor SVG labels; `<ChartSummary>` |
+| S5 | **chart kit** | **DONE** | `<s5>` | Sub-floor SVG text driven to **zero** on every route at both viewports (was 10 desktop + 6 mobile-only; the handoff's "76" was a stale measurement and also the CI ceiling). BarChart and Heatmap2D are HTML; the heatmap is a real `<table>`. **And a WCAG 1.4.3 failure axe could not see**: the heatmap's cell text sat at 4.33:1 for months because axe does not evaluate contrast inside SVG. Ramp retuned; worst cell now 5.08:1. |
+| S7 | **the validated model panel** | **DONE** | `<s7>` | The weekly start/sit logistic ships as frozen constants; `logistic.ts` moved from "reached only by scripts" to **reached by the app**. `verify:weekly-prob` 43/43 offline, cross-checking the constants against numbers PARSED OUT of `docs/brier-results.md`. D2's wording ban **widened** from 3 routes to all, then scoped to an earn-it exemption. |
 | S6 | hierarchy, density, CTAs | not started | — | type 48–94% bottom-heavy; 166 off-scale spacing deferred from S2 |
-| S7 | the validated model panel | not started | — | frozen coefficients (D1); scoped wording exemption (D2) |
 | S8 | landing page + React Bits | not started | — | six-card grid; Tailwind/Motion variants only |
 | S9 | docs + architecture audit + re-verification | not started | — | **README documents 3 of 8 crons**; pre/post-draft model absent entirely |
 
@@ -1055,6 +1055,44 @@ Also in S4: the budget is now league-wide (a budget only means something against
 the field), the panel and the lifecycle alert read the **same object** so they
 cannot disagree, and an unresolved identity marks nobody's row as yours rather
 than repeating D-D.
+
+### S5 + S7 — two findings worth carrying forward
+
+**A checker that cannot see its input reports success.** Two instances this
+session, both caught only because something else changed:
+
+- **axe does not evaluate contrast inside SVG.** The heatmap's cell percentages
+  sat at **4.33:1** against the 4.5:1 that 11px text requires, for months, while
+  `03-a11y.spec.ts` reported `/analytics` clean. Converting the cells to HTML
+  produced 392 axe violations *immediately* — the conversion did not create the
+  defect, it made the checker able to see it. Choosing the ink per cell was
+  necessary and **not sufficient**: the ramp had a band where neither a light nor
+  a dark foreground reached AA (best available 4.03:1 at v=0.50), so the alpha
+  ceilings were solved numerically. Worst cell is now 5.08:1, verified at 101
+  points, with the old ramp kept inline as a canary that still fails.
+- **The UI audit's type ratchet had gone slack by 65.** The baseline said 76;
+  the real count was 11. The 76 was taken on a machine with a populated snapshot
+  cache and never rechecked, so `/analytics` could have regained 65 sub-floor
+  labels and CI would have passed. Fixed by driving the element half to **zero**
+  and banning it — zero is the same number in both environments — and splitting
+  the gate so a route-level finding can no longer hide element-level ones.
+
+**A wording guard was narrower than its own reason.** The "calibrated
+probability" ban covered 3 of 10 routes, and `/players` — where the S7 panel
+lives — was not among them. Shipping the panel without widening it would have
+passed CI while proving nothing.
+
+### A process note, twice over
+
+Two self-inflicted errors worth not repeating:
+
+1. **`npx playwright test > log; echo "exit=$?"`** reports the ECHO's status. A
+   run with **23 failures** was recorded as exit 0. Put the exit code inside the
+   log, or check the summary line, never the compound command's status.
+2. **Do not rebuild while an e2e run is in flight.** `next build` swaps the build
+   under the running server, `globalSetup`'s `BUILD_ID` guard then refuses the
+   suite, and any results from before that point describe a tree that no longer
+   exists. Both of this session's confusing runs traced to this.
 
 ### MERGED — production is no longer three weeks behind
 

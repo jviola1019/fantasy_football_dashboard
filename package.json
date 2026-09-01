@@ -20,6 +20,8 @@
     "lighthouse:variance": "tsx scripts/lighthouse-variance.ts",
     "seed:account": "tsx scripts/seed-account.ts",
     "check:secrets": "tsx scripts/check-doc-secrets.ts",
+    "verify:weekly-prob": "tsx scripts/verify-weekly-prob.ts",
+    "fit:weekly-prob": "tsx scripts/fit-weekly-prob.ts",
     "check:advisories": "tsx scripts/check-lockfile-advisories.ts",
     "check:projection-units": "tsx scripts/check-projection-units.ts",
     "check:exceptions": "tsx scripts/check-vuln-exceptions.ts",

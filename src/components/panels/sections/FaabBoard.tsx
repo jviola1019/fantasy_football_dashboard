@@ -1,6 +1,7 @@
 import type { RAEEnvelope } from "@/lib/governance";
 import { myFaabBudget } from "@/lib/leagues/faab";
 import { DataUnavailable } from "../../ui/DataUnavailable";
+import { BarChart } from "@/components/charts/BarChart";
 
 /**
  * Every team's remaining free-agent acquisition budget.
@@ -63,27 +64,21 @@ export function FaabBoard({ envelope }: { envelope?: RAEEnvelope }) {
         </p>
       )}
 
-      <ul className="faab-list">
-        {state.budgets.map((b) => (
-          <li key={b.teamId} className={`faab-row${b.isMine ? " faab-row-mine" : ""}`}>
-            <span className="faab-team">
-              {b.teamName}
-              {b.isMine ? <span className="faab-you"> · you</span> : null}
-            </span>
-            <span
-              className="faab-bar-track"
-              role="img"
-              aria-label={`${b.teamName}: $${b.remaining} of $${b.total} remaining`}
-            >
-              <span
-                className="faab-bar"
-                style={{ ["--faab-w" as string]: `${Math.round(b.ratio * 100)}%` }}
-              />
-            </span>
-            <span className="faab-amount">${b.remaining}</span>
-          </li>
-        ))}
-      </ul>
+      {/* The shared bar primitive (S5). This panel had its own copy of the
+          label/track/value grid; `BarChart` is now the one bar idiom in the
+          product, so a change to how a bar reads happens once. */}
+      <BarChart
+        items={state.budgets.map((b) => ({
+          label: b.teamName,
+          value: b.remaining,
+          valueLabel: `$${b.remaining}`,
+          note: b.isMine ? "· you" : undefined,
+          emphasis: b.isMine,
+          ariaLabel: `${b.teamName}: $${b.remaining} of $${b.total} remaining`
+        }))}
+        max={state.total}
+        ariaLabel="Remaining free-agent budget by team"
+      />
 
       <p className="small-note faab-prov">
         Live from the league&rsquo;s own waiver settings — {shown} of {state.teamCount} team

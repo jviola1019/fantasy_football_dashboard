@@ -206,20 +206,17 @@ function OutcomeMultiverse({
           data={heat.data}
           colorScale={(v) => DEFAULT_COLOR(heat.maxCell > 0 ? v / heat.maxCell : 0)}
           caption={heat.caption}
+          rowAxisLabel="Outcome"
+          colAxisLabel="Wins"
         />
       ) : (
         <p className="muted-note">No simulated seasons to chart yet.</p>
       )}
-      <svg
-        viewBox="0 0 560 300"
-        width="100%"
-        role="img"
-        aria-label={
-          players.length === 0
-            ? "Outcome fan chart: no player data"
-            : `Season outcome probabilities: ${outcomes.map((o) => `${o.label} ${o.pct}%`).join(", ")}`
-        }
-      >
+      {/* aria-hidden, and deliberately. The HTML legend below lists every
+          outcome and its probability as real text, so an aria-label here would
+          make a screen reader read the same figures twice — once as a flat
+          sentence and once as a list. The graphic is the redundant encoding. */}
+      <svg viewBox="0 0 560 300" width="100%" aria-hidden="true">
         <defs>
           <filter id="multiverseGlow">
             <feGaussianBlur stdDeviation="2" result="blur" />
@@ -227,7 +224,6 @@ function OutcomeMultiverse({
           </filter>
         </defs>
         <circle cx="50" cy="150" r="12" fill="rgba(9,13,18,0.9)" stroke="rgba(123,183,206,0.6)" strokeWidth="1.5" />
-        <text x="50" y="155" textAnchor="middle" fontSize="14" fill="var(--blue)">NOW</text>
         {outcomes.map((o, i) => {
           const cpX = 220;
           const d = `M 50 150 C ${cpX} ${150}, ${cpX + 80} ${o.y}, 460 ${o.y}`;
@@ -247,12 +243,25 @@ function OutcomeMultiverse({
             </g>
           );
         })}
-        {players.length === 0 && (
-          <text x="280" y="150" textAnchor="middle" fontSize="18" fill="rgba(232,225,207,0.3)">
-            No player data
-          </text>
-        )}
       </svg>
+      {/* Both of these were SVG <text> until S5, and both were sub-floor: "NOW"
+          at 14 user units and "No player data" at 18, in a 560-unit viewBox laid
+          out around 280px. The UI audit measured "NOW" reaching the screen at
+          7.1px. The audit of 2026-08-23 had already moved the OUTCOME labels out
+          of this same SVG for the same reason and left these two behind, which
+          is how a fix that is correct in principle leaves a remainder nobody
+          looks for again.
+          "NOW" is not merely re-sized: three letters inside a node explained the
+          chart only to someone who already understood it, so it is replaced by a
+          sentence that says what the fan actually shows. */}
+      {players.length === 0 ? (
+        <p className="muted-note">No player data, so no outcome paths are drawn.</p>
+      ) : (
+        <p className="small-note multiverse-hint">
+          Each path leaves today, at the left, and ends at one end-of-season outcome on the right.
+          Path height carries no meaning; the probabilities are listed below.
+        </p>
+      )}
       {/* The outcome labels are HTML, not SVG <text>.
           Audit 2026-08-23. They used to live inside the chart at 8 and 9 USER
           UNITS, and this SVG is a 560-wide viewBox rendered around 371px — a
