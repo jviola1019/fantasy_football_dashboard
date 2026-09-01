@@ -1056,6 +1056,27 @@ the field), the panel and the lifecycle alert read the **same object** so they
 cannot disagree, and an unresolved identity marks nobody's row as yours rather
 than repeating D-D.
 
+### `CRON_SECRET` — answered, without holding the secret
+
+Listed as an outstanding owner action since the redesign began, and carried as
+risk **R7** (*"production may never have had `CRON_SECRET`; if so no snapshot has
+ever been written"*). It is **set**, and this is now settled from outside.
+
+`requireCronAuth` returns **503 `"CRON_SECRET is not set"`** when the variable is
+missing and **403 `"forbidden"`** when it is present but the bearer is wrong.
+Those are distinguishable without possessing the secret. Probed unauthenticated
+against production on 2026-09-01:
+
+```
+/api/cron/news-refresh        -> HTTP 403 {"error":"forbidden"}
+/api/cron/opportunity-refresh -> HTTP 403 {"error":"forbidden"}
+/api/cron/lifecycle-check     -> HTTP 403 {"error":"forbidden"}
+```
+
+R7 is closed. Note this says nothing about whether the crons SUCCEED — only that
+they are authorised to run. `?snapshots=1` on `/api/health` is bearer-gated by
+design (SEC-03), so snapshot freshness still needs the operator.
+
 Reports: [`reports/2026-08-28/s1-gates.md`](reports/2026-08-28/s1-gates.md),
 [`s2-tokens.md`](reports/2026-08-28/s2-tokens.md),
 [`lighthouse-baseline.md`](reports/2026-08-28/lighthouse-baseline.md).
