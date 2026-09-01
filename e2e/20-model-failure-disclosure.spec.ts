@@ -263,12 +263,99 @@ test.describe("model-failure disclosure sits beside the numbers", () => {
 
   test("no surface presents the simulation as calibrated or validated", async ({ page }) => {
     // Wording guard: the audit forbids these claims for this model.
+    //
+    // WIDENED AND SCOPED 2026-09-01 (redesign decision D2).
+    //
+    // Widened first. The route list was /analytics, /reports and /dashboard --
+    // three of ten. The rule it encodes is a rule about the PRODUCT, so a guard
+    // covering three routes was narrower than its own reason: the same defect
+    // the `mispric` ban was widened for on 2026-08-26. It now covers every route
+    // that renders a model output.
+    //
+    // Then scoped. When this ban was written, nothing in the product was
+    // calibrated, so a blanket ban and the truth coincided. One thing now is --
+    // the weekly start/sit logistic, measured out-of-fold on 3,573 player-weeks,
+    // ECE 1.7-3.3% by position. Forbidding it from saying so would make the
+    // guard enforce a claim that has become false in the other direction.
+    //
+    // The exemption is narrow and it is an EARN, not an allow-list: a block may
+    // use the phrase only if it also prints its measured calibration error AND
+    // its Brier skill. Confident prose cannot satisfy that; only numbers can.
+    // Everywhere else on every route, the ban is unchanged.
     const banned = /\b(calibrated probabilit|validated forecast|predictive edge|expected true probability)/i;
-    for (const route of ["/analytics", "/reports", "/dashboard"]) {
+    // `/` is checked separately below: onboarding renders OUTSIDE the app shell,
+    // so `gotoRoute`'s command-bar assertion cannot pass there. Leaving it in
+    // this list is what made the first run of the widened guard fail.
+    const ROUTES_WITH_MODEL_CLAIMS = [
+      "/dashboard",
+      "/players",
+      "/analytics",
+      "/draft",
+      "/waivers",
+      "/trades",
+      "/reports"
+    ];
+
+    let earnedBlocks = 0;
+    for (const route of ROUTES_WITH_MODEL_CLAIMS) {
       await gotoRoute(page, route);
-      const body = await page.locator("body").innerText();
-      expect(body, `${route} must not claim calibration`).not.toMatch(banned);
+
+      // The weekly-probability panel lives in the Projections tab of Player
+      // Universe, so it is not in the DOM until that tab is opened. A guard that
+      // only ever sees the default tab would find no block to check and would
+      // report the exemption untested — which is exactly what it did on the
+      // first run, correctly.
+      if (route === "/players") {
+        const tab = page.getByRole("tab", { name: /projections/i }).first();
+        if (await tab.count()) {
+          await tab.click();
+          await expect(page.getByTestId("weekly-start-probability")).toBeVisible({ timeout: 15_000 });
+        }
+      }
+
+      const disclosures = page.locator(".weekly-prob-disclosure");
+      for (let i = 0; i < (await disclosures.count()); i += 1) {
+        const text = await disclosures.nth(i).innerText();
+        if (!banned.test(text)) continue;
+        earnedBlocks += 1;
+        expect(
+          text,
+          `${route}: a block claiming calibration must print its calibration error`
+        ).toMatch(/[0-9.]+% calibration error/i);
+        expect(
+          text,
+          `${route}: a block claiming calibration must print its Brier skill`
+        ).toMatch(/[0-9.]+% Brier skill/i);
+      }
+
+      // The rest of the page, with the earning blocks removed, is still banned.
+      const rest = await page.evaluate(() => {
+        const clone = document.body.cloneNode(true) as HTMLElement;
+        clone.querySelectorAll(".weekly-prob-disclosure").forEach((n) => n.remove());
+        return clone.innerText;
+      });
+      expect(
+        rest,
+        `${route} must not claim calibration outside a block that measures it`
+      ).not.toMatch(banned);
     }
+
+    // Onboarding, outside the app shell. It renders no model output at all, so
+    // it has nothing to earn the phrase with and the ban applies whole.
+    await page.goto("/");
+    await expect(page.locator("html#__next_error__")).toHaveCount(0);
+    expect(
+      await page.locator("body").innerText(),
+      "the onboarding screen must not claim calibration"
+    ).not.toMatch(banned);
+
+    // Canary. If the exemption path never runs, this test has quietly reverted to
+    // the old blanket ban and D2's earn-it requirement is untested. /players
+    // renders the panel from frozen constants, so it needs no live data.
+    expect(
+      earnedBlocks,
+      "no disclosure block exercised the exemption -- the earn-it requirement went unchecked"
+    ).toBeGreaterThan(0);
   });
 });
 
