@@ -20,7 +20,23 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const files = execFileSync("git", ["ls-files", "src", "scripts", "e2e"], { encoding: "utf8" })
+/**
+ * Tracked files AND untracked-but-not-ignored ones.
+ *
+ * `git ls-files` alone lists only what is COMMITTED, and this auditor exists to
+ * find code nothing imports — which is most often code somebody has just
+ * written. So the plain invocation was blind in exactly the place it was needed:
+ * on 2026-09-02 three new modules sat in `src/lib/stats/` while the audit
+ * reported "228 modules, 0 unreachable" over a tree that had 231.
+ *
+ * `--cached --others --exclude-standard` adds untracked files while still
+ * honouring `.gitignore`, so build output and `.data/` stay out.
+ */
+const files = execFileSync(
+  "git",
+  ["ls-files", "--cached", "--others", "--exclude-standard", "src", "scripts", "e2e"],
+  { encoding: "utf8" }
+)
   .split("\n")
   .map((f) => f.trim())
   .filter((f) => /\.(ts|tsx)$/.test(f));

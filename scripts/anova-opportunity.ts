@@ -33,9 +33,10 @@
  *   npx tsx scripts/anova-opportunity.ts
  *   npx tsx scripts/anova-opportunity.ts --self-test
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
+import { parseCsv } from "../src/lib/stats/csv";
 
 const DIR = "reports/2026-08-20/nflverse";
 const BUNDLE = "reports/2026-08-20/nflverse-usage.json.gz";
@@ -53,23 +54,10 @@ const SEED = 20260825;
 
 // ── data (protocol 4 preprocessing) ────────────────────────────────────────
 
-function parseCsv(text: string): string[][] {
-  const rows: string[][] = [];
-  let field = "", quoted = false;
-  let row: string[] = [];
-  for (let i = 0; i < text.length; i += 1) {
-    const c = text[i]!;
-    if (quoted) {
-      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i += 1; } else quoted = false; }
-      else field += c;
-    } else if (c === '"') quoted = true;
-    else if (c === ",") { row.push(field); field = ""; }
-    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
-    else if (c !== "\r") field += c;
-  }
-  if (field.length > 0 || row.length > 0) { row.push(field); rows.push(row); }
-  return rows;
-}
+// `parseCsv` moved to `src/lib/stats/csv.ts` on 2026-09-02. It was correct and
+// it was unreachable: `scripts/validate-variables.ts` needed the same thing,
+// could not import it, wrote a naive split instead, and lost every row whose
+// player name contains a comma. One home, and tests over the real bundle.
 
 let bundle: Record<string, string> | null = null;
 function readCsv(name: string): string[][] | null {
@@ -427,7 +415,32 @@ function main(): void {
     : "**Not every position rises monotonically across usage quintiles** — the effect is not uniform in shape.");
   say();
 
-  writeFileSync(OUT, out.join("\n"));
+  // PRESERVE ANYTHING A HUMAN ADDED BELOW THE GENERATED SECTION.
+  //
+  // Re-running this script on 2026-09-02 silently deleted 63 lines of
+  // hand-written interpretation from the committed report — the two findings the
+  // analysis was FOR, including the homogeneity conclusion that is the whole
+  // reason it exists. The numbers regenerated identically; the reasoning about
+  // them did not, because no code produces it.
+  //
+  // A generator that overwrites a file it only partly authors will do this every
+  // time, and the loss is invisible in the console output. Everything after the
+  // marker is carried across untouched.
+  // Line endings are normalised before the search. A first attempt matched on
+  // the literal "\n---\n\n## Interpretation\n" and found nothing, because git
+  // had checked the file out with CRLF — and a marker that misses is a marker
+  // that silently deletes, which is the failure this block exists to stop.
+  let preserved = "";
+  if (existsSync(OUT)) {
+    const prior = readFileSync(OUT, "utf8").replace(/\r\n/g, "\n");
+    const at = prior.indexOf("## Interpretation");
+    if (at !== -1) {
+      const rule = prior.lastIndexOf("\n---\n", at);
+      preserved = prior.slice(rule === -1 ? at : rule);
+      console.log(`Preserving ${preserved.split("\n").length} lines of hand-written interpretation.`);
+    }
+  }
+  writeFileSync(OUT, out.join("\n") + preserved);
   console.log(`\nWrote ${OUT}`);
 }
 
