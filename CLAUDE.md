@@ -141,6 +141,23 @@ Do not overuse:
 - decorative cards,
 - meaningless charts.
 
+**These are now enforced, not remembered** (`src/lib/ops/slopScan.test.ts`, added
+2026-09-01). It bans the specific defaults a tool reaches for when nobody
+overrides them — Inter/Roboto in a font stack, Tailwind `blue-600` and its
+indigo/violet/purple neighbours, `bg-gradient-to-*`, `rounded-2xl`/`rounded-full`,
+`backdrop-blur`, `shadow-xl`/`2xl`, accent-tinted (glowing) shadows, hover lift,
+animated background gradients, page-builder fingerprints — plus 19 copy markers
+("unlock the power of", "seamless", "delve", "game-changer", …).
+
+It caught, on its first run: a circular blue→purple gradient avatar, an animated
+18-second aurora behind the empty state, a gradient panel under a 32px shadow, a
+glowing nav pill, a hover lift on every panel and row, two frosted bars, and
+`backdrop-filter: blur(4px)` on the governance banner — the one element whose job
+is that trust-critical text stays legible.
+
+The gate checks the mechanical defaults, not whether the result is good. Passing
+it is not evidence of design quality; it only means the known defaults are gone.
+
 ## Quant Governance
 
 Every model output must expose:

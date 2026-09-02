@@ -179,6 +179,15 @@ noted. Component files:
 | Comparison tab (True/Market/Edge/Trend vs peers) | `trueValue`,`perceivedValue`,`scarcityGap`,`trendingMomentum` | FantasyPros ECR | `scarcityGap` (same as all panels) | `sourceState.fetchedAt` | FP 0.85 | "Select a player…" prompt | prompt when no selection | `PlayerUniverse.tsx:358` | `derivedMetrics.stats.test.ts` |
 | Watchlist tab (risers/fallers) | `narrativeVelocity` | ESPN news / Sleeper proxy | sort by `narrativeVelocity` | `sourceState.fetchedAt` | — | `<DataUnavailable>` when `trending_momentum` missing | full banner | `PlayerUniverse.tsx:396` | `panelState.test.ts` |
 | Projections tab (weekly proj pts) | `envelope.weeklyProjections`, `weeklyProjectionsMeta` | Sleeper projections cron | join `id` → pts | `weeklyProjectionsMeta.fetchedAt` | in-season only | `<DataUnavailable>` off-season / pre-cron | full banner | `PlayerUniverse.tsx:427` | `sleeper/projections.test.ts` |
+| Weekly start probability, P(clears line) | `envelope.weeklyProjections[id].ppr` → `weeklyStartProbability` | Sleeper projections cron (input); the model itself is FROZEN constants fitted offline | `weeklyStartProbability` (`models/weeklyProbability.ts`) → `predictLogisticProba` (`stats/logistic.ts`) | `weeklyProjectionsMeta.fetchedAt` for the input; the model has no freshness — it is a fixed artefact of the 2025 fit | **Measured out of sample.** Leave-one-week-out over 3,573 player-weeks: Brier skill +21.2 RB / +18.5 WR / +17.6 TE / **+3.7 QB**, ECE 1.7–3.3%. Fingerprint `bba1d103`, re-derivable offline by `npm run verify:weekly-prob` (43 checks) | `<DataUnavailable>` naming the INPUT as missing, not the model — and the disclosure still renders | probability omitted for any player without a PPR projection; never converted from another unit | `panels/sections/WeeklyStartProbability.tsx` | `WeeklyStartProbability.test.tsx`, `weeklyProbability.test.ts`, `e2e/20-model-failure-disclosure` |
+| …its per-position disclosure + reliability diagram | `WEEKLY_PROB_MODELS[pos].reliabilityBins` | same frozen fit | `weeklyProbDisclosure`, `describeReliability` | — | Prints its own ECE and Brier skill inline; that is what earns the phrase "calibrated probability" past the `e2e/20` ban, which is an EARN and not an allow-list | always renders, including when there is no projection to convert | n/a | `WeeklyStartProbability.tsx`, `charts/ReliabilityDiagram.tsx` | `chartKit.test.tsx` |
+
+
+**The unit on that row is load-bearing.** The weekly model was fitted on Sleeper's
+`pts_ppr` against PPR thresholds, so the panel selects the PPR field BY NAME
+whatever the league scores. Feeding it a half-PPR projection is the same class of
+mismatch audit 2026-08-20 §7 already had to fix once, and it is invisible: the
+number stays entirely plausible and means nothing.
 
 ---
 

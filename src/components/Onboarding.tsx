@@ -1,128 +1,177 @@
 import Link from "next/link";
+import { evidenceLedger, VERDICT_LABEL, type Verdict } from "./onboarding/evidenceLedger";
 
 /**
- * Anonymous landing surface (onboarding-first). One primary CTA (Connect a
- * league) + a clear "explore the demo" path, an honest live-vs-demo explainer,
- * and a short capability list. No fabricated numbers — every claim is about what
- * the product does, not invented metrics.
+ * Anonymous landing surface.
+ *
+ * WHAT THIS REPLACED, AND WHY (design review §1, open since 2026-08-14).
+ *
+ * Six equal cards in a 2×3 grid, each a title and two lines of prose. The
+ * problem was not that the copy was wrong — it was that six boxes of identical
+ * weight rank nothing, so a reader had to read all six to find out which claim
+ * the product could actually stand behind. That is the same defect the type
+ * audit found inside the app, in a different medium: uniform emphasis is the
+ * absence of hierarchy, and the honest content was there and simply not ranked.
+ *
+ * The replacement is the argument this product can make and its competitors
+ * cannot: a LEDGER of what has been tested, ordered by verdict, ending with the
+ * thesis RAE was named after and abandoned when a frozen holdout refuted it.
+ * The numbers are read from the model modules (`evidenceLedger.ts`), so this
+ * page cannot drift from what the product actually measured — a hand-typed
+ * "18.5% Brier skill" on a page about not fabricating numbers would be the
+ * exact failure it advertises against.
+ *
+ * Numbering is deliberate and load-bearing: the rows are a ranking by strength
+ * of evidence, so the order carries information. Where it does not — the "what
+ * you get" list below — there are no numbers.
  */
+const VERDICT_CLASS: Record<Verdict, string> = {
+  validated: "ledger-row is-validated",
+  reproducible: "ledger-row is-reproducible",
+  refuted: "ledger-row is-refuted"
+};
+
 export function Onboarding() {
+  const ledger = evidenceLedger();
+
   return (
-    <main className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-5 py-10 sm:py-16">
-      <header className="flex items-baseline gap-3">
-        <span className="text-lg font-bold tracking-[0.16em] text-rae-blue">RAE</span>
-        <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Roster Analytics Engine
-        </span>
-        <Link
-          href="/login"
-          className="ml-auto rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:border-rae-blue/50"
-        >
+    <main className="landing">
+      <header className="landing-bar">
+        <span className="landing-mark">RAE</span>
+        <span className="landing-mark-sub">Roster Analytics Engine</span>
+        <Link href="/login" className="landing-signin">
           Sign in
         </Link>
       </header>
 
-      <section className="mt-16 max-w-2xl sm:mt-24">
-        <h1
-          className="text-2xl font-bold leading-tight tracking-tight text-foreground sm:text-3xl"
-          style={{ fontFamily: '"Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif' }}
-        >
-          Win your league with model-governed, source-traceable analytics.
+      <section className="landing-hero">
+        <p className="landing-eyebrow">Model governance for a fantasy roster</p>
+        <h1 className="landing-title">
+          Most fantasy tools tell you what they found.
+          <br />
+          <em>This one also tells you what it looked for and did not.</em>
         </h1>
-        <p className="mt-5 text-base leading-relaxed text-muted-foreground">
-          RAE turns real Sleeper &amp; ESPN league data, FantasyPros consensus value, nflverse usage, and live
-          waiver trends into honest decisions — every number traces to its source, with assumptions and
-          confidence shown. No fabricated projections, no black boxes.
+        <p className="landing-lede">
+          RAE reads your real Sleeper or ESPN league, FantasyPros consensus, nflverse usage and live
+          waiver movement, and puts a source, a freshness stamp, a confidence and a validation state
+          on every number it shows you. Where there is no free source, it says unavailable instead of
+          inventing one.
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg bg-rae-amber px-5 py-3 text-sm font-bold transition-opacity hover:opacity-90"
-            // Inline dark text: the global `a { color: inherit }` (unlayered)
-            // beats Tailwind's layered text utilities on <a>, so set it directly
-            // to keep dark-on-amber well above WCAG AA.
-            style={{ color: "#0b1120" }}
-          >
+        <div className="landing-actions">
+          <Link href="/login" className="landing-cta">
             Connect your league
           </Link>
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-border px-5 py-3 text-sm font-semibold text-foreground transition-colors hover:border-rae-blue/50"
-          >
+          <Link href="/dashboard" className="landing-secondary">
             Explore the demo
           </Link>
-          <Link
-            href="/mock-draft"
-            // inline-flex + py-3 gives this tertiary CTA the same 24px+ target
-            // height as the two buttons beside it (WCAG 2.2 AA SC 2.5.8); it
-            // measured 171x20 before. Kept visually text-only — only the hit
-            // area changes, not the emphasis hierarchy.
-            className="inline-flex items-center px-1 py-3 text-sm font-semibold text-rae-blue underline-offset-4 hover:underline"
-          >
-            Mock draft (no account) →
+          <Link href="/mock-draft" className="landing-tertiary">
+            Mock draft, no account →
           </Link>
         </div>
 
-        <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
-          <span className="font-semibold text-rae-green">Live</span> = your connected league.{" "}
-          <span className="font-semibold text-rae-amber">Demo</span> = a labeled fixture with the real, searchable
-          player universe. Data that has no free source is shown as unavailable, never invented.
+        <p className="landing-modes">
+          <b className="mode-live">Live</b> is your connected league.{" "}
+          <b className="mode-demo">Demo</b> is a labelled fixture over the real, searchable player
+          universe. Both are marked on every screen.
         </p>
       </section>
 
-      <section className="mt-20 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {CAPABILITIES.map((c) => (
-          <div key={c.title} className="rounded-xl border border-border bg-card/60 p-4">
-            <h2 className="text-sm font-bold uppercase tracking-[0.06em] text-foreground">{c.title}</h2>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{c.body}</p>
-          </div>
-        ))}
+      <section className="landing-ledger" aria-labelledby="ledger-heading">
+        <h2 id="ledger-heading" className="landing-section-title">
+          What has been tested, and how it went
+        </h2>
+        <p className="landing-section-lede">
+          Ordered by the strength of the evidence behind it. Every figure is read from the model that
+          produces it, and every row names a file you can open.
+        </p>
+
+        {/* `role="list"` is not redundant here. `.ledger` sets
+            `list-style: none`, which makes Safari/VoiceOver drop list
+            semantics — and the index is `aria-hidden`, so the ranking this
+            page calls load-bearing would then be conveyed by nothing at all. */}
+        <ol className="ledger" role="list">
+          {ledger.map((row, i) => (
+            <li key={row.subject} className={VERDICT_CLASS[row.verdict]}>
+              <span className="ledger-index" aria-hidden="true">
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              {/* Split into WHAT and WHY so the ledger reads as a ledger at
+                  desktop width: verdict, subject and the measured figure in a
+                  narrow left column; the claim, the protocol and the evidence
+                  path in a wider right one. Below 1040px they stack, because a
+                  22ch column of headings beside a 68ch column of prose is a
+                  table on a phone. */}
+              <div className="ledger-head">
+                <p className="ledger-verdict">{VERDICT_LABEL[row.verdict]}</p>
+                <h3 className="ledger-subject">{row.subject}</h3>
+                <p className="ledger-measurement">{row.measurement}</p>
+              </div>
+              <div className="ledger-detail">
+                <p className="ledger-claim">{row.claim}</p>
+                <p className="ledger-protocol">{row.protocol}</p>
+                <p className="ledger-evidence">Evidence: {row.evidence}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </section>
 
-      <footer className="mt-auto pt-12 text-xs text-muted-foreground">
-        Real data. Real models. Model-governed decisions.
+      <section className="landing-what" aria-labelledby="what-heading">
+        <h2 id="what-heading" className="landing-section-title">
+          What you actually get
+        </h2>
+        {/* No numbering here: these are simultaneous surfaces, not a sequence,
+            and numbering them would assert an order that does not exist. */}
+        <ul className="what-list">
+          {SURFACES.map((s) => (
+            <li key={s.title}>
+              <b>{s.title}</b> — {s.body}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <footer className="landing-foot">
+        Real sources. Measured models. Everything it cannot show, it names.
       </footer>
     </main>
   );
 }
 
-const CAPABILITIES: { title: string; body: string }[] = [
+/**
+ * The surfaces, described by what they do rather than by what they promise.
+ *
+ * The scarcity wording is careful and stays careful: protocol 3 tested that
+ * quantity on 115 real drafts and found that WITHIN a position it did worse
+ * than chance, so this copy may describe the distance from consensus and may
+ * not suggest the distance locates a bargain. `e2e/20` bans the stems outright
+ * on this route, with no negation allowance, and that is the right setting for
+ * a marketing surface.
+ */
+const SURFACES: { title: string; body: string }[] = [
   {
-    title: "Scarcity gap",
-    // The last surviving mispricing claim in the product, and the one the
-    // 2026-08-26 stem guard could not see: it bans `underval`, which does not
-    // match `under-prices`. Protocol 3 tested this quantity on 115 real drafts
-    // and found that within a position -- the choice a draft board actually
-    // asks you to make -- it performed slightly worse than chance. So the
-    // marketing surface may describe the distance from consensus, and may not
-    // promise that the distance locates a bargain.
-    // Phrased to deny the claim without naming it. The e2e guard bans the stem
-    // outright on this route and, unlike the unit guard, has no negation
-    // allowance -- disclosure blocks are excluded by CSS class, and a marketing
-    // card is not one. Rather than carve an exception into the product's main
-    // anti-overclaiming guard for a sentence that does not need the word, the
-    // copy says what the quantity IS and what it is not, in plain terms.
-    body: "How far each player sits from consensus value, and what drives the gap. Tested on 115 real drafts: it measures positional scarcity, not a market error."
+    title: "Draft board",
+    body: "Every player, searchable, with recommendations always on the board rather than hidden behind a tab — plus bye weeks and tier collapse."
   },
   {
-    title: "Season simulation",
-    body: "A seeded Monte-Carlo season: playoff / championship SCENARIO frequencies shown conditionally on win total, against the league baseline. Reproducible, and openly labeled as not yet validated out of sample."
+    title: "Waiver wire",
+    body: "Free agents ranked by value, observed usage and positional scarcity, with league-wide FAAB where the league actually bids money."
   },
   {
-    title: "Draft & waivers",
-    body: "A searchable draft board (every player, recommendations always on-board) and live waiver/hype movement."
+    title: "Weekly start/sit",
+    body: "The measured probability each player clears their position's start line, with the reliability diagram it was measured from one click away."
   },
   {
-    title: "Hype vs. value",
-    body: "Sell into the story, buy the dip — real Sleeper waiver trends weighed against true value."
+    title: "Trades",
+    body: "Real market values from FantasyCalc, KeepTradeCut and DynastyProcess, evaluated against your league's own scoring and roster shape."
   },
   {
-    title: "Roster availability",
-    body: "Your roster's real injury / bye flags (out, IR, questionable) ranked by risk — no fabricated severity."
+    title: "Positional scarcity",
+    body: "How far each player sits from consensus and what drives the gap. It measures scarcity at a position, not a market error — and the product says so where the number appears."
   },
   {
-    title: "Governed by design",
-    body: "Source, freshness, confidence, validation, and assumptions visible on every view. Nothing is a black box."
+    title: "Governance, everywhere",
+    body: "Source, freshness, confidence, validation state and assumptions on every panel. Stale is labelled stale; a fixture is labelled a fixture."
   }
 ];

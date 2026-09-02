@@ -1,3 +1,7 @@
+import {
+  OPPORTUNITY_OUT_OF_FOLD_GAIN,
+  PROTOCOL_5_OUT_OF_FOLD_GAIN
+} from "./opportunityEvidence";
 /**
  * The in-season ranking that protocols 4 and 5 licensed — and nothing more.
  *
@@ -182,7 +186,7 @@ export const IN_SEASON_DISCLOSURE = {
     "twice on untouched seasons (protocols 4 and 5) and predicted rest-of-season scoring beyond " +
     "points already scored both times.",
   limits: [
-    "The measured gain is small: +0.0137 and +0.0195 Spearman.",
+    `The measured gain is small: +${OPPORTUNITY_OUT_OF_FOLD_GAIN} and +${PROTOCOL_5_OUT_OF_FOLD_GAIN} Spearman.`,
     "In-season only — before kickoff there is no usage to observe, and that is where the draft-time models failed.",
     "A ranking, not a forecast. No probability is implied.",
     "The weight generalises in direction; refitting it on the evaluation set gave 1.42 against the fitted 0.76."

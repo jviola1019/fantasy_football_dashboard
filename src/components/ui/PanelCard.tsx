@@ -52,8 +52,19 @@ export function PanelCard({
       className={cn(
         // scroll-mt keeps in-page anchor jumps (deep links to #id) clear of the
         // sticky command bar.
-        "scroll-mt-[88px] overflow-hidden rounded-xl border border-border",
-        "bg-gradient-to-br from-card to-[#090d12] shadow-[0_4px_32px_rgba(0,0,0,0.4)]",
+        // FLAT SURFACE, ONE BORDER, NO SHADOW.
+        // This was `bg-gradient-to-br from-card to-[#090d12]` under a
+        // 32px drop shadow with a 12px radius — the floating-glass card
+        // every generated dashboard ships. Three things were wrong with it
+        // beyond taste: the gradient made the panel a different colour at
+        // its top-left than its bottom-right, so the contrast of anything
+        // drawn on it depended on WHERE it sat; the shadow implied a depth
+        // the layout does not have (these panels tile, they do not float);
+        // and a 12px radius on a data panel is a decoration budget spent
+        // where the eye should be reading numbers. A hairline border on a
+        // flat ground is what a console looks like.
+        "scroll-mt-[88px] overflow-hidden rounded-md border border-border",
+        "bg-card",
         "flex flex-col",
         className
       )}

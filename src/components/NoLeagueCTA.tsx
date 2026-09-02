@@ -25,14 +25,12 @@ export function NoLeagueCTA() {
       }}
       aria-labelledby="no-league-heading"
     >
-      {/* Aurora background — animated via .no-league-aurora in globals.css.
-         Composite-path opacity/background-position only; reduced-motion
-         collapses it to a static gradient. */}
-      <div
-        aria-hidden="true"
-        className="no-league-aurora"
-        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
-      />
+      {/* The aurora layer that used to sit here is gone (2026-09-01): an
+         animated three-colour gradient drifting on an 18s loop behind the one
+         screen whose entire message is "there is nothing here yet". The empty
+         state is typographic now. This div outlived its stylesheet rule by one
+         commit and was caught in review — an absolutely-positioned element with
+         no styles, and a comment describing behaviour that no longer existed. */}
       <div
         style={{
           maxWidth: 640,

@@ -17,7 +17,12 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      // Opaque, not frosted. `bg-background/95 backdrop-blur-xl` is
+      // glassmorphism: it costs a compositor layer on every scroll frame and
+      // it makes the contrast of the nav labels depend on whatever happens to
+      // scroll underneath them, which is not a property a navigation bar
+      // should have.
+      className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden"
     >
       {items.map((item, i) => {
         const active = isActiveHref(pathname, item.href);
@@ -36,7 +41,11 @@ export function MobileBottomNav() {
             {active && (
               <div
                 aria-hidden="true"
-                className="absolute inset-x-3 top-0 h-[3px] rounded-full bg-rae-blue shadow-[0_0_10px_rgba(90,159,196,0.6)]"
+                // A 2px rule, not a glowing pill. The glow was a coloured
+                // box-shadow doing the same job the bar already does, and
+                // "restrained glow" in the guardrails does not mean a halo on
+                // the primary navigation affordance.
+                className="absolute inset-x-3 top-0 h-[2px] bg-rae-blue"
               />
             )}
             <span
@@ -44,7 +53,12 @@ export function MobileBottomNav() {
               className={cn(
                 "grid h-6 min-w-6 place-items-center rounded-md text-xs font-bold tabular-nums transition-colors",
                 active
-                  ? "bg-rae-blue text-background shadow-[0_2px_8px_rgba(90,159,196,0.45)]"
+                  // No glow here either. The removal above took the rail's halo
+                  // and left an identical accent-tinted shadow on the badge
+                  // seven lines below it, because `slopScan` could not see a
+                  // Tailwind ARBITRARY shadow value. The filled blue tile,
+                  // `aria-current` and the rail already carry the active state.
+                  ? "bg-rae-blue text-background"
                   : "text-muted-foreground"
               )}
             >

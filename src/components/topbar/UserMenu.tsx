@@ -26,7 +26,7 @@ export function UserMenu() {
   const [pending, startTransition] = useTransition();
 
   if (status === "loading") {
-    return <Skeleton className="h-8 w-[120px] rounded-full" />;
+    return <Skeleton className="h-8 w-[120px] rounded-[3px]" />;
   }
 
   if (!session?.user) {
@@ -61,9 +61,15 @@ export function UserMenu() {
           // On mobile the email span is hidden, leaving bare initials as the
           // accessible name — so name the control explicitly (audit F-11).
           aria-label={`Account menu for ${email}`}
-          className="flex items-center gap-2 rounded-full border border-border bg-card/60 py-1 pl-1 pr-3 text-xs text-foreground transition-colors hover:border-ring/50"
+          className="flex items-center gap-2 rounded-[4px] border border-border bg-card py-1 pl-1 pr-3 text-xs text-foreground transition-colors hover:border-ring/50"
         >
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-rae-blue to-rae-purple text-xs font-bold text-background">
+          {/* A monogram tile, not a gradient orb. `rounded-full` over a
+              blue-to-purple gradient is the single most recognisable mark of a
+              generated app, and purple is not a RAE colour: `--purple` exists
+              for ONE data encoding (the volatility legend) and this was the
+              only decorative use of it in the product. Square tile, flat
+              surface, hairline border, same radius as every other chip. */}
+          <span className="grid size-8 shrink-0 place-items-center rounded-[3px] border border-rae-blue/40 bg-rae-blue/15 text-xs font-bold text-foreground">
             {initials || "?"}
           </span>
           <span className="hidden max-w-[170px] truncate text-muted-foreground sm:inline">

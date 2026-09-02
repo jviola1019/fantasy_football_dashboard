@@ -314,4 +314,69 @@ test.describe("UI audit", () => {
       ).toBeLessThanOrEqual(allowed);
     });
   }
+
+  /**
+   * The SHIPPED stylesheet, not the source.
+   *
+   * `slopScan.test.ts` proves no component uses a banned utility, and that is
+   * not the same claim as "the banned utility is not in the build". Tailwind v4
+   * detects sources across the whole repository and reads markdown as readily as
+   * TSX, so prose that NAMES a class compiles it. Measured 2026-09-02: the
+   * production CSS carried the indigo/purple gradient pair and their theme
+   * variables, and every occurrence traced back to the gate that bans them, to
+   * CLAUDE.md, or to the report arguing against them. `className` with one of
+   * those would then have RENDERED — the only thing between it and production
+   * being a unit test.
+   *
+   * `globals.css` carries `@source not` for tests, e2e, markdown, reports, docs
+   * and playwright artifacts. That is the fix; this is the check that it worked,
+   * and it is here rather than in vitest because only a post-build run can see a
+   * compiled stylesheet.
+   */
+  test("the compiled stylesheet defines no banned utility", async ({ page }) => {
+    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    const hrefs = await page.evaluate(() =>
+      [...document.querySelectorAll('link[rel="stylesheet"]')].map((l) => (l as HTMLLinkElement).href)
+    );
+    expect(hrefs.length, "no stylesheet on the page — this check would pass vacuously").toBeGreaterThan(0);
+
+    let css = "";
+    for (const href of hrefs) {
+      const res = await page.request.get(href);
+      expect(res.ok(), `stylesheet ${href} did not load`).toBe(true);
+      css += await res.text();
+    }
+    // A page's CSS is tens of kilobytes; anything less means the fetch failed
+    // quietly and every assertion below would be trivially true.
+    expect(css.length, "stylesheet fetch returned almost nothing").toBeGreaterThan(10_000);
+
+    const banned = [
+      "indigo-500",
+      "indigo-600",
+      "violet-500",
+      "purple-500",
+      "purple-600",
+      "fuchsia-500",
+      "rounded-2xl",
+      "rounded-3xl",
+      "shadow-2xl",
+      "--color-indigo",
+      "--color-purple",
+      "--color-violet"
+    ];
+    const present = banned.filter((b) => css.includes(b));
+    expect(
+      present,
+      `these are compiled into the shipped stylesheet: ${present.join(", ")}. ` +
+        `Nothing in the product uses them, so they came from a file Tailwind ` +
+        `should not be scanning — a test, a report, or a document that names the ` +
+        `class while arguing against it. Add an \`@source not\` for it in globals.css.`
+    ).toEqual([]);
+
+    // Canary: the utilities the product DOES use must be here, or this check is
+    // reading the wrong file and its silence means nothing.
+    for (const used of ["bg-card", "text-muted-foreground", "rounded-md"]) {
+      expect(css.includes(used), `expected the real utility ${used} in the stylesheet`).toBe(true);
+    }
+  });
 });

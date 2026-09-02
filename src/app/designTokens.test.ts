@@ -45,6 +45,75 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 
 const FILES = sourceFiles(srcRoot);
 
+describe("globals.css is syntactically valid", () => {
+  /**
+   * The cheapest gate in this file, added after the most embarrassing hour.
+   *
+   * Removing two dead `@keyframes` blocks with a regex left two orphan `}`
+   * behind. `typecheck`, `lint` and all 1,563 unit tests passed on that file —
+   * every one of them reads globals.css as TEXT — and the only thing that
+   * noticed was `next build`, two minutes later, with a PostCSS stack trace.
+   *
+   * A brace count is not a CSS parser and does not pretend to be. It catches
+   * the one failure mode that a stylesheet edited by script actually has, in
+   * milliseconds, at the point where the person who made the edit is still
+   * looking.
+   */
+  const NEWLINE = String.fromCharCode(10);
+  function stripComments(text: string): string {
+    // Newlines preserved so a reported line number means something.
+    return text.replace(/\/\*[\s\S]*?\*\//g, (m) =>
+      m.replace(new RegExp("[^" + NEWLINE + "]", "g"), " ")
+    );
+  }
+
+  it("has balanced braces", () => {
+    const code = stripComments(css);
+    let depth = 0;
+    const problems: string[] = [];
+    code.split(NEWLINE).forEach((line, i) => {
+      for (const ch of line) {
+        if (ch === "{") depth += 1;
+        else if (ch === "}") {
+          depth -= 1;
+          if (depth < 0) {
+            problems.push(`line ${i + 1}: unmatched "}"  ${line.trim()}`);
+            depth = 0;
+          }
+        }
+      }
+    });
+    expect(problems, problems.join(NEWLINE)).toEqual([]);
+    expect(depth, `${depth} unclosed block(s) at end of file`).toBe(0);
+  });
+
+  it("detects an unbalanced stylesheet", () => {
+    // Canary. A counter that always returns zero is indistinguishable from a
+    // valid file — the exact shape of failure this repository keeps hitting.
+    const broken = [".a { color: red; }", "}"].join(NEWLINE);
+    let depth = 0;
+    let extra = 0;
+    for (const ch of stripComments(broken)) {
+      if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth < 0) {
+          extra += 1;
+          depth = 0;
+        }
+      }
+    }
+    expect(extra).toBe(1);
+  });
+
+  it("does not read braces inside comments", () => {
+    const withComment = ["/* } } } */", ".a { color: red; }"].join(NEWLINE);
+    expect((stripComments(withComment).match(/\}/g) ?? []).length).toBe(1);
+    const only = stripComments("/* { { { */ .a { color: red; }");
+    expect((only.match(/\{/g) ?? []).length).toBe(1);
+  });
+});
+
 describe("spacing — an outright ban, not a ratchet", () => {
   /**
    * Reached zero in redesign session 6, so per the policy at the top of this
