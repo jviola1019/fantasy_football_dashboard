@@ -20,17 +20,21 @@ export function AddLeagueForm() {
   const router = useRouter();
   const [platform, setPlatform] = useState<"sleeper" | "espn">("sleeper");
   const [error, setError] = useState<string | null>(null);
+  // A non-error the user still needs to see — today, the season correction.
+  const [note, setNote] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   const onSubmit: React.FormEventHandler<HTMLFormElement> = (event) => {
     event.preventDefault();
     setError(null);
+    setNote(null);
     const form = event.currentTarget;
     const formData = new FormData(form);
     startTransition(async () => {
       const result = await addLeague(formData);
       if (result.ok) {
         form.reset();
+        setNote(result.note ?? null);
         router.refresh();
       } else {
         setError(result.error);
@@ -88,6 +92,7 @@ export function AddLeagueForm() {
         </div>
       )}
       {error ? <p role="alert" aria-live="polite" style={{ color: "var(--red)", margin: 0, fontSize: "var(--text-sm)" }}>{error}</p> : null}
+      {note ? <p role="status" aria-live="polite" style={{ color: "var(--amber)", margin: 0, fontSize: "var(--text-sm)" }}>{note}</p> : null}
       <button
         type="submit"
         disabled={pending}

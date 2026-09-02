@@ -160,10 +160,18 @@ export function isOffScale(px: number): boolean {
  * that cries wolf gets ignored — the same failure as the 169 target-size
  * findings that ignored WCAG's spacing exception.
  *
- * INFINITE animations are excluded deliberately: the live-status blink and pulse
- * never finish, so awaiting them would hang forever. Resolves `false` on timeout
- * rather than throwing, so the caller can say the measurement is unsettled
- * instead of silently reporting whatever it happened to catch.
+ * INFINITE animations are excluded deliberately: the live-status dot pulses
+ * forever, so awaiting it would hang. Resolves `false` on timeout rather than
+ * throwing, so the caller can say the measurement is unsettled instead of
+ * silently reporting whatever it happened to catch.
+ *
+ * NOTE (2026-09-01): `card-fade-in`, `label-reveal` and the live-badge blink
+ * named above are GONE — removed with the other non-data-encoded motion. The
+ * paragraphs stay because they are the evidence for why this helper is shaped
+ * the way it is, and because the shape still earns its keep: Radix's dropdown
+ * and sheet transitions, the skeleton pulse and the live dot all still animate,
+ * and the next entrance animation somebody adds will hit exactly this. Read
+ * them as a record of what happened, not as a description of the stylesheet.
  */
 export const WAIT_FOR_ANIMATIONS = `(() => new Promise((resolve) => {
   const HARD_LIMIT_MS = 5000;

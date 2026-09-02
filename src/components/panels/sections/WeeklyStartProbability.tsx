@@ -151,10 +151,31 @@ export function WeeklyStartProbability({
                 <li key={limit}>{limit}</li>
               ))}
             </ul>
-            <ReliabilityDiagram
-              bins={m.reliabilityBins}
-              caption={`${pos}: out-of-fold calibration. Points on the dashed diagonal are perfectly calibrated; the vertical gap is the error.`}
-            />
+            {/*
+              S6 — progressive disclosure, and a measurement that made the case.
+
+              Four positions render four disclosure blocks, each with its own
+              reliability diagram. Every one of those charts carries twelve SVG
+              axis labels at 9px, so this tab put 48 tick labels on screen at
+              once: 27% of every sized element on the route, and the single
+              reason /players stayed above the collapsed-hierarchy threshold
+              after the type work.
+
+              The numbers a reader needs are already in the heading above —
+              measured calibration error and Brier skill, per position. The
+              diagram is the WORKING, and working belongs one click away rather
+              than four-up on first paint. Nothing is removed: the heading, the
+              limits and the evidence line stay open, and `<details>` keeps the
+              chart in the DOM and in the accessibility tree for anyone who
+              wants it.
+            */}
+            <details className="weekly-prob-chart">
+              <summary>Reliability diagram — how the {pos} forecasts actually landed</summary>
+              <ReliabilityDiagram
+                bins={m.reliabilityBins}
+                caption={`${pos}: out-of-fold calibration. Points on the dashed diagonal are perfectly calibrated; the vertical gap is the error.`}
+              />
+            </details>
             <p className="small-note">Evidence: {d.evidence}</p>
           </section>
         );

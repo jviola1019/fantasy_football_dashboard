@@ -146,7 +146,30 @@ export const LeagueFormatSchema = z.object({
    * stored league rows keep parsing; absent means "not recorded", which the UI
    * renders as unknown rather than inventing a confidence.
    */
-  provenance: FormatProvenanceSchema.optional()
+  provenance: FormatProvenanceSchema.optional(),
+  /**
+   * Roster slot codes the parser did not recognise AT ALL.
+   *
+   * The starter mapper skips anything it cannot map, so an unknown slot code
+   * silently contributes zero and the resulting lineup looks complete. Every
+   * defect this file has carried had that shape: the ESPN slot-7/23 swap
+   * reported every ordinary flex league as superflex, and the FAAB extractor
+   * drew a budget board for two leagues that bid nothing. A slot RAE cannot
+   * read must be NAMED, not absorbed.
+   *
+   * Optional so previously stored league rows keep parsing.
+   */
+  unmappedSlots: z.array(z.string()).optional(),
+  /**
+   * Slot codes RAE recognises and deliberately does not model — IDP (DL, LB,
+   * DB, IDP_FLEX) on Sleeper, their ESPN equivalents.
+   *
+   * Kept separate from `unmappedSlots` because they mean different things: this
+   * is a scope decision (RAE has no IDP values to rank with), that is a parser
+   * gap. Collapsing them would make a deliberate omission read as a bug and a
+   * bug read as a decision.
+   */
+  unmodelledSlots: z.array(z.string()).optional()
 });
 
 export type LeagueFormat = z.infer<typeof LeagueFormatSchema>;
@@ -215,6 +238,14 @@ function scoringFormatFromPpr(ppr: 0 | 0.5 | 1): ScoringFormat {
 // recognize is silently dropped — the user's league's true config is the
 // authority, not this map.
 const SLEEPER_BENCH_SLOTS = new Set(["BN", "IR", "TAXI"]);
+/**
+ * Slots RAE recognises and deliberately does not model.
+ *
+ * RAE carries no IDP values, so an IDP slot cannot be ranked or filled. That is
+ * a scope decision, and it is recorded as one — `unmodelledSlots` — so it never
+ * reads as the parser having failed to recognise the code.
+ */
+const SLEEPER_UNMODELLED_SLOTS = new Set(["DL", "LB", "DB", "IDP_FLEX"]);
 const SLEEPER_STARTER_MAP: Record<string, keyof LeagueStarters | null> = {
   QB: "QB",
   RB: "RB",
@@ -233,14 +264,34 @@ const SLEEPER_STARTER_MAP: Record<string, keyof LeagueStarters | null> = {
   K: "K"
 };
 
-function startersFromSleeperPositions(positions: string[]): LeagueStarters {
-  const result: LeagueStarters = { QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, DEF: 0, K: 0, SUPERFLEX: 0 };
+interface SlotScan {
+  starters: LeagueStarters;
+  /** Recognised, deliberately not modelled (IDP). */
+  unmodelled: string[];
+  /** Not recognised at all — a parser gap, and it says so. */
+  unmapped: string[];
+}
+
+function scanSleeperPositions(positions: string[]): SlotScan {
+  const starters: LeagueStarters = { QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, DEF: 0, K: 0, SUPERFLEX: 0 };
+  const unmodelled: string[] = [];
+  const unmapped: string[] = [];
   for (const slot of positions) {
     if (SLEEPER_BENCH_SLOTS.has(slot)) continue;
+    if (SLEEPER_UNMODELLED_SLOTS.has(slot)) {
+      if (!unmodelled.includes(slot)) unmodelled.push(slot);
+      continue;
+    }
     const mapped = SLEEPER_STARTER_MAP[slot];
-    if (mapped) result[mapped] += 1;
+    if (mapped) {
+      starters[mapped] += 1;
+      continue;
+    }
+    // Neither bench, nor a slot we model, nor one we map: a code this parser
+    // has never seen. Naming it is the whole point.
+    if (!unmapped.includes(slot)) unmapped.push(slot);
   }
-  return result;
+  return { starters, unmodelled, unmapped };
 }
 
 /**
@@ -354,9 +405,8 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
   const numQbs: 1 | 2 = positions.includes("SUPER_FLEX") ? 2 : 1;
   const pprActual = typeof scoring.rec === "number" && Number.isFinite(scoring.rec) ? scoring.rec : 0;
   const ppr = normalizePpr(pprActual);
-  const starters = positions.length
-    ? startersFromSleeperPositions(positions)
-    : DEFAULT_STARTERS;
+  const scan = positions.length ? scanSleeperPositions(positions) : null;
+  const starters = scan ? scan.starters : DEFAULT_STARTERS;
   return {
     ppr,
     pprActual,
@@ -386,7 +436,9 @@ export function parseSleeperFormat(league: unknown): LeagueFormat {
         typeof settings.type === "number"
           ? null
           : "Sleeper omitted settings.type; assumed redraft."
-    }
+    },
+    unmappedSlots: scan ? scan.unmapped : [],
+    unmodelledSlots: scan ? scan.unmodelled : []
   };
 }
 
@@ -409,19 +461,47 @@ const ESPN_LINEUP_SLOT_MAP: Record<string, keyof LeagueStarters | null> = {
   "7": "SUPERFLEX", // OP — QB/RB/WR/TE
   "16": "DEF", // D/ST
   "17": "K",
-  "23": "FLEX" // RB/WR/TE
-  // 20 = BN (bench), 21 = IR — excluded from starter counts
+  "23": "FLEX", // RB/WR/TE
+  // Added 2026-09-01 by the ingestion conformance sweep. ESPN publishes THREE
+  // flex slots and only the third was mapped, so a league whose flex is
+  // RB/WR (3) or WR/TE (5) reported `FLEX: 0` — the same silent-drop that made
+  // every ordinary-flex league read as superflex before the 7/23 swap was
+  // fixed. Both are ordinary flex slots and both are common.
+  "1": "QB", // TQB — team QB
+  "3": "FLEX", // RB/WR
+  "5": "FLEX" // WR/TE
+  // 20 = BN (bench), 21 = IR, 24 = ER — excluded from starter counts
 };
-const ESPN_BENCH_SLOTS = new Set(["20", "21"]);
+const ESPN_BENCH_SLOTS = new Set(["20", "21", "24"]);
+/**
+ * ESPN slots RAE recognises and deliberately does not model: IDP (8 DT, 9 DE,
+ * 10 LB, 11 DL, 12 CB, 13 S, 14 DB, 15 DP), 18 P and 19 HC. RAE carries no
+ * values for any of them, so they are recorded as a scope decision rather than
+ * absorbed as zero — see `unmodelledSlots`.
+ */
+const ESPN_UNMODELLED_SLOTS = new Set(["8", "9", "10", "11", "12", "13", "14", "15", "18", "19"]);
 
-function startersFromEspnCounts(counts: Record<string, number>): LeagueStarters {
-  const result: LeagueStarters = { QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, DEF: 0, K: 0, SUPERFLEX: 0 };
+function scanEspnCounts(counts: Record<string, number>): SlotScan {
+  const starters: LeagueStarters = { QB: 0, RB: 0, WR: 0, TE: 0, FLEX: 0, DEF: 0, K: 0, SUPERFLEX: 0 };
+  const unmodelled: string[] = [];
+  const unmapped: string[] = [];
   for (const [slotId, count] of Object.entries(counts)) {
+    // A slot configured to zero is not part of this league's lineup at all, so
+    // it is neither modelled nor a gap.
+    if (!(count > 0)) continue;
     if (ESPN_BENCH_SLOTS.has(slotId)) continue;
+    if (ESPN_UNMODELLED_SLOTS.has(slotId)) {
+      if (!unmodelled.includes(slotId)) unmodelled.push(slotId);
+      continue;
+    }
     const mapped = ESPN_LINEUP_SLOT_MAP[slotId];
-    if (mapped) result[mapped] += count;
+    if (mapped) {
+      starters[mapped] += count;
+      continue;
+    }
+    if (!unmapped.includes(slotId)) unmapped.push(slotId);
   }
-  return result;
+  return { starters, unmodelled, unmapped };
 }
 
 // ESPN exposes the trade deadline as a millis-since-epoch timestamp. Convert
@@ -475,7 +555,8 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
   const roster = (s.rosterSettings ?? {}) as Record<string, unknown>;
   const counts = (roster.lineupSlotCounts ?? {}) as Record<string, number>;
   const numQbs: 1 | 2 = (counts["7"] ?? 0) > 0 ? 2 : 1;
-  const starters = startersFromEspnCounts(counts);
+  const espnScan = scanEspnCounts(counts);
+  const starters = espnScan.starters;
   const rosterSize = Object.values(counts).reduce((a, b) => a + b, 0);
   const { leagueType, keeperCount, provenance } = espnLeagueType(s);
   return {
@@ -495,6 +576,8 @@ export function parseEspnFormat(settings: unknown): LeagueFormat {
     tradeDeadlineWeek: espnTradeDeadlineWeek(s),
     playoffWeekStart: espnPlayoffWeekStart(s),
     playoffTeams: espnPlayoffTeams(s),
-    provenance
+    provenance,
+    unmappedSlots: espnScan.unmapped,
+    unmodelledSlots: espnScan.unmodelled
   };
 }

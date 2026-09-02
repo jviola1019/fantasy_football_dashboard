@@ -67,6 +67,25 @@ export const OPPORTUNITY_OUT_OF_FOLD_GAIN = Number(
   (OPPORTUNITY_EVIDENCE.withOpportunityOutOfFold - OPPORTUNITY_EVIDENCE.baselineOutOfFold).toFixed(4)
 );
 
+/**
+ * Protocol 5's out-of-fold Spearman gain, on seasons protocol 4 never touched.
+ *
+ * Unlike `OPPORTUNITY_OUT_OF_FOLD_GAIN` above this is not derived from a pair
+ * held here — protocol 5 ran on a different corpus and this file does not carry
+ * its baseline. It is a literal, and a literal is exactly what it should be: ONE
+ * of them, in the model module, next to the thing it measures.
+ *
+ * It was previously retyped in three places (`IN_SEASON_DISCLOSURE.limits`, the
+ * module docblock, and — added and caught in review on 2026-09-01 — the landing
+ * page's evidence ledger, on the page whose stated argument is that no number on
+ * it is typed by a person). Three copies of a number are three chances to
+ * disagree.
+ *
+ * `npm run verify:inseason` replays protocol 5's evaluation and is what pins it.
+ * Evidence: reports/2026-08-20/holdout-result-5.md
+ */
+export const PROTOCOL_5_OUT_OF_FOLD_GAIN = 0.0195;
+
 export const OPPORTUNITY_HEADLINE = "Validated in-season signal";
 
 export const OPPORTUNITY_DETAIL =

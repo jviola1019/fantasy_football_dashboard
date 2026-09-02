@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   bootstrapCI,
   brierScore,
+  chiSquare1PValue,
   cohensD,
   connectingLetters,
   expectedCalibrationError,
@@ -400,5 +401,60 @@ describe("kFoldCV", () => {
       return 0;
     });
     expect(totalTestSize).toBe(samples.length);
+  });
+});
+
+describe("chiSquare1PValue", () => {
+  /**
+   * Exists for the nested likelihood-ratio test in
+   * `scripts/test-weekly-covariates.ts`, which decides whether a candidate
+   * predictor earns a place in a shipped model. A p-value wrong in the
+   * conservative direction quietly kills real signal; wrong the other way ships
+   * noise as a coefficient. So it is pinned against published critical values
+   * rather than against itself.
+   */
+  it("matches the standard chi-square(1) critical values", () => {
+    expect(chiSquare1PValue(3.841)).toBeCloseTo(0.05, 3);
+    expect(chiSquare1PValue(6.635)).toBeCloseTo(0.01, 3);
+    expect(chiSquare1PValue(2.706)).toBeCloseTo(0.1, 3);
+    expect(chiSquare1PValue(10.828)).toBeCloseTo(0.001, 4);
+  });
+
+  it("is the square of the standard normal, which is the identity it relies on", () => {
+    // chi2(1) = Z^2, so P(X > z^2) must equal the two-sided normal p for z.
+    // Checked against a DIFFERENT normal approximation (A&S 26.2.17) than the
+    // one the implementation uses, so this is a check and not a restatement.
+    const phi = (x: number) => {
+      const t = 1 / (1 + 0.2316419 * Math.abs(x));
+      const d = 0.3989422804014327 * Math.exp(-(x * x) / 2);
+      const p =
+        d *
+        t *
+        (0.31938153 +
+          t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+      return x >= 0 ? 1 - p : p;
+    };
+    for (const z of [0.5, 1, 1.5, 1.96, 2.5, 3]) {
+      expect(chiSquare1PValue(z * z)).toBeCloseTo(2 * (1 - phi(z)), 4);
+    }
+  });
+
+  it("returns 1 for a statistic that shows no improvement at all", () => {
+    // A likelihood ratio of 0 means the extra parameter bought nothing. A
+    // slightly negative value can appear from floating-point noise or a ridge
+    // penalty and means the same thing; it must not become a small p-value.
+    expect(chiSquare1PValue(0)).toBe(1);
+    expect(chiSquare1PValue(-1e-9)).toBe(1);
+    expect(chiSquare1PValue(Number.NaN)).toBe(1);
+  });
+
+  it("is monotonically decreasing, so a bigger statistic is never less significant", () => {
+    let prev = 1;
+    for (const x of [0.1, 1, 2, 4, 8, 16, 32]) {
+      const p = chiSquare1PValue(x);
+      expect(p).toBeLessThanOrEqual(prev);
+      prev = p;
+    }
+    expect(prev).toBeLessThan(1e-6);
   });
 });

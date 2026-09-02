@@ -180,6 +180,76 @@ It needs `pointsPerGame` and `touchesPerGame`, which come from `stats-refresh`.
 Both are stamped onto the league universe, so they reach the free-agent pool the
 Waiver Wire board is handed — not only your own roster.
 
+## The weekly start probability
+
+`src/lib/models/weeklyProbability.ts` converts a player's pre-game **PPR**
+projection into P(they clear their position's start line) — a per-position
+logistic shipped as frozen constants, fitted on 3,573 startable player-weeks of
+the 2025 season (input fingerprint `bba1d103`, snapshot
+`reports/2026-08-20/brier-prospective.json.gz`).
+
+| position | start line | out-of-fold Brier | ECE | Brier skill vs climatology |
+|---|---|---|---|---|
+| QB | 18 | 0.2368 | 3.3% | **+3.7%** |
+| RB | 10 | 0.1969 | 3.3% | +21.2% |
+| WR | 8 | 0.2036 | 1.7% | +18.5% |
+| TE | 6 | 0.2059 | 2.5% | +17.6% |
+
+Three properties worth knowing before reading a number off it:
+
+- **The skill and the coefficients come from different fits, deliberately.** The
+  shipped intercept/coefficient use every row for a position; the Brier and ECE
+  quoted are **leave-one-week-out**, so each row is scored by a model that never
+  saw its week. The in-sample Brier would look better and would measure
+  memorisation.
+- **The unit is PPR whatever your league scores.** The fit used Sleeper's
+  `pts_ppr` against PPR thresholds, so `WeeklyStartProbability` selects the PPR
+  field by name and a player without one gets no probability rather than a
+  converted one. A half-PPR projection fed to this model produces a perfectly
+  plausible number that means nothing.
+- **QB is marked as the weak case in code, not left to the caller.**
+  `hasUsefulSkill` puts QB's +3.7% below a declared 10% floor; the panel marks
+  the row inline and its disclosure carries an extra sentence.
+
+### Does anything else belong in it?
+
+`npm run test:covariates` (`scripts/test-weekly-covariates.ts`) tests candidate
+second predictors against that one-variable baseline, offline, and writes
+[`docs/weekly-covariates.md`](docs/weekly-covariates.md). Four gates, in order:
+
+1. **Strictly prospective features** — every candidate is built only from weeks
+   before the row's own. A feature computed over the whole season would score
+   week 3 using week 11's outcome, and the "improvement" would be leakage
+   measured to four decimals. Rows without history are dropped from *both* arms.
+2. **A nested likelihood-ratio test** — one extra parameter, so LR ~ χ²(1).
+3. **Holm–Bonferroni over all 20 tests** — four positions × five candidates.
+   Quoting the smallest raw p here is the multiple-comparisons error, and it is
+   how a spurious predictor gets shipped.
+4. **And then out-of-sample** — leave-one-week-out Brier must actually improve.
+   Significance is necessary and not sufficient.
+
+A **positive control** runs first at every position: a feature built from the
+row's own outcome, leakage by construction, which can never ship. Twenty tests
+returning "not significant" is also exactly what a broken likelihood-ratio
+computation looks like from the outside, so the harness refuses to write its
+report unless the control comes back overwhelming. It does — LR 605–1535,
+p ≈ 0 — which is what makes the null result below worth anything.
+
+**As of 2026-09-01, nothing ships.** None of prior hit rate, prior mean
+residual, prior availability, week number or log-projection is significant at
+any position after correction. The model stays one variable wide, and that is
+the finding rather than a failure to find one: the projection already carries
+what these candidates encode. One case is reported as **no variation** rather
+than "not significant" — every startable QB had played every prior week, so
+there was nothing to test, and calling that a null result would be a false
+negative dressed as evidence.
+
+`npm run verify:weekly-prob` replays the committed snapshot **offline** and
+asserts 43 things: the fingerprint, every coefficient to 1e-9, every Brier and
+ECE — each cross-checked against the value *parsed out of*
+`docs/brier-results.md` rather than retyped — and that P(clear) rises with the
+projection at every position. Refit with `npm run fit:weekly-prob`.
+
 ## Data sources
 
 Preferred production adapters:
@@ -327,10 +397,35 @@ asymmetry it exposed — are in
 [`reports/2026-08-20/gated-suite-verification.md`](reports/2026-08-20/gated-suite-verification.md).
 
 ```bash
-RAE_LIVE_TESTS=1 npx vitest run src/lib/schedule/schedule.live.test.ts src/lib/trade/values.live.test.ts
-RAE_PG_TEST_URL=postgres://... npx vitest run src/db/postgres.integration.test.ts
+# Live network (Sleeper + FantasyCalc are public; ESPN needs the owner's cookies)
+RAE_LIVE_TESTS=1 npx vitest run \
+  src/lib/sleeper.live.test.ts \
+  src/lib/schedule/schedule.live.test.ts \
+  src/lib/trade/values.live.test.ts \
+  src/lib/leagues/integration.live.test.ts
+
+# Postgres — point at a THROWAWAY database; the suites drop and recreate tables
+RAE_PG_TEST_URL=postgres://user:pass@127.0.0.1:5432/rae_test npx vitest run \
+  src/db/postgres.integration.test.ts \
+  src/lib/auth/throttle.pg.integration.test.ts \
+  src/lib/lifecycle/reconcile.pg.integration.test.ts
+
 npm run lighthouse
 ```
+
+**Re-executed 2026-09-01**, so the skip count is accounted for rather than
+assumed. Of the 39 tests `npm run test` reports as skipped:
+
+| suite | tests | executed | result |
+|---|---|---|---|
+| `postgres.integration` + `throttle.pg` + `reconcile.pg` | 31 | yes — real PostgreSQL 17.11 | **31 passed** |
+| `sleeper.live`, `schedule.live`, `values.live`, `integration.live` | 7 | yes — live Sleeper + FantasyCalc | **7 passed** |
+| `espn.live` | 1 | **no** | needs `ESPN_S2` / `ESPN_SWID` / `ESPN_LEAGUE_ID`, which are private league credentials. It stays skipped rather than being faked. |
+
+`RAE_LIVE_SLEEPER_LEAGUE_ID` overrides the league `integration.live` runs
+against, and that suite asserts the **completed**-league season mirror — it now
+fails with that precondition named if it is pointed at an in-season league,
+rather than with a confusing mirror mismatch.
 
 ### Frozen holdout protocols
 
@@ -619,7 +714,7 @@ See `docs/calibration.md` for the production calibration plan (Brier-score targe
 - The Sleeper `/v1/players/nfl` payload is ~19 MB. Solved via the daily Vercel cron at `/api/cron/players-refresh` which snapshots into the `players_snapshots` Postgres table; `loadRAEEnvelope` reads the snapshot first and only falls back to a live fetch when the snapshot is older than 36h or missing. Vercel Cron Jobs are gated by the `CRON_SECRET` env var.
 - Yahoo Fantasy adapter is deferred (OAuth requires a registered Yahoo developer app).
 - No paid feeds are used. `opportunity` now comes from FREE nflverse snap counts (role proxy from the latest season's games, via `/api/cron/opportunity-refresh`); `trendingMomentum` from free Sleeper trending + ESPN news velocity. Off-season, opportunity reflects last season's role (declared in the source assumptions).
-- The lifecycle cron at `/api/cron/lifecycle-check` runs once daily (09:30 UTC, staggered after the players/rankings/KTC snapshots) and pulls each user's roster live via `src/lib/leagues/fetchLive.ts` (decrypts ESPN cookies / hits Sleeper, normalizes through `PlayerMarketRecordSchema`) before running the rules engine. The daily cadence is the Vercel Hobby-plan cap of one run per cron per day; Pro plans can tighten the interval in `vercel.ts`. The FAAB-depleted rule is wired end-to-end for **both Sleeper and ESPN**: `fetchLeagueLive` surfaces `myFaabRemainingRatio` — Sleeper via `extractSleeperFaabRatio` (`settings.waiver_budget` − `rosters[i].settings.waiver_budget_used`), ESPN via `extractEspnFaabRatio` (`settings.acquisitionSettings.acquisitionBudget` − the team's `transactionCounter.acquisitionBudgetSpent`, FAAB-leagues only) — and the cron passes it into the rules engine, which alerts when the ratio falls below 0.1.
+- The lifecycle cron at `/api/cron/lifecycle-check` runs once daily (09:30 UTC, staggered after the players/rankings/KTC snapshots) and pulls each user's roster live via `src/lib/leagues/fetchLive.ts` (decrypts ESPN cookies / hits Sleeper, normalizes through `PlayerMarketRecordSchema`) before running the rules engine. The daily cadence is the Vercel Hobby-plan cap of one run per cron per day; Pro plans can tighten the interval in `vercel.ts`. The FAAB-depleted rule is wired end-to-end for **both Sleeper and ESPN** through one module, `src/lib/leagues/faab.ts`: `fetchLeagueLive` returns a whole-league `faab` state (`FaabState`) that `/waivers` draws as a board and the cron reduces to the user's own ratio via `myFaabBudget`. **Detection is explicit, and that is the point.** Sleeper sends `waiver_budget: 100` for every league whether or not anyone can bid it — measured live 2026-08-31 against both of this account's leagues, which are `waiver_type: 0` (rolling) — so `extractSleeperFaabBudget` requires `settings.waiver_type === 2` and only then reads `waiver_budget` minus the roster's `waiver_budget_used`. `extractEspnFaabBudget` requires `acquisitionSettings.isUsingAcquisitionBudget === true` and only then reads `acquisitionBudget` minus that team's `transactionCounter.acquisitionBudgetSpent`. A league RAE cannot confirm bids with money gets no budget and an honest reason naming the fields read, rather than a fabricated "$100 of $100 left" bar. The cron alerts when the user's ratio falls below 0.1.
 - Each Sleeper league captures an optional **Sleeper username** at add-time (`/settings/leagues`); `resolveSleeperRosterId` (`src/lib/leagues/fetchLive.ts`) maps it to the owner's `roster_id` so the lifecycle cron and the live envelope score the user's **actual** team. It falls back to the first roster only when no username was provided.
 - Injury status uses Sleeper's `injury_status` (free); no paid injury/sentiment classifier. Reddit/Google-Trends were evaluated and deferred (rate-limit/ToS risk — see docs/data-sources.md).
 - Fixture data is not production intelligence.

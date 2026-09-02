@@ -12,6 +12,45 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* TESTS ARE NOT SOURCE. Narrow Tailwind v4's automatic source detection so it
+   stops compiling utilities out of test files.
+
+   Detection defaults to the whole repository minus gitignored paths, which
+   includes every `*.test.ts`. `src/lib/ops/slopScan.test.ts` is the gate that
+   BANS indigo, violet and purple utilities, and its canary samples are written
+   as realistic class attributes so the rules can be shown to match them. Tailwind
+   read those as usage and emitted them: the shipped stylesheet carried the
+   indigo/purple gradient pair, the 16px radius, the 2xl shadow, and the indigo
+   and purple theme variables that make them available. Verified in the build
+   output 2026-09-02; none of those classes appears anywhere in the product, so
+   every one traced to the gate.
+
+   The class names are described rather than written HERE for the same reason.
+   Tailwind scans this stylesheet too, and the first version of this comment put
+   two of them back into the build — a note explaining the fix, recreating a
+   smaller copy of the bug it was explaining.
+
+   The waste is the small half. The real cost is that `className="to-purple-600"`
+   would then have RENDERED, with only a unit test between it and production —
+   the belt-and-braces posture this repo rejects everywhere else. It had happened
+   before, too: an earlier build carried `.text-\[Npx\]{color:Npx}`, an invalid
+   declaration generated from the NAME of a test in `typeScale.test.ts`.
+
+   The canary samples are also written scanner-opaque now. Either fix alone
+   works; both, because this one is invisible until somebody greps the CSS. */
+@source not "../**/*.test.*";
+@source not "../../e2e/**";
+/* PROSE IS NOT SOURCE EITHER. Detection reads markdown as readily as TSX, so a
+   document that NAMES a banned utility compiles it. `CLAUDE.md` and this
+   session's own report each mention the 16px radius and the 2xl shadow while
+   arguing against them, and that is why both were still in the build after the
+   test files were excluded. Documentation describing a class should not ship
+   the class. */
+@source not "../../**/*.md";
+@source not "../../reports/**";
+@source not "../../docs/**";
+@source not "../../test-results/**";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ─── shadcn/ui theme bridge ──────────────────────────────────────────────────
@@ -161,7 +200,10 @@
   --label-text: #d8dece;
   --notice-red: #f0736a;
   --band-extreme: #9d90e8;
-  --panel-shadow: 0 2px 16px rgba(90, 159, 196, 0.08);
+  /* Removed 2026-09-01: --panel-shadow was `0 2px 16px rgba(90,159,196,0.08)`,
+     a shadow tinted with the accent colour — a glow by another name — and its
+     only consumer was the player-card hover, which now changes its border and
+     background instead. A shadow that is not grey is not modelling light. */
   --pos-qb: #ef5c7a;
   --pos-rb: #35c08a;
   --pos-wr: #5a9fc4;
@@ -199,7 +241,12 @@
    * keywords and this one bezier; an authored curve nothing adopted is the
    * same dead weight as the fifteen tokens removed above.
    */
-  --ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
+  /* --ease-emphasized was removed 2026-09-01 with its last consumer,
+     `data-unavailable-reveal`. Same rule as --ease-out above: an authored
+     curve nothing adopts is dead weight, and leaving it invites the next
+     person to reach for a curve chosen for an animation that no longer
+     exists. Caught in review, in the same change that removed the
+     animation — which is how a token quietly outlives its only use. */
 }
 
 /* State color tokens — one source of truth for the live/fixture/stale/missing/
@@ -218,7 +265,7 @@
   width: 1px;
   height: 1px;
   padding: 0;
-  margin: -1px;
+  margin: 0;
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
@@ -278,12 +325,16 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   margin: 12px 16px;
   padding: var(--space-3) var(--space-4);
   border: 1px solid rgba(215, 168, 87, .22);
-  background: rgba(43, 35, 18, .32);
+  /* OPAQUE. This was rgba(43,35,18,.32) under backdrop-filter: blur(4px) --
+     frosted glass on the one element whose entire job is that trust-critical
+     text stays legible. Its contrast literally depended on what happened to be
+     behind it. #14161c is that translucent amber over --bg composited once, so
+     the colour is unchanged and it no longer moves: --gov-text #e8d9b0 measures
+     11.9:1 on it, which is the figure the token's own comment already quotes. */
+  background: #14161c;
   color: var(--gov-text);
   font-size: var(--text-xs);
   border-radius: 8px;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
 }
 
 /* The banner reads as a FIELD ROW, not a sentence (design audit 2026-08-22).
@@ -300,7 +351,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .gov-field {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 0;
   min-width: 0;
 }
 .gov-field-label {
@@ -326,74 +377,62 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 
 /* Governance components: assumptions disclosure, source/freshness badge, panel,
    and the ⓘ audit affordance. */
-.gov-assume { margin-top: 6px; }
+.gov-assume { margin-top: var(--space-2); }
 .gov-assume-summary { cursor: pointer; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--amber); list-style: none; }
 .gov-assume-summary::-webkit-details-marker { display: none; }
 .gov-assume-summary::before { content: "▸ "; }
 .gov-assume[open] .gov-assume-summary::before { content: "▾ "; }
-.gov-assume-body { margin-top: 6px; }
-.gov-assume-list { display: flex; flex-direction: column; gap: 3px; }
-.gov-assume-list li { font-size: var(--text-xs); line-height: 1.5; color: var(--gov-text); padding-left: 10px; position: relative; }
+.gov-assume-body { margin-top: var(--space-2); }
+.gov-assume-list { display: flex; flex-direction: column; gap: var(--space-1); }
+.gov-assume-list li { font-size: var(--text-xs); line-height: 1.5; color: var(--gov-text); padding-left: var(--space-3); position: relative; }
 .gov-assume-list li::before { content: "·"; position: absolute; left: 2px; color: var(--amber); }
 .gov-assume-missing { font-size: var(--text-xs); line-height: 1.5; color: var(--gov-text); margin-top: 4px; }
 /* Trust-critical text floors at 11px (audit 2026-07-08 F-05): the source /
    freshness / confidence badge and failure notes answer "can I trust it?"
    and must stay readable on mobile. */
-.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--text-xs); font-family: var(--font-plex-mono), monospace; color: var(--muted); }
+.src-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-xs); font-family: var(--font-plex-mono), monospace; color: var(--muted); }
 .src-badge-src { color: var(--cream); }
-.gov-panel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 8px 10px; }
+.gov-panel { border: 1px solid var(--line); background: var(--panel-2); border-radius: 8px; padding: 8px var(--space-3); }
 .gov-panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 4px; }
 .gov-panel-failure { font-size: var(--text-xs); color: var(--amber); margin: 4px 0; }
-.audit-info { font-size: var(--text-xs); line-height: 1; color: var(--muted); cursor: help; padding: 0 2px; }
+.audit-info { font-size: var(--text-xs); line-height: 1; color: var(--muted); cursor: help; padding: 0 var(--space-1); }
 .audit-info:hover, .audit-info:focus-visible { color: var(--blue); }
 
 /* Dashboard grid, system-panel shell, and panel headers now live in the
    Tailwind components PanelGrid / PanelCard — their legacy CSS was removed. */
 
 /* ─── Live / Fixture Badges ────────────────────────────────────────────────── */
-/* Aesthetic polish — Sprint 2 Task 11.
-   LIVE gets a soft green glow that pulses (2s loop) AND keeps the legacy
-   text blink. FIXTURE stays static (amber outline only) so a quick glance
-   visually distinguishes "live" from "demo" by motion, not just color.
-   Pulse intensity is restrained to stay within prefers-reduced-motion
-   compliance and Lighthouse perf budget. */
-.live-badge {
-  position: relative;
-  font-size: var(--text-xs);
-  color: var(--green);
-  text-transform: uppercase;
-  letter-spacing: .08em;
-  padding: 2px 6px;
-  border: 1px solid rgba(119, 215, 176, 0.45);
-  border-radius: 3px;
-  background: rgba(119, 215, 176, 0.06);
-  animation: live-blink 1.4s ease-in-out infinite;
-}
-/* Pulse ring as an overlay — only opacity animates so the GPU stays on
-   the composite path; no paint or layout invalidation per frame. */
-.live-badge::after {
-  content: "";
-  position: absolute;
-  inset: -2px;
-  border-radius: 4px;
-  pointer-events: none;
-  box-shadow: 0 0 6px 1px rgba(119, 215, 176, 0.55);
-  opacity: 0;
-  animation: live-pulse-opacity 2s ease-in-out infinite;
-}
+/* LIVE and FIXTURE are told apart by COLOUR and WORD, not by motion.
+   LIVE used to carry a pulsing green glow and a text blink so that "a quick
+   glance visually distinguishes live from demo by motion". Distinguishing state
+   by motion excludes anyone with prefers-reduced-motion set — for whom the two
+   badges then become identical except for hue — and an indefinite blink is what
+   WCAG 2.2.2 asks content not to do. Both badges are static now: green
+   outline + "LIVE", amber outline + "FIXTURE". */
+/* `.live-badge` is GONE, and it was already orphaned before this change.
+   Nothing in the product rendered it — live/fixture state is carried by
+   `ModeBanner`, which prints the word and sets `aria-label="Data mode: …"`. So
+   the note below, written while removing its blink and glow, described a
+   surface that does not exist. Removing the rule as well makes the record
+   true. `.fixture-badge` stays: `DraftIntelligence.tsx` uses it, though for a
+   pick category rather than a data mode. */
+/* The blink and the pulse ring are GONE (2026-09-01).
+   `.live-badge` blinked on a 1.4s loop under a green glow ring pulsing on a
+   2s loop. Two objections, and the second is not a matter of taste:
+     - A glowing, blinking badge is decoration standing in for information. The
+       word "LIVE" already says live; the halo adds no bit.
+     - WCAG 2.2.2 asks that blinking content stop within five seconds. This ran
+       forever. The reduced-motion guard covered users who set the preference
+       and nobody else.
+   Kept: the badge itself, its colour and its border. */
 .fixture-badge {
   font-size: var(--text-xs);
   color: var(--amber);
   text-transform: uppercase;
   letter-spacing: .08em;
   border: 1px solid rgba(215, 168, 87, 0.4);
-  padding: 2px 6px;
+  padding: var(--space-1) var(--space-2);
   border-radius: 3px;
-}
-
-@keyframes live-pulse-opacity {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
 }
 
 /* Subtle slow pulse for the live-dot span inside the TopBar mode badge.
@@ -408,7 +447,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
    eliminate the 1px vertical jitter on tab activation (same fix as PanelTabs).
    Inactive: 1px solid transparent + 2px transparent bottom (reserve space).
    Active: border-bottom becomes visible (color changes, no layout shift).    */
-.time-range-tabs { display: flex; gap: 2px; align-items: flex-end; }
+.time-range-tabs { display: flex; gap: var(--space-1); align-items: flex-end; }
 .time-tab {
   padding: 4px 8px;
   font-size: var(--text-xs);
@@ -446,8 +485,8 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .kpi-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 /* Pre-draft carryover notice: clarifies that a not-yet-drafted upcoming season
    is showing last season's roster as a baseline (resolves "why is my 2026 team
@@ -460,13 +499,13 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   border: 1px solid rgba(245, 197, 102, 0.28);
   border-radius: 8px;
   padding: 8px 12px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-3);
 }
 .predraft-notice a { color: var(--blue); text-decoration: underline; }
 
 /* Top Insights (overview): biggest market mispricings, tone by under/over-valued. */
-.ti-list { display: flex; flex-direction: column; gap: 6px; }
-.ti-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 8px; background: rgba(255, 255, 255, 0.02); border-left: 3px solid transparent; }
+.ti-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.ti-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-2); border-radius: 8px; background: rgba(255, 255, 255, 0.02); border-left: 3px solid transparent; }
 .ti-row[data-tone="under"] { border-left-color: var(--green); }
 .ti-row[data-tone="over"] { border-left-color: var(--red); }
 .ti-name { font-weight: 600; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -476,15 +515,15 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .ti-row[data-tone="over"] .ti-edge { color: var(--red); }
 
 /* Next Best Actions (overview): source-backed, tone-coloured action rows. */
-.nba-list { display: flex; flex-direction: column; gap: 6px; }
-.nba-row { display: grid; grid-template-columns: 3px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.02); }
+.nba-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.nba-row { display: grid; grid-template-columns: 3px minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); padding: var(--space-2) 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.02); }
 .nba-bar { align-self: stretch; border-radius: 2px; background: var(--muted); }
 .nba-row[data-tone="risk"] .nba-bar { background: var(--red); }
 .nba-row[data-tone="sell"] .nba-bar { background: var(--red); }
 .nba-row[data-tone="buy"] .nba-bar { background: var(--green); }
 .nba-row[data-tone="add"] .nba-bar { background: var(--blue); }
 .nba-row[data-tone="draft"] .nba-bar { background: var(--amber); }
-.nba-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.nba-body { display: flex; flex-direction: column; gap: 0; min-width: 0; }
 .nba-title { font-size: var(--text-sm); font-weight: 700; color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nba-detail { font-size: var(--text-xs); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* WCAG 2.2 AA SC 2.5.8 (Target Size Minimum, 24x24). Measured at 65x23 before
@@ -495,18 +534,21 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .nba-cta:hover { border-color: var(--blue); }
 
 /* Reports route (weekly / governance summary). */
-.report-outcome { display: flex; flex-direction: column; gap: 5px; margin-bottom: 6px; }
+.report-outcome { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: var(--space-2); }
 .report-outcome-row { display: grid; grid-template-columns: 92px 1fr 38px; align-items: center; gap: 8px; }
-.report-outcome-label { font-size: var(--text-xs); color: var(--muted); }
+.report-outcome-label { font-size: var(--text-sm); color: var(--muted); }
 .report-outcome-track { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
-.report-outcome-fill { display: block; height: 100%; width: var(--w, 0%); border-radius: 4px; background: linear-gradient(90deg, rgba(90, 159, 196, 0.5), var(--blue)); }
+/* Flat, not a gradient. A bar encodes a length, and a fill that fades toward
+   its own end makes the end harder to locate — decoration actively working
+   against the one job the mark has. */
+.report-outcome-fill { display: block; height: 100%; width: var(--w, 0%); border-radius: 2px; background: var(--blue); }
 .report-outcome-val { font-size: var(--text-sm); font-weight: 700; color: var(--cream); text-align: right; font-variant-numeric: tabular-nums; }
-.report-gov { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
+.report-gov { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: 8px; }
 .report-gov-row { display: grid; grid-template-columns: 92px 1fr; gap: 8px; font-size: var(--text-xs); }
 .report-gov-row dt { color: var(--muted); }
 .report-gov-row dd { margin: 0; color: var(--cream); overflow: hidden; text-overflow: ellipsis; }
-.report-assumptions { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; }
-.report-assumptions li { font-size: var(--text-xs); line-height: 1.5; color: var(--muted); padding-left: 10px; position: relative; }
+.report-assumptions { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: 8px; }
+.report-assumptions li { font-size: var(--text-xs); line-height: 1.5; color: var(--muted); padding-left: var(--space-3); position: relative; }
 .report-assumptions li::before { content: "·"; position: absolute; left: 2px; color: var(--blue); }
 .report-missing { font-size: var(--text-xs); line-height: 1.5; color: var(--amber); }
 .kpi-row-sm { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
@@ -523,7 +565,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .kpi-neg { border-left-color: var(--red); }
 .kpi-neu { border-left-color: rgba(90, 159, 196, 0.5); }
 .kpi-card small { display: block; font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
-.kpi-card strong { display: block; font-size: var(--text-xl); font-weight: 700; margin: 4px 0 2px; }
+.kpi-card strong { display: block; font-size: var(--text-xl); font-weight: 700; margin: 4px 0 var(--space-1); }
 .kpi-card span { font-size: var(--text-xs); color: var(--muted); }
 .kpi-pos strong { color: var(--green); }
 .kpi-neg strong { color: var(--red); }
@@ -535,7 +577,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   text-transform: uppercase;
   letter-spacing: .1em;
   color: var(--label-text);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 
 /* Plain-language lead-in for a tab/section — readable body size (not the 9-10px
@@ -544,7 +586,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   font-size: var(--text-sm);
   line-height: 1.5;
   color: var(--muted);
-  margin: 2px 0 14px;
+  margin: var(--space-1) 0 var(--space-4);
   max-width: 64ch;
 }
 
@@ -588,18 +630,18 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 }
 
 
-.ci-list { display: flex; flex-direction: column; gap: 6px; }
-.ci-row { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; border-bottom: 1px solid rgba(214,226,226,0.05); font-size: var(--text-xs); color: var(--cream); }
+.ci-list { display: flex; flex-direction: column; gap: var(--space-2); }
+.ci-row { display: flex; justify-content: space-between; align-items: baseline; padding: var(--space-1) 0; border-bottom: 1px solid rgba(214,226,226,0.05); font-size: var(--text-xs); color: var(--cream); }
 .ci-row b { font-weight: 600; }
 .ci-range { color: var(--muted); font-weight: 400; }
 
 .vol-surface-legend {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
   font-size: var(--text-xs);
   color: var(--muted);
-  margin-top: 6px;
+  margin-top: var(--space-2);
 }
 /* Tokens, not literals. `#eaa53d` here was the PRE-REPAINT amber, surviving
    next to two colours that happened to be spelled correctly -- the drift is
@@ -607,7 +649,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .vol-legend-cyan  { color: var(--teal); }
 .vol-legend-purple { color: var(--purple); }
 .vol-legend-amber  { color: var(--amber); }
-.vol-legend-ml    { margin-left: 6px; }
+.vol-legend-ml    { margin-left: var(--space-2); }
 
 /* ─── Narrative Momentum ─────────────────────────────────────────────────── */
 .narrative-momentum {
@@ -617,24 +659,24 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   background: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
 }
 .momentum-header { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .1em; color: var(--label-text); }
 .momentum-col { flex: 1; overflow: hidden; }
 .momentum-section-label { font-size: var(--text-micro); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 4px; }
-.momentum-list { display: flex; flex-direction: column; gap: 3px; }
-.momentum-item { display: flex; justify-content: space-between; align-items: center; padding: 2px 0; }
+.momentum-list { display: flex; flex-direction: column; gap: var(--space-1); }
+.momentum-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-1) 0; }
 .momentum-name { font-size: var(--text-xs); color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 110px; }
 .momentum-val { font-size: var(--text-xs); font-weight: 600; white-space: nowrap; }
 .momentum-empty { font-size: var(--text-xs); color: var(--muted); }
-.view-all-link { font-size: var(--text-xs); color: var(--blue); margin-top: 6px; display: block; }
+.view-all-link { font-size: var(--text-xs); color: var(--blue); margin-top: var(--space-2); display: block; }
 .mt8 { margin-top: 8px; }
 
 /* ─── Bottom Row Mini Panels ─────────────────────────────────────────────── */
 .bottom-row {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  gap: var(--space-2);
   margin-top: 8px;
 }
 .mini-panel {
@@ -647,16 +689,28 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   transition: background var(--motion-base) ease;
 }
 .mini-panel:hover { background: rgba(90, 159, 196, 0.04); }
+/* A panel's own title. `--text-base` is licensed for "panel titles"; a
+   mini-panel is a sub-panel, so it takes the rung below rather than the one for
+   captions it was on. The uppercase + tracking label treatment stays -- what
+   changes is that the title now outranks the rows underneath it. */
 .mini-panel-title {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: .1em;
   color: var(--label-text);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
-.mini-table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
-.mini-table th { font-size: var(--text-micro); text-transform: uppercase; color: var(--muted); padding: 3px 2px; text-align: left; border-bottom: 1px solid var(--line); }
-.mini-table td { padding: 3px 2px; border-bottom: 1px solid rgba(214,226,226,0.06); }
+/* .mini-table is the TIGHT variant, not the small-type variant.
+   It was set one rung down from `table`, on the theory that a table beside a
+   chart is a secondary readout. Measured 2026-09-01 that theory does not hold:
+   /reports renders its whole player ranking in a .mini-table, so 24 of the 78
+   small elements on that route were its primary content. What makes this
+   variant dense is its 4px cell padding, and density bought by making the
+   numbers harder to read is not density, it is just smaller numbers. Inherits
+   the 13px default below; the padding stays tight. */
+.mini-table { width: 100%; border-collapse: collapse; }
+.mini-table th { font-size: var(--text-micro); text-transform: uppercase; color: var(--muted); padding: var(--space-1) var(--space-1); text-align: left; border-bottom: 1px solid var(--line); }
+.mini-table td { padding: var(--space-1) var(--space-1); border-bottom: 1px solid rgba(214,226,226,0.06); }
 .muted-note { font-size: var(--text-xs); color: var(--muted); }
 /*
  * Trade Center's league-identity line (audit P2 §8).
@@ -667,13 +721,13 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
  * assertion whenever values DID load — two matching elements, strict-mode
  * violation. Same appearance, distinct meaning, distinct class.
  */
-.trade-league-line { font-size: var(--text-xs); color: var(--muted); margin: 6px 0 0; }
-.small-note { font-size: var(--text-xs); color: var(--muted); margin-top: 6px; }
+.trade-league-line { font-size: var(--text-xs); color: var(--muted); margin: var(--space-2) 0 0; }
+.small-note { font-size: var(--text-xs); color: var(--muted); margin-top: var(--space-2); }
 .triangle-wrap { margin: 4px 0; }
 
 /* ─── Intel Feed ────────────────────────────────────────────────────────── */
-.intel-list { display: flex; flex-direction: column; gap: 5px; }
-.intel-item { display: flex; align-items: baseline; gap: 7px; font-size: var(--text-xs); color: var(--muted); border-bottom: 1px solid rgba(214,226,226,0.05); padding-bottom: 4px; }
+.intel-list { display: flex; flex-direction: column; gap: var(--space-1); }
+.intel-item { display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); border-bottom: 1px solid rgba(214,226,226,0.05); padding-bottom: 4px; }
 .intel-ts { font-size: var(--text-micro); color: var(--blue); }
 /* Single real "as of <fetch time>" stamp for the provenance feed (replaces the
    former fabricated per-row "Xm ago" ages). */
@@ -684,7 +738,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
      An earlier opacity:.85 dimmed it to #508cae (4.35:1) → axe-flagged. */
   color: var(--blue);
   letter-spacing: .04em;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
 .intel-dot {
   flex: none;
@@ -696,9 +750,9 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 }
 
 /* ─── Team Construction Score ───────────────────────────────────────────── */
-.overall-grade { font-size: var(--text-2xl); font-weight: 700; color: var(--green); text-align: center; margin: 6px 0; }
-.position-grades { display: flex; flex-direction: column; gap: 3px; }
-.pos-grade-row { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 2px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
+.overall-grade { font-size: var(--text-2xl); font-weight: 700; color: var(--green); text-align: center; margin: var(--space-2) 0; }
+.position-grades { display: flex; flex-direction: column; gap: var(--space-1); }
+.pos-grade-row { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: var(--space-1) 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .pos-label { color: var(--muted); }
 .grade-val { font-weight: 600; }
 .grade-a { color: var(--green); }
@@ -709,12 +763,12 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 /* ─── Fragility X-Ray ───────────────────────────────────────────────────── */
 /* Roster Fragility X-Ray — a dignified risk-bar list (was a crude stick figure).
    Each row: player + position + a colour-tiered risk track + label + score. */
-.frag-rows { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+.frag-rows { display: flex; flex-direction: column; gap: var(--space-1); margin-top: var(--space-1); }
 .frag-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 26px 1fr 58px 26px;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-2);
   font-size: var(--text-xs);
 }
 .frag-name { color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
@@ -729,11 +783,13 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .frag-row[data-tier="elev"] .frag-label { color: var(--amber); }
 .frag-row[data-tier="high"] .frag-label { color: var(--red); }
 .frag-score { color: var(--cream); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
-.frag-note { margin-top: 6px; }
+.frag-note { margin-top: var(--space-2); }
 /* Availability X-Ray (status-driven): healthy state + summary chips. */
-.frag-allclear { font-size: var(--text-sm); color: var(--green); font-weight: 600; padding: 6px 0; }
-.frag-summary { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
-.frag-chip { font-size: var(--text-micro); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; border: 1px solid transparent; }
+.frag-allclear { font-size: var(--text-sm); color: var(--green); font-weight: 600; padding: var(--space-2) 0; }
+.frag-summary { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-2); }
+.frag-chip { font-size: var(--text-micro); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; /* 3px, matching .pos-badge / .fixture-badge / .src-badge. A 999px pill was
+   the only one in the stylesheet and it read as a different design system. */
+  padding: var(--space-1) var(--space-2); border-radius: 3px; border: 1px solid transparent; }
 .frag-chip-high { color: var(--red); background: rgba(217, 134, 111, 0.12); border-color: rgba(217, 134, 111, 0.4); }
 .frag-chip-elev { color: var(--amber); background: rgba(245, 197, 102, 0.1); border-color: rgba(245, 197, 102, 0.35); }
 
@@ -742,7 +798,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
+  padding: var(--space-1) 8px;
   border-bottom: 1px solid rgba(214,226,226,0.06);
   min-width: 0;
 }
@@ -752,12 +808,12 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-1);
 }
 .player-row-name-line {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .player-row-name {
@@ -803,7 +859,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   font-weight: 700;
   letter-spacing: .06em;
   text-transform: uppercase;
-  padding: 1px 5px;
+  padding: 0 var(--space-1);
   border-radius: 3px;
   line-height: 1.4;
   white-space: nowrap;
@@ -833,12 +889,12 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   grid-template-columns: 16px 26px minmax(0, 1fr) 72px 30px;
   align-items: center;
   gap: 8px;
-  padding: 3px 12px 3px 8px;
+  padding: var(--space-1) 12px var(--space-1) 8px;
   border-bottom: 1px solid rgba(214,226,226,0.05);
 }
 .lp-row:last-child { border-bottom: none; }
 .lp-rank {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--muted);
   text-align: right;
@@ -847,11 +903,11 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .lp-id {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   min-width: 0;
 }
 .lp-name {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--cream);
   white-space: nowrap;
@@ -911,7 +967,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .player-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 6px;
+  gap: var(--space-2);
   padding: 4px 0;
 }
 .player-grid-card {
@@ -926,7 +982,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   transition: border-color var(--motion-fast), background var(--motion-fast);
   text-align: left;
 }
-.player-grid-card:hover { border-color: rgba(74,141,183,0.4); background: rgba(74,141,183,0.06); box-shadow: var(--panel-shadow); }
+.player-grid-card:hover { border-color: rgba(74,141,183,0.4); background: rgba(74,141,183,0.06); }
 .player-grid-card.selected { border-color: var(--blue); background: rgba(74,141,183,0.10); }
 .player-grid-card-header {
   display: flex;
@@ -936,7 +992,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 }
 .player-grid-card-text { min-width: 0; }
 .player-grid-card-name {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--cream);
   overflow: hidden;
@@ -952,7 +1008,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   font-weight: 700;
   color: var(--green);
   text-align: right;
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 .player-grid-empty {
   padding: 24px;
@@ -965,7 +1021,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 .narrative-bar-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-2);
   padding: 4px 0;
 }
 .narrative-bar-row {
@@ -1006,8 +1062,8 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
 }
 .narrative-bar-pos { background: var(--green); }
 .narrative-bar-neg { background: var(--red); }
-.narrative-flow-header { padding: 8px 10px 4px; }
-.narrative-bar-list-padded { padding: 0 10px 8px; }
+.narrative-flow-header { padding: 8px var(--space-3) 4px; }
+.narrative-bar-list-padded { padding: 0 var(--space-3) 8px; }
 
 /* Volatility Surface axis labels */
 .vol-surface-wrap { position: relative; }
@@ -1017,10 +1073,10 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   font-size: var(--text-micro);
   color: var(--muted);
   padding: 0 4px;
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 .vol-surface-caption {
-  padding: 6px 0 0;
+  padding: var(--space-2) 0 0;
   font-size: var(--text-micro);
   color: var(--muted);
   line-height: 1.5;
@@ -1053,21 +1109,23 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
    the "BYE" prefix so it can never be mistaken for a rank or a score. */
 .draft-board-bye {
   font-family: var(--font-plex-mono), "Courier New", monospace;
-  font-size: var(--text-micro);
+  /* A value, not a label: --text-micro is licensed for uppercase grid labels,
+     and "BYE 9" is a number a reader compares down the column. */
+  font-size: var(--text-xs);
   letter-spacing: .04em;
   color: var(--muted);
   flex-shrink: 0;
   white-space: nowrap;
 }
 .draft-board-rank {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--muted);
   min-width: 20px;
   flex-shrink: 0;
 }
 .draft-board-name {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--cream);
   min-width: 0;
@@ -1082,7 +1140,7 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   letter-spacing: .06em;
   color: var(--amber);
   border: 1px solid rgba(234,165,61,0.35);
-  padding: 1px 5px;
+  padding: 0 var(--space-1);
   border-radius: 2px;
   white-space: nowrap;
   flex-shrink: 0;
@@ -1125,11 +1183,22 @@ code, .intel-ts, .section-label, .mini-panel-title, .sim-count, .captionStyle {
   background: none;
   overflow-x: auto;
 }
-table { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
-th { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; color: var(--muted); font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .06em; }
-td { padding: 6px 8px; border-bottom: 1px solid rgba(214,226,226,0.06); }
+/* S6. THE SCALE ALREADY SAID 13px; THE STYLESHEET SAID 11.
+   `--text-sm` is documented at the top of this file as "body copy and table
+   cells -- the default", and tables were set to `--text-xs`, the rung licensed
+   for "metadata, captions, provenance". Measured 2026-09-01, that one
+   declaration was the single largest source of the collapsed hierarchy the
+   audit reports: 128 of the 210 small elements on /waivers, 144 of 234 on
+   /mock-draft, 70 on /draft. A table cell is the PRIMARY content of this
+   product -- it is the player, the number, the thing you came to read -- and it
+   was set one rung below prose.
+   The fix is not "make the text bigger". It is to obey the licensing already
+   written down, which moves data up and leaves labels where they are. */
+table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+th { padding: var(--space-2) 8px; border-bottom: 1px solid var(--line); text-align: left; color: var(--muted); font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .06em; }
+td { padding: var(--space-2) 8px; border-bottom: 1px solid rgba(214,226,226,0.06); }
 td small { color: var(--muted); }
-.scenario-table th, .scenario-table td { padding: 5px 8px; }
+.scenario-table th, .scenario-table td { padding: var(--space-1) 8px; }
 
 /* ─── Market Panel ───────────────────────────────────────────────────────── */
 .market-charts-row { margin-top: 8px; }
@@ -1138,22 +1207,22 @@ td small { color: var(--muted); }
 .liquidity-dot-mid  { background: var(--amber); }
 .liquidity-dot-low  { background: var(--muted); }
 .legend-dot-ml { margin-left: 12px; }
-.liquidity-note { margin-top: 6px; }
-.flow-legend { display: flex; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--muted); margin-bottom: 6px; }
+.liquidity-note { margin-top: var(--space-2); }
+.flow-legend { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted); margin-bottom: var(--space-2); }
 .legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 /* Price Discovery scatter + its legend dots. */
 .pd-scatter { display: block; overflow: visible; }
 .pd-dot-under { background: var(--green); }
 .pd-dot-over { background: var(--red); }
 .legend-item { display: flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--muted); }
-.chart-legend { display: flex; gap: 12px; margin-bottom: 6px; }
+.chart-legend { display: flex; gap: 12px; margin-bottom: var(--space-2); }
 .heatmap-wrap { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); margin-top: 8px; overflow-x: auto; scrollbar-width: thin; }
-.heat-row { display: grid; grid-template-columns: 28px repeat(10, 1fr); gap: 3px; align-items: center; margin: 5px 0; font-size: var(--text-xs); color: var(--muted); }
+.heat-row { display: grid; grid-template-columns: 28px repeat(10, 1fr); gap: var(--space-1); align-items: center; margin: var(--space-1) 0; font-size: var(--text-xs); color: var(--muted); }
 .heat-cell { height: 18px; border-radius: 2px; }
 .heat-cell-empty { background: rgba(255,255,255,0.03); }
 /* Recreated Value × Usage heatmap — labelled cells (player + value) with a
    value-intensity background and a real snap-share (usage) bar. */
-.heat-axis-hint { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: right; margin: 2px 0 4px; }
+.heat-axis-hint { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); text-align: right; margin: var(--space-1) 0 4px; }
 .heat-row2 { display: grid; grid-template-columns: 26px repeat(var(--heat-cols, 8), minmax(56px, 1fr)); gap: 4px; align-items: stretch; margin: 4px 0; }
 .heat-pos { display: grid; place-items: center; font-size: var(--text-xs); font-weight: 700; color: var(--blue); }
 .heat-cell2 {
@@ -1161,11 +1230,11 @@ td small { color: var(--muted); }
   min-width: 0;
   min-height: 32px;
   border-radius: 5px;
-  padding: 3px 4px 6px;
+  padding: var(--space-1) 4px var(--space-2);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 1px;
+  gap: 0;
   background: rgba(90, 159, 196, var(--heat-f, 0.2));
   border: 1px solid rgba(90, 159, 196, 0.22);
   overflow: hidden;
@@ -1174,41 +1243,41 @@ td small { color: var(--muted); }
 .heat-cell-val { font-size: var(--text-xs); font-weight: 700; color: var(--cream); font-variant-numeric: tabular-nums; line-height: 1; }
 .heat-usage { position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
 .heat-usage-fill { display: block; height: 100%; width: var(--u, 0%); border-radius: 2px; background: var(--green); }
-.heat-legend2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--text-micro); color: var(--muted); margin-top: 6px; }
+.heat-legend2 { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font-size: var(--text-micro); color: var(--muted); margin-top: var(--space-2); }
 .heat-legend-swatch { width: 12px; height: 10px; border-radius: 2px; background: rgba(90, 159, 196, 0.6); }
 .heat-legend-bar2 { width: 14px; height: 3px; border-radius: 2px; background: var(--green); margin-left: 8px; }
 .heat-legend-note2 { color: var(--muted); opacity: 0.85; }
-.chart-wrap { padding: 10px; border: 1px solid var(--line); background: var(--panel-2); min-height: 220px; }
+.chart-wrap { padding: var(--space-3); border: 1px solid var(--line); background: var(--panel-2); min-height: 220px; }
 
 /* Value × Usage Board — the sortable leaderboard that replaced the clustered
    position-grid heatmap. Clean zebra rows, gradient value/usage bars, edge. */
 .vub-wrap { padding: var(--space-3) 0 0; border: none; border-top: 1px solid var(--line); background: none; margin-top: var(--space-2); }
-.vub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.vub-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: var(--space-2); }
 .vub-sorts { display: inline-flex; gap: 4px; }
 .vub-sort {
   font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: var(--space-1) 8px; cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
 .vub-sort:hover { color: var(--cream); border-color: rgba(90, 159, 196, 0.5); }
 .vub-sort.active { color: var(--cream); border-color: var(--blue); background: rgba(90, 159, 196, 0.14); }
-.vub-board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.vub-board { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .vub-row {
   display: grid; grid-template-columns: 20px minmax(0, 1.25fr) 2fr 34px 40px;
-  align-items: center; gap: 8px; padding: 3px 4px; border-radius: 5px;
+  align-items: center; gap: 8px; padding: var(--space-1) 4px; border-radius: 5px;
 }
 .vub-row:nth-child(odd) { background: rgba(255, 255, 255, 0.018); }
-.vub-rank { font-size: var(--text-xs); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-.vub-id { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.vub-rank { font-size: var(--text-sm); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.vub-id { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
 .vub-name { font-size: var(--text-sm); color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vub-pos { font-size: var(--text-micro); font-weight: 700; letter-spacing: .04em; color: var(--muted); flex-shrink: 0; }
-.vub-bars { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.vub-bars { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
 .vub-bar-track { position: relative; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); overflow: hidden; }
 .vub-bar { display: block; height: 100%; width: var(--w, 0%); border-radius: 4px; }
-.vub-bar-value { background: linear-gradient(90deg, rgba(90, 159, 196, 0.45), var(--blue)); }
-.vub-bar-usage { background: linear-gradient(90deg, rgba(53, 192, 138, 0.45), var(--green)); }
+.vub-bar-value { background: var(--blue); }
+.vub-bar-usage { background: var(--green); }
 .vub-value { font-size: var(--text-sm); font-weight: 700; color: var(--cream); text-align: right; font-variant-numeric: tabular-nums; }
-.vub-edge { font-size: var(--text-xs); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.vub-edge { font-size: var(--text-sm); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ─── Player Universe ────────────────────────────────────────────────────── */
 .universe-layout { display: grid; grid-template-columns: 1fr 180px; gap: 8px; }
@@ -1216,7 +1285,7 @@ td small { color: var(--muted); }
   background: var(--panel-2);
   border: 1px solid var(--line);
   color: var(--cream);
-  padding: 5px 8px;
+  padding: var(--space-1) 8px;
   font-size: var(--text-xs);
   border-radius: 3px;
   font-family: inherit;
@@ -1233,8 +1302,8 @@ td small { color: var(--muted); }
   background: none;
   margin-bottom: var(--space-2);
 }
-.profile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 10px; }
-.profile-id-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.profile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: var(--space-3); }
+.profile-id-row { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
 .player-headshot {
   border-radius: 50%;
   object-fit: cover;
@@ -1254,20 +1323,20 @@ td small { color: var(--muted); }
   letter-spacing: .05em;
 }
 .profile-name { font-size: var(--text-sm); font-weight: 600; color: var(--cream); }
-.profile-pos { font-size: var(--text-micro); color: var(--muted); margin-top: 2px; }
+.profile-pos { font-size: var(--text-micro); color: var(--muted); margin-top: var(--space-1); }
 .profile-rep { font-size: var(--text-xl); font-weight: 700; color: var(--green); }
 .profile-metrics { display: flex; flex-direction: column; gap: 4px; }
-.profile-row { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 3px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
+.profile-row { display: flex; justify-content: space-between; font-size: var(--text-sm); padding: var(--space-1) 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .profile-row span { color: var(--muted); }
 .profile-row b { color: var(--cream); }
-.profile-slot { font-size: var(--text-micro); color: var(--blue); margin-top: 6px; }
+.profile-slot { font-size: var(--text-micro); color: var(--blue); margin-top: var(--space-2); }
 .universe-stats { padding: var(--space-3) 0 0; border: none; border-top: 1px solid var(--line); background: none; }
-.stats-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.stats-row { display: flex; gap: var(--space-2); margin-bottom: 8px; }
 .stat-box { flex: 1; text-align: center; padding: var(--space-2) var(--space-1); border: none; border-left: 2px solid var(--line); }
 .stat-box strong { display: block; font-size: var(--text-base); color: var(--green); }
 .stat-box small { font-size: var(--text-micro); color: var(--muted); }
-.rising-list { display: flex; flex-direction: column; gap: 3px; }
-.rising-item { display: flex; justify-content: space-between; font-size: var(--text-xs); padding: 2px 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
+.rising-list { display: flex; flex-direction: column; gap: var(--space-1); }
+.rising-item { display: flex; justify-content: space-between; font-size: var(--text-sm); padding: var(--space-1) 0; border-bottom: 1px solid rgba(214,226,226,0.06); }
 .radar-wrap { padding: var(--space-3) 0 0; border: none; border-top: 1px solid var(--line); background: none; margin-top: var(--space-2); }
 .universe-sidebar { display: flex; flex-direction: column; gap: 0; overflow-y: auto; }
 /* ─── Chart kit (S5) ──────────────────────────────────────────────────────
@@ -1298,7 +1367,7 @@ td small { color: var(--muted); }
 .heatmap-table tbody th { text-align: right; padding-right: var(--space-1); white-space: nowrap; }
 /* `color` is set per cell in JS from the cell's own luminance (cellContrast.ts);
    no colour is declared here, so nothing can override that choice. */
-.heatmap-cell { font-size: var(--text-xs); text-align: center; border-radius: 3px; padding: var(--space-1) 0; }
+.heatmap-cell { font-size: var(--text-sm); text-align: center; border-radius: 3px; padding: var(--space-1) 0; }
 .heatmap-wrap { width: 100%; overflow-x: auto; }
 .multiverse-hint { max-width: 46ch; }
 
@@ -1318,6 +1387,31 @@ td small { color: var(--muted); }
 .weekly-prob-weak { color: var(--yellow, var(--amber)); font-size: var(--text-micro); }
 .weekly-prob-disclosure { border-left: 2px solid var(--line); padding-left: var(--space-3); margin-top: var(--space-4); }
 .weekly-prob-heading { font-size: var(--text-sm); font-weight: 600; color: var(--cream); margin: 0 0 var(--space-2); }
+/* S6 — the reliability diagram, one click away.
+   Matches the .gov-assume disclosure idiom already used for assumptions, so a
+   reader learns one control rather than two. The heading above stays open and
+   carries the measured numbers; this holds the working. */
+.weekly-prob-chart > summary {
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--blue);
+  list-style: none;
+  padding: var(--space-1) 0;
+}
+/* Hide the collapsed content EXPLICITLY rather than relying on the UA.
+   Measured 2026-09-01 in the shipped build: four `<details>` reporting
+   `open === false`, and every one still laid out its 280x200 figure with all
+   twelve axis labels reporting a real bounding box. The progressive disclosure
+   was disclosing nothing. This is what the `chrome` engine does once the
+   surrounding stylesheet participates; the one-line rule is deterministic and
+   costs nothing. Verified: 48 visible SVG labels -> 0. */
+.weekly-prob-chart:not([open]) > :not(summary) { display: none; }
+.weekly-prob-chart > summary::-webkit-details-marker { display: none; }
+.weekly-prob-chart > summary::before { content: "▸ "; }
+.weekly-prob-chart[open] > summary::before { content: "▾ "; }
 .weekly-prob-limits { margin: 0 0 var(--space-2); padding-left: var(--space-3); font-size: var(--text-xs); color: var(--muted); }
 .weekly-prob-limits li { margin-bottom: var(--space-1); }
 .heatmap-caption { font-size: var(--text-xs); color: var(--muted); font-family: var(--font-plex-mono), "Courier New", monospace; margin-top: var(--space-1); text-align: center; }
@@ -1353,15 +1447,15 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .player-news-prov { margin-top: var(--space-2); }
 
 /* Player Universe — working-tab views (Tiers / Comparison / Watchlist / Projections). */
-.pu-grid-note { margin-top: 6px; }
-.pu-radar-note { margin-top: 6px; }
-.universe-tiers { display: flex; flex-direction: column; gap: 10px; padding: 4px 0; }
+.pu-grid-note { margin-top: var(--space-2); }
+.pu-radar-note { margin-top: var(--space-2); }
+.universe-tiers { display: flex; flex-direction: column; gap: var(--space-3); padding: 4px 0; }
 .tier-pos-block { border: none; border-left: 2px solid var(--line); border-radius: 0; padding: var(--space-2) 0 var(--space-2) var(--space-3); background: none; }
 .tier-pos-head { font-size: var(--text-xs); font-weight: 700; letter-spacing: .08em; color: var(--blue); margin-bottom: 4px; }
-.tier-band-row { display: grid; grid-template-columns: 54px 1fr; gap: 6px; align-items: start; padding: 2px 0; }
-.tier-band-label { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 2px; }
+.tier-band-row { display: grid; grid-template-columns: 54px 1fr; gap: var(--space-2); align-items: start; padding: var(--space-1) 0; }
+.tier-band-label { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: var(--space-1); }
 .tier-band-players { display: flex; flex-wrap: wrap; gap: 4px; }
-.tier-chip { font-size: var(--text-xs); color: var(--cream); background: rgba(90,159,196,0.1); border: 1px solid rgba(90,159,196,0.22); border-radius: 4px; padding: 1px 5px; white-space: nowrap; }
+.tier-chip { font-size: var(--text-sm); color: var(--cream); background: rgba(90,159,196,0.1); border: 1px solid rgba(90,159,196,0.22); border-radius: 4px; padding: 0 var(--space-1); white-space: nowrap; }
 .tier-chip b { color: var(--blue); font-variant-numeric: tabular-nums; }
 .watch-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .watch-col { min-width: 0; }
@@ -1370,13 +1464,16 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .draft-controls { display: inline-flex; align-items: center; gap: 8px; }
 .draft-reset-btn {
   font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
-  border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 4px; padding: var(--space-1) 8px; cursor: pointer;
 }
 .draft-reset-btn:hover { color: var(--cream); border-color: var(--blue); }
-.draft-actions { display: flex; gap: 5px; white-space: nowrap; }
+.draft-actions { display: flex; gap: var(--space-1); white-space: nowrap; }
 .draft-btn {
-  font-size: var(--text-xs); font-weight: 700; letter-spacing: .03em; border-radius: 4px;
-  padding: 2px 7px; cursor: pointer; border: 1px solid transparent; line-height: 1.5;
+  /* A control label, not metadata -- and 48 of these are the second-largest
+     small-text population on /mock-draft. Larger type also grows the tap
+     target, which WCAG 2.5.8 measures. */
+  font-size: var(--text-sm); font-weight: 700; letter-spacing: .03em; border-radius: 4px;
+  padding: var(--space-1) var(--space-2); cursor: pointer; border: 1px solid transparent; line-height: 1.5;
 }
 .draft-btn-mine { background: rgba(53,192,138,0.16); color: var(--green); border-color: rgba(53,192,138,0.35); }
 .draft-btn-mine:hover { background: rgba(53,192,138,0.28); }
@@ -1388,7 +1485,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   cursor: pointer;
   display: flex; justify-content: space-between; align-items: center;
   width: 100%; font-size: inherit; text-align: left;
-  background: none; border: none; color: inherit; padding: 2px 0;
+  background: none; border: none; color: inherit; padding: var(--space-1) 0;
   min-height: 24px;
 }
 .draft-roster-row:hover, .draft-roster-row:focus-visible { color: var(--red); }
@@ -1400,8 +1497,8 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 }
 /* Live Board search — full-width (overrides the narrow .galaxy-search) so the
    whole available pool is reachable, with a recommended-row marker. */
-.draft-search { width: 100%; margin: 4px 0 6px; }
-.draft-board-count { font-size: var(--text-xs); margin-bottom: 6px; }
+.draft-search { width: 100%; margin: 4px 0 var(--space-2); }
+.draft-board-count { font-size: var(--text-xs); margin-bottom: var(--space-2); }
 /* Mark recommended rows with a left-edge accent bar only — NOT a full-row
    background wash. A wash shifts the composite background behind the muted
    "Taken" button text and drops it below WCAG AA 4.5:1; an inset bar on the
@@ -1411,36 +1508,36 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 
 /* ─── Narrative Engine ───────────────────────────────────────────────────── */
 /* Hype vs. Value boards (rebuilt panel): two ranked lists, sell-high / buy-low. */
-.narr-summary { font-size: var(--text-xs); line-height: 1.5; color: var(--muted); margin-bottom: 10px; }
+.narr-summary { font-size: var(--text-xs); line-height: 1.5; color: var(--muted); margin-bottom: var(--space-3); }
 .narr-cols { display: flex; flex-direction: column; gap: 12px; }
 .narr-board { min-width: 0; }
-.narr-board-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+.narr-board-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: var(--space-2); flex-wrap: wrap; }
 .narr-board-title { font-size: var(--text-sm); font-weight: 700; letter-spacing: .06em; }
 .narr-sell { color: var(--red); }
 .narr-buy { color: var(--green); }
 .narr-board-sub { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
-.narr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-.narr-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 3px 4px; border-radius: 5px; }
+.narr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.narr-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: var(--space-1) 4px; border-radius: 5px; }
 .narr-row:nth-child(odd) { background: rgba(255, 255, 255, 0.018); }
-.narr-rank { font-size: var(--text-xs); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-.narr-id { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.narr-rank { font-size: var(--text-sm); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.narr-id { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
 .narr-name { font-size: var(--text-sm); color: var(--cream); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .narr-pos { font-size: var(--text-micro); font-weight: 700; color: var(--muted); flex-shrink: 0; }
-.narr-stat { font-size: var(--text-xs); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; min-width: 30px; }
-.narr-legend { font-size: var(--text-micro); color: var(--muted); margin-top: 6px; text-align: right; letter-spacing: .04em; }
+.narr-stat { font-size: var(--text-sm); font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; min-width: 30px; }
+.narr-legend { font-size: var(--text-micro); color: var(--muted); margin-top: var(--space-2); text-align: right; letter-spacing: .04em; }
 
 .narrative-layout { display: grid; grid-template-columns: 1fr 140px; gap: 8px; }
 .narrative-flow-svg { border: 1px solid var(--line); background: rgba(7,10,13,0.8); min-height: 280px; }
-.narrative-metrics { display: flex; flex-direction: column; gap: 6px; }
+.narrative-metrics { display: flex; flex-direction: column; gap: var(--space-2); }
 .narrative-metric-card { padding: 8px; border: 1px solid var(--line); background: var(--panel-2); }
 .nm-label { font-size: var(--text-micro); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
 .nm-value { font-size: var(--text-xl); font-weight: 700; color: var(--cream); }
-.nm-sub { font-size: var(--text-micro); color: var(--muted); margin-top: 2px; }
+.nm-sub { font-size: var(--text-micro); color: var(--muted); margin-top: var(--space-1); }
 
 /* ─── Nexus Simulator ────────────────────────────────────────────────────── */
 .nexus-layout { display: grid; grid-template-columns: 1fr 200px; gap: 8px; }
 .nexus-main, .nexus-full { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.nexus-side { display: flex; flex-direction: column; gap: 6px; }
+.nexus-side { display: flex; flex-direction: column; gap: var(--space-2); }
 .nexus-full { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 200px; gap: 8px; }
 .sim-count { font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
 .multiverse-wrap { padding: var(--space-3) 0 0; border: none; border-top: 1px solid var(--line); background: none; min-height: 280px; }
@@ -1448,8 +1545,8 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .risk-layout { display: flex; gap: 8px; align-items: center; }
 .risk-list { font-size: var(--text-micro); color: var(--muted); display: flex; flex-direction: column; gap: 4px; flex: 1; }
 .risk-list li::before { content: "• "; color: var(--amber); }
-.risk-detail-list { font-size: var(--text-xs); color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
-.risk-detail-list li { border-bottom: 1px solid rgba(214,226,226,0.06); padding-bottom: 5px; }
+.risk-detail-list { font-size: var(--text-xs); color: var(--muted); display: flex; flex-direction: column; gap: var(--space-2); }
+.risk-detail-list li { border-bottom: 1px solid rgba(214,226,226,0.06); padding-bottom: var(--space-1); }
 
 /* ─── Semantic Color Utilities ───────────────────────────────────────────── */
 .pos-text { color: var(--green); }
@@ -1472,34 +1569,36 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   color: var(--muted);
 }
 
-/* ─── Moderate entrance animations (Sprint 4 editorial direction) ──────────
-   Staggered card reveals: opacity 0→1 + translateY(6px)→0. Each row/card
-   gets a delay via --stagger custom property. All respect prefers-reduced-
-   motion (collapsed to instant at the bottom of this file).                */
+/* REMOVED 2026-09-01 — the staggered KPI fade-up (`card-fade-in`).
+   `opacity 0→1 + translateY(4px)→0` on every `.kpi-card`, delayed in sequence
+   by a `--stagger` custom property. This is the default entrance animation of a
+   generated dashboard, and this product's own stated motion philosophy is that
+   "motion is restrained and DATA-ENCODED". A stagger encodes nothing: the third
+   KPI is not later than the first, it is just drawn later, and the reader who
+   came to read four numbers waits for them to arrive in order.
+   Restore only if the delay comes to mean something. */
 
-
-/* KPI card stagger: applied to each .kpi-card in order via nth-child delays. */
-.kpi-card {
-  animation: card-fade-in var(--motion-base) ease-out var(--stagger, 0ms) both;
-}
-@keyframes card-fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Hover lift: panels and mini-panels lift 2px on hover — depth cue without JS. */
+/* Hover: the surface responds, it does not levitate.
+   These four used to translateY(-2px) under a 20px blue-tinted shadow — the
+   card-lifts-and-glows interaction that ships with every dashboard template.
+   Two reasons it is gone beyond taste:
+     - A row in a table is not a floating object. Lifting it asserts a depth the
+       layout does not have, and a 2px jump under the cursor makes a dense list
+       feel unstable while you read down it.
+     - The shadow was tinted with the accent colour, which is a glow wearing a
+       shadow's name. The guardrails permit RESTRAINED glow; a halo on every
+       hoverable row in the product is not that.
+   A border and background change says "this is the one you are pointing at"
+   without moving anything. */
 .mini-panel,
 .player-grid-card,
 .draft-board-row,
 .kpi-card {
-  will-change: transform;
-  transition: transform var(--motion-fast) ease, border-color var(--motion-base) ease, box-shadow var(--motion-base) ease;
+  transition: border-color var(--motion-base) ease, background var(--motion-base) ease;
 }
 .mini-panel:hover,
-.player-grid-card:hover,
 .draft-board-row:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(90, 159, 196, 0.12);
+  border-color: rgba(74, 141, 183, 0.4);
 }
 
 /* Player row hover: subtle background reveal with no layout shift. */
@@ -1510,21 +1609,12 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   background: rgba(90, 159, 196, 0.05);
 }
 
-/* Section label uppercase tracking animation (entrance only). */
-.section-label {
-  animation: label-reveal var(--motion-base) ease-out both;
-}
-@keyframes label-reveal {
-  from { opacity: 0; letter-spacing: .04em; }
-  to   { opacity: 1; letter-spacing: .1em; }
-}
-
-/* ─── Animations ─────────────────────────────────────────────────────────── */
-@keyframes live-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.45; }
-}
-
+/* REMOVED 2026-09-01 — `label-reveal`, an entrance animation on every section
+   label that interpolated `letter-spacing` from .04em to .1em.
+   Two problems. It encodes nothing, like the stagger above. And letter-spacing
+   is a LAYOUT property: every label on the page reflowed on each frame of its
+   own reveal, which is the cost the editor's own performance hint flags. An
+   uppercase tracked label is a strong enough mark standing still. */
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 /* The dashboard grid reflows via Tailwind breakpoints in PanelGrid; only the
@@ -1552,32 +1642,22 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
    trigger paint/layout. Reduced-motion guard at the bottom of this file
    collapses them to instant. */
 
-.data-unavailable {
-  animation: data-unavailable-reveal var(--motion-slow) var(--ease-emphasized) both;
-}
+/* REMOVED 2026-09-01 — `data-unavailable-reveal`, the third fade-up.
+   An empty state explains why a number is missing. Fading it in on a slow
+   curve makes the explanation arrive after the absence it explains, which is
+   the wrong order for the one message in this product that must land
+   immediately. */
 
-@keyframes data-unavailable-reveal {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* NoLeagueCTA aurora background: slow color shift over a fixed gradient
-   stack. background-position animation moves a large-format gradient
-   across the layer — perceived as a soft aurora, only composite work. */
-.no-league-aurora {
-  background:
-    radial-gradient(60% 60% at 20% 30%, rgba(245,231,196,0.08), transparent 60%),
-    radial-gradient(60% 60% at 80% 70%, rgba(225,167,68,0.06), transparent 60%),
-    linear-gradient(135deg, rgba(120,180,200,0.04), rgba(180,120,200,0.04), rgba(120,200,160,0.04));
-  background-size: 200% 200%;
-  animation: aurora-shift 18s ease-in-out infinite alternate;
-}
-
-@keyframes aurora-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
+/* REMOVED 2026-09-01 — `.no-league-aurora` and `@keyframes aurora-shift`.
+   An animated stack of two radial gradients and a blue → PURPLE → green linear
+   gradient, drifting across the empty state on an 18-second loop. It is the
+   single most recognisable ornament of a generated application, and it was
+   doing three unhelpful things at once: introducing a hue (purple) that exists
+   in this palette for exactly one data encoding, animating forever behind copy
+   asking the reader to make a decision, and dressing up the ONE screen whose
+   entire message is "there is nothing here yet, connect a league".
+   The empty state is typographic now. Restore from git history only if
+   somebody can say what the movement told the reader. */
 
 /* ─── In-panel PanelTabs underline/rail ───────────────────────────────────── */
 /* A quiet row of text tabs over a hairline baseline; the active tab carries a
@@ -1617,7 +1697,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   gap: 12px;
   /* Aligned to the PanelGrid's 16px gutter (was an ad-hoc 14px). */
   margin: 12px 16px 0;
-  padding: 8px 14px;
+  padding: 8px var(--space-4);
   background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -1630,7 +1710,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   letter-spacing: .14em;
   color: #06080b;
   background: var(--blue);
-  padding: 2px 8px;
+  padding: var(--space-1) 8px;
   border-radius: 3px;
 }
 .demo-banner-msg { color: rgba(232, 225, 207, .9); }
@@ -1672,7 +1752,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .login-label-aux { font-size: var(--text-xs); color: var(--muted); }
 .login-input {
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--space-3) 12px;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
@@ -1709,7 +1789,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   left: -9999px;
   top: 0;
   z-index: 100;
-  padding: 10px 14px;
+  padding: var(--space-3) var(--space-4);
   background: var(--amber);
   color: #000;
   font-weight: 600;
@@ -1724,7 +1804,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 #rae-main:focus { outline: none; }
 
 .btn-primary {
-  padding: 10px 14px;
+  padding: var(--space-3) var(--space-4);
   background: var(--amber);
   color: #000;
   border: none;
@@ -1738,7 +1818,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 
 .login-submit {
   width: 100%;
-  padding: 10px 12px;
+  padding: var(--space-3) 12px;
   background: var(--amber);
   color: #000;
   border: none;
@@ -1797,7 +1877,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 8px;
+  padding: var(--space-1) 8px;
   font-size: var(--text-xs);
   color: var(--cream);
   border-bottom: 1px solid rgba(214, 226, 226, 0.06);
@@ -1806,7 +1886,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .trade-search-results li:last-child { border-bottom: none; }
 .trade-search-results li span:last-child { display: flex; gap: 4px; flex-shrink: 0; }
 .trade-search-results li button {
-  padding: 2px 6px;
+  padding: var(--space-1) var(--space-2);
   font-size: var(--text-micro);
   text-transform: uppercase;
   letter-spacing: .06em;
@@ -1825,27 +1905,27 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 }
 
 .trade-side {
-  padding: 8px 10px;
+  padding: 8px var(--space-3);
   border: 1px solid var(--line);
   background: var(--panel-2);
 }
 .trade-side-head {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   text-transform: uppercase;
   letter-spacing: .1em;
   color: var(--label-text);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-2);
 }
-.trade-side ul { display: flex; flex-direction: column; gap: 3px; }
+.trade-side ul { display: flex; flex-direction: column; gap: var(--space-1); }
 .trade-side li {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: var(--text-xs);
   color: var(--cream);
-  padding: 2px 0;
+  padding: var(--space-1) 0;
   border-bottom: 1px solid rgba(214, 226, 226, 0.06);
-  gap: 6px;
+  gap: var(--space-2);
 }
 .trade-side li:last-child { border-bottom: none; }
 .trade-side li button {
@@ -1904,7 +1984,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .model-scenario-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
@@ -1931,7 +2011,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .model-scenario-inline {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: var(--space-2);
   margin: var(--space-2) 0 0;
   font-size: var(--text-xs);
   line-height: 1.45;
@@ -2004,7 +2084,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .scenario-row {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 2px;
+  gap: var(--space-1);
   padding: var(--space-2) 0 var(--space-2) var(--space-3);
   border: none;
   border-left: 2px solid var(--line);
@@ -2022,7 +2102,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .scenario-row-baseline {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
 }
 
 .scenario-row-baseline-val {
@@ -2063,7 +2143,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   cursor: pointer;
   font-size: var(--text-xs);
   color: var(--blue);
-  padding: 6px 0;
+  padding: var(--space-2) 0;
   /* Touch target (audit: 18-target-size.spec.ts). */
   min-height: 24px;
   display: flex;
@@ -2080,7 +2160,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   .scenario-row {
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    row-gap: 2px;
+    row-gap: var(--space-1);
   }
   .scenario-row-label { grid-column: 1; }
   .scenario-row-baseline { grid-column: 1; }
@@ -2147,7 +2227,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 9px 14px;
+  padding: var(--space-2) var(--space-4);
   background: var(--amber);
   color: #0b0e13;
   border-radius: 8px;
@@ -2199,7 +2279,7 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
 .multiverse-legend-row {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--space-2);
   font-size: var(--text-xs);
 }
 .multiverse-legend-dot {
@@ -2234,4 +2314,275 @@ a.player-news-headline:focus-visible { outline: 2px solid var(--blue); outline-o
   letter-spacing: .06em;
   color: var(--green);
   margin-bottom: var(--space-1);
+}
+
+/* ─── Landing (S8) ─────────────────────────────────────────────────────────
+   Replaces the six-card capability grid (design review §1). The complaint was
+   not the copy — it was that six boxes of equal weight rank nothing, so the
+   reader had to read all six to find the claim the product can stand behind.
+   Same defect the type audit found inside the app, in a different medium.
+
+   The signature here is the LEDGER: verdict-ordered rows, mono measurements,
+   and a left rule whose colour is the verdict. Nothing else on the page
+   competes with it — the hero is type only, and there is no motion, because a
+   page whose argument is "we do not dress things up" should not be dressed up.
+
+   Everything below uses existing tokens. A landing page is exactly where a new
+   palette gets invented, and RAE has a controlled one.                       */
+.landing {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+.landing-bar { display: flex; align-items: baseline; gap: var(--space-3); }
+.landing-mark {
+  font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: .16em;
+  color: var(--blue);
+}
+.landing-mark-sub {
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  color: var(--muted);
+}
+.landing-signin {
+  margin-left: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--cream);
+  transition: border-color var(--motion-base) ease;
+}
+.landing-signin:hover { border-color: var(--blue); }
+
+/* Editorial two-column hero at desktop width.
+   Measured at 1440px: a single 62ch column left the right HALF of the page
+   empty, which reads as unfinished rather than as restraint, and forced the
+   44px display face to wrap onto five lines. The headline and the explanation
+   are two different registers, so they get two columns; below 1040px they
+   stack and the measure does the work instead. */
+.landing-hero { margin-top: var(--space-6); }
+.landing-title { max-width: 22ch; }
+.landing-lede { max-width: 58ch; }
+@media (min-width: 1040px) {
+  .landing-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    column-gap: var(--space-8);
+    align-items: start;
+  }
+  .landing-eyebrow { grid-column: 1 / -1; }
+  .landing-title { grid-column: 1; grid-row: 2 / span 3; margin-top: 0; }
+  .landing-lede { grid-column: 2; margin-top: 0; }
+  .landing-actions { grid-column: 2; }
+  .landing-modes { grid-column: 2; }
+}
+.landing-eyebrow {
+  /* A phrase, not a grid label — same licensing point as .ledger-verdict. */
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  color: var(--amber);
+  margin-bottom: var(--space-3);
+}
+/* The one place --text-3xl earns its keep. The scale gave the product a real
+   top and nothing on a route was allowed to use it; a landing headline is
+   exactly what a display size is for. */
+.landing-title {
+  font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--cream);
+  margin: 0;
+}
+.landing-title em {
+  font-style: normal;
+  color: var(--blue);
+}
+@media (min-width: 720px) {
+  .landing-title { font-size: var(--text-3xl); }
+  .landing { padding: var(--space-6) var(--space-5) var(--space-8); }
+}
+.landing-lede {
+  margin-top: var(--space-4);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  color: var(--muted);
+}
+.landing-actions {
+  margin-top: var(--space-5);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.landing-cta {
+  background: var(--amber);
+  /* The unlayered `a { color: inherit }` beats Tailwind's layered utilities on
+     an anchor, so the dark-on-amber pairing is set here rather than by class. */
+  color: var(--bg);
+  border-radius: 8px;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  transition: opacity var(--motion-base) ease;
+}
+.landing-cta:hover { opacity: .9; }
+.landing-secondary {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--cream);
+  transition: border-color var(--motion-base) ease;
+}
+.landing-secondary:hover { border-color: var(--blue); }
+/* Text-only, but padded to the same 24px+ target height as the buttons beside
+   it (WCAG 2.2 SC 2.5.8). Only the hit area changes, not the emphasis. */
+.landing-tertiary {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-3) var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--blue);
+  text-underline-offset: 4px;
+}
+.landing-tertiary:hover { text-decoration: underline; }
+.landing-modes { margin-top: var(--space-4); font-size: var(--text-xs); line-height: 1.6; color: var(--muted); }
+.mode-live { color: var(--green); }
+.mode-demo { color: var(--amber); }
+
+.landing-ledger, .landing-what { margin-top: var(--space-8); }
+.landing-section-title {
+  font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--cream);
+  margin: 0;
+}
+.landing-section-lede {
+  margin-top: var(--space-2);
+  max-width: 62ch;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.ledger { list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-5); }
+/* One border level, on the left, matching the in-panel row idiom (D-7). The
+   colour IS the verdict — and it is never the only carrier of it, because the
+   verdict is also written out in .ledger-verdict (WCAG 1.4.1). */
+.ledger-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+  border-left: 2px solid var(--line);
+  padding-left: var(--space-4);
+}
+.ledger-row.is-validated { border-left-color: var(--green); }
+.ledger-row.is-reproducible { border-left-color: var(--blue); }
+.ledger-row.is-refuted { border-left-color: var(--red); }
+.ledger-index {
+  font-family: var(--font-plex-mono), "Courier New", monospace;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1.3;
+}
+/* Mobile: both blocks stack in the SECOND column, beside the index.
+   The row is a 2-column grid and there are now three children, so without an
+   explicit column the detail block wrapped into the narrow `auto` index column
+   and pushed the document 70px wide at 390px. Measured, not guessed. */
+.ledger-head, .ledger-detail { min-width: 0; grid-column: 2; }
+.ledger-detail { margin-top: var(--space-2); }
+@media (min-width: 1040px) {
+  .ledger-row { grid-template-columns: auto minmax(0, 26ch) minmax(0, 1fr); }
+  .ledger-head { grid-column: 2; }
+  .ledger-detail { grid-column: 3; margin-top: 0; }
+  .ledger-claim, .ledger-protocol { max-width: 62ch; }
+  .ledger-claim:first-child { margin-top: 0; }
+}
+/* --text-xs, not --text-micro. This label is VALIDATION STATE — one of the six
+   governance fields CLAUDE.md requires on every model output — and it is the
+   non-colour carrier for the green/blue/red left rule (WCAG 1.4.1). The scale
+   licenses micro for "dense-grid labels ONLY … never prose" and names xs as
+   "the floor for anything read as a sentence … trust-critical text must stay
+   readable". Putting the 1.4.1 fallback at the smallest size in the system, on
+   the marketing surface, undercuts the thing it is there for. Caught in review. */
+.ledger-verdict {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  font-weight: 700;
+  margin: 0;
+}
+.is-validated .ledger-verdict { color: var(--green); }
+.is-reproducible .ledger-verdict { color: var(--blue); }
+.is-refuted .ledger-verdict { color: var(--notice-red); }
+.ledger-subject {
+  font-family: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--cream);
+  margin: var(--space-1) 0 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+/* Mono, because these are measurements and a reader should be able to compare
+   them down the column. */
+.ledger-measurement {
+  font-family: var(--font-plex-mono), "Courier New", monospace;
+  font-size: var(--text-sm);
+  color: var(--gov-text);
+  margin: var(--space-2) 0 0;
+}
+.ledger-claim, .ledger-protocol {
+  margin: var(--space-2) 0 0;
+  max-width: 68ch;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted);
+}
+.ledger-evidence {
+  font-family: var(--font-plex-mono), "Courier New", monospace;
+  font-size: var(--text-xs);
+  color: var(--blue);
+  margin: var(--space-2) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.what-list {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+@media (min-width: 720px) { .what-list { grid-template-columns: 1fr 1fr; gap: var(--space-3) var(--space-6); } }
+.what-list li {
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-3);
+}
+.what-list b { color: var(--cream); font-weight: 700; }
+
+.landing-foot {
+  margin-top: auto;
+  padding-top: var(--space-6);
+  font-size: var(--text-xs);
+  color: var(--muted);
 }

@@ -45,57 +45,154 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 
 const FILES = sourceFiles(srcRoot);
 
-describe("spacing ratchet", () => {
-  // Measured 2026-08-28. Dominated by 6px (x62), 2px (x31), 10px (x20),
-  // 3px (x19), 5px (x14) — hairline offsets and optical nudges that predate the
-  // scale, not deliberate exceptions to it.
-  const BASELINE = 166;
-
-  function offScaleCount(): number {
-    const props = String.raw`(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|bottom|left|right))?`;
-    const decls = css.match(new RegExp(String.raw`\b${props}:\s*[^;]+;`, "g")) ?? [];
-    let n = 0;
-    for (const decl of decls) {
-      for (const m of decl.matchAll(/(-?\d+(?:\.\d+)?)px/g)) {
-        if (!SPACE_SCALE.has(Math.abs(Number(m[1])))) n += 1;
-      }
-    }
-    return n;
+describe("globals.css is syntactically valid", () => {
+  /**
+   * The cheapest gate in this file, added after the most embarrassing hour.
+   *
+   * Removing two dead `@keyframes` blocks with a regex left two orphan `}`
+   * behind. `typecheck`, `lint` and all 1,563 unit tests passed on that file —
+   * every one of them reads globals.css as TEXT — and the only thing that
+   * noticed was `next build`, two minutes later, with a PostCSS stack trace.
+   *
+   * A brace count is not a CSS parser and does not pretend to be. It catches
+   * the one failure mode that a stylesheet edited by script actually has, in
+   * milliseconds, at the point where the person who made the edit is still
+   * looking.
+   */
+  const NEWLINE = String.fromCharCode(10);
+  function stripComments(text: string): string {
+    // Newlines preserved so a reported line number means something.
+    return text.replace(/\/\*[\s\S]*?\*\//g, (m) =>
+      m.replace(new RegExp("[^" + NEWLINE + "]", "g"), " ")
+    );
   }
 
-  it("does not grow", () => {
-    const n = offScaleCount();
+  it("has balanced braces", () => {
+    const code = stripComments(css);
+    let depth = 0;
+    const problems: string[] = [];
+    code.split(NEWLINE).forEach((line, i) => {
+      for (const ch of line) {
+        if (ch === "{") depth += 1;
+        else if (ch === "}") {
+          depth -= 1;
+          if (depth < 0) {
+            problems.push(`line ${i + 1}: unmatched "}"  ${line.trim()}`);
+            depth = 0;
+          }
+        }
+      }
+    });
+    expect(problems, problems.join(NEWLINE)).toEqual([]);
+    expect(depth, `${depth} unclosed block(s) at end of file`).toBe(0);
+  });
+
+  it("detects an unbalanced stylesheet", () => {
+    // Canary. A counter that always returns zero is indistinguishable from a
+    // valid file — the exact shape of failure this repository keeps hitting.
+    const broken = [".a { color: red; }", "}"].join(NEWLINE);
+    let depth = 0;
+    let extra = 0;
+    for (const ch of stripComments(broken)) {
+      if (ch === "{") depth += 1;
+      else if (ch === "}") {
+        depth -= 1;
+        if (depth < 0) {
+          extra += 1;
+          depth = 0;
+        }
+      }
+    }
+    expect(extra).toBe(1);
+  });
+
+  it("does not read braces inside comments", () => {
+    const withComment = ["/* } } } */", ".a { color: red; }"].join(NEWLINE);
+    expect((stripComments(withComment).match(/\}/g) ?? []).length).toBe(1);
+    const only = stripComments("/* { { { */ .a { color: red; }");
+    expect((only.match(/\{/g) ?? []).length).toBe(1);
+  });
+});
+
+describe("spacing — an outright ban, not a ratchet", () => {
+  /**
+   * Reached zero in redesign session 6, so per the policy at the top of this
+   * file it graduates from a ratchet to a ban — the third to do so, after
+   * `tracking` in S2 and element-level `type-scale` in S5.
+   *
+   * WHAT WAS ACTUALLY THERE. 166 values across 148 declarations, dominated by
+   * 6px (x62), 2px (x31), 10px (x20), 3px (x19) and 5px (x14): hairline offsets
+   * and optical nudges that predate the scale. Not deliberate exceptions to it —
+   * nobody had decided that a row gap should be 6px rather than 4 or 8; the
+   * scale simply arrived after the rules did.
+   *
+   * THE RULE USED TO SNAP THEM, stated once and applied without exception:
+   * nearest scale value, an exact tie rounds UP. The tie rule is a product
+   * decision rather than arithmetic — the design audit's verdict on this
+   * product was density, so where 6px sits equidistant from 4 and 8 it became
+   * 8. Values that have a token are written as the token, so the next change to
+   * the rhythm is one edit instead of 148.
+   *
+   * WHY NOT EXTEND THE SCALE INSTEAD. Adding 2px and 6px rungs would have
+   * absorbed 93 of the 166 at a stroke, and the number would have fallen
+   * without one pixel moving on screen. That is a gate rewritten to match the
+   * code, which is the failure mode this file exists to prevent.
+   */
+  const SCALE_TEXT = [...SPACE_SCALE].join("/");
+
+  /**
+   * Comments are stripped BEFORE the scan.
+   *
+   * The pinned baseline of 166 included a value that was never a declaration:
+   * a comment at globals.css:245 recording that "tabs measured 19.5px tall with
+   * py-2.5 in the DOM". The regex ran from a `padding:` inside the same comment
+   * to the next semicolon and swallowed it. One in 166 is not a large error, but
+   * a counter that reads prose cannot be driven to zero and cannot become a ban
+   * — and the note it was reading is worth keeping.
+   */
+  const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, " ");
+
+  function offScale(): string[] {
+    const props = String.raw`(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|bottom|left|right))?`;
+    const decls = cssCode.match(new RegExp(String.raw`\b${props}:\s*[^;]+;`, "g")) ?? [];
+    const found: string[] = [];
+    for (const decl of decls) {
+      for (const m of decl.matchAll(/(-?\d+(?:\.\d+)?)px/g)) {
+        if (!SPACE_SCALE.has(Math.abs(Number(m[1])))) found.push(decl.trim());
+      }
+    }
+    return found;
+  }
+
+  it("has no off-scale spacing value left", () => {
+    const found = offScale();
     expect(
-      n,
-      `off-scale spacing values went from ${BASELINE} to ${n}. The scale is ` +
-        `${[...SPACE_SCALE].join("/")}; lower the baseline when you reduce it, never raise it.`
-    ).toBeLessThanOrEqual(BASELINE);
+      found,
+      `the spacing scale is ${SCALE_TEXT}. These declarations are off it: ` +
+        found.join(" | ")
+    ).toEqual([]);
   });
 
-  it("has a baseline that is actually current, so the ratchet cannot go slack", () => {
-    // A baseline left far above the real count is a ratchet that permits
-    // regression silently. Kept within 10 of the truth.
-    expect(BASELINE - offScaleCount()).toBeLessThanOrEqual(10);
-  });
-
-  it("is unchanged by session 2, deliberately", () => {
-    // Session 2 was token hygiene: dead tokens, the sidebar bug, motion wiring,
-    // real font weights, tracking units. It did NOT normalise spacing, and that
-    // is a scoping decision rather than an oversight.
-    //
-    // 166 values across 303 declarations are mostly 6px, 2px, 10px, 3px and 5px
-    // -- hairline offsets and optical nudges that predate the scale. Snapping
-    // them changes padding on nearly every surface in the product, and doing that
-    // without looking at the result is how a "cleanup" ships a visual regression.
-    // It lands with session 4, where the density work puts the same surfaces
-    // under review anyway.
-    expect(offScaleCount()).toBe(166);
+  it("is still scanning real declarations, so the ban cannot pass vacuously", () => {
+    // A ban whose scanner has stopped matching looks exactly like a clean file.
+    const props = String.raw`(?:padding|margin|gap|row-gap|column-gap)(?:-(?:top|bottom|left|right))?`;
+    const decls = cssCode.match(new RegExp(String.raw`\b${props}:\s*[^;]+;`, "g")) ?? [];
+    expect(decls.length).toBeGreaterThan(250);
   });
 
   it("detects an off-scale value", () => {
     // Canary: the matcher must actually reject something.
     expect(SPACE_SCALE.has(14)).toBe(false);
+    expect(SPACE_SCALE.has(6)).toBe(false);
     expect(SPACE_SCALE.has(16)).toBe(true);
+  });
+
+  it("strips comments rather than reading them as CSS", () => {
+    // Canary for the stripper, which is what let this reach zero.
+    const sample = ["/* padding: 19.5px; */", ".x { padding: 16px; }"].join("\n");
+    const stripped = sample.replace(/\/\*[\s\S]*?\*\//g, " ");
+    expect(stripped).not.toContain("19.5px");
+    expect(stripped).toContain("16px");
   });
 });
 

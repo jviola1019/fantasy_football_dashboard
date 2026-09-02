@@ -56,6 +56,21 @@ d("Sleeper live integration — completed league (post-draft)", () => {
     expect(rosterRows.some((r) => (r.players ?? []).length > 0)).toBe(true);
 
     // ── Draft state + season mirror match a completed league.
+    //
+    // THE OVERRIDE HAS A PRECONDITION, AND IT IS ASSERTED HERE.
+    // `RAE_LIVE_SLEEPER_LEAGUE_ID` reads like a general "point this at any
+    // league" switch, and the mirror assertions below only hold for a league
+    // whose status is `complete`: `resolveSleeperSeasonMirror` returns
+    // `{completed: season, upcoming: season+1}` for `complete`, and
+    // `{completed: null, upcoming: season}` for `in_season`
+    // (`mirrorLeague.ts:32-41`). Pointed at an in-season league on 2026-09-01
+    // this failed on `mirror.completed` with no hint that the league was simply
+    // the wrong kind. Fail on the precondition instead, and say so.
+    expect(
+      status,
+      `this suite asserts the COMPLETED-league season mirror; league ${LEAGUE_ID} is "${status}". ` +
+        `Point RAE_LIVE_SLEEPER_LEAGUE_ID at a finished league, or drop the override.`
+    ).toBe("complete");
     const draftState = detectSleeperDraftState(status, null, true);
     expect(draftState).toBe("post");
     const mirror = resolveSleeperSeasonMirror(status, season, info!.previous_league_id ?? null, "2026");

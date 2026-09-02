@@ -54,7 +54,8 @@
     "anova:opportunity": "tsx scripts/anova-opportunity.ts",
     "brier:backtest": "tsx scripts/brier-backtest.ts",
     "audit:reachability": "tsx scripts/audit-reachability.ts",
-    "holdout:acquire-players": "tsx scripts/acquire-mfl-players.ts"
+    "holdout:acquire-players": "tsx scripts/acquire-mfl-players.ts",
+    "test:covariates": "tsx scripts/test-weekly-covariates.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

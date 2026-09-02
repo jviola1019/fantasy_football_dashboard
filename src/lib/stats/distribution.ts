@@ -593,6 +593,25 @@ export function kFoldCV<T>(
  * approximation of erfc. Accurate to ~1.5e-7. Used so we can compute p-values
  * without depending on a stats library.
  */
+/**
+ * Two-sided p-value for a chi-square statistic on ONE degree of freedom.
+ *
+ * A chi-square with 1 df is the square of a standard normal, so
+ * `P(X > x) = 2·(1 − Φ(√x))` exactly — no gamma function needed, and it reuses
+ * the same `normalSf` every other p-value in this file goes through.
+ *
+ * The case it exists for is the likelihood-ratio test between two nested
+ * logistic models differing by a single coefficient, which is how
+ * `scripts/test-weekly-covariates.ts` decides whether a candidate predictor
+ * earns a place in a shipped model. One df is asserted rather than parameterised
+ * because that is the only case this identity covers; a 2-df test needs a real
+ * chi-square CDF and must not silently get this one.
+ */
+export function chiSquare1PValue(x: number): number {
+  if (!Number.isFinite(x) || x <= 0) return 1;
+  return 2 * normalSf(Math.sqrt(x));
+}
+
 function normalSf(x: number): number {
   if (x < 0) return 1 - normalSf(-x);
   // 1 - Phi(x) = 0.5 * erfc(x / sqrt(2))

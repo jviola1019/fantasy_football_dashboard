@@ -974,7 +974,7 @@ verify:inseason PASS (diff 0.000006) - reachability 0 unreachable.
 
 ### Still open
 
-- **The validated weekly model does not ship.** `src/lib/stats/logistic.ts` is script-only; BSS +21.1/+18.5/+17.6% at RB/WR/TE. The only probabilities the product renders come from the chain that failed protocols 1–2. Surfacing it is a product decision, not a defect repair — top recommendation in the report.
+- ~~**The validated weekly model does not ship.** `src/lib/stats/logistic.ts` is script-only~~ **CLOSED by S7.** `weeklyProbability.ts` ships frozen constants, `WeeklyStartProbability` renders them on `/players`, and `audit:reachability` now classifies `logistic.ts` as reached by the app. `logistic.ts` is script-only; BSS +21.1/+18.5/+17.6% at RB/WR/TE. The only probabilities the product renders come from the chain that failed protocols 1–2. Surfacing it is a product decision, not a defect repair — top recommendation in the report.
 - Owner actions: ruleset (the required secret check is the diff-scoped one), PR #35 merge, 11 Dependabot PRs with a verified merge order, advisory floors for `brace-expansion`/`ip-address` **after** #23/#24, two merged branches deletable.
 
 ---
@@ -1244,27 +1244,48 @@ JS animation — so **each one must consult `useReducedMotion` explicitly**, the
 
 ### Resume protocol — read this first if a session ended abruptly
 
-**State as of `c22e112`, pushed.** `origin/main` is `2acf331`. PR #35 open, unmerged.
-Nothing is uncommitted. Everything below is recoverable from the repository alone.
+**Rewritten 2026-09-01.** This block described a state three merges out of date —
+`c22e112` with PR #35 open — while the section 100 lines above already recorded
+that #35 had merged. A resume block that contradicts its own file is worse than
+no resume block, because it is the part a new session trusts first.
+
+**State as of 2026-09-01.** `origin/main` is **`55bb12d`** (S1–S7 merged, plus the
+two docs PRs #38 and #41). Working branch **`design/2026-09-01-s6-hierarchy`**
+carries S6, the league-ingestion sweep, the docs-truth gate, the covariate
+analysis and S8.
 
 **One command tells you where you are:**
 
 ```bash
-git log --oneline -1 && gh pr checks 35 | sed 's/\thttps.*//'
+git log --oneline -3 && git status --short && gh pr list --state open
 ```
 
-**The single most important fact:** Vercel runs cron jobs against the **production
-deployment only** (their docs: *"Vercel makes an HTTP GET request to your project's
-production deployment URL"*). Production is `origin/main`, which is three weeks
-behind and wires **7** crons; the branch wires **8**. `stats-refresh` — the one that
-feeds the validated in-season model — has therefore **never run in production**.
-Until PR #35 merges, no amount of work on this branch changes what the deployed
-site shows. That is why the plan puts the merge after S4.
+**Two facts that are still true and still matter:**
 
-**If `CRON_SECRET` was never set in Vercel**, all 8 crons return 503 forever
-(`cronAuth.ts:26-28`) while `/api/health` still reports `ok` — snapshot staleness
-deliberately does not flip the top-level status. Check this before concluding the
-crons work: `GET /api/health?snapshots=1` with `Authorization: Bearer $CRON_SECRET`.
+1. **Vercel runs cron jobs against the production deployment only** (their docs:
+   *"Vercel makes an HTTP GET request to your project's production deployment
+   URL"*). Preview deployments never run them, so nothing on a branch changes
+   what the crons do.
+2. **`CRON_SECRET` is set.** `requireCronAuth` returns 503 when the variable is
+   unset and 403 when it is set but the bearer is wrong, so presence is
+   observable without holding the secret. Production returns **403** on every
+   cron probed. That says the crons are *authorised*, not that they *succeed* —
+   run `npm run check:freshness` with the secret after a 09:30 UTC cycle to
+   learn the second thing.
+
+**The open production problem (owner action).** Production is still serving the
+build from before `a07c721`. Verified by content, not by inference: the alias and
+the deployment-specific URL both serve a CSS chunk containing `.faab-list`, which
+that commit deleted, and containing none of `heatmap-table`, `chart-figure` or
+`weekly-prob`, which it added. The merge is sound; the artefact Vercel serves was
+not built from it. It needs a redeploy with the build cache cleared — no Vercel
+CLI here and the Vercel MCP server is unauthorised in this session.
+
+Two inferences about it were made and RETRACTED, recorded so nobody repeats them:
+the `immutable` asset path does *not* imply a stale chunk under a stable name
+(names are content-derived), and the 2-second deployment create→success gap does
+*not* imply a skipped build (all three of that day's production deployments show
+it, including the two that worked).
 
 **Verified live facts** (2026-08-31, so re-check dates but not shapes):
 

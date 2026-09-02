@@ -29,7 +29,10 @@ export function TopCommandBar({ mode, freshness, leagueOptions = [], activeLeagu
     // option, because CLAUDE.md requires the fixture/live state to stay visible.
     <header
       aria-label="RAE command bar"
-      className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background/85 px-3 py-2 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:flex-nowrap sm:px-4"
+      // Opaque. Same reasoning as the mobile nav: a translucent blurred bar
+      // makes the legibility of the controls a function of the content
+      // scrolling behind them.
+      className="sticky top-0 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-background px-3 py-2 sm:flex-nowrap sm:px-4"
     >
       <SidebarTrigger className="text-muted-foreground" />
       <Separator orientation="vertical" className="h-6" />
