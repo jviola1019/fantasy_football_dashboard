@@ -33,7 +33,7 @@
  *   npx tsx scripts/anova-opportunity.ts
  *   npx tsx scripts/anova-opportunity.ts --self-test
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { parseCsv } from "../src/lib/stats/csv";
@@ -430,8 +430,17 @@ function main(): void {
   // the literal "\n---\n\n## Interpretation\n" and found nothing, because git
   // had checked the file out with CRLF — and a marker that misses is a marker
   // that silently deletes, which is the failure this block exists to stop.
+  //
+  // READ AND CATCH, rather than `existsSync` and then read. CodeQL flagged the
+  // check-then-read form as `js/file-system-race` (high) on PR #43 and it is
+  // right: the file can be removed between the two calls, and the read would
+  // then throw from inside a branch written on the promise that it exists. One
+  // syscall has no window. ENOENT is the ordinary first-run case and means there
+  // is nothing to preserve; anything else is a real fault and is rethrown rather
+  // than swallowed into a silent overwrite — which is the exact failure this
+  // block was added to prevent.
   let preserved = "";
-  if (existsSync(OUT)) {
+  try {
     const prior = readFileSync(OUT, "utf8").replace(/\r\n/g, "\n");
     const at = prior.indexOf("## Interpretation");
     if (at !== -1) {
@@ -439,6 +448,8 @@ function main(): void {
       preserved = prior.slice(rule === -1 ? at : rule);
       console.log(`Preserving ${preserved.split("\n").length} lines of hand-written interpretation.`);
     }
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
   }
   writeFileSync(OUT, out.join("\n") + preserved);
   console.log(`\nWrote ${OUT}`);
