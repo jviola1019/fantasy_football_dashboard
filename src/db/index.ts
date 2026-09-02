@@ -218,6 +218,14 @@ export function applySqliteSchemaIfNeeded(sqlite: { exec: (sql: string) => unkno
       sleeperUsername TEXT,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
+    CREATE TABLE IF NOT EXISTS accountCredentials (
+      userId TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'espn',
+      iv BLOB NOT NULL,
+      authTag BLOB NOT NULL,
+      ciphertext BLOB NOT NULL,
+      rotatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
     CREATE TABLE IF NOT EXISTS leagueCredentials (
       leagueId TEXT PRIMARY KEY REFERENCES leagues(id) ON DELETE CASCADE,
       iv BLOB NOT NULL,
@@ -382,6 +390,14 @@ export function applyTestSchema(sqlite: MinimalSqliteHandle) {
       settings TEXT,
       sleeperUsername TEXT,
       createdAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE accountCredentials (
+      userId TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'espn',
+      iv BLOB NOT NULL,
+      authTag BLOB NOT NULL,
+      ciphertext BLOB NOT NULL,
+      rotatedAt INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     );
     CREATE TABLE leagueCredentials (
       leagueId TEXT PRIMARY KEY REFERENCES leagues(id) ON DELETE CASCADE,

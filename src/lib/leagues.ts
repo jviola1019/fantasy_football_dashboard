@@ -279,6 +279,111 @@ export async function getLeagueCredentials(db: Db, leagueId: string): Promise<De
   return JSON.parse(plaintext) as DecryptedCredentials;
 }
 
+/**
+ * Where a set of ESPN cookies came from. Returned with them so nothing has to
+ * guess, and so the UI can say "account sign-in" rather than implying the
+ * league holds its own secret.
+ */
+export type CredentialOrigin = "league-override" | "account";
+
+export interface ResolvedCredentials extends DecryptedCredentials {
+  origin: CredentialOrigin;
+  /** When the pair was last written. ESPN cookies expire; age is the only hint. */
+  rotatedAt: Date;
+}
+
+/** Decrypt one sealed row. Shared so the two lookups cannot drift apart. */
+function open(row: { iv: unknown; authTag: unknown; ciphertext: unknown }): DecryptedCredentials {
+  const plaintext = decrypt(
+    {
+      iv: toBuffer(row.iv as Buffer),
+      authTag: toBuffer(row.authTag as Buffer),
+      ciphertext: toBuffer(row.ciphertext as Buffer)
+    },
+    getCredentialKey()
+  );
+  return JSON.parse(plaintext) as DecryptedCredentials;
+}
+
+/**
+ * The ESPN cookies to use for one league: league override, then account, then none.
+ *
+ * The ORDER IS THE CONTRACT and it is deliberate. `espn_s2`/`SWID` authenticate
+ * an ESPN account rather than a league, so the account pair is the normal case
+ * and one update fixes every league. A per-league row exists only for somebody
+ * whose leagues sit under two different ESPN logins, and it must win where it
+ * exists — otherwise adding a second login would silently break the first.
+ *
+ * Ambiguity here would be its own defect: "which secret did that request use"
+ * has to have one answer, which is why `origin` travels with the result.
+ *
+ * See docs/espn-credentials-decision.md.
+ */
+export async function resolveEspnCredentials(
+  db: Db,
+  userId: string,
+  leagueId: string
+): Promise<ResolvedCredentials | null> {
+  const override = await db
+    .select()
+    .from(schema.leagueCredentials)
+    .where(eq(schema.leagueCredentials.leagueId, leagueId))
+    .limit(1);
+  if (override[0]) {
+    return { ...open(override[0]), origin: "league-override", rotatedAt: override[0].rotatedAt };
+  }
+  const account = await db
+    .select()
+    .from(schema.accountCredentials)
+    .where(eq(schema.accountCredentials.userId, userId))
+    .limit(1);
+  if (account[0]) {
+    return { ...open(account[0]), origin: "account", rotatedAt: account[0].rotatedAt };
+  }
+  return null;
+}
+
+/**
+ * Write (or replace) the account-level ESPN cookies.
+ *
+ * One row per user, so a rotation is one edit no matter how many ESPN leagues
+ * exist. Re-sealing rather than updating in place keeps a fresh IV, which
+ * AES-GCM requires: reusing an IV under the same key is what breaks GCM.
+ */
+export async function setAccountCredentials(
+  db: Db,
+  userId: string,
+  credentials: DecryptedCredentials
+): Promise<void> {
+  const sealed = encrypt(JSON.stringify(credentials), getCredentialKey());
+  await db.delete(schema.accountCredentials).where(eq(schema.accountCredentials.userId, userId));
+  await db.insert(schema.accountCredentials).values({
+    userId,
+    provider: "espn",
+    iv: sealed.iv,
+    authTag: sealed.authTag,
+    ciphertext: sealed.ciphertext,
+    rotatedAt: new Date()
+  });
+}
+
+/** Age of the stored account pair, or null when there is none. */
+export async function getAccountCredentialAge(
+  db: Db,
+  userId: string
+): Promise<{ rotatedAt: Date } | null> {
+  const rows = await db
+    .select({ rotatedAt: schema.accountCredentials.rotatedAt })
+    .from(schema.accountCredentials)
+    .where(eq(schema.accountCredentials.userId, userId))
+    .limit(1);
+  return rows[0] ? { rotatedAt: rows[0].rotatedAt } : null;
+}
+
+export async function deleteAccountCredentials(db: Db, userId: string): Promise<void> {
+  await db.delete(schema.accountCredentials).where(eq(schema.accountCredentials.userId, userId));
+}
+
 function toRecord(row: typeof schema.leagues.$inferSelect): LeagueRecord {
   return {
     id: row.id,

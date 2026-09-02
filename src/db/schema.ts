@@ -80,6 +80,37 @@ export const leagues = sqliteTable("leagues", {
     .default(sql`(unixepoch() * 1000)`)
 });
 
+/**
+ * ESPN cookies, stored once per USER.
+ *
+ * `espn_s2` and `SWID` authenticate an ESPN ACCOUNT, not a league — one login
+ * already grants access to every league that account is in. Storing them per
+ * league therefore meant N pastes to add N leagues, N edits every time ESPN
+ * rotated the cookie, and N copies of the same secret at rest. A user who
+ * updated three of four leagues got a half-working dashboard with no visible
+ * cause.
+ *
+ * `leagueCredentials` is KEPT as a per-league override for anyone with leagues
+ * under two different ESPN logins. Resolution is league override, then this,
+ * then unavailable — see `resolveEspnCredentials`.
+ *
+ * Sealed exactly as the per-league row is: AES-256-GCM under
+ * CREDENTIAL_ENCRYPTION_KEY, iv and authTag beside the ciphertext.
+ * See docs/espn-credentials-decision.md.
+ */
+export const accountCredentials = sqliteTable("accountCredentials", {
+  userId: text("userId")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull().default("espn"),
+  iv: blob("iv").notNull(),
+  authTag: blob("authTag").notNull(),
+  ciphertext: blob("ciphertext").notNull(),
+  rotatedAt: integer("rotatedAt", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(unixepoch() * 1000)`)
+});
+
 export const leagueCredentials = sqliteTable("leagueCredentials", {
   leagueId: text("leagueId")
     .primaryKey()
@@ -271,6 +302,7 @@ export const seasonStatsSnapshots = sqliteTable("season_stats_snapshots", {
 export type DbUser = typeof users.$inferSelect;
 export type DbLeague = typeof leagues.$inferSelect;
 export type DbLeagueCredential = typeof leagueCredentials.$inferSelect;
+export type DbAccountCredential = typeof accountCredentials.$inferSelect;
 export type DbPlayersSnapshot = typeof playersSnapshots.$inferSelect;
 export type DbNotification = typeof notifications.$inferSelect;
 export type DbRankingsSnapshot = typeof rankingsSnapshots.$inferSelect;
