@@ -180,6 +180,36 @@ It needs `pointsPerGame` and `touchesPerGame`, which come from `stats-refresh`.
 Both are stamped onto the league universe, so they reach the free-agent pool the
 Waiver Wire board is handed — not only your own roster.
 
+### How good is it, really?
+
+`npm run baselines:weekly-prob` scores the model against baselines that can
+fight back, and writes
+[`docs/weekly-prob-baselines.md`](docs/weekly-prob-baselines.md). This matters
+because `brierSkillScore` above is measured against **climatology** — always
+forecasting the base rate — which is the weakest baseline available and not a
+fair fight: the model is handed a projection and the constant is not.
+
+Against a **binned lookup of the same projection**, learned out of fold:
+
+| position | vs climatology *(the quoted figure)* | **vs binned projection** |
+|---|---|---|
+| RB | 21.4% | **0.7%** |
+| WR | 18.7% | **0.5%** |
+| TE | 17.8% | **2.1%** |
+| QB | 4.2% | **1.3%** |
+
+Both are true; the second is the one to design against. A replacement that beat
+climatology by 25% while losing to the binned lookup would look like an advance
+and be a regression, so `weeklyProbability.baselines.test.ts` pins these figures
+in code beside the flattering ones.
+
+**The model also adds no ranking information.** A one-variable logistic is
+monotone in its input, so within a week it cannot reorder players relative to the
+projection — its AUC there is the projection's AUC exactly. Its contribution is
+**calibration, not discrimination**: a stated 70% happens about 70% of the time,
+which the raw projection does not tell you. That is genuinely useful and it is a
+smaller claim than a skill score against a constant implies.
+
 ## Which variables are actually worth having
 
 `npm run validate:variables` (`scripts/validate-variables.ts`) asks protocol 4's

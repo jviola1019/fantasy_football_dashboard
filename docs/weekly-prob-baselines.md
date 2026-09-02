@@ -44,10 +44,16 @@ to justify being a model rather than a lookup table.
 | WR | 0.7476 | 0.7497 | -0.0021 |
 | TE | 0.7395 | 0.7435 | -0.0040 |
 
-**This is structural, not empirical.** A one-variable logistic is monotone in its
-input, so it cannot change the ORDER of players relative to the projection. Its AUC
-is the projection's AUC by construction, and the table confirms the implementation
-matches the algebra.
+**This is structural.** A one-variable logistic is monotone in its input, so WITHIN
+ANY ONE FOLD it cannot change the order of players relative to the projection — its
+AUC there is the projection's AUC exactly.
+
+The small gaps above are not evidence against that; they are an artefact of
+pooling. The logistic column pools out-of-fold predictions from seventeen
+separately-fitted models, and a set of different monotone transforms is not itself
+one monotone transform, so two players from different weeks can swap. The raw column
+ranks every row with a single scale. The differences are a few thousandths and run
+slightly AGAINST the model, which is what pooling predicts.
 
 So the model's contribution is **calibration, not discrimination**. It does not tell
 you who is more likely to clear the line than the projection already did — it tells
@@ -69,7 +75,8 @@ implies.
 - The model is **well calibrated** and that is genuinely worth having: a stated 70%
   happens about 70% of the time, which a raw projection does not tell you.
 - It adds **no ranking information** over the projection. Anyone choosing between
-  two players at the same position can read the projections and get the same order.
+  two players at the same position in the same week can read the projections and get
+  the same order — that is forced by the functional form, not measured.
 - Its advantage over a **binned lookup of the same projection** is the honest
   measure of what the parametric form buys, and it is far smaller than the
   headline number.

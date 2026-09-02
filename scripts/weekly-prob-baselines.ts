@@ -17,11 +17,17 @@
  *                             that uses exactly the same input.
  *   4. THE SHIPPED LOGISTIC.
  *
- * And one structural fact that no amount of Brier can hide, checked here rather
- * than asserted: a single-variable logistic is MONOTONE in its input, so it
- * cannot reorder players relative to the raw projection. Its AUC is identical to
- * ranking by projection. Whatever the model contributes, it is not
- * discrimination — it is calibration, and the report should say which.
+ * And one structural fact that no amount of Brier can hide: a single-variable
+ * logistic is MONOTONE in its input, so within any one fold it cannot reorder
+ * players relative to the raw projection, and its AUC there is the projection's
+ * AUC exactly. Whatever the model contributes, it is not discrimination — it is
+ * calibration, and the report should say which.
+ *
+ * The pooled AUC in the report differs by a few thousandths because it combines
+ * out-of-fold predictions from seventeen separately-fitted models, and a set of
+ * different monotone transforms is not itself one monotone transform. That is an
+ * artefact of pooling, not a counter-example, and the report says so rather than
+ * claiming an equality the numbers do not show.
  *
  *   npm run baselines:weekly-prob
  */
@@ -241,10 +247,16 @@ function report(results: Result[]): string {
     );
   }
   L.push("");
-  L.push("**This is structural, not empirical.** A one-variable logistic is monotone in its");
-  L.push("input, so it cannot change the ORDER of players relative to the projection. Its AUC");
-  L.push("is the projection's AUC by construction, and the table confirms the implementation");
-  L.push("matches the algebra.");
+  L.push("**This is structural.** A one-variable logistic is monotone in its input, so WITHIN");
+  L.push("ANY ONE FOLD it cannot change the order of players relative to the projection — its");
+  L.push("AUC there is the projection's AUC exactly.");
+  L.push("");
+  L.push("The small gaps above are not evidence against that; they are an artefact of");
+  L.push("pooling. The logistic column pools out-of-fold predictions from seventeen");
+  L.push("separately-fitted models, and a set of different monotone transforms is not itself");
+  L.push("one monotone transform, so two players from different weeks can swap. The raw column");
+  L.push("ranks every row with a single scale. The differences are a few thousandths and run");
+  L.push("slightly AGAINST the model, which is what pooling predicts.");
   L.push("");
   L.push("So the model's contribution is **calibration, not discrimination**. It does not tell");
   L.push("you who is more likely to clear the line than the projection already did — it tells");
@@ -268,7 +280,8 @@ function report(results: Result[]): string {
   L.push("- The model is **well calibrated** and that is genuinely worth having: a stated 70%");
   L.push("  happens about 70% of the time, which a raw projection does not tell you.");
   L.push("- It adds **no ranking information** over the projection. Anyone choosing between");
-  L.push("  two players at the same position can read the projections and get the same order.");
+  L.push("  two players at the same position in the same week can read the projections and get");
+  L.push("  the same order — that is forced by the functional form, not measured.");
   L.push("- Its advantage over a **binned lookup of the same projection** is the honest");
   L.push("  measure of what the parametric form buys, and it is far smaller than the");
   L.push("  headline number.");
