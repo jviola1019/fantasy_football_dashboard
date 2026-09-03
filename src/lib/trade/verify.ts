@@ -68,18 +68,39 @@ export function interpretSleeperLeague(league: unknown): VerifyResult {
   };
 }
 
-/** Pure interpreter for an ESPN mSettings payload. */
-export function interpretEspnLeague(settings: unknown): VerifyResult {
+/**
+ * Pure interpreter for an ESPN mSettings payload.
+ *
+ * `seasonId` LIVES ON THE RESPONSE ROOT, not inside `settings`, so it is passed
+ * separately. The first version read `settings.seasonId` and therefore returned
+ * `null` for every real ESPN league — and the unit test did not catch it, because
+ * the fixture put `seasonId` inside the settings object, a shape ESPN does not
+ * produce. Verified against four live leagues on 2026-09-02: the root carries
+ * `id, seasonId, scoringPeriodId, draftDetail, settings, status, gameId,
+ * segmentId`, and `settings.seasonId` is `undefined`.
+ *
+ * The season matters less on ESPN than on Sleeper and it is worth saying why. A
+ * Sleeper league id belongs to ONE season, so the payload can correct a wrong
+ * guess. An ESPN league id persists across seasons and the season is part of the
+ * request, so asking for the wrong one returns 404 rather than the wrong data —
+ * confirmed by requesting 2019 for all four leagues and getting a clean
+ * rejection. `resolvedSeason` is therefore a confirmation here, not a
+ * correction.
+ */
+export function interpretEspnLeague(settings: unknown, root?: unknown): VerifyResult {
   if (!settings || typeof settings !== "object") {
     return { ok: false, error: "ESPN league not reachable. Check the league ID and cookies." };
   }
   const s = settings as Record<string, unknown>;
+  const r = (root && typeof root === "object" ? root : {}) as Record<string, unknown>;
   const name = s.name;
   return {
     ok: true,
     format: parseEspnFormat(settings),
     resolvedLabel: typeof name === "string" && name.length > 0 ? name : "ESPN league",
-    resolvedSeason: seasonNumber(s.seasonId)
+    // Root first, because that is where ESPN puts it; the settings fallback
+    // costs nothing and covers a caller that only has the sub-object.
+    resolvedSeason: seasonNumber(r.seasonId ?? s.seasonId)
   };
 }
 
@@ -134,5 +155,5 @@ export async function verifyLeague(input: {
     }
   }
 
-  return interpretEspnLeague(result.data.settings);
+  return interpretEspnLeague(result.data.settings, result.data);
 }

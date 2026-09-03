@@ -39,3 +39,11 @@ audit-ui.json
 # changes in binary noise. A dated report that needs a frozen capture copies the
 # file into its own directory deliberately — see reports/screens/README.md.
 reports/screens/*.png
+
+# Regenerable gate output must not be committed at the reports/ root. Ten such
+# files sat there from a single 2026-05-30 run until 2026-09-02, three months
+# stale, unreferenced, and actively misleading — build.txt reported a Next
+# version the repo no longer used. If a gate's output is worth keeping it goes
+# in a DATED report that interprets it. See reports/README.md.
+reports/*.txt
+reports/*.json

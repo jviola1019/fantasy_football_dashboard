@@ -344,16 +344,37 @@ describe("the league must be the league the user asked for", () => {
     if (result.ok) expect(result.resolvedSeason).toBeNull();
   });
 
-  it("ESPN declares its season in the payload the same way", () => {
-    const result = interpretEspnLeague({
+  it("ESPN declares its season on the RESPONSE ROOT, not inside settings", () => {
+    // THE REAL SHAPE, verified against four live leagues on 2026-09-02. The
+    // root carries `id, seasonId, scoringPeriodId, draftDetail, settings,
+    // status, gameId, segmentId`; `settings.seasonId` is undefined.
+    //
+    // The first version of this test put `seasonId` INSIDE the settings object —
+    // a shape ESPN does not produce — so it passed while `resolvedSeason` was
+    // null for every real league. A fixture invented rather than observed tests
+    // the fixture.
+    const settings = {
       name: "Gridiron Kings",
-      seasonId: 2026,
       size: 12,
       scoringSettings: { scoringItems: [{ statId: 53, points: 1 }] },
       rosterSettings: { lineupSlotCounts: { "0": 1, "23": 1 } }
-    });
+    };
+    const root = { id: 1546190, seasonId: 2026, scoringPeriodId: 1, settings };
+    const result = interpretEspnLeague(settings, root);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.resolvedSeason).toBe(2026);
+  });
+
+  it("returns null when handed only the settings object, rather than guessing", () => {
+    const settings = {
+      name: "Gridiron Kings",
+      size: 12,
+      scoringSettings: { scoringItems: [{ statId: 53, points: 1 }] },
+      rosterSettings: { lineupSlotCounts: { "0": 1, "23": 1 } }
+    };
+    const result = interpretEspnLeague(settings);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.resolvedSeason).toBeNull();
   });
 });
 

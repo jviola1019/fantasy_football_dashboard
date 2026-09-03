@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { evaluateFreshness, unavailableSource, type SourceMeta } from "./governance";
+import { describeHttpFailure, redactUrls } from "./httpFailure";
 
 export type Fetcher = typeof fetch;
 
@@ -14,6 +15,17 @@ export interface FetchEnvelopeOptions<T> {
   timeoutMs?: number;
   assumptions?: string[];
   missingFields?: string[];
+  /**
+   * Does this request carry user credentials?
+   *
+   * Only used to phrase a 401/403: on a credentialed endpoint that status is
+   * almost always an expired cookie and the remedy is the user's, while on an
+   * anonymous one it is an upstream change and telling somebody to re-paste
+   * cookies they never entered would be worse than saying nothing.
+   */
+  credentialed?: boolean;
+  /** Friendly service name for failure text. Defaults to the URL's host. */
+  serviceLabel?: string;
 }
 
 export interface FetchEnvelopeResult<T> {
@@ -49,9 +61,19 @@ export async function fetchWithEnvelope<T>(opts: FetchEnvelopeOptions<T>): Promi
         continue;
       }
       if (!response.ok) {
+        // The URL is NOT interpolated. `sourceState.failure` is rendered to the
+        // user by GovernancePanel, and an ESPN URL carries the private league id
+        // in its path — so this string used to paint that id onto the page and
+        // into every screenshot of it.
         return {
           data: null,
-          source: unavailableSource(opts.source, `HTTP ${response.status} from ${opts.url}`)
+          source: unavailableSource(
+            opts.source,
+            describeHttpFailure(response.status, opts.url, {
+              credentialed: opts.credentialed,
+              service: opts.serviceLabel
+            })
+          )
         };
       }
       const raw: unknown = await response.json();
@@ -88,7 +110,10 @@ export async function fetchWithEnvelope<T>(opts: FetchEnvelopeOptions<T>): Promi
       };
     } catch (error) {
       clearTimeout(timer);
-      lastError = error instanceof Error ? error.message : "unknown fetch error";
+      // Node's fetch errors quote the URL back ("request to https://… failed"),
+      // and this string is rendered to the user, so it is stripped for the same
+      // reason the status path above no longer interpolates it.
+      lastError = redactUrls(error instanceof Error ? error.message : "unknown fetch error");
       if (attempt < retries - 1) await sleep(backoffMs(attempt));
     }
   }

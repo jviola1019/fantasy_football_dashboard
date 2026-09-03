@@ -55,7 +55,9 @@
     "brier:backtest": "tsx scripts/brier-backtest.ts",
     "audit:reachability": "tsx scripts/audit-reachability.ts",
     "holdout:acquire-players": "tsx scripts/acquire-mfl-players.ts",
-    "test:covariates": "tsx scripts/test-weekly-covariates.ts"
+    "test:covariates": "tsx scripts/test-weekly-covariates.ts",
+    "validate:variables": "tsx scripts/validate-variables.ts",
+    "baselines:weekly-prob": "tsx scripts/weekly-prob-baselines.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

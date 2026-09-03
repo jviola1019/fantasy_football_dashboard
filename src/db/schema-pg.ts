@@ -81,6 +81,22 @@ export const leagues = pgTable("leagues", {
   createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow()
 });
 
+/**
+ * Account-level ESPN cookies. See `accountCredentials` in schema.ts and
+ * docs/espn-credentials-decision.md — one login covers every league it is in, so
+ * storing the pair per league meant N pastes, N rotations and N copies at rest.
+ */
+export const accountCredentials = pgTable("accountCredentials", {
+  userId: text("userId")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull().default("espn"),
+  iv: bytea("iv").notNull(),
+  authTag: bytea("authTag").notNull(),
+  ciphertext: bytea("ciphertext").notNull(),
+  rotatedAt: timestamp("rotatedAt", { mode: "date" }).notNull().defaultNow()
+});
+
 export const leagueCredentials = pgTable("leagueCredentials", {
   leagueId: text("leagueId")
     .primaryKey()
@@ -306,6 +322,14 @@ export const INIT_SQL = `
   );
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS settings JSONB;
   ALTER TABLE leagues ADD COLUMN IF NOT EXISTS "sleeperUsername" TEXT;
+  CREATE TABLE IF NOT EXISTS "accountCredentials" (
+    "userId" TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL DEFAULT 'espn',
+    iv BYTEA NOT NULL,
+    "authTag" BYTEA NOT NULL,
+    ciphertext BYTEA NOT NULL,
+    "rotatedAt" TIMESTAMP NOT NULL DEFAULT now()
+  );
   CREATE TABLE IF NOT EXISTS "leagueCredentials" (
     "leagueId" TEXT PRIMARY KEY REFERENCES leagues(id) ON DELETE CASCADE,
     iv BYTEA NOT NULL,

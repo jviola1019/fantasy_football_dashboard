@@ -60,6 +60,11 @@ export class EspnClient {
       source: opts.source,
       ttlSeconds: opts.ttlSeconds,
       fetcher: this.fetcher,
+      // Tells the failure formatter that a 401 here means EXPIRED COOKIES rather
+      // than an upstream change — so the user is pointed at the settings page
+      // that can actually fix it, instead of being shown a status code.
+      credentialed: cookie !== undefined,
+      serviceLabel: "ESPN",
       init: { headers, cache: "no-store" }
     });
   }

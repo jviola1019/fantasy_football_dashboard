@@ -180,6 +180,75 @@ It needs `pointsPerGame` and `touchesPerGame`, which come from `stats-refresh`.
 Both are stamped onto the league universe, so they reach the free-agent pool the
 Waiver Wire board is handed — not only your own roster.
 
+### How good is it, really?
+
+`npm run baselines:weekly-prob` scores the model against baselines that can
+fight back, and writes
+[`docs/weekly-prob-baselines.md`](docs/weekly-prob-baselines.md). This matters
+because `brierSkillScore` above is measured against **climatology** — always
+forecasting the base rate — which is the weakest baseline available and not a
+fair fight: the model is handed a projection and the constant is not.
+
+Against a **binned lookup of the same projection**, learned out of fold:
+
+| position | vs climatology *(the quoted figure)* | **vs binned projection** |
+|---|---|---|
+| RB | 21.4% | **0.7%** |
+| WR | 18.7% | **0.5%** |
+| TE | 17.8% | **2.1%** |
+| QB | 4.2% | **1.3%** |
+
+Both are true; the second is the one to design against. A replacement that beat
+climatology by 25% while losing to the binned lookup would look like an advance
+and be a regression, so `weeklyProbability.baselines.test.ts` pins these figures
+in code beside the flattering ones.
+
+**The model also adds no ranking information.** A one-variable logistic is
+monotone in its input, so within a week it cannot reorder players relative to the
+projection — its AUC there is the projection's AUC exactly. Its contribution is
+**calibration, not discrimination**: a stated 70% happens about 70% of the time,
+which the raw projection does not tell you. That is genuinely useful and it is a
+smaller claim than a skill score against a constant implies.
+
+## Which variables are actually worth having
+
+`npm run validate:variables` (`scripts/validate-variables.ts`) asks protocol 4's
+question of **every** variable nflverse publishes, not just the one the product
+shipped. It runs offline from `reports/2026-08-20/nflverse-usage.json.gz` — eight
+seasons (2017–2024) of real weekly stats, **1,745 player-seasons**, no synthetic
+rows — and writes [`docs/variable-validation.md`](docs/variable-validation.md).
+
+Weeks 1–9 are observed; weeks 10–17 are the outcome. Every headline figure is a
+**partial** Spearman controlling for first-half points per game, because targets
+correlate with next-half scoring mostly through "good players get targets and
+also score" — a correlation reported without that control is a statement about
+who is good, not about what to do differently.
+
+Five gates: partial Spearman → Holm–Bonferroni over all 68 tests → ANOVA across
+quartiles **with connecting letters** (a variable can clear a p-value while its
+top and bottom quartiles are indistinguishable) → a random forest with
+out-of-bag scoring and permutation importance → leave-one-season-out.
+
+**14 of 68 clear every gate.** The strongest are opportunity-share measures:
+TE WOPR (ρ 0.279), TE target share (0.273), WR target share (0.246). One is
+negative and worth knowing: **WR touchdowns per game predicts the second half
+downwards** (−0.132) — touchdown regression, recovered from the data rather than
+assumed.
+
+The forest beats a points-only baseline at every position on out-of-bag R²
+(RB 0.489 vs 0.392, WR 0.494 vs 0.402, TE 0.517 vs 0.425, QB 0.149 vs 0.056),
+and for WR and TE **target share outranks points per game** in permutation
+importance. That is a real result about the linear models in this repository,
+and it is a screen rather than a licence: leave-one-season-out is not a frozen
+holdout, all eight seasons were visible while the variables were chosen, and
+nothing here ships until a pre-registered protocol says it can.
+
+`src/lib/stats/randomForest.ts` scores only out of bag — a forest's training-set
+R² is near 1 by construction — and uses permutation importance rather than
+impurity gain, which is biased toward high-cardinality columns. Its tests include
+the direction that matters: on pure noise it must report an OOB R² at or below
+zero, and it does.
+
 ## The weekly start probability
 
 `src/lib/models/weeklyProbability.ts` converts a player's pre-game **PPR**
