@@ -356,7 +356,7 @@ Secrets and API keys must remain server-side. Do not expose league tokens or pai
 RAE ships multi-user authentication via Auth.js (NextAuth v5) with the Drizzle adapter (SQLite locally, Postgres in production).
 
 - Passwords are hashed with scrypt (`src/lib/passwords.ts`) — plaintext is never stored.
-- ESPN private-league cookies (`espn_s2` + `SWID`) are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) and never returned to the browser after creation. They are decrypted only inside the server-only `/api/leagues/[id]/refresh` route.
+- ESPN private-league cookies (`espn_s2` + `SWID`) are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) and never returned to the browser after creation — not even masked. They live in `accountCredentials`, **one row per user**, because those cookies authenticate an ESPN *account* rather than a league; `leagueCredentials` remains as a per-league override for anyone whose leagues sit under two ESPN logins. `resolveEspnCredentials` fixes the order — league override, then account, then unavailable — and returns the `origin` with the pair, so "which secret did that request use" always has one answer. Decryption is server-side only, after the per-user ownership check.
 - Sleeper integration uses public endpoints (no auth required).
 - Visit `/login` to sign up, `/settings/leagues` to add leagues, and `POST /api/leagues/[id]/refresh` to pull the live envelope for a specific league.
 - Sign-in errors never echo Auth.js internals — `src/lib/auth/errors.ts` maps every failure class to a friendly string.
@@ -543,7 +543,7 @@ what carry no signal
 npm run smoke                  # smoke-check a Vercel deployment
 npm run check:freshness        # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
 npm run verify:rotation        # prove a rotated secret's PREVIOUS value is now rejected
-npm run reencrypt:credentials  # re-wrap stored league credentials under a new key
+npm run reencrypt:credentials  # re-wrap every stored credential (both tables) under a new key
 npm run seed:account           # create a local account for development
 npm run cache:rankings         # snapshot FantasyPros rankings into the local cache
 npm run deploy                 # currently aliases `next build` — see below
@@ -569,10 +569,20 @@ Recommended production path:
 ## League connection
 
 Private-league connection is implemented (see **Auth and league connection** above):
-1. ESPN private-league cookies (`espn_s2` + `SWID`) are pasted by the user at `/settings/leagues`.
-2. They are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) in the `leagueCredentials` table.
-3. Decryption happens only server-side, only after the per-user ownership check, inside `src/lib/leagues/fetchLive.ts` and the `/api/leagues/[id]/refresh` route.
-4. The client only ever receives derived, validated league state — never the credentials.
+1. ESPN cookies (`espn_s2` + `SWID`) are pasted **once for the account**, at `/settings/account`
+   or while adding the first ESPN league. Every later ESPN league uses that pair, so adding four
+   leagues is one paste and rotating an expired cookie is one edit. `/settings/leagues` still
+   accepts a per-league pair, but only behind an explicit "this league is under a different ESPN
+   login" tick, which is the only case that needs one.
+2. They are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) in `accountCredentials`, or
+   in `leagueCredentials` when they are a deliberate override.
+3. A pasted pair is spent on a real ESPN request before it is stored, so a bad paste fails at the
+   form rather than surfacing days later as "ESPN unavailable" on some other page.
+4. Decryption happens only server-side, only after the per-user ownership check, inside
+   `src/lib/leagues/fetchLive.ts` via `resolveEspnCredentials`. The credential's `origin` — account
+   or league override — ships as an assumption on the source metadata, because a 401 is ambiguous
+   until you know which pair was sent.
+5. The client only ever receives derived, validated league state — never the credentials.
 
 Sleeper leagues need no credentials (public API). Yahoo is the one platform still deferred — it requires a registered Yahoo developer app for OAuth.
 
@@ -779,7 +789,7 @@ See `docs/calibration.md` for the production calibration plan (Brier-score targe
 
 ## Known limitations
 
-- ESPN cookies (`espn_s2`, `SWID`) expire periodically. When ESPN refresh starts returning `unavailable`, the user needs to paste fresh cookies into `/settings/leagues`. There is no programmatic refresh path.
+- ESPN cookies (`espn_s2`, `SWID`) expire periodically, and ESPN does not publish when. There is no programmatic refresh path and there cannot be one: ESPN has no OAuth flow, no developer token, and its login is behind a CAPTCHA, so storing a password would add a far more dangerous secret that could not be exchanged for a session. What the product does instead is make the repair one action — `/settings/account` shows how old the stored pair is and replaces it for every ESPN league at once.
 - The Sleeper `/v1/players/nfl` payload is ~19 MB. Solved via the daily Vercel cron at `/api/cron/players-refresh` which snapshots into the `players_snapshots` Postgres table; `loadRAEEnvelope` reads the snapshot first and only falls back to a live fetch when the snapshot is older than 36h or missing. Vercel Cron Jobs are gated by the `CRON_SECRET` env var.
 - Yahoo Fantasy adapter is deferred (OAuth requires a registered Yahoo developer app).
 - No paid feeds are used. `opportunity` now comes from FREE nflverse snap counts (role proxy from the latest season's games, via `/api/cron/opportunity-refresh`); `trendingMomentum` from free Sleeper trending + ESPN news velocity. Off-season, opportunity reflects last season's role (declared in the source assumptions).

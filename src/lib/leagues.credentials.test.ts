@@ -6,6 +6,7 @@ import {
   setAccountCredentials,
   getAccountCredentialAge,
   deleteAccountCredentials,
+  describeEspnCredentialCoverage,
   getLeagueCredentials
 } from "./leagues";
 import { createUserWithPassword } from "./users";
@@ -179,5 +180,86 @@ describe("ESPN credentials resolve account-first, override-wins", () => {
     // Nothing about the old path changes; it is now the override.
     const creds = await getLeagueCredentials(db, leagueB);
     expect(creds?.espnS2).toBe(OVERRIDE.espnS2);
+  });
+});
+
+describe("describeEspnCredentialCoverage tells the settings page what Remove would cost", () => {
+  let db: ReturnType<typeof resetDbForTests>;
+  let userId: string;
+
+  beforeEach(async () => {
+    db = resetDbForTests();
+    const user = await createUserWithPassword(db, { email: EMAIL, password: PASSWORD });
+    userId = user.id;
+  });
+
+  it("reports each ESPN league's credential origin", async () => {
+    await setAccountCredentials(db, userId, ACCOUNT);
+    const onAccount = await createLeague(db, {
+      userId,
+      platform: "espn",
+      externalLeagueId: "1546190",
+      season: 2026,
+      label: "Dynasty Warriors"
+    });
+    const withOverride = await createLeague(db, {
+      userId,
+      platform: "espn",
+      externalLeagueId: "9988776",
+      season: 2026,
+      label: "Other Login",
+      credentials: OVERRIDE
+    });
+
+    const coverage = await describeEspnCredentialCoverage(db, userId);
+    expect(coverage).toEqual(
+      expect.arrayContaining([
+        { leagueId: onAccount.id, label: "Dynasty Warriors", origin: "account" },
+        { leagueId: withOverride.id, label: "Other Login", origin: "league-override" }
+      ])
+    );
+    expect(coverage).toHaveLength(2);
+  });
+
+  it("marks leagues stranded when the account pair is removed", async () => {
+    // This is the number the Remove button quotes back at the user. If it were
+    // wrong, the confirmation would understate what the click actually breaks.
+    await setAccountCredentials(db, userId, ACCOUNT);
+    const league = await createLeague(db, {
+      userId,
+      platform: "espn",
+      externalLeagueId: "1546190",
+      season: 2026,
+      label: "Dynasty Warriors"
+    });
+    await deleteAccountCredentials(db, userId);
+    expect(await describeEspnCredentialCoverage(db, userId)).toEqual([
+      { leagueId: league.id, label: "Dynasty Warriors", origin: null }
+    ]);
+  });
+
+  it("ignores Sleeper leagues, which need no credentials at all", async () => {
+    await setAccountCredentials(db, userId, ACCOUNT);
+    await createLeague(db, {
+      userId,
+      platform: "sleeper",
+      externalLeagueId: "1395917841022074880",
+      season: 2026,
+      label: "Offline"
+    });
+    expect(await describeEspnCredentialCoverage(db, userId)).toEqual([]);
+  });
+
+  it("never counts another user's leagues", async () => {
+    const other = await createUserWithPassword(db, { email: "other@example.com", password: PASSWORD });
+    await setAccountCredentials(db, other.id, ACCOUNT);
+    await createLeague(db, {
+      userId: other.id,
+      platform: "espn",
+      externalLeagueId: "1546190",
+      season: 2026,
+      label: "Theirs"
+    });
+    expect(await describeEspnCredentialCoverage(db, userId)).toEqual([]);
   });
 });

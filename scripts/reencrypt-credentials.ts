@@ -1,5 +1,13 @@
 /**
- * Re-encrypt stored league credentials under a NEW `CREDENTIAL_ENCRYPTION_KEY`.
+ * Re-encrypt every stored ESPN credential under a NEW `CREDENTIAL_ENCRYPTION_KEY`.
+ *
+ * BOTH TABLES. `accountCredentials` (one row per user, the normal place ESPN
+ * cookies live) and `leagueCredentials` (the per-league override). This script
+ * originally read only the league table, which was complete when that was the
+ * only table — and became a silent stranding bug the moment the account table
+ * shipped: a rotation would migrate the overrides, leave every account sign-in
+ * sealed under the old key, and break ESPN for every user who had done the
+ * normal thing. Point 3 below is why the two must move together or not at all.
  *
  * WHY THIS EXISTS
  *
@@ -27,7 +35,7 @@
  *     readable under the old key, some under the new, and no single value of
  *     the env var that works.
  *  4. NO SECRET IS EVER PRINTED — not the keys, not the plaintext, not a
- *     truncated preview. Only counts and league ids.
+ *     truncated preview. Only counts and row ids.
  *
  * USAGE
  *
@@ -68,11 +76,63 @@ function toBuffer(value: unknown): Buffer {
   throw new Error("unsupported column type for an encrypted field");
 }
 
+/**
+ * One sealed row, whichever table it came from.
+ *
+ * `table` travels with the row so phase 2 writes it back where it belongs. The
+ * alternative — two parallel arrays and two write loops — is the shape that let
+ * the account table be missed in the first place.
+ */
 interface Prepared {
-  leagueId: string;
+  table: SealedTable;
+  /** userId for accountCredentials, leagueId for leagueCredentials. */
+  id: string;
   iv: Buffer;
   authTag: Buffer;
   ciphertext: Buffer;
+}
+
+export type SealedTable = "accountCredentials" | "leagueCredentials";
+
+interface SealedRow {
+  id: string;
+  iv: unknown;
+  authTag: unknown;
+  ciphertext: unknown;
+}
+
+/**
+ * Every table holding a sealed credential, normalised to one row shape.
+ *
+ * Adding a table here is the whole cost of covering it, and
+ * `src/lib/ops/reencryptCoverage.test.ts` fails if a credential table exists in
+ * the schema and is not listed.
+ */
+async function loadAll(
+  db: ReturnType<typeof getDb>
+): Promise<Array<{ table: SealedTable; rows: SealedRow[] }>> {
+  const accounts = await db.select().from(schema.accountCredentials);
+  const leagues = await db.select().from(schema.leagueCredentials);
+  return [
+    {
+      table: "accountCredentials",
+      rows: accounts.map((r) => ({
+        id: r.userId,
+        iv: r.iv,
+        authTag: r.authTag,
+        ciphertext: r.ciphertext
+      }))
+    },
+    {
+      table: "leagueCredentials",
+      rows: leagues.map((r) => ({
+        id: r.leagueId,
+        iv: r.iv,
+        authTag: r.authTag,
+        ciphertext: r.ciphertext
+      }))
+    }
+  ];
 }
 
 async function main(): Promise<void> {
@@ -85,45 +145,58 @@ async function main(): Promise<void> {
   }
 
   const db = getDb();
-  const rows = await db.select().from(schema.leagueCredentials);
+  const tables = await loadAll(db);
+  const total = tables.reduce((n, t) => n + t.rows.length, 0);
 
-  console.log(`${APPLY ? "APPLY" : "DRY RUN"} — ${rows.length} stored credential row(s).\n`);
-  if (rows.length === 0) {
+  console.log(`${APPLY ? "APPLY" : "DRY RUN"} — ${total} stored credential row(s).`);
+  for (const t of tables) console.log(`  ${t.table}: ${t.rows.length}`);
+  console.log("");
+  if (total === 0) {
     console.log("Nothing to re-encrypt. The new key can be set directly.");
     return;
   }
 
-  // Phase 1: prepare and verify EVERYTHING in memory. No writes yet.
+  // Phase 1: prepare and verify EVERYTHING in memory, ACROSS BOTH TABLES. No
+  // writes yet. Verifying one table and writing it before looking at the next
+  // would reintroduce the split-key state this script exists to prevent — just
+  // between tables instead of between rows.
   const prepared: Prepared[] = [];
   const failures: string[] = [];
 
-  for (const row of rows) {
-    try {
-      const plaintext = decrypt(
-        { iv: toBuffer(row.iv), authTag: toBuffer(row.authTag), ciphertext: toBuffer(row.ciphertext) },
-        oldKey
-      );
+  for (const { table, rows } of tables) {
+    for (const row of rows) {
+      try {
+        const plaintext = decrypt(
+          {
+            iv: toBuffer(row.iv),
+            authTag: toBuffer(row.authTag),
+            ciphertext: toBuffer(row.ciphertext)
+          },
+          oldKey
+        );
 
-      const sealed = encrypt(plaintext, newKey);
+        const sealed = encrypt(plaintext, newKey);
 
-      // Round-trip: prove the new ciphertext decrypts back to the SAME
-      // plaintext before it is allowed anywhere near the database.
-      const roundTripped = decrypt(sealed, newKey);
-      if (roundTripped !== plaintext) {
-        failures.push(`${row.leagueId}: round-trip mismatch`);
-        continue;
+        // Round-trip: prove the new ciphertext decrypts back to the SAME
+        // plaintext before it is allowed anywhere near the database.
+        const roundTripped = decrypt(sealed, newKey);
+        if (roundTripped !== plaintext) {
+          failures.push(`${table}/${row.id}: round-trip mismatch`);
+          continue;
+        }
+
+        prepared.push({
+          table,
+          id: row.id,
+          iv: sealed.iv,
+          authTag: sealed.authTag,
+          ciphertext: sealed.ciphertext
+        });
+      } catch (err) {
+        // Most likely cause: this row was already re-encrypted under the new key,
+        // or OLD_CREDENTIAL_ENCRYPTION_KEY is not the key it was sealed with.
+        failures.push(`${table}/${row.id}: ${err instanceof Error ? err.message : String(err)}`);
       }
-
-      prepared.push({
-        leagueId: row.leagueId,
-        iv: sealed.iv,
-        authTag: sealed.authTag,
-        ciphertext: sealed.ciphertext
-      });
-    } catch (err) {
-      // Most likely cause: this row was already re-encrypted under the new key,
-      // or OLD_CREDENTIAL_ENCRYPTION_KEY is not the key it was sealed with.
-      failures.push(`${row.leagueId}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -153,10 +226,18 @@ async function main(): Promise<void> {
   // Phase 2: write. Every row is already verified.
   let written = 0;
   for (const p of prepared) {
-    await db
-      .update(schema.leagueCredentials)
-      .set({ iv: p.iv, authTag: p.authTag, ciphertext: p.ciphertext })
-      .where(eq(schema.leagueCredentials.leagueId, p.leagueId));
+    const set = { iv: p.iv, authTag: p.authTag, ciphertext: p.ciphertext };
+    if (p.table === "accountCredentials") {
+      await db
+        .update(schema.accountCredentials)
+        .set(set)
+        .where(eq(schema.accountCredentials.userId, p.id));
+    } else {
+      await db
+        .update(schema.leagueCredentials)
+        .set(set)
+        .where(eq(schema.leagueCredentials.leagueId, p.id));
+    }
     written += 1;
   }
 

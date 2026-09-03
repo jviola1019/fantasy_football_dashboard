@@ -1,4 +1,66 @@
-# HANDOFF — forensic remediation of the 2026-08-06 audit
+# HANDOFF
+
+## Current state — 2026-09-02, after PR #43
+
+`main` is at `5493f5a` (PR #43 merged, production verified by content). The
+active work is on a branch off it; see the session block below. Everything under
+"forensic remediation" further down is **history** — that branch merged long ago
+and is kept for the reasoning, not as a to-do list.
+
+### Session 2026-09-02b — the ESPN account sign-in, actually wired
+
+PR #43 shipped `accountCredentials` — the table, the seal, the resolution
+function and nine tests — and shipped nothing that used it. This session closed
+that, and the closing turned up four more defects of the same shape.
+
+| # | defect | evidence it was real |
+|---|---|---|
+| 1 | `fetchLeagueLive` called `getLeagueCredentials`, never `resolveEspnCredentials` | a league with an account pair and no override returned `failure: "missing credentials"` |
+| 2 | `createLeague` **threw** for any ESPN league without per-league cookies | the account pair could not be used to add a league at all; found by the test in #1 failing to construct its own fixture |
+| 3 | nothing in the UI could write an account pair | no form existed |
+| 4 | `scripts/reencrypt-credentials.ts` read `leagueCredentials` only | a key rotation would have migrated the overrides and left **every account sign-in undecryptable** — and `docs/espn-credentials-decision.md` asserted it "continues to cover both tables" |
+| 5 | `check-doc-secrets` used bare `git ls-files` | committed files only, so a credential pasted into a **new** file — the case it exists for — was invisible; it scanned 379 files and said "clean" about a set excluding everything new |
+
+**The recurring shape, now five for five this week:** a check or mechanism that
+cannot see its own input reports success. Both new gates were shown to FAIL on
+the defect they target before being allowed to pass
+(`src/lib/ops/reencryptCoverage.test.ts` finds sealed tables *structurally*, by
+their `iv`/`authTag`/`ciphertext` columns, so the next credential table cannot be
+forgotten; `src/lib/ops/secretScanInventory.test.ts` pins the git invocation and
+proves an untracked file reaches the scanner).
+
+**What a user sees now.** One paste, at `/settings/account` or while adding the
+first ESPN league, authenticates every ESPN league on the account. The add form
+stops asking for cookies once a pair is saved, behind an explicit "this league is
+under a different ESPN login" tick for the two-logins case. The account page
+shows the pair's **age** — ESPN does not publish expiry, so age is the only
+signal — and names the leagues that stop working if it is removed, so the button
+states its blast radius rather than asking for a blind confirmation. The stored
+value is never rendered back, not even masked.
+
+**Provenance.** `fetchEspnLive` now attaches the credential's `origin` to the
+source metadata on **both** return paths, including the failure path — a 401 is
+ambiguous until you know which pair was sent, and that is exactly the case where
+knowing matters.
+
+**Still open, deliberately:**
+
+- **The operator must rotate the `espn_s2` pasted into the 2026-09-02 chat.** It
+  was used only as an env var, never written to a file or a commit; both values
+  are in `BURNED_SECRET_HASHES` so they can never be committed. Rotating is an
+  ESPN sign-out/sign-in and only the owner can do it.
+- **The model-family comparison** the user asked for (gradient boosting, blends,
+  outlier/influence analysis against the current logistic) is NOT done. The
+  honest reason to defer rather than rush it: the existing forest screen already
+  beats linear at every position and still ships nothing, because a forest's
+  predictions need a calibration study of their own before this product may show
+  them. Another model family without that study would produce another
+  screening result, not a shippable model.
+- Owner actions: the ruleset required-check list, and 11 Dependabot PRs.
+
+---
+
+# History — forensic remediation of the 2026-08-06 audit
 
 **Branch** `fix/2026-08-06-forensic-remediation` · **base** `efb124b` (= `origin/main`, verified unmoved)
 **Plan** `~/.claude/plans/you-are-the-lead-proud-canyon.md` · **Evidence** `reports/2026-08-06/`

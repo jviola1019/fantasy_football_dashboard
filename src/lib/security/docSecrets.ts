@@ -151,6 +151,18 @@ export function findSecretLeaks(
  * legitimately contain illustrative secret-detection examples and are not a
  * deploy/runtime surface.
  */
+/**
+ * How the CLI enumerates candidate files.
+ *
+ * It lives here, beside the path filter, rather than in the script, so a test
+ * can assert the invocation WITHOUT importing the CLI — whose module body runs
+ * the scan and can call process.exit(1). `--others` is the flag that admits
+ * uncommitted files, which is the case the scanner most needs to see;
+ * `--exclude-standard` keeps .gitignore honoured so .env.local and build
+ * output stay out.
+ */
+export const GIT_LIST_ARGS = ["ls-files", "--cached", "--others", "--exclude-standard"];
+
 export function isScannableDocPath(path: string): boolean {
   const p = path.replace(/\\/g, "/");
   if (p.startsWith("docs/superpowers/")) return false;

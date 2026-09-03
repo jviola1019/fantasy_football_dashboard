@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { decrypt, encrypt, getCredentialKey } from "./crypto";
 import { schema } from "../db";
 import { DEFAULT_FORMAT, type LeagueFormat } from "./trade/format";
@@ -67,8 +67,19 @@ export async function findUserLeagueByExternal(
 }
 
 export async function createLeague(db: Db, input: CreateLeagueInput): Promise<LeagueRecord> {
+  // THE INVARIANT IS "AUTHENTICATABLE", NOT "CARRIES ITS OWN COPY".
+  //
+  // This used to demand `input.credentials` for every ESPN league, which made
+  // the account-level pair unreachable from the only path that creates leagues:
+  // a user who had saved their ESPN sign-in was still forced to paste the same
+  // two cookies again for the second league, and the third. The rule that
+  // actually protects the user is that no ESPN league is created which cannot
+  // authenticate — so ask resolution, not the argument.
   if (input.platform === "espn" && !input.credentials) {
-    throw new Error("ESPN private leagues require espn_s2 + SWID cookies");
+    const account = await getAccountCredentialAge(db, input.userId);
+    if (!account) {
+      throw new Error("ESPN private leagues require espn_s2 + SWID cookies");
+    }
   }
   // Duplicate guard: a user re-adding the same league for the same season must
   // not create a second (often hollow) row. Per-user + per-season so the same
@@ -259,24 +270,27 @@ export async function deleteLeagueForUser(db: Db, userId: string, leagueId: stri
   return result.length > 0;
 }
 
+/**
+ * The per-league override pair, if this league has one.
+ *
+ * Reads through the shared `open()` rather than unsealing inline. It had its own
+ * copy of the decrypt-and-parse, which is one of two implementations of the same
+ * operation — the shape that gave `fingerprintRows` two answers and that
+ * `csv.ts` and `correlation.ts` were extracted to end. A second unsealing path
+ * is worse than most duplicates, because the two can disagree about a secret
+ * and the disagreement surfaces as an unexplained authentication failure.
+ *
+ * The app reaches credentials through `resolveEspnCredentials`; this stays as
+ * the direct accessor for the override row itself, which is what the tests
+ * assert on when they check that nothing was stored per league.
+ */
 export async function getLeagueCredentials(db: Db, leagueId: string): Promise<DecryptedCredentials | null> {
   const rows = await db
     .select()
     .from(schema.leagueCredentials)
     .where(eq(schema.leagueCredentials.leagueId, leagueId))
     .limit(1);
-  const row = rows[0];
-  if (!row) return null;
-  const key = getCredentialKey();
-  const plaintext = decrypt(
-    {
-      iv: toBuffer(row.iv),
-      authTag: toBuffer(row.authTag),
-      ciphertext: toBuffer(row.ciphertext)
-    },
-    key
-  );
-  return JSON.parse(plaintext) as DecryptedCredentials;
+  return rows[0] ? open(rows[0]) : null;
 }
 
 /**
@@ -332,15 +346,29 @@ export async function resolveEspnCredentials(
   if (override[0]) {
     return { ...open(override[0]), origin: "league-override", rotatedAt: override[0].rotatedAt };
   }
-  const account = await db
+  const account = await getAccountCredentials(db, userId);
+  if (account) return { ...account, origin: "account" };
+  return null;
+}
+
+/**
+ * The account pair on its own, for the paths that have a user but not yet a
+ * league — verifying a newly pasted pair, and adding the first ESPN league.
+ *
+ * Kept as the single reader of that row so `resolveEspnCredentials` and the
+ * add-league path cannot drift into disagreeing about what "the account
+ * credentials" are.
+ */
+export async function getAccountCredentials(
+  db: Db,
+  userId: string
+): Promise<(DecryptedCredentials & { rotatedAt: Date }) | null> {
+  const rows = await db
     .select()
     .from(schema.accountCredentials)
     .where(eq(schema.accountCredentials.userId, userId))
     .limit(1);
-  if (account[0]) {
-    return { ...open(account[0]), origin: "account", rotatedAt: account[0].rotatedAt };
-  }
-  return null;
+  return rows[0] ? { ...open(rows[0]), rotatedAt: rows[0].rotatedAt } : null;
 }
 
 /**
@@ -382,6 +410,55 @@ export async function getAccountCredentialAge(
 
 export async function deleteAccountCredentials(db: Db, userId: string): Promise<void> {
   await db.delete(schema.accountCredentials).where(eq(schema.accountCredentials.userId, userId));
+}
+
+/** One ESPN league and which credential would authenticate it. */
+export interface EspnCredentialCoverage {
+  leagueId: string;
+  label: string;
+  /** null means this league currently has nothing to authenticate with. */
+  origin: CredentialOrigin | null;
+}
+
+/**
+ * Which credential each of the user's ESPN leagues would use, WITHOUT decrypting
+ * any of them.
+ *
+ * Existence is the whole question here, so this checks for rows and stops.
+ * Decrypting to render a settings page would put plaintext cookies in server
+ * memory for a screen that must never display them, which is the sort of
+ * convenience that turns into an incident.
+ *
+ * This is what lets "remove my ESPN sign-in" state its actual consequence —
+ * the number of leagues that stop working — instead of asking the user to
+ * confirm something whose blast radius only the database knows.
+ */
+export async function describeEspnCredentialCoverage(
+  db: Db,
+  userId: string
+): Promise<EspnCredentialCoverage[]> {
+  const leagues = await db
+    .select({ id: schema.leagues.id, label: schema.leagues.label })
+    .from(schema.leagues)
+    .where(and(eq(schema.leagues.userId, userId), eq(schema.leagues.platform, "espn")));
+  if (leagues.length === 0) return [];
+
+  // Scoped to THIS user's league ids. Selecting the whole table and filtering in
+  // memory gave the right answer and read every other user's rows to do it — a
+  // full scan that grows with the service, to answer a question about one
+  // account.
+  const overrides = await db
+    .select({ leagueId: schema.leagueCredentials.leagueId })
+    .from(schema.leagueCredentials)
+    .where(inArray(schema.leagueCredentials.leagueId, leagues.map((l) => l.id)));
+  const overridden = new Set(overrides.map((r) => r.leagueId));
+  const hasAccount = (await getAccountCredentialAge(db, userId)) !== null;
+
+  return leagues.map((l) => ({
+    leagueId: l.id,
+    label: l.label,
+    origin: overridden.has(l.id) ? "league-override" : hasAccount ? "account" : null
+  }));
 }
 
 function toRecord(row: typeof schema.leagues.$inferSelect): LeagueRecord {

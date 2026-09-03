@@ -3,34 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { buttonStyle, inputStyle, labelStyle } from "../formStyles";
 import { changePasswordAction, deleteAccountAction } from "./actions";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "8px 10px",
-  background: "rgba(0,0,0,0.35)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 6,
-  color: "var(--cream)",
-  fontSize: "var(--text-sm)"
-};
-
-const labelStyle: React.CSSProperties = {
-  color: "var(--muted)",
-  fontSize: "var(--text-xs)",
-  display: "block",
-  marginBottom: 4,
-  textTransform: "uppercase",
-  letterSpacing: "0.04em"
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: "10px 14px",
-  border: "none",
-  borderRadius: 8,
-  cursor: "pointer",
-  fontWeight: 600
-};
 
 export function ChangePasswordForm() {
   const router = useRouter();

@@ -1,6 +1,11 @@
 import type { PlayerMarketRecord } from "../governance";
 import { espnPlayerToRecord, sleeperPlayerToRecord } from "../normalize";
-import { getLeagueCredentials, getLeagueForUser, type LeagueRecord, type DecryptedCredentials } from "../leagues";
+import {
+  getLeagueForUser,
+  resolveEspnCredentials,
+  type LeagueRecord,
+  type ResolvedCredentials
+} from "../leagues";
 import { EspnClient } from "../espn/client";
 import { getLeague as getEspnLeague } from "../espn/league";
 import {
@@ -189,7 +194,13 @@ export async function fetchLeagueLive(
   }
 
   // Decrypt credentials exactly once and pass the value down.
-  const creds = await getLeagueCredentials(db, league.id);
+  //
+  // RESOLUTION, not the per-league row. `espn_s2`/`SWID` authenticate an ESPN
+  // ACCOUNT, so the account pair is the normal case and a per-league row is an
+  // override for somebody with leagues under two ESPN logins. Reading only the
+  // per-league row here is what made the whole account-level feature inert:
+  // it was written, sealed, tested and never once asked for.
+  const creds = await resolveEspnCredentials(db, userId, league.id);
   if (!creds) {
     return {
       league,
@@ -445,9 +456,21 @@ export function materializeSleeperRoster(
   return records.map((r) => ({ ...r, sources: [...r.sources, membership, metadata] }));
 }
 
+/**
+ * How to describe the credential that authenticated a request, WITHOUT the
+ * credential. A 401 from ESPN is ambiguous until you know which cookie pair
+ * was sent, and "the account one" versus "this league's own" is the whole
+ * difference — so the origin ships as an assumption while the secret never
+ * leaves the seal.
+ */
+const CREDENTIAL_ORIGIN_NOTE: Record<ResolvedCredentials["origin"], string> = {
+  account: "Authenticated with your account ESPN sign-in (shared by every ESPN league you add).",
+  "league-override": "Authenticated with league-specific ESPN cookies, which override the account sign-in."
+};
+
 async function fetchEspnLive(
   league: LeagueRecord,
-  creds: DecryptedCredentials
+  creds: ResolvedCredentials
 ): Promise<LiveLeagueSnapshot> {
   const client = new EspnClient({ credentials: creds });
   const result = await getEspnLeague(
@@ -455,6 +478,14 @@ async function fetchEspnLive(
     { leagueId: league.externalLeagueId, season: league.season },
     ["mTeam", "mRoster", "mSettings"]
   );
+
+  // Declared once and used by BOTH return paths below. Attaching it in only
+  // one of them would mean the provenance disappeared exactly when the call
+  // failed — the case where knowing which cookie was sent matters most.
+  const source = {
+    ...result.source,
+    assumptions: [...result.source.assumptions, CREDENTIAL_ORIGIN_NOTE[creds.origin]]
+  };
 
   // Parse format from mSettings even when teams are missing; PreDraftAudit
   // can still surface scoring + starter slots on a fresh pre-draft league.
@@ -471,7 +502,7 @@ async function fetchEspnLive(
       myRoster: [],
       identityResolved: false,
       identityNote: null,
-      source: result.source,
+      source,
       failure: result.source.failure ?? "no teams returned",
       format,
       faab: null,
@@ -532,7 +563,7 @@ async function fetchEspnLive(
     myRoster,
     identityResolved: espnIdentityResolved,
     identityNote: espnIdentityNote,
-    source: result.source,
+    source,
     failure: null,
     format,
     // ESPN FAAB: settings.acquisitionSettings + each team's transactionCounter.

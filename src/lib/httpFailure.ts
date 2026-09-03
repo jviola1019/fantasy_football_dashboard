@@ -49,7 +49,7 @@ export function describeHttpFailure(
   if (status === 401 || status === 403) {
     return opts.credentialed
       ? `${where} rejected the stored credentials (HTTP ${status}). ESPN's espn_s2 and SWID ` +
-          `cookies expire; paste fresh ones in Settings → Leagues to restore this league.`
+          `cookies expire; replace them once in Settings → Account and every ESPN league recovers.`
       : `${where} refused the request (HTTP ${status}). This endpoint needs credentials this ` +
           `app does not hold.`;
   }

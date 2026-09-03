@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/requireUser";
+import { getDb } from "@/db";
+import { describeEspnCredentialCoverage, getAccountCredentialAge } from "@/lib/leagues";
 import { ChangePasswordForm, DeleteAccountForm, SignOutButton } from "./AccountForms";
+import { EspnSignInForm } from "./EspnSignInForm";
+import { formatCredentialAge } from "./credentialAge";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +13,13 @@ export const metadata = { title: "Account" };
 export default async function AccountSettingsPage() {
   const user = await requireUser();
   if (!user) redirect("/login");
+
+  // Existence and AGE only. Nothing on this page decrypts a credential, because
+  // nothing on this page displays one.
+  const [espnAge, espnCoverage] = await Promise.all([
+    getAccountCredentialAge(getDb(), user.id),
+    describeEspnCredentialCoverage(getDb(), user.id)
+  ]);
 
   // requireUser() already returns the persisted email/name straight from the
   // users row (it has to read it to validate the session generation), so the
@@ -40,6 +51,18 @@ export default async function AccountSettingsPage() {
           <div style={{ marginTop: 16 }}>
             <SignOutButton />
           </div>
+        </section>
+
+        <section style={panel}>
+          <h2 style={h2}>ESPN sign-in</h2>
+          <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 12, fontSize: "var(--text-sm)" }}>
+            One cookie pair for every ESPN league on this account. Encrypted at rest with AES-256-GCM
+            and never sent back to your browser.
+          </p>
+          <EspnSignInForm
+            savedAt={formatCredentialAge(espnAge?.rotatedAt ?? null)}
+            coverage={espnCoverage}
+          />
         </section>
 
         <section style={panel}>

@@ -6,7 +6,14 @@ import { requireUser } from "@/lib/auth/requireUser";
 import { updateLeagueIdentityForUser, updateLeagueSettingsForUser } from "@/lib/leagues";
 import { KeeperCostRuleSchema } from "@/lib/trade/format";
 import { getDb } from "@/db";
-import { createLeague, deleteLeagueForUser, findUserLeagueByExternal, getLeagueForUser } from "@/lib/leagues";
+import {
+  createLeague,
+  deleteLeagueForUser,
+  findUserLeagueByExternal,
+  getAccountCredentials,
+  getLeagueForUser,
+  setAccountCredentials
+} from "@/lib/leagues";
 import { setActiveLeagueCookie } from "@/lib/activeLeague";
 import { verifyLeague } from "@/lib/trade/verify";
 import type { LeagueFormat } from "@/lib/trade/format";
@@ -18,6 +25,9 @@ const addLeagueSchema = z.object({
   label: z.string().min(1).max(80),
   espnS2: z.string().optional(),
   swid: z.string().optional(),
+  // "league" only when the user ticked "this league is under a different ESPN
+  // login". Anything else means the pasted pair is their account sign-in.
+  credentialScope: z.enum(["account", "league"]).catch("account"),
   sleeperUsername: z.string().max(50).optional()
 });
 
@@ -48,13 +58,43 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     label: formData.get("label"),
     espnS2: formData.get("espnS2") ?? undefined,
     swid: formData.get("swid") ?? undefined,
+    credentialScope: formData.get("credentialScope") ?? "account",
     sleeperUsername: formData.get("sleeperUsername") ?? undefined
   });
   if (!parsed.success) return { ok: false, error: "Invalid form input" };
 
-  const { platform, externalLeagueId, season, label, espnS2, swid, sleeperUsername } = parsed.data;
-  if (platform === "espn" && (!espnS2 || !swid)) {
-    return { ok: false, error: "ESPN leagues require both espn_s2 and SWID cookies" };
+  const { platform, externalLeagueId, season, label, espnS2, swid, sleeperUsername, credentialScope } =
+    parsed.data;
+
+  // ESPN COOKIES ARE OPTIONAL HERE WHEN THE ACCOUNT ALREADY HAS A PAIR.
+  //
+  // `espn_s2`/`SWID` authenticate an ESPN account, not a league, so demanding
+  // them again per league asked the user to re-paste a secret the app already
+  // holds — and then stored a second copy of it. A pair typed here is treated
+  // as a deliberate per-league OVERRIDE, for somebody whose leagues sit under
+  // two different ESPN logins; anything else falls back to the account.
+  //
+  // `override` is what gets persisted with the league. `verifyCredentials` is
+  // what gets spent on the add-time check. They differ exactly when the account
+  // pair is doing the work, which is the normal case.
+  const typed = espnS2 && swid ? { espnS2, swid } : undefined;
+  // Typed cookies are the ACCOUNT sign-in unless the user said otherwise. That
+  // is what makes the first ESPN league a one-time paste instead of the first
+  // of N: without it, adding four leagues stored four copies of one secret.
+  const override = typed && credentialScope === "league" ? typed : undefined;
+  const existingAccount =
+    platform === "espn" ? await getAccountCredentials(getDb(), userId) : null;
+
+  let verifyCredentials = typed;
+  if (platform === "espn" && !typed) {
+    if (!existingAccount) {
+      return {
+        ok: false,
+        error:
+          "ESPN leagues need an ESPN sign-in. Save espn_s2 and SWID once in Settings → Account, or paste them here."
+      };
+    }
+    verifyCredentials = { espnS2: existingAccount.espnS2, swid: existingAccount.swid };
   }
 
   // Friendly duplicate pre-check — fail fast with a clear message before the
@@ -72,7 +112,7 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     platform,
     externalLeagueId,
     season,
-    credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined
+    credentials: platform === "espn" ? verifyCredentials : undefined
   });
   if (!verification.ok) {
     return { ok: false, error: verification.error };
@@ -112,6 +152,24 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
     };
   }
 
+  // Adopt the pasted pair as the account sign-in — but only when there is not
+  // one already.
+  //
+  // ADOPT, NEVER REPLACE. The form cannot send cookies with account scope once a
+  // pair is saved (the fields collapse into the override tick), so a request
+  // that does is hand-crafted, and silently swapping an account-wide secret from
+  // a league form is not something this path should be able to do. Replacing has
+  // its own home on /settings/account, where it is verified and where the user
+  // is told what it covers.
+  //
+  // Written after verification passed and BEFORE createLeague, whose ESPN guard
+  // asks whether the account can authenticate. A failure after this point leaves
+  // a verified sign-in and no league — recoverable by retrying, and not a secret
+  // the user did not intend to store.
+  if (platform === "espn" && typed && credentialScope === "account" && !existingAccount) {
+    await setAccountCredentials(getDb(), userId, typed);
+  }
+
   try {
     const league = await createLeague(getDb(), {
       userId,
@@ -119,11 +177,14 @@ export async function addLeague(formData: FormData): Promise<AddLeagueResult> {
       externalLeagueId,
       season: resolvedSeason,
       label,
-      credentials: platform === "espn" ? { espnS2: espnS2!, swid: swid! } : undefined,
+      // Only a genuine override is stored per league. When the account pair
+      // authenticated this add, nothing is written here — one secret, one copy.
+      credentials: platform === "espn" ? override : undefined,
       settings: detectedSettings,
       sleeperUsername: platform === "sleeper" ? (sleeperUsername || undefined) : undefined
     });
     revalidatePath("/settings/leagues");
+    revalidatePath("/settings/account");
     return seasonNote ? { ok: true, leagueId: league.id, note: seasonNote } : { ok: true, leagueId: league.id };
   } catch {
     // Never surface a raw DB/driver error to the browser — it can leak internal
