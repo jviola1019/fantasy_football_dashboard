@@ -506,6 +506,28 @@ function main(): void {
       "add nothing.\n"
   );
 
+  lines.push("\n### The obvious follow-up, and why there is nothing to run\n");
+  lines.push(
+    "\nIsotonic's out-of-fold ECE is BETTER than the shipped logistic's at WR " +
+      "(0.0157 vs 0.0230) on a model whose entire value is calibration. The natural next " +
+      "step looks like \"recalibrate the logistic with isotonic and ship that\".\n"
+  );
+  lines.push(
+    "\nIt is not a new model. Isotonic regression depends only on the ORDERING of its " +
+      "input, and a one-variable logistic is monotone in its feature — so " +
+      "isotonic-on-the-score and isotonic-on-the-feature are provably the same fit " +
+      "(pinned in `src/lib/stats/isotonic.test.ts`: identical block values, zero " +
+      "prediction difference). The \"recalibrated logistic\" IS the isotonic row in the " +
+      "table above, which loses on Brier at all four positions. The ECE gain is bought " +
+      "with resolution, and Brier already prices both.\n"
+  );
+  lines.push(
+    "\nThat changes the moment a second feature enters, because the composite score is " +
+      "then no longer a monotone function of any single input. Which is another way of " +
+      "saying the same thing this whole document says: the constraint is the data, not " +
+      "the calibration method.\n"
+  );
+
   lines.push("\n## What a null result here does and does not mean\n");
   lines.push(
     "It does NOT mean no better model exists. It means that on the data this repository " +

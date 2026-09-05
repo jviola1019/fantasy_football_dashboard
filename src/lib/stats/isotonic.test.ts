@@ -163,6 +163,30 @@ describe("predictIsotonic", () => {
     expect(predictIsotonic({ blocks: [] }, 12)).toBe(0.5);
   });
 
+  it("is invariant to any monotone rescaling — so recalibrating a 1-feature logistic is NOT a new model", () => {
+    // Closes a thread rather than leaving it open. Corrected isotonic has a
+    // BETTER out-of-fold ECE than the shipped logistic at WR (0.0157 vs 0.0230),
+    // which invites the obvious follow-up: recalibrate the logistic with
+    // isotonic and ship that.
+    //
+    // There is nothing to run. Isotonic regression depends only on the ORDERING
+    // of its input, and a one-variable logistic is monotone in its feature, so
+    // isotonic-on-the-score and isotonic-on-the-feature are the SAME fit. The
+    // "recalibrated logistic" is exactly the isotonic family already in
+    // docs/model-gauntlet.md, which loses on Brier at all four positions.
+    const rand = mulberry32(11);
+    const x = Array.from({ length: 1500 }, () => rand() * 30);
+    const y = x.map((v) => (rand() < 1 / (1 + Math.exp(-(v - 15) / 4)) ? 1 : 0));
+    const score = x.map((v) => 1 / (1 + Math.exp(-(0.3 * v - 4.2))));
+
+    const onFeature = fitIsotonic(x, y);
+    const onScore = fitIsotonic(score, y);
+    expect(onScore.blocks.map((b) => b.y)).toEqual(onFeature.blocks.map((b) => b.y));
+    for (let i = 0; i < x.length; i += 1) {
+      expect(predictIsotonic(onScore, score[i]!)).toBeCloseTo(predictIsotonic(onFeature, x[i]!), 12);
+    }
+  });
+
   it("recovers a known monotone curve it was not told about", () => {
     const rand = mulberry32(99);
     const truth = (v: number) => 1 / (1 + Math.exp(-(v - 15) / 3));

@@ -1,11 +1,22 @@
 # HANDOFF
 
-## Current state — 2026-09-02, after PR #43
+## Current state — 2026-09-05, after PR #44
 
-`main` is at `5493f5a` (PR #43 merged, production verified by content). The
-active work is on a branch off it; see the session block below. Everything under
-"forensic remediation" further down is **history** — that branch merged long ago
-and is kept for the reasoning, not as a to-do list.
+`main` is at **`5ab9c87`** (PR #44 merged, 14/14 CI, production deployed and
+**verified by content** — the production CSS chunk carries `weekly-prob-group`,
+a class that only exists as of this PR). Everything under "forensic remediation"
+further down is **history**, kept for the reasoning rather than as a to-do list.
+
+**Two owner actions are outstanding and the first one gates a shipped feature:**
+
+1. **`POST /api/admin/init-db`** with `x-init-token: $DB_INIT_TOKEN` against
+   production. Idempotent. Core tables are created by this one manual action and
+   nothing applies that DDL automatically on Postgres, so until it runs the ESPN
+   account sign-in cannot store anything. `/settings/account` says so honestly
+   and Sleeper is unaffected — the feature is inert, not broken.
+2. **Rotate the `espn_s2`/`SWID`** pasted into the 2026-09-02 transcript. Never
+   written to a file or a commit, and both are in `BURNED_SECRET_HASHES` so they
+   can never be committed, but only an ESPN sign-out/sign-in invalidates them.
 
 ### Session 2026-09-02b — the ESPN account sign-in, actually wired
 
@@ -191,6 +202,21 @@ for defences. 2 of 2 selection agreements, 0 of 6 families beat the baseline.
 panel now says why in measured terms — ~1% skill against 18–26% — instead of the
 old, false "there is no data to fit against". That copy has been corrected, and
 so has `audit-model-data.ts`, which was generating the same wrong claim.
+
+### One thread closed rather than left open
+
+Corrected isotonic has a better out-of-fold ECE than the shipped logistic at WR
+(0.0157 vs 0.0230), on a model whose entire value is calibration — which invites
+"recalibrate the logistic with isotonic and ship that".
+
+**There is nothing to run.** Isotonic depends only on the ORDERING of its input,
+and a one-variable logistic is monotone in its feature, so isotonic-on-the-score
+and isotonic-on-the-feature are the same fit — verified empirically (identical
+block values, zero prediction difference) and pinned in `isotonic.test.ts`. The
+"recalibrated logistic" IS the isotonic family already tested, which loses on
+Brier at all four positions. That stops being true the moment a second feature
+enters, which is the same conclusion everything else here reaches: the
+constraint is the data, not the method.
 
 **Still open, deliberately:**
 
