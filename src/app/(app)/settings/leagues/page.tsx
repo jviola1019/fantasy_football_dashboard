@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
-import { listLeagues } from "@/lib/leagues";
+import { getAccountCredentialAge, listLeagues } from "@/lib/leagues";
 import { AddLeagueForm } from "./AddLeagueForm";
 import { LeagueList } from "./LeagueList";
 import { LeagueSettingsForm } from "./LeagueSettingsForm";
@@ -15,20 +15,31 @@ export const metadata = { title: "League Settings" };
 export default async function LeaguesSettingsPage() {
   const user = await requireUser();
   if (!user) redirect("/login");
-  const leagues = await listLeagues(getDb(), user.id);
+  const [leagues, espnSignIn] = await Promise.all([
+    listLeagues(getDb(), user.id),
+    getAccountCredentialAge(getDb(), user.id)
+  ]);
 
   return (
     <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 20 }}>
       <header>
         <h1 style={{ color: "var(--cream)", margin: 0, fontSize: "var(--text-xl)" }}>Your leagues</h1>
         <p style={{ color: "var(--muted)", marginTop: 8 }}>
-          Sleeper is public. ESPN private leagues require <code>espn_s2</code> and <code>SWID</code> cookies
-          from your browser. Cookies are encrypted at rest and never sent back to your browser after creation.
+          Sleeper is public. ESPN private leagues need <code>espn_s2</code> and <code>SWID</code> cookies
+          from your browser — pasted once for the whole account, not once per league. Cookies are
+          encrypted at rest and never sent back to your browser.{" "}
+          {espnSignIn ? (
+            <>An ESPN sign-in is saved; new ESPN leagues will use it automatically.</>
+          ) : (
+            <>
+              No ESPN sign-in is saved yet. The first ESPN league you add stores one for the account.
+            </>
+          )}
         </p>
       </header>
       <section style={panel}>
         <h2 style={h2}>Add a league</h2>
-        <AddLeagueForm />
+        <AddLeagueForm hasAccountEspnSignIn={espnSignIn !== null} />
       </section>
       <section style={panel}>
         <h2 style={h2}>Connected ({leagues.length})</h2>

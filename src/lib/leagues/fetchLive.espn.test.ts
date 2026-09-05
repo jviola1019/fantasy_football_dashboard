@@ -22,11 +22,16 @@ vi.mock("../espn/league", () => ({
 
 // Stub the leagues data access so fetchLeagueLive resolves a fake league
 // row + decrypted credentials without touching the DB.
+//
+// Resolution, not the per-league row: ESPN cookies authenticate an ACCOUNT, so
+// the production path asks for the resolved pair (league override, then the
+// account sign-in). The resolved value carries its `origin`, which fetchLive
+// declares as provenance on the source it returns.
 const getLeagueForUserMock = vi.fn();
-const getLeagueCredentialsMock = vi.fn();
+const resolveEspnCredentialsMock = vi.fn();
 vi.mock("../leagues", () => ({
   getLeagueForUser: getLeagueForUserMock,
-  getLeagueCredentials: getLeagueCredentialsMock
+  resolveEspnCredentials: resolveEspnCredentialsMock
 }));
 
 // Stub getDb so importing fetchLive doesn't touch the SQLite cache.
@@ -132,9 +137,11 @@ describe("fetchLeagueLive (ESPN) — integration with mocked fetcher", () => {
       sleeperUsername: null,
       createdAt: new Date()
     });
-    getLeagueCredentialsMock.mockResolvedValue({
+    resolveEspnCredentialsMock.mockResolvedValue({
       espnS2: "test-s2-token",
-      swid: SWID
+      swid: SWID,
+      origin: "league-override",
+      rotatedAt: new Date()
     });
     getLeagueMock.mockResolvedValue({
       data: makeEspnResponse(),
@@ -189,11 +196,11 @@ describe("fetchLeagueLive (ESPN) — integration with mocked fetcher", () => {
     const { fetchLeagueLive } = await import("./fetchLive");
     const snapshot = await fetchLeagueLive("user-b", "league-uuid");
     expect(snapshot).toBeNull();
-    expect(getLeagueCredentialsMock).not.toHaveBeenCalled();
+    expect(resolveEspnCredentialsMock).not.toHaveBeenCalled();
     expect(getLeagueMock).not.toHaveBeenCalled();
   });
 
-  it("returns a credentials-missing snapshot when getLeagueCredentials returns null", async () => {
+  it("returns a credentials-missing snapshot when nothing resolves", async () => {
     getLeagueForUserMock.mockResolvedValue({
       id: "league-uuid",
       userId: "user-a",
@@ -205,7 +212,7 @@ describe("fetchLeagueLive (ESPN) — integration with mocked fetcher", () => {
       sleeperUsername: null,
       createdAt: new Date()
     });
-    getLeagueCredentialsMock.mockResolvedValue(null);
+    resolveEspnCredentialsMock.mockResolvedValue(null);
     const { fetchLeagueLive } = await import("./fetchLive");
     const snapshot = await fetchLeagueLive("user-a", "league-uuid");
     expect(snapshot).not.toBeNull();

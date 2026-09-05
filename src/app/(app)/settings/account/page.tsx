@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/requireUser";
+import { getDb } from "@/db";
+import { describeEspnCredentialCoverage, getAccountCredentialAge } from "@/lib/leagues";
+import { readOrUninitialised } from "@/db/missingRelation";
 import { ChangePasswordForm, DeleteAccountForm, SignOutButton } from "./AccountForms";
+import { EspnSignInForm, type EspnCoverageRow } from "./EspnSignInForm";
+import { formatCredentialAge } from "./credentialAge";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +14,27 @@ export const metadata = { title: "Account" };
 export default async function AccountSettingsPage() {
   const user = await requireUser();
   if (!user) redirect("/login");
+
+  // Existence and AGE only. Nothing on this page decrypts a credential, because
+  // nothing on this page displays one.
+  //
+  // Wrapped because `accountCredentials` is created by ONE token-gated operator
+  // action (`POST /api/admin/init-db`) and nothing applies that DDL
+  // automatically on Postgres. A deployment can therefore be running a build
+  // that knows about the table before the database has been told, and an
+  // unhandled "relation does not exist" here would 500 the whole page — taking
+  // change-password and delete-account down with a feature neither depends on.
+  //
+  // `ready: false` is NOT rendered as "nothing saved yet". That would be a false
+  // statement about storage the user cannot write to.
+  const espn = await readOrUninitialised(
+    async () => ({
+      ready: true,
+      age: await getAccountCredentialAge(getDb(), user.id),
+      coverage: await describeEspnCredentialCoverage(getDb(), user.id)
+    }),
+    { ready: false, age: null, coverage: [] as EspnCoverageRow[] }
+  );
 
   // requireUser() already returns the persisted email/name straight from the
   // users row (it has to read it to validate the session generation), so the
@@ -40,6 +66,19 @@ export default async function AccountSettingsPage() {
           <div style={{ marginTop: 16 }}>
             <SignOutButton />
           </div>
+        </section>
+
+        <section style={panel}>
+          <h2 style={h2}>ESPN sign-in</h2>
+          <p style={{ color: "var(--muted)", marginTop: 4, marginBottom: 12, fontSize: "var(--text-sm)" }}>
+            One cookie pair for every ESPN league on this account. Encrypted at rest with AES-256-GCM
+            and never sent back to your browser.
+          </p>
+          <EspnSignInForm
+            savedAt={formatCredentialAge(espn.age?.rotatedAt ?? null)}
+            coverage={espn.coverage}
+            storageReady={espn.ready}
+          />
         </section>
 
         <section style={panel}>

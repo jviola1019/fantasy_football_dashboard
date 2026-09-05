@@ -83,7 +83,7 @@ shapes in `src/lib/governance.ts`:
 | Adapter | File | Produces | TTL / freshness | confidence |
 |---|---|---|---|---|
 | Sleeper league/roster identity | `src/lib/sleeper/league.ts`, `src/lib/leagues/fetchLive.ts` (Sleeper path) | `id/name/position/team/status`, rosterSlot, headshot | 120s, `fresh` | 0.85 |
-| ESPN league/roster identity | `src/lib/espn/league.ts`, `fetchLive.ts` (ESPN path) | identity + status (`mTeam/mRoster/mSettings`) | 300s, `fresh` | 0.85 |
+| ESPN league/roster identity | `src/lib/espn/league.ts`, `fetchLive.ts` (ESPN path) | identity + status (`mTeam/mRoster/mSettings`); the **credential origin** — account sign-in or league override, from `resolveEspnCredentials` — ships as an assumption on the returned `SourceMeta`, on the failure path as well as the success path | 300s, `fresh` | 0.85 |
 | FantasyPros ECR | `src/lib/fantasypros/scrape.ts`, `enrich.ts`, `toEnvelope.ts` (rankings enrichment) | perceivedValue, trueValue, ownershipLeverage, volatility, confidence | 24h, `fresh`/`stale` | 0.85 |
 | Sleeper trending add/drop | `src/lib/sleeper/trendingProxy.ts` | trendingMomentum (proxy) | 24h window | — |
 | ESPN headline velocity | `src/lib/espn/news.ts`, `newsMatch.ts` | trendingMomentum (preferred) | 72h window | — |

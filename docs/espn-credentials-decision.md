@@ -1,6 +1,14 @@
 # ESPN credentials: what is possible, and what we should build
 
-**Decision date** 2026-09-02 · **Status** accepted, implementation in progress
+**Decision date** 2026-09-02 · **Status** accepted and **implemented** 2026-09-02
+
+Shipped: `accountCredentials` (one row per user) in all five schema homes;
+`resolveEspnCredentials` / `getAccountCredentials` / `setAccountCredentials` /
+`deleteAccountCredentials` / `describeEspnCredentialCoverage` in
+`src/lib/leagues.ts`; the ESPN sign-in section on `/settings/account`
+(`EspnSignInForm.tsx`); cookies made optional on the add-league form when a pair
+is saved; and `fetchLeagueLive` reading resolution rather than the per-league
+row. Verified against four live ESPN leagues on one account.
 
 ---
 
@@ -74,8 +82,18 @@ unavailable** — so there is never an ambiguous "which secret did it use".
 
 Encryption is unchanged: AES-256-GCM under `CREDENTIAL_ENCRYPTION_KEY`, with the
 IV and auth tag stored beside the ciphertext, exactly as `leagueCredentials`
-does today. Moving the row does not weaken the seal, and
-`scripts/reencrypt-credentials.ts` continues to cover both tables.
+does today. Moving the row does not weaken the seal.
+
+**`scripts/reencrypt-credentials.ts` did NOT cover both tables**, and this
+sentence claimed it did before anyone checked. The script read
+`leagueCredentials` only — correct when that was the only sealed table, and a
+silent stranding bug from the moment `accountCredentials` shipped: rotating the
+key would have migrated the overrides, left every account sign-in sealed under
+the old key, and broken ESPN for every user who had done the normal thing. The
+script now prepares and verifies both tables in memory before writing either,
+and `src/lib/ops/reencryptCoverage.test.ts` finds sealed tables structurally —
+by their `iv`/`authTag`/`ciphertext` columns — so the next credential table
+cannot be forgotten rather than merely remembered.
 
 ### Why not the alternatives
 
@@ -119,7 +137,7 @@ an expired cookie, which the user can fix in under a minute — if anybody tells
 them. It now reads:
 
 > ESPN rejected the stored credentials (HTTP 401). ESPN's espn_s2 and SWID
-> cookies expire; paste fresh ones in Settings → Leagues to restore this league.
+> cookies expire; replace them once in Settings → Account and every ESPN league recovers.
 
 and, importantly, an anonymous 401 does **not** say that — telling somebody to
 re-paste cookies they never entered would send them to a page that cannot help.

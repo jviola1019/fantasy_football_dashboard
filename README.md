@@ -319,6 +319,157 @@ ECE — each cross-checked against the value *parsed out of*
 `docs/brier-results.md` rather than retyped — and that P(clear) rises with the
 projection at every position. Refit with `npm run fit:weekly-prob`.
 
+
+### The wider search: `npm run gauntlet:weekly`
+
+Testing five covariates inside one functional form and reporting "nothing works"
+overstates what was searched. `scripts/model-gauntlet.ts` widens it as far as the
+committed data allows, under exactly the same evidential standard — nothing is
+relaxed to produce a winner — and writes
+[`docs/model-gauntlet.md`](docs/model-gauntlet.md).
+
+- **Stage 1 — 44 covariates** (four positions × eleven), nested likelihood-ratio,
+  Holm-corrected, then required to improve out-of-fold Brier. The eleven include
+  the original five plus residual volatility, prior mean actual, projection rank
+  *within the week*, projection versus the player's own prior mean, games of
+  history, and a quadratic term.
+- **Stage 2 — five alternative model families**, compared on **paired**
+  out-of-fold loss (`src/lib/stats/pairedBootstrap.ts`) because families are not
+  nested and a likelihood-ratio test does not apply: isotonic regression
+  (`src/lib/stats/isotonic.ts`), gradient boosting, and a random forest, each on
+  the single projection and on all eleven features.
+- **Positive controls in both stages.** "Nothing passed" and "the comparison is
+  broken" look identical from outside. A leaked feature must be caught (it is, at
+  LR 606–1535) and a family handed it must win (it does, ΔBrier −0.20 to −0.24).
+  If either control fails the run exits non-zero and declares itself void.
+
+**Result: nothing beat the shipped model, and four family-position combinations
+were significantly *worse*** — all of them multi-feature. That is overfitting at
+512–1,470 rows per position, not a narrow search, and it is why the shipped model
+stays one variable wide.
+
+The binding constraint on THAT search is the snapshot's seven columns, not the
+algorithms. Which raised the obvious next question, and the answer turned out to
+be different from what the gauntlet's own conclusion assumed — see below.
+
+### Auditing the data first: `npm run audit:model-data`
+
+Every model report here quotes four decimal places; none of them checked the rows
+underneath until `scripts/audit-model-data.ts`. It writes
+[`docs/model-data-audit.md`](docs/model-data-audit.md) and checks row counts per
+season, key uniqueness on `(player, week)`, per-column missingness for the columns
+models actually read, and — the one that matters most —
+**recomputes `fantasy_points_ppr` from its own components** and compares row by
+row.
+
+That check earned its place on the first run: 97 of 40,828 rows disagreed by
+*exactly* 6.0 or 12.0 points. One or two touchdowns. The defect was in the
+recomputation, which had omitted `special_teams_tds` — return scores. With those
+counted, **0 of 40,828 rows disagree**, so the target column every holdout model
+is scored against is trustworthy. An audit has to be equally willing to conclude
+that the auditor was wrong.
+
+Current verdict: 0 malformed rows, 0 duplicate keys, 0 outcome mismatches across
+eight seasons, and base rates of 33–43% against the shipped thresholds — a range
+where a probability model is worth fitting.
+
+### Out-of-holdout: `npm run holdout:weekly`
+
+`docs/model-gauntlet.md` said target share and WOPR "cannot be tested here". That
+was half right and the wrong half was load-bearing: they cannot be *joined onto
+the 2025 rows*, but they do not need joining. nflverse's weekly table carries the
+usage columns **and its own `fantasy_points_ppr` outcome**, so it supports a
+weekly start/sit model in its own right — across **eight seasons**, which also
+means a real held-out-season evaluation rather than leave-one-week-out inside one
+season.
+
+`scripts/holdout-weekly-gauntlet.ts` trains on **2017–2022** and scores
+**2023–2024 exactly once**, writing
+[`docs/holdout-weekly.md`](docs/holdout-weekly.md). Hyperparameters are fixed a
+priori; standardisation is fitted on train only; model selection happens inside
+train by leave-one-**season**-out; per-player history never crosses a season
+boundary. The baseline is deliberately hard — a logistic on the player's own prior
+mean PPR, not climatology — so every other family differs from it by exactly the
+usage block.
+
+**Result: usage beats prior-mean-points out of holdout at TE and WR.**
+
+| position | family | holdout ΔBrier | 95% CI |
+|---|---|---|---|
+| TE | logistic + usage | **−0.0073** | [−0.0112, −0.0035] |
+| TE | gradient boosting + usage | −0.0056 | [−0.0096, −0.0018] |
+| WR | logistic + usage | **−0.0040** | [−0.0058, −0.0022] |
+
+**Leave-one-season-out selection inside train picked the same family that won the
+holdout at 4 of 4 positions** — the result that licenses trusting the procedure,
+more than any single Brier score does.
+
+Three of twelve combinations clear Holm correction on two unseen seasons; one (RB
+random forest) is significantly *worse*. QB gains nothing, which is expected —
+its usage columns are near-empty by construction. TE improves on Brier, skill
+(18.2% → 21.1%), calibration (ECE 0.0647 → 0.0498) **and** AUC (0.7592 → 0.7707)
+simultaneously, and the simple logistic beats both ensembles at every position.
+
+This replicates the season-level finding independently: TE WOPR, TE target share
+and WR target share are the three strongest signals in
+[`docs/variable-validation.md`](docs/variable-validation.md), and the same signals
+now hold weekly, across a season boundary, on data no model saw.
+
+**It does not license shipping, and the report says so.** Production predicts from
+a FantasyPros consensus projection that nflverse does not carry; the baseline here
+is a weaker predictor, and a projection has already absorbed much of the usage
+signal. Whether usage adds anything *on top of a real projection* needs 2025+
+weekly usage alongside the projections. What the holdout does settle is that the
+ceiling in `docs/model-gauntlet.md` was a property of one snapshot's columns, not
+of the problem.
+
+
+### Kickers and team defences: `npm run acquire:kdst` → `npm run holdout:kdst`
+
+The audit above once reported that kickers and team defences "cannot be modelled
+from the data this project holds". True of the committed bundle; **false as a
+claim about the data that exists**. nflverse publishes all three pieces:
+
+| dataset | gives |
+|---|---|
+| `player_stats/player_stats_kicking_<season>.csv` | distance-banded FG makes/misses, PATs |
+| `stats_team/stats_team_week_<season>.csv` | sacks, interceptions, defensive TDs, safeties, blocks |
+| `nfldata/data/games.csv` | final scores → **points allowed** |
+
+`scripts/acquire-nflverse-kdst.ts` fetches eight seasons of all three — 4,372
+kicker-weeks, 4,418 team-defence weeks, 2,209 games — into a **70 KB** bundle.
+Scoring is Sleeper default, defined and boundary-tested in
+[`src/lib/models/kdstScoring.ts`](src/lib/models/kdstScoring.ts). Thresholds are the
+**median weekly score in the training seasons only**, so they are derived from
+data rather than invented, and computed on train so the holdout stays unseen.
+
+**The join is checked, not assumed** — and that check earned its keep. Points
+allowed comes from the opponent's score, and `stats_team_week` back-applies
+modern team abbreviations (the 2017 Raiders are `LV`) while `games.csv` uses the
+era-correct `OAK`. The raw join was **98.86%**, silently dropping every Oakland
+week from 2017–2019. The run refuses below 99%, so it stopped instead of
+publishing. With [`teamAbbr.ts`](src/lib/nflverse/teamAbbr.ts) normalising both
+sides: **100.00%**.
+
+**Result — the finding is the skill level, not the comparison:**
+
+| unit | holdout Brier | skill vs climatology | AUC |
+|---|---|---|---|
+| K | 0.2411 | **0.9%** | 0.544 |
+| DST | 0.2403 | **1.1%** | 0.566 |
+| *(RB, for scale)* | *0.1760* | *25.6%* | *0.802* |
+
+A kicker's or a defence's own scoring history predicts their next week **barely
+better than a coin flip**. Every family lands within thousandths of climatology,
+and boosting is significantly *worse* for defences. This reproduces the familiar
+"streaming kickers and defences is a coin flip" advice on this product's own
+scoring rules, out of holdout, at 100% join coverage.
+
+So K and DST still show no probability in the product — but the reason is now
+**measured rather than assumed**. A ~1% skill number displayed beside an 18–26%
+one would imply an equivalence the data refuses, which is the hazard the QB row
+already carries a warning for, an order of magnitude worse.
+
 ## Data sources
 
 Preferred production adapters:
@@ -356,7 +507,7 @@ Secrets and API keys must remain server-side. Do not expose league tokens or pai
 RAE ships multi-user authentication via Auth.js (NextAuth v5) with the Drizzle adapter (SQLite locally, Postgres in production).
 
 - Passwords are hashed with scrypt (`src/lib/passwords.ts`) — plaintext is never stored.
-- ESPN private-league cookies (`espn_s2` + `SWID`) are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) and never returned to the browser after creation. They are decrypted only inside the server-only `/api/leagues/[id]/refresh` route.
+- ESPN private-league cookies (`espn_s2` + `SWID`) are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) and never returned to the browser after creation — not even masked. They live in `accountCredentials`, **one row per user**, because those cookies authenticate an ESPN *account* rather than a league; `leagueCredentials` remains as a per-league override for anyone whose leagues sit under two ESPN logins. `resolveEspnCredentials` fixes the order — league override, then account, then unavailable — and returns the `origin` with the pair, so "which secret did that request use" always has one answer. Decryption is server-side only, after the per-user ownership check.
 - Sleeper integration uses public endpoints (no auth required).
 - Visit `/login` to sign up, `/settings/leagues` to add leagues, and `POST /api/leagues/[id]/refresh` to pull the live envelope for a specific league.
 - Sign-in errors never echo Auth.js internals — `src/lib/auth/errors.ts` maps every failure class to a friendly string.
@@ -543,7 +694,7 @@ what carry no signal
 npm run smoke                  # smoke-check a Vercel deployment
 npm run check:freshness        # probe the DEPLOYED app's snapshot freshness (needs CRON_SECRET)
 npm run verify:rotation        # prove a rotated secret's PREVIOUS value is now rejected
-npm run reencrypt:credentials  # re-wrap stored league credentials under a new key
+npm run reencrypt:credentials  # re-wrap every stored credential (both tables) under a new key
 npm run seed:account           # create a local account for development
 npm run cache:rankings         # snapshot FantasyPros rankings into the local cache
 npm run deploy                 # currently aliases `next build` — see below
@@ -565,14 +716,61 @@ Recommended production path:
 3. Add persistent cache/database storage if adapter throughput exceeds in-memory or platform cache limits.
 4. Run `npm run test`, `npm run lint`, `npm run typecheck`, and `npm run build` in CI.
 5. Deploy through Vercel or a containerized Next.js host.
+6. **Apply the schema.** See below — this step is manual, and easy to skip because
+   nothing fails until a route reads a table that was never created.
+
+### Applying the Postgres schema
+
+**On Postgres the schema is applied by exactly one action, and it is manual:**
+
+```bash
+curl -X POST https://<deployment>/api/admin/init-db -H "x-init-token: $DB_INIT_TOKEN"
+```
+
+`src/app/api/admin/init-db/route.ts` splits `INIT_SQL` (`src/db/schema-pg.ts`) and
+applies each statement. Every statement is `CREATE TABLE IF NOT EXISTS` /
+`ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, so it is **idempotent** — safe to
+re-run after any deploy, and that is the recommended habit.
+
+Two things make this easy to get wrong, so they are stated plainly:
+
+- **Nothing applies this DDL automatically on Postgres.** SQLite self-heals via
+  `applySqliteSchemaIfNeeded`, and the *snapshot* tables self-heal on both
+  drivers via `ensure*Table`. Core tables — `users`, `leagues`,
+  `accountCredentials`, `leagueCredentials`, `notifications`, `auth_attempts` —
+  do not. A deploy that adds a core table leaves the running build knowing about
+  a table the database has not been told about.
+- **Without `DB_INIT_TOKEN` set, the route returns 503 and does nothing.** It is
+  token-gated, and the token is compared with `safeEqual`.
+
+Adding a core table is therefore a **five-schema-home change plus one operator
+action**. `schemaDrift.test.ts` and `schemaPg.test.ts` enforce the five homes;
+the operator action is on the deploy checklist above because no test can enforce
+it. Runbook for the token itself: `docs/runbooks/db-init-token-rotation.md`.
+
+Code that reads a core table on a rendered page should tolerate its absence via
+`readOrUninitialised` (`src/db/missingRelation.ts`), which returns a fallback for
+a missing relation and rethrows every other database error. `/settings/account`
+uses it, and says "storage is not initialised" rather than the false "nothing
+saved yet".
 
 ## League connection
 
 Private-league connection is implemented (see **Auth and league connection** above):
-1. ESPN private-league cookies (`espn_s2` + `SWID`) are pasted by the user at `/settings/leagues`.
-2. They are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) in the `leagueCredentials` table.
-3. Decryption happens only server-side, only after the per-user ownership check, inside `src/lib/leagues/fetchLive.ts` and the `/api/leagues/[id]/refresh` route.
-4. The client only ever receives derived, validated league state — never the credentials.
+1. ESPN cookies (`espn_s2` + `SWID`) are pasted **once for the account**, at `/settings/account`
+   or while adding the first ESPN league. Every later ESPN league uses that pair, so adding four
+   leagues is one paste and rotating an expired cookie is one edit. `/settings/leagues` still
+   accepts a per-league pair, but only behind an explicit "this league is under a different ESPN
+   login" tick, which is the only case that needs one.
+2. They are encrypted at rest with AES-256-GCM (`src/lib/crypto.ts`) in `accountCredentials`, or
+   in `leagueCredentials` when they are a deliberate override.
+3. A pasted pair is spent on a real ESPN request before it is stored, so a bad paste fails at the
+   form rather than surfacing days later as "ESPN unavailable" on some other page.
+4. Decryption happens only server-side, only after the per-user ownership check, inside
+   `src/lib/leagues/fetchLive.ts` via `resolveEspnCredentials`. The credential's `origin` — account
+   or league override — ships as an assumption on the source metadata, because a 401 is ambiguous
+   until you know which pair was sent.
+5. The client only ever receives derived, validated league state — never the credentials.
 
 Sleeper leagues need no credentials (public API). Yahoo is the one platform still deferred — it requires a registered Yahoo developer app for OAuth.
 
@@ -779,7 +977,7 @@ See `docs/calibration.md` for the production calibration plan (Brier-score targe
 
 ## Known limitations
 
-- ESPN cookies (`espn_s2`, `SWID`) expire periodically. When ESPN refresh starts returning `unavailable`, the user needs to paste fresh cookies into `/settings/leagues`. There is no programmatic refresh path.
+- ESPN cookies (`espn_s2`, `SWID`) expire periodically, and ESPN does not publish when. There is no programmatic refresh path and there cannot be one: ESPN has no OAuth flow, no developer token, and its login is behind a CAPTCHA, so storing a password would add a far more dangerous secret that could not be exchanged for a session. What the product does instead is make the repair one action — `/settings/account` shows how old the stored pair is and replaces it for every ESPN league at once.
 - The Sleeper `/v1/players/nfl` payload is ~19 MB. Solved via the daily Vercel cron at `/api/cron/players-refresh` which snapshots into the `players_snapshots` Postgres table; `loadRAEEnvelope` reads the snapshot first and only falls back to a live fetch when the snapshot is older than 36h or missing. Vercel Cron Jobs are gated by the `CRON_SECRET` env var.
 - Yahoo Fantasy adapter is deferred (OAuth requires a registered Yahoo developer app).
 - No paid feeds are used. `opportunity` now comes from FREE nflverse snap counts (role proxy from the latest season's games, via `/api/cron/opportunity-refresh`); `trendingMomentum` from free Sleeper trending + ESPN news velocity. Off-season, opportunity reflects last season's role (declared in the source assumptions).
