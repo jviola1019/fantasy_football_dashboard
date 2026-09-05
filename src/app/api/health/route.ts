@@ -10,6 +10,7 @@ import { getLatestSeasonStatsSnapshot } from "@/lib/sleeper/seasonStatsSnapshot"
 import { getNflState } from "@/lib/sleeper/league";
 import { evaluateFreshness, type FreshnessContract, type FreshnessResult } from "@/lib/ops/freshness";
 import { SNAPSHOT_CONTRACT } from "@/lib/ops/snapshotContracts";
+import { probeCoreTables } from "@/lib/ops/schemaProbe";
 
 export const runtime = "nodejs";
 
@@ -82,6 +83,23 @@ interface HealthChecks {
   credentialEncryptionKey: boolean;
   databaseUrl: boolean;
   database: DatabaseStatus;
+  /**
+   * Core tables the deployment is missing.
+   *
+   * `database: "ok"` was decided by ONE probe against `users` — a table that has
+   * existed since the first migration, so it can never be absent when a newer
+   * one is. `accountCredentials` shipped in PR #43, is created only by the
+   * manual `POST /api/admin/init-db`, and nothing applies that DDL
+   * automatically on Postgres. A deployment could therefore be missing the
+   * table a rendered page reads while this endpoint reported "ok" — the health
+   * check drawing its conclusion from a table that predates the drift it needs
+   * to detect.
+   *
+   * Snapshot tables are deliberately NOT probed: they self-heal at runtime via
+   * `ensure*Table`, so their absence is a normal pre-first-cron state rather
+   * than a deployment fault.
+   */
+  missingCoreTables: string[];
 }
 
 interface HealthResponse {
@@ -97,6 +115,10 @@ interface HealthResponse {
   // Present only when requested with `?snapshots=1`. Cron data-contract
   // freshness; informational (does not affect `status`).
   snapshots?: FreshnessResult[];
+  /** Public when non-empty — see the note at the assignment site. */
+  missingCoreTables?: string[];
+  /** The one documented action that fixes `missingCoreTables`. */
+  remedy?: string;
 }
 
 interface CheckResult {
@@ -138,22 +160,42 @@ async function checkDatabase(): Promise<CheckResult> {
 
 export async function GET(request: Request): Promise<Response> {
   const dbCheck = await checkDatabase();
+  // Only worth probing when the database answered at all; against an
+  // unreachable database every table would read as "missing" and the report
+  // would blame a schema for a connection fault.
+  const missingCoreTables = dbCheck.status === "ok" ? await probeCoreTables() : [];
   const checks: HealthChecks = {
     authSecret: Boolean(process.env.AUTH_SECRET?.trim()),
     credentialEncryptionKey: Boolean(process.env.CREDENTIAL_ENCRYPTION_KEY?.trim()),
     databaseUrl: Boolean(process.env.DATABASE_URL?.trim()),
-    database: dbCheck.status
+    database: dbCheck.status,
+    missingCoreTables
   };
 
+  // A missing core table DOES flip the status, unlike snapshot staleness.
+  // The distinction is not arbitrary: a behind cron is a data-age problem that
+  // resolves itself, while a missing table means a feature cannot function
+  // until a human runs the init. "degraded" is exactly that — serving, but not
+  // whole — and it is the only signal an operator gets that the DDL step was
+  // skipped.
   const status: "ok" | "degraded" =
     checks.authSecret &&
     checks.credentialEncryptionKey &&
     checks.databaseUrl &&
-    checks.database === "ok"
+    checks.database === "ok" &&
+    missingCoreTables.length === 0
       ? "ok"
       : "degraded";
 
   const body: HealthResponse = { status };
+  // WHICH tables are missing is named publicly, unlike the env-var checks.
+  // Table names are schema, not secrets, and an operator seeing `degraded` with
+  // no cause has to go and guess. The remedy is one documented, idempotent
+  // request, so saying what to fix costs nothing and saves the guessing.
+  if (missingCoreTables.length > 0) {
+    body.missingCoreTables = missingCoreTables;
+    body.remedy = "POST /api/admin/init-db with header x-init-token: $DB_INIT_TOKEN (idempotent)";
+  }
   // Operator-only detail requires the same bearer the cron routes use (SEC-03):
   //   - `checks` (which env vars are configured) + DB error text
   //   - `?snapshots=1` (runs DB reads — gating it prevents unauthenticated,
