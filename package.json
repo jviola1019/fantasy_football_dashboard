@@ -88,21 +88,21 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.11.3",
+    "@axe-core/playwright": "^4.13.0",
     "@lhci/cli": "^0.15.1",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^25.7.0",
+    "@types/node": "^25.9.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vercel/config": "^0.6.0",
+    "@vercel/config": "^0.7.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.39.4",
-    "eslint-config-next": "^16.3.0",
+    "eslint-config-next": "^16.3.4",
     "typescript": "^6.0.3",
-    "tsx": "^4.19.2",
-    "vitest": "^4.1.6"
+    "tsx": "^4.23.13",
+    "vitest": "^4.1.11"
   }
 }
