@@ -29,6 +29,31 @@
  * train. Baseline is a logistic on the unit's own prior mean score — the hard
  * baseline, not climatology.
  *
+ * ── THE OPPONENT, which the first version of this script left out ─────────
+ *
+ * That first pass used ONLY each unit's own history and concluded kickers and
+ * defences were near-unpredictable (skill ~1%). That was the worst possible
+ * feature set for these two positions specifically, and the conclusion was
+ * about the features rather than about the units.
+ *
+ * A defence's score is dominated by POINTS ALLOWED, and points allowed is
+ * mostly a property of the offence it happens to be facing. A good defence
+ * against a good offence is a bad fantasy week. Streaming a defence is a
+ * MATCHUP decision, and matchup was exactly what the model could not see.
+ * Kickers are the same story one step removed: attempts come from drives, and
+ * drives come from an offence that moves the ball and then stalls.
+ *
+ * So the feature block now carries, all from weeks strictly before this one:
+ *
+ *   DST   opponent's prior mean points SCORED   (the offence it must stop)
+ *         opponent's prior mean points ALLOWED  (do they trade blows?)
+ *         own prior mean points allowed
+ *   K     own team's prior mean points SCORED   (drives, therefore attempts)
+ *         opponent's prior mean points ALLOWED  (a soft defence means drives)
+ *         own prior mean points allowed
+ *
+ * Whether that rescues the result is the experiment. It is reported either way.
+ *
  * ── THE JOIN IS CHECKED, NOT ASSUMED ──────────────────────────────────────
  *
  * Defensive scoring needs points allowed, which comes from the opponent's final
@@ -74,6 +99,8 @@ const n = (v: string | undefined): number => {
 interface Unit {
   kind: "K" | "DST";
   id: string;
+  /** The NFL team this unit plays for — the join key for matchup features. */
+  team: string;
   season: number;
   week: number;
   points: number;
@@ -81,21 +108,41 @@ interface Unit {
   extras: number[];
 }
 
-function load(): { units: Unit[]; joinRate: number; joinMisses: string[] } {
+/** One team's result in one week, and who they played. */
+interface TeamWeek {
+  scored: number;
+  allowed: number;
+  opponent: string;
+}
+
+function load(): { units: Unit[]; teamWeek: Map<string, TeamWeek>; joinRate: number; joinMisses: string[] } {
   const bundle = JSON.parse(gunzipSync(readFileSync(BUNDLE)).toString("utf8")) as Record<string, string>;
 
   // Points allowed = the OPPONENT'S final score, from games.csv.
   const games = parseCsvRows(bundle.games!);
   const scored = new Map<string, number>();
+  const teamWeek = new Map<string, TeamWeek>();
   for (const g of games.rows) {
     if (g.game_type !== "REG") continue;
     // Normalised on BOTH sides: `stats_team_week` back-applies modern
     // abbreviations (2017 Raiders are LV) while games.csv uses the era-correct
     // one (OAK). Raw keys drop ~48 team-weeks and nothing notices.
     const key = (team: string) => `${g.season}|${g.week}|${normalizeTeamAbbr(team)}`;
+    const home = normalizeTeamAbbr(g.home_team);
+    const away = normalizeTeamAbbr(g.away_team);
     // Each side's points ALLOWED is the other side's points scored.
     scored.set(key(g.home_team!), n(g.away_score));
     scored.set(key(g.away_team!), n(g.home_score));
+    teamWeek.set(key(g.home_team!), {
+      scored: n(g.home_score),
+      allowed: n(g.away_score),
+      opponent: away
+    });
+    teamWeek.set(key(g.away_team!), {
+      scored: n(g.away_score),
+      allowed: n(g.home_score),
+      opponent: home
+    });
   }
 
   const units: Unit[] = [];
@@ -122,6 +169,7 @@ function load(): { units: Unit[]; joinRate: number; joinMisses: string[] } {
         units.push({
           kind: "K",
           id: r.player_id!,
+          team: normalizeTeamAbbr(r.team),
           season,
           week: Number(r.week),
           points: kickerPoints({
@@ -156,6 +204,7 @@ function load(): { units: Unit[]; joinRate: number; joinMisses: string[] } {
         units.push({
           kind: "DST",
           id: normalizeTeamAbbr(r.team),
+          team: normalizeTeamAbbr(r.team),
           season,
           week: Number(r.week),
           points: defencePoints({
@@ -173,7 +222,7 @@ function load(): { units: Unit[]; joinRate: number; joinMisses: string[] } {
       }
     }
   }
-  return { units, joinRate: joinAttempts > 0 ? joinHits / joinAttempts : 0, joinMisses };
+  return { units, teamWeek, joinRate: joinAttempts > 0 ? joinHits / joinAttempts : 0, joinMisses };
 }
 
 interface Sample {
@@ -183,7 +232,7 @@ interface Sample {
 }
 
 /** Prior-weeks features, reset each season. Index 0 is the baseline predictor. */
-function buildSamples(units: Unit[], threshold: number): Sample[] {
+function buildSamples(units: Unit[], threshold: number, teamWeek: Map<string, TeamWeek>): Sample[] {
   const out: Sample[] = [];
   const seasons = [...new Set(units.map((u) => u.season))].sort((a, b) => a - b);
   const extrasWidth = units[0]?.extras.length ?? 0;
@@ -191,26 +240,74 @@ function buildSamples(units: Unit[], threshold: number): Sample[] {
   for (const season of seasons) {
     const inSeason = units.filter((u) => u.season === season).sort((a, b) => a.week - b.week);
     const hist = new Map<string, { n: number; pts: number; pts2: number; hits: number; extras: number[] }>();
-    for (const u of inSeason) {
-      const h = hist.get(u.id);
-      if (h && h.n >= MIN_HISTORY) {
-        const mean = h.pts / h.n;
-        const variance = Math.max(0, h.pts2 / h.n - mean * mean);
-        out.push({
-          season,
-          outcome: u.points >= threshold ? 1 : 0,
-          x: [mean, h.hits / h.n, Math.sqrt(variance), h.n, ...h.extras.map((e) => e / h.n)]
+    // Every team's scoring record SO FAR this season, advanced week by week
+    // alongside the unit loop. Reading a team's whole-season average would let
+    // week 3 see week 14, which is the leak this whole design exists to avoid.
+    const teamForm = new Map<string, { n: number; scored: number; allowed: number }>();
+    const weeks = [...new Set(inSeason.map((u) => u.week))].sort((a, b) => a - b);
+
+    for (const week of weeks) {
+      const priorOf = (team: string) => teamForm.get(`${season}|${team}`) ?? { n: 0, scored: 0, allowed: 0 };
+
+      for (const u of inSeason.filter((x) => x.week === week)) {
+        const h = hist.get(u.id);
+        const meta = teamWeek.get(`${season}|${u.week}|${u.team}`);
+        const own = priorOf(u.team);
+        const opp = meta ? priorOf(meta.opponent) : { n: 0, scored: 0, allowed: 0 };
+        // MIN_HISTORY applies to the matchup side too: an opponent with no
+        // record yet contributes a league-average placeholder rather than a
+        // zero, which would read as "the best possible matchup".
+        const ownScored = own.n > 0 ? own.scored / own.n : 22;
+        const ownAllowed = own.n > 0 ? own.allowed / own.n : 22;
+        const oppScored = opp.n > 0 ? opp.scored / opp.n : 22;
+        const oppAllowed = opp.n > 0 ? opp.allowed / opp.n : 22;
+
+        if (h && h.n >= MIN_HISTORY) {
+          const mean = h.pts / h.n;
+          const variance = Math.max(0, h.pts2 / h.n - mean * mean);
+          out.push({
+            season,
+            outcome: u.points >= threshold ? 1 : 0,
+            x: [
+              mean,
+              h.hits / h.n,
+              Math.sqrt(variance),
+              h.n,
+              ...h.extras.map((e) => e / h.n),
+              // THE MATCHUP BLOCK. For a defence the first of these is the
+              // offence it has to stop, which is most of its score; for a
+              // kicker it is their own offence, which is where attempts come
+              // from.
+              u.kind === "DST" ? oppScored : ownScored,
+              u.kind === "DST" ? oppAllowed : oppAllowed,
+              ownAllowed
+            ]
+          });
+        }
+
+        const p =
+          hist.get(u.id) ?? { n: 0, pts: 0, pts2: 0, hits: 0, extras: new Array<number>(extrasWidth).fill(0) };
+        hist.set(u.id, {
+          n: p.n + 1,
+          pts: p.pts + u.points,
+          pts2: p.pts2 + u.points * u.points,
+          hits: p.hits + (u.points >= threshold ? 1 : 0),
+          extras: p.extras.map((e, i) => e + (u.extras[i] ?? 0))
         });
       }
-      const p =
-        hist.get(u.id) ?? { n: 0, pts: 0, pts2: 0, hits: 0, extras: new Array<number>(extrasWidth).fill(0) };
-      hist.set(u.id, {
-        n: p.n + 1,
-        pts: p.pts + u.points,
-        pts2: p.pts2 + u.points * u.points,
-        hits: p.hits + (u.points >= threshold ? 1 : 0),
-        extras: p.extras.map((e, i) => e + (u.extras[i] ?? 0))
-      });
+
+      // Advance team form only AFTER every unit in this week has been scored,
+      // so no row can see its own game.
+      for (const team of new Set(inSeason.filter((x) => x.week === week).map((x) => x.team))) {
+        const meta = teamWeek.get(`${season}|${week}|${team}`);
+        if (!meta) continue;
+        const cur = teamForm.get(`${season}|${team}`) ?? { n: 0, scored: 0, allowed: 0 };
+        teamForm.set(`${season}|${team}`, {
+          n: cur.n + 1,
+          scored: cur.scored + meta.scored,
+          allowed: cur.allowed + meta.allowed
+        });
+      }
     }
   }
   return out;
@@ -250,7 +347,7 @@ const FAMILIES: Family[] = [
     }
   },
   {
-    name: "logistic + volume features",
+    name: "logistic + volume + matchup",
     cols: (w) => Array.from({ length: w }, (_, i) => i),
     fit: (X, y) => {
       const f = fitLogistic(X, y, { l2: L2 });
@@ -258,7 +355,7 @@ const FAMILIES: Family[] = [
     }
   },
   {
-    name: "gradient boosting + volume",
+    name: "gradient boosting + volume + matchup",
     cols: (w) => Array.from({ length: w }, (_, i) => i),
     fit: (X, y) => {
       const m = fitGradientBoosting(X, y, {
@@ -274,7 +371,7 @@ const FAMILIES: Family[] = [
     }
   },
   {
-    name: "random forest + volume",
+    name: "random forest + volume + matchup",
     cols: (w) => Array.from({ length: w }, (_, i) => i),
     fit: (X, y) => {
       const m = fitRandomForest(X, y, {
@@ -306,7 +403,7 @@ function scoreAll(preds: number[], y: (0 | 1)[], climatology: number) {
 }
 
 function main(): void {
-  const { units, joinRate, joinMisses } = load();
+  const { units, teamWeek, joinRate, joinMisses } = load();
   const lines: string[] = [];
 
   lines.push("# Out-of-holdout start/sit — kickers and team defences\n");
@@ -347,7 +444,7 @@ function main(): void {
     // THE THRESHOLD, from TRAIN ONLY. See the header for why it is a median.
     const trainPoints = mine.filter((u) => TRAIN_SEASONS.includes(u.season)).map((u) => u.points);
     const threshold = Math.round(quantile(trainPoints, 0.5) * 2) / 2;
-    const all = buildSamples(mine, threshold);
+    const all = buildSamples(mine, threshold, teamWeek);
     const train = all.filter((s) => TRAIN_SEASONS.includes(s.season));
     const holdout = all.filter((s) => HOLDOUT_SEASONS.includes(s.season));
 
