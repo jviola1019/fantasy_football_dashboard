@@ -1,6 +1,6 @@
 # Model gauntlet — weekly start/sit
 
-**Executed** 2026-09-05T03:24:35.672Z  
+**Executed** 2026-09-05T04:42:59.423Z  
 
 **Data** `reports/2026-08-20/brier-prospective.json.gz` — 2025 season, prospective rows only.
 
@@ -153,6 +153,18 @@ That pattern has a name and it is not 'the search was too narrow'. Every multi-f
 
 
 It also says something worth keeping about the projection itself: FantasyPros' consensus already aggregates the opponent, the injury report and the depth chart. A player's own residual history is largely a re-reading of information the projection has already used, which is exactly why 44 covariates built from it add nothing.
+
+
+### The obvious follow-up, and why there is nothing to run
+
+
+Isotonic's out-of-fold ECE is BETTER than the shipped logistic's at WR (0.0157 vs 0.0230) on a model whose entire value is calibration. The natural next step looks like "recalibrate the logistic with isotonic and ship that".
+
+
+It is not a new model. Isotonic regression depends only on the ORDERING of its input, and a one-variable logistic is monotone in its feature — so isotonic-on-the-score and isotonic-on-the-feature are provably the same fit (pinned in `src/lib/stats/isotonic.test.ts`: identical block values, zero prediction difference). The "recalibrated logistic" IS the isotonic row in the table above, which loses on Brier at all four positions. The ECE gain is bought with resolution, and Brier already prices both.
+
+
+That changes the moment a second feature enters, because the composite score is then no longer a monotone function of any single input. Which is another way of saying the same thing this whole document says: the constraint is the data, not the calibration method.
 
 
 ## What a null result here does and does not mean
