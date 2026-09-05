@@ -13,6 +13,34 @@ describe("isMissingRelation recognises only a missing table", () => {
     expect(isMissingRelation(new Error("SQLITE_ERROR: no such table: accountCredentials"))).toBe(true);
   });
 
+  it("matches through a WRAPPED driver error — found by schemaProbe", () => {
+    // Drizzle wraps driver errors in its own error whose message is generic;
+    // the real text is on `.cause`. Checking only the top level returned false
+    // for a genuinely missing table on the `db.run` path while returning true
+    // on `db.all` — a guard that worked in one test and would not have worked
+    // in production.
+    const inner = Object.assign(new Error("no such table: accountCredentials"), {
+      code: "SQLITE_ERROR"
+    });
+    const wrapped = new Error("Failed query: select 1", { cause: inner });
+    expect(isMissingRelation(wrapped)).toBe(true);
+    // Two levels deep, and a Postgres code carried on the cause.
+    expect(
+      isMissingRelation(new Error("outer", { cause: new Error("mid", { cause: inner }) }))
+    ).toBe(true);
+    expect(
+      isMissingRelation(
+        new Error("wrapper", { cause: Object.assign(new Error("x"), { code: "42P01" }) })
+      )
+    ).toBe(true);
+  });
+
+  it("does not loop forever on a self-referential cause", () => {
+    const a = new Error("connection refused") as Error & { cause?: unknown };
+    a.cause = a;
+    expect(isMissingRelation(a)).toBe(false);
+  });
+
   it("does NOT match any other database failure", () => {
     // The whole safety of this helper rests on this list. A connection refusal
     // read as "not initialised yet" would render a calm, false "nothing saved".

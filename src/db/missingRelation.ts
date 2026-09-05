@@ -26,14 +26,25 @@
 const PG_UNDEFINED_TABLE = "42P01";
 
 export function isMissingRelation(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const code = (err as { code?: unknown }).code;
-  if (code === PG_UNDEFINED_TABLE) return true;
-  const message = err instanceof Error ? err.message : String((err as { message?: unknown }).message ?? "");
-  // postgres.js surfaces the code; better-sqlite3 and some drizzle wrappers only
-  // give a message. Both dialects are matched, and neither pattern can match a
-  // connection, permission or constraint failure.
-  return /relation ".*" does not exist/i.test(message) || /no such table/i.test(message);
+  // WALK THE CAUSE CHAIN. Drizzle wraps driver errors in its own
+  // `DrizzleQueryError`, whose own message is generic — the real "no such
+  // table" text lives on `.cause`. Checking only the top-level message made
+  // this return false for a genuinely missing table on the `db.run` path,
+  // while returning true on `db.all`, which is the kind of inconsistency that
+  // makes a guard work in a test and not in production.
+  let node: unknown = err;
+  for (let depth = 0; node && typeof node === "object" && depth < 5; depth += 1) {
+    const code = (node as { code?: unknown }).code;
+    if (code === PG_UNDEFINED_TABLE) return true;
+    const message =
+      node instanceof Error ? node.message : String((node as { message?: unknown }).message ?? "");
+    // postgres.js surfaces the code; better-sqlite3 gives only a message. Both
+    // dialects are matched, and neither pattern can match a connection,
+    // permission or constraint failure.
+    if (/relation ".*" does not exist/i.test(message) || /no such table/i.test(message)) return true;
+    node = (node as { cause?: unknown }).cause;
+  }
+  return false;
 }
 
 /**
