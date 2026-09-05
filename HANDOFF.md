@@ -20,6 +20,7 @@ that, and the closing turned up four more defects of the same shape.
 | 3 | nothing in the UI could write an account pair | no form existed |
 | 4 | `scripts/reencrypt-credentials.ts` read `leagueCredentials` only | a key rotation would have migrated the overrides and left **every account sign-in undecryptable** — and `docs/espn-credentials-decision.md` asserted it "continues to cover both tables" |
 | 5 | `check-doc-secrets` used bare `git ls-files` | committed files only, so a credential pasted into a **new** file — the case it exists for — was invisible; it scanned 379 files and said "clean" about a set excluding everything new |
+| 6 | nothing applies `INIT_SQL` automatically on Postgres | `accountCredentials` may not exist in production at all; a rendered page reading it would 500 `/settings/account`, taking change-password and delete-account down with it |
 
 **The recurring shape, now five for five this week:** a check or mechanism that
 cannot see its own input reports success. Both new gates were shown to FAIL on
@@ -43,19 +44,168 @@ source metadata on **both** return paths, including the failure path — a 401 i
 ambiguous until you know which pair was sent, and that is exactly the case where
 knowing matters.
 
+### The deployment trap #6 exposed, and why it was invisible until now
+
+Core tables are created by **one manual, token-gated action** —
+`POST /api/admin/init-db`, which applies `INIT_SQL`. SQLite self-heals; the
+*snapshot* tables self-heal on both drivers; **core tables do not, on Postgres**.
+PR #43 added `accountCredentials` to all five schema homes and nothing read it,
+so the gap was inert and undetectable. The moment a rendered page reads it, that
+same gap is a 500 on a page that works today.
+
+Handled without mutating anything: `src/db/missingRelation.ts` returns a fallback
+for a missing relation and **rethrows every other database error** — a connection
+refusal must never read as "not initialised yet". `/settings/account` renders
+"storage is not initialised on this deployment", explicitly NOT the false
+"nothing saved yet"; `resolveEspnCredentials` degrades to no-account-pair so an
+uninitialised database cannot take down every route; and the WRITE path is
+deliberately **not** wrapped, because a save that silently did nothing is the
+worst outcome on that page. Shown non-vacuous: neutering the guard fails 3 of 18.
+
+The README now documents `init-db` — it did not mention the route, the token, or
+the idempotency **anywhere**, so the only way to create the production schema was
+undocumented.
+
+### The model gauntlet — the deferred comparison, executed
+
+`test:covariates` returning "0 of 20 significant" read like a problem. It was
+not; it was a narrow search reported honestly. `npm run gauntlet:weekly`
+(`scripts/model-gauntlet.ts`) widens it as far as the committed data allows, at
+the same evidential standard — **nothing was relaxed to produce a winner**.
+
+- **Stage 1: 44 covariates** (4 positions × 11), nested LR, Holm, then required
+  to improve out-of-fold Brier. **0 survivors.** Best raw p is 0.0164 against a
+  Holm threshold of 0.00114.
+- **Stage 2: 5 alternative families** on paired out-of-fold loss — isotonic,
+  gradient boosting, random forest, each on one feature and on eleven.
+  **0 beat the shipped model.**
+- **4 of 20 family-position combinations are significantly WORSE**, every one of
+  them multi-feature, boosting-on-11 worst at three of four positions. That is
+  overfitting at 512–1,470 rows per position — the corrective is more data, not
+  more parameters.
+- **Controls passed:** the leaked feature is caught at LR 606–1535 and the family
+  handed it wins by ΔBrier −0.20 to −0.24. The script exits non-zero and declares
+  itself void if they ever stop firing, because "nothing passed" and "the
+  comparison is broken" are otherwise indistinguishable.
+
+**The binding constraint is data, not algorithms, and this is the finding worth
+carrying forward.** Target share and WOPR are the strongest season-level signals
+in `docs/variable-validation.md` and could not be tested here at all: the
+nflverse bundle covers **2017–2024**, these weekly rows are **2025**, and no
+Sleeper→gsis crosswalk exists in the repo. The next genuinely wider search needs
+2025 weekly usage plus that crosswalk — not another ensemble on the same seven
+columns.
+
+Two library modules came out of it, both with their own tests rather than living
+in a script: `src/lib/stats/isotonic.ts` (PAVA, 14 tests) and
+`src/lib/stats/pairedBootstrap.ts` (9 tests). The shipped model's disclosure now
+reports the search as a LIMIT — one predictor by evidence, not by omission.
+
+### The data audit, and the out-of-holdout result
+
+Two things came after the gauntlet, and the second one **overturned the
+gauntlet's own conclusion about what was reachable**.
+
+**1. `npm run audit:model-data`** — nothing in this repo had ever checked the rows
+underneath the four-decimal model reports. It now checks row counts per season,
+key uniqueness on `(player, week)`, per-column missingness, and recomputes
+`fantasy_points_ppr` from its own components. That last check fired immediately:
+97 of 40,828 rows off by *exactly* 6.0 or 12.0 — one or two touchdowns — because
+the recomputation had omitted `special_teams_tds`. **The defect was mine, not the
+data's.** With return scores counted, 0 of 40,828 disagree. Also clean: 0
+malformed rows, 0 duplicate keys, base rates 33–43% against the shipped
+thresholds.
+
+**2. `npm run holdout:weekly`** — I had written that target share and WOPR
+"cannot be tested here". Half right, and the wrong half was load-bearing: they
+cannot be *joined onto the 2025 rows*, but they need no joining, because nflverse's
+weekly table carries the usage columns **and its own `fantasy_points_ppr`
+outcome**. Eight seasons of it. Conflating "cannot test the shipped model's
+projection feature" with "cannot test usage at all" was the error.
+
+Design: TRAIN 2017–2022, HOLDOUT 2023–2024 scored **once**. Hyperparameters fixed
+a priori, standardisation fitted on train only, selection by leave-one-**season**-out
+inside train, per-player history never crossing a season boundary. Baseline is
+deliberately hard — a logistic on the player's own prior mean PPR, not
+climatology — so every family differs from it by exactly the usage block.
+
+**Usage beats prior-mean-points out of holdout at TE and WR:**
+
+| position | family | holdout ΔBrier | 95% CI |
+|---|---|---|---|
+| TE | logistic + usage | **−0.0073** | [−0.0112, −0.0035] |
+| TE | gradient boosting + usage | −0.0056 | [−0.0096, −0.0018] |
+| WR | logistic + usage | **−0.0040** | [−0.0058, −0.0022] |
+
+**Leave-one-season-out selection inside train chose the same family that won the holdout at 4 of 4 positions.** 3 of 12 clear Holm on two unseen seasons; 1 (RB random forest) is significantly
+worse; QB gains nothing, as expected since its usage columns are near-empty. TE
+improves Brier, skill (18.2% → 21.1%), calibration (ECE 0.0647 → 0.0498) **and**
+AUC (0.7592 → 0.7707) at once, and the plain logistic beats both ensembles at
+every position — the same "flexibility loses at this sample size" pattern the
+gauntlet found.
+
+**It replicates the season-level result independently.** TE WOPR, TE target share
+and WR target share are the three strongest signals in
+`docs/variable-validation.md`; the same signals now hold weekly, across a season
+boundary, on rows no model saw.
+
+**NOTHING SHIPPED, and the reason is specific.** Production predicts from a
+FantasyPros consensus projection that nflverse does not carry, and a projection
+has already absorbed much of the usage signal — so beating prior-mean-points does
+not establish beating a real projection. That test needs 2025+ weekly usage
+alongside the projections. What the holdout settles is that the ceiling in
+`docs/model-gauntlet.md` was a property of one snapshot's seven columns, not of
+the problem, and the next acquisition is now justified by evidence rather than
+hope.
+
+New library modules, each with tests rather than living in a script:
+`stats/isotonic.ts` (14), `stats/pairedBootstrap.ts` (9), `stats/auc.ts` (8 —
+including a canary asserting an *analytically derived* AUC of exactly 0.875).
+
+### Kickers and defences — the "impossible" that wasn't
+
+I reported that K and DST "cannot be modelled from the data this project holds".
+That was a statement about the committed bundle presented as a statement about
+the world, and it was wrong. nflverse publishes kicking weeklies, team defensive
+weeklies and final scores; `npm run acquire:kdst` pulls eight seasons of all
+three into **70 KB**.
+
+- **Scoring** is Sleeper default in `src/lib/models/kdstScoring.ts`, with the
+  points-allowed bands as an explicit ordered table tested at every boundary —
+  an off-by-one there moves a week by 3 points and still looks plausible.
+- **Thresholds** are the median weekly score in TRAIN seasons only. Not a round
+  number I chose, and not fitted on the holdout.
+- **The join guard fired.** Points allowed comes from the opponent's score, and
+  `stats_team_week` back-applies modern abbreviations (2017 Raiders = `LV`) while
+  `games.csv` says `OAK`. Raw join: **98.86%** — every Oakland week 2017–2019
+  dropped, invisibly. The script refuses below 99%, so it stopped rather than
+  publishing. With `nflverse/teamAbbr.ts`: **100.00%**.
+
+**The result is the skill level, not the comparison.** K holdout skill **0.9%**
+(AUC 0.544), DST **1.1%** (AUC 0.566), against RB **25.6%** (AUC 0.802) under the
+identical protocol. Their own history barely predicts their next week; every
+family sits within thousandths of climatology and boosting is significantly worse
+for defences. 2 of 2 selection agreements, 0 of 6 families beat the baseline.
+
+**Consequence in the product:** K and DST still show no probability, but the
+panel now says why in measured terms — ~1% skill against 18–26% — instead of the
+old, false "there is no data to fit against". That copy has been corrected, and
+so has `audit-model-data.ts`, which was generating the same wrong claim.
+
 **Still open, deliberately:**
 
 - **The operator must rotate the `espn_s2` pasted into the 2026-09-02 chat.** It
   was used only as an env var, never written to a file or a commit; both values
   are in `BURNED_SECRET_HASHES` so they can never be committed. Rotating is an
   ESPN sign-out/sign-in and only the owner can do it.
-- **The model-family comparison** the user asked for (gradient boosting, blends,
-  outlier/influence analysis against the current logistic) is NOT done. The
-  honest reason to defer rather than rush it: the existing forest screen already
-  beats linear at every position and still ships nothing, because a forest's
-  predictions need a calibration study of their own before this product may show
-  them. Another model family without that study would produce another
-  screening result, not a shippable model.
+- ~~**The model-family comparison**~~ **DONE 2026-09-03** — see the gauntlet
+  section above. Nothing shipped from it because nothing beat the baseline, which
+  is the correct outcome rather than a disappointing one.
+- **Owner action, and this one is a prerequisite for the feature to work at
+  all:** run `POST /api/admin/init-db` with `x-init-token: $DB_INIT_TOKEN`
+  against production after merging. It is idempotent. Until it runs,
+  `/settings/account` will correctly report that ESPN sign-in storage is not
+  initialised, and Sleeper is unaffected.
 - Owner actions: the ruleset required-check list, and 11 Dependabot PRs.
 
 ---

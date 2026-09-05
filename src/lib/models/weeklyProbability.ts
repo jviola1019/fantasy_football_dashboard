@@ -39,7 +39,32 @@ export const WEEKLY_PROB_PROVENANCE = {
   season: 2025,
   totalRows: 3573,
   evaluation: "leave-one-week-out (17 folds)",
-  results: "docs/brier-results.md"
+  results: "docs/brier-results.md",
+  /**
+   * The search that justifies this model being ONE variable wide.
+   *
+   * Before `docs/model-gauntlet.md` existed, "one predictor" was a defensible
+   * floor and an untested assumption, and the disclosure could not honestly
+   * claim otherwise. It has now been tested: 44 prospective covariates by
+   * nested likelihood-ratio test, and 5 alternative model families — isotonic,
+   * gradient boosting, and a random forest, on one feature and on eleven — by
+   * paired out-of-fold loss. Holm-Bonferroni within each stage, positive
+   * controls in both.
+   *
+   * Nothing beat it. Four family-position combinations were significantly
+   * WORSE, all of them multi-feature, which is overfitting at 512–1,470 rows
+   * per position rather than a narrow search.
+   *
+   * COUNTS, named carefully. 11 candidate covariates were tested at each of 4
+   * positions, which is 44 TESTS. An earlier version of this disclosure said
+   * "44 candidate covariates", inflating the search fourfold in a claim shown
+   * to users about how hard the alternative was looked for. Test count and
+   * covariate count are different numbers and the field names now say which.
+   */
+  gauntlet: "docs/model-gauntlet.md",
+  gauntletCovariates: 11,
+  gauntletCovariatePositions: 4,
+  gauntletFamilies: 5
 } as const;
 
 export type WeeklyPosition = "QB" | "RB" | "WR" | "TE";
@@ -250,7 +275,12 @@ export function weeklyProbDisclosure(position: WeeklyPosition): {
           ? ""
           : " That is small — near enough to zero that the base rate is almost as good a forecast, so this position's number should carry little weight."),
       "It converts a projection into a probability. It does not produce the projection, and it says nothing about how many points a player will score.",
-      "Fitted on one season. A rule change, or a scoring format unlike the PPR the fit saw, is outside what was measured."
+      "Fitted on one season. A rule change, or a scoring format unlike the PPR the fit saw, is outside what was measured.",
+      // Reported as a LIMIT, not a boast. It tells the reader that one variable
+      // is an evidenced choice rather than an unfinished one — and, just as
+      // importantly, that a wider search found no more signal to be had from
+      // this data, so the number will not be quietly improving.
+      `One predictor by evidence, not by omission: ${WEEKLY_PROB_PROVENANCE.gauntletCovariates} candidate covariates at each of ${WEEKLY_PROB_PROVENANCE.gauntletCovariatePositions} positions, and ${WEEKLY_PROB_PROVENANCE.gauntletFamilies} alternative model families, were tested out-of-fold against this model and none beat it (${WEEKLY_PROB_PROVENANCE.gauntlet}).`
     ],
     evidence: `${WEEKLY_PROB_PROVENANCE.results} · snapshot fingerprint ${WEEKLY_PROB_PROVENANCE.fingerprint}`
   };

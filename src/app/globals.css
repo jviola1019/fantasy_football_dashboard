@@ -1385,6 +1385,21 @@ td small { color: var(--muted); }
    spaced as content rather than as fine print. */
 .weekly-prob { border-top: 1px solid var(--line); padding-top: var(--space-4); margin-top: var(--space-4); }
 .weekly-prob-weak { color: var(--yellow, var(--amber)); font-size: var(--text-micro); }
+/* Position group header. Carries the start line, because the whole reason the
+   table is grouped is that each position clears a DIFFERENT line and the
+   probabilities therefore do not compare across groups. Left-aligned and
+   uppercased so it reads as a divider rather than as another data row. */
+.weekly-prob-group {
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--cream);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: var(--space-3);
+  border-bottom: 1px solid var(--line);
+}
+tbody:first-of-type .weekly-prob-group { padding-top: 0; }
 .weekly-prob-disclosure { border-left: 2px solid var(--line); padding-left: var(--space-3); margin-top: var(--space-4); }
 .weekly-prob-heading { font-size: var(--text-sm); font-weight: 600; color: var(--cream); margin: 0 0 var(--space-2); }
 /* S6 — the reliability diagram, one click away.

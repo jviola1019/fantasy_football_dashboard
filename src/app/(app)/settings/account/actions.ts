@@ -15,6 +15,7 @@ import {
   setAccountCredentials
 } from "@/lib/leagues";
 import { verifyLeague } from "@/lib/trade/verify";
+import { isMissingRelation, readOrUninitialised } from "@/db/missingRelation";
 
 export type AccountActionResult = { ok: true } | { ok: false; error: string };
 
@@ -175,7 +176,22 @@ export async function saveEspnSignInAction(formData: FormData): Promise<EspnSign
     note = "Saved, but not yet tested — add an ESPN league and it will be used on the first refresh.";
   }
 
-  await setAccountCredentials(getDb(), user.id, credentials);
+  // The WRITE is not wrapped in readOrUninitialised: a save that silently did
+  // nothing would be the worst outcome on this page, because the user would
+  // believe their sign-in is stored. A missing table is reported as the
+  // deployment fault it is, in terms an operator can act on.
+  try {
+    await setAccountCredentials(getDb(), user.id, credentials);
+  } catch (err) {
+    if (isMissingRelation(err)) {
+      return {
+        ok: false,
+        error:
+          "Nothing was saved: this deployment's database has not had its schema applied. Your cookies are still valid — apply the schema (README, \"Applying the Postgres schema\") and try again."
+      };
+    }
+    throw err;
+  }
   revalidatePath("/settings/account");
   revalidatePath("/settings/leagues");
   return note ? { ok: true, note } : { ok: true };
@@ -192,7 +208,9 @@ export async function saveEspnSignInAction(formData: FormData): Promise<EspnSign
 export async function removeEspnSignInAction(): Promise<EspnSignInResult> {
   const user = await requireUser();
   if (!user) return { ok: false, error: "unauthenticated" };
-  await deleteAccountCredentials(getDb(), user.id);
+  // A delete against a table that does not exist has already achieved what it
+  // was asked to do, so this one IS safe to treat as success.
+  await readOrUninitialised(async () => deleteAccountCredentials(getDb(), user.id), undefined);
   revalidatePath("/settings/account");
   revalidatePath("/settings/leagues");
   return { ok: true };

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { sql } from "drizzle-orm";
 import { resetDbForTests } from "../db";
 import {
   createLeague,
@@ -180,6 +181,90 @@ describe("ESPN credentials resolve account-first, override-wins", () => {
     // Nothing about the old path changes; it is now the override.
     const creds = await getLeagueCredentials(db, leagueB);
     expect(creds?.espnS2).toBe(OVERRIDE.espnS2);
+  });
+});
+
+describe("an uninitialised accountCredentials table degrades, it does not crash", () => {
+  /**
+   * `accountCredentials` is created by ONE token-gated operator action
+   * (`POST /api/admin/init-db`); nothing applies that DDL automatically on
+   * Postgres. So between a deploy and that action, the running build knows about
+   * a table the database does not have.
+   *
+   * `resolveEspnCredentials` runs on EVERY request for an ESPN league. An
+   * unhandled "relation does not exist" there would take down every route, for a
+   * feature only one of them needs. These pin the degrade path — and the fact
+   * that it is a DEGRADE, reported as missing credentials, not a silent success.
+   */
+  let db: ReturnType<typeof resetDbForTests>;
+  let userId: string;
+  let leagueId: string;
+
+  beforeEach(async () => {
+    db = resetDbForTests();
+    const user = await createUserWithPassword(db, { email: EMAIL, password: PASSWORD });
+    userId = user.id;
+    const league = await createLeague(db, {
+      userId,
+      platform: "espn",
+      externalLeagueId: "1546190",
+      season: 2026,
+      label: "Dynasty Warriors",
+      credentials: OVERRIDE
+    });
+    leagueId = league.id;
+    // The real thing, not a mocked error: drop the table the code expects.
+    await db.run(sql`DROP TABLE "accountCredentials"`);
+  });
+
+  it("still resolves a per-league override", async () => {
+    // The override lives in a different table, so a missing account table must
+    // not stop a league that never needed it.
+    const resolved = await resolveEspnCredentials(db, userId, leagueId);
+    expect(resolved?.espnS2).toBe(OVERRIDE.espnS2);
+    expect(resolved?.origin).toBe("league-override");
+  });
+
+  it("returns null rather than throwing when there is no override", async () => {
+    const fresh = resetDbForTests();
+    const user = await createUserWithPassword(fresh, { email: EMAIL, password: PASSWORD });
+    await setAccountCredentials(fresh, user.id, ACCOUNT);
+    const league = await createLeague(fresh, {
+      userId: user.id,
+      platform: "espn",
+      externalLeagueId: "9988776",
+      season: 2026,
+      label: "Money League"
+    });
+    await fresh.run(sql`DROP TABLE "accountCredentials"`);
+    await expect(resolveEspnCredentials(fresh, user.id, league.id)).resolves.toBeNull();
+  });
+
+  it("reports no coverage instead of failing the settings page", async () => {
+    await expect(describeEspnCredentialCoverage(db, userId)).resolves.toEqual([
+      { leagueId, label: "Dynasty Warriors", origin: "league-override" }
+    ]);
+  });
+
+  it("still refuses to create an ESPN league with nothing to authenticate with", async () => {
+    // The degrade must not become a bypass: "table missing" reads as "no account
+    // pair", which is the truth from the caller's side.
+    await expect(
+      createLeague(db, {
+        userId,
+        platform: "espn",
+        externalLeagueId: "5555555",
+        season: 2026,
+        label: "No Cookies"
+      })
+    ).rejects.toThrow(/espn_s2/);
+  });
+
+  it("does NOT swallow an unrelated database failure", async () => {
+    // The canary for the guard itself. Dropping `leagues` breaks a query that
+    // the missing-relation path does not cover, and that must still throw.
+    await db.run(sql`DROP TABLE leagues`);
+    await expect(describeEspnCredentialCoverage(db, userId)).rejects.toThrow();
   });
 });
 

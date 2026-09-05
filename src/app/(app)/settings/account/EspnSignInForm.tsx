@@ -37,10 +37,20 @@ export interface EspnCoverageRow {
  */
 export function EspnSignInForm({
   savedAt,
-  coverage
+  coverage,
+  storageReady = true
 }: {
   savedAt: string | null;
   coverage: EspnCoverageRow[];
+  /**
+   * False when the credential table does not exist on this deployment yet.
+   *
+   * Distinct from "nothing saved" on purpose. Both render no cookies, but one
+   * means "add yours" and the other means "you cannot, and here is why" — and
+   * showing the first when the second is true would invite a paste into storage
+   * that is not there.
+   */
+  storageReady?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<{ kind: "idle" | "ok" | "error"; message?: string }>({
@@ -91,6 +101,20 @@ export function EspnSignInForm({
       }
     });
   };
+
+  if (!storageReady) {
+    return (
+      <p
+        role="status"
+        style={{ margin: 0, color: "var(--amber)", fontSize: "var(--text-sm)" }}
+      >
+        An ESPN sign-in cannot be saved yet: this deployment&apos;s database has not had its schema
+        applied. Nothing is wrong with your account, and Sleeper leagues work normally. If you run
+        this deployment, apply the schema — README, &ldquo;Applying the Postgres schema&rdquo; — and
+        reload this page.
+      </p>
+    );
+  }
 
   return (
     <div style={{ display: "grid", gap: 12 }}>

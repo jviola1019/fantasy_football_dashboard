@@ -10,6 +10,13 @@ import { myFaabBudget } from "@/lib/leagues/faab";
 import { getCurrentNflSeason } from "@/lib/schedule/season";
 import { pruneThrottle, THROTTLE_RETENTION_MS } from "@/lib/auth/throttle";
 import {
+  LIFECYCLE_BUDGET_MS,
+  LIFECYCLE_CONCURRENCY,
+  mapWithBudget,
+  rotateForFairness,
+  rotationOffset
+} from "@/lib/lifecycle/rotation";
+import {
   describeByeUnavailability,
   fetchByeSchedule,
   type ByeSchedule
@@ -67,7 +74,20 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
-  const leagues = await db.select().from(schema.leagues);
+  const allLeagues = await db.select().from(schema.leagues);
+
+  // ORDER, CONCURRENCY AND A BUDGET — see src/lib/lifecycle/rotation.ts.
+  //
+  // This swept leagues SEQUENTIALLY, one live upstream fetch each, under a
+  // 60-second `maxDuration`. Past roughly thirty leagues the platform killed
+  // the function mid-loop: no response, no throttle prune, and some leagues
+  // reconciled while the rest silently kept alerts that had stopped being
+  // true. A truncated run looked exactly like a complete one.
+  const startedAt = Date.now();
+  // ONE Date for both the rotation and the report. Taking a fresh one below
+  // meant a run straddling UTC midnight reported an offset it had not used.
+  const sweepAt = new Date();
+  const leagues = rotateForFairness(allLeagues, sweepAt);
 
   let writtenCount = 0;
   let skippedCount = 0;
@@ -76,64 +96,73 @@ export async function GET(request: Request): Promise<Response> {
   /** Rule families left UNKNOWN this run because their upstream was unusable. */
   const unknownFamilies: Record<string, number> = {};
   const failures: Array<{ leagueId: string; reason: string }> = [];
+  // These are mutated from concurrent tasks. That is safe here and not by luck:
+  // JavaScript runs one task at a time, so a `+= 1` or a `push` cannot interleave
+  // with another. What concurrency DOES change is the ORDER things land in
+  // `failures`, which is why it is sorted before it is reported.
 
-  for (const league of leagues) {
-    let snapshot: Awaited<ReturnType<typeof fetchLeagueLive>> | null = null;
-    try {
-      snapshot = await fetchLeagueLive(league.userId, league.id, db);
-    } catch (err) {
-      failures.push({ leagueId: league.id, reason: err instanceof Error ? err.message : "unknown" });
-      skippedCount += 1;
-      continue;
+  const sweep = await mapWithBudget(
+    leagues,
+    LIFECYCLE_CONCURRENCY,
+    () => Date.now() - startedAt > LIFECYCLE_BUDGET_MS,
+    async (league) => {
+      let snapshot: Awaited<ReturnType<typeof fetchLeagueLive>> | null = null;
+      try {
+        snapshot = await fetchLeagueLive(league.userId, league.id, db);
+      } catch (err) {
+        failures.push({ leagueId: league.id, reason: err instanceof Error ? err.message : "unknown" });
+        skippedCount += 1;
+        return;
+      }
+
+      if (!snapshot || snapshot.failure) {
+        skippedCount += 1;
+        if (snapshot?.failure) failures.push({ leagueId: league.id, reason: snapshot.failure });
+        return;
+      }
+
+      const injuredStarters = snapshot.myRoster.filter(
+        (p) => p.status === "ir" || p.status === "out" || p.status === "questionable"
+      );
+
+      const evaluation = evaluateLifecycleRules({
+        userId: league.userId,
+        leagueId: league.id,
+        roster: snapshot.myRoster,
+        byeSchedule,
+        // S4: read off the same league-wide budget object /waivers draws, so the
+        // alert and the panel can never describe different numbers. Null when the
+        // user's own team could not be identified — an unresolved identity must
+        // not alert on a stranger's budget.
+        faabRemainingRatio: myFaabBudget(snapshot.faab)?.ratio ?? null,
+        injuredStarters,
+        // Audit 2026-08-20 §9: pass the snapshot's OWN injury-evidence state so the
+        // engine can only resolve injury alerts when the status behind them was
+        // actually verified. Previously the family was judged reconcilable on a
+        // non-empty roster, so a stale or missing players snapshot cleared real
+        // alerts.
+        injuryEvidence: snapshot.injuryEvidence
+      });
+
+      // Audit P1 §6: upserting alone left conditions that had STOPPED being true
+      // marked active forever. Reconciliation closes them — but only for the rule
+      // families this run could actually judge. A family whose upstream failed is
+      // unknown, and unknown must never be written down as resolved.
+      const outcome = await reconcileLifecycleNotifications(
+        { userId: league.userId, leagueId: league.id, evaluation },
+        db
+      );
+
+      writtenCount += outcome.upserted;
+      resolvedCount += outcome.resolved;
+      for (const family of outcome.skipped) {
+        unknownFamilies[family] = (unknownFamilies[family] ?? 0) + 1;
+      }
+      for (const n of evaluation.drafted) {
+        ruleCounts[n.rule] = (ruleCounts[n.rule] ?? 0) + 1;
+      }
     }
-
-    if (!snapshot || snapshot.failure) {
-      skippedCount += 1;
-      if (snapshot?.failure) failures.push({ leagueId: league.id, reason: snapshot.failure });
-      continue;
-    }
-
-    const injuredStarters = snapshot.myRoster.filter(
-      (p) => p.status === "ir" || p.status === "out" || p.status === "questionable"
-    );
-
-    const evaluation = evaluateLifecycleRules({
-      userId: league.userId,
-      leagueId: league.id,
-      roster: snapshot.myRoster,
-      byeSchedule,
-      // S4: read off the same league-wide budget object /waivers draws, so the
-      // alert and the panel can never describe different numbers. Null when the
-      // user's own team could not be identified — an unresolved identity must
-      // not alert on a stranger's budget.
-      faabRemainingRatio: myFaabBudget(snapshot.faab)?.ratio ?? null,
-      injuredStarters,
-      // Audit 2026-08-20 §9: pass the snapshot's OWN injury-evidence state so the
-      // engine can only resolve injury alerts when the status behind them was
-      // actually verified. Previously the family was judged reconcilable on a
-      // non-empty roster, so a stale or missing players snapshot cleared real
-      // alerts.
-      injuryEvidence: snapshot.injuryEvidence
-    });
-
-    // Audit P1 §6: upserting alone left conditions that had STOPPED being true
-    // marked active forever. Reconciliation closes them — but only for the rule
-    // families this run could actually judge. A family whose upstream failed is
-    // unknown, and unknown must never be written down as resolved.
-    const outcome = await reconcileLifecycleNotifications(
-      { userId: league.userId, leagueId: league.id, evaluation },
-      db
-    );
-
-    writtenCount += outcome.upserted;
-    resolvedCount += outcome.resolved;
-    for (const family of outcome.skipped) {
-      unknownFamilies[family] = (unknownFamilies[family] ?? 0) + 1;
-    }
-    for (const n of evaluation.drafted) {
-      ruleCounts[n.rule] = (ruleCounts[n.rule] ?? 0) + 1;
-    }
-  }
+  );
 
   // Housekeeping. auth_attempts had NO pruning wired anywhere — pruneThrottle
   // existed with zero callers — so the table grew a row per (account, IP,
@@ -154,6 +183,17 @@ export async function GET(request: Request): Promise<Response> {
 
   return NextResponse.json({
     ok: true,
+    // A sweep that did not finish is a FACT this response states, not a gap
+    // the reader has to infer from a count that happens to look plausible.
+    sweep: {
+      total: allLeagues.length,
+      processed: sweep.processed,
+      remaining: allLeagues.length - sweep.processed,
+      truncated: sweep.stopped,
+      rotationOffset: rotationOffset(allLeagues.length, sweepAt),
+      concurrency: LIFECYCLE_CONCURRENCY,
+      elapsedMs: Date.now() - startedAt
+    },
     season: seasonState
       ? { season: seasonState.season, phase: seasonState.phase, week: seasonState.week }
       : null,
@@ -181,7 +221,10 @@ export async function GET(request: Request): Promise<Response> {
     // Surfaced rather than silent: a family that stays here run after run means
     // an upstream is persistently broken and those alerts are frozen, not clean.
     unknownRuleFamilies: unknownFamilies,
-    failures,
+    // Sorted so two runs over the same data produce the same report. Under
+    // concurrency the arrival order is a race, and a report that reshuffles
+    // between runs is one nobody can diff.
+    failures: [...failures].sort((a, b) => a.leagueId.localeCompare(b.leagueId)),
     ranAt: new Date().toISOString()
   });
 }

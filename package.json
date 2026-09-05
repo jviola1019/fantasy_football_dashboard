@@ -57,7 +57,12 @@
     "holdout:acquire-players": "tsx scripts/acquire-mfl-players.ts",
     "test:covariates": "tsx scripts/test-weekly-covariates.ts",
     "validate:variables": "tsx scripts/validate-variables.ts",
-    "baselines:weekly-prob": "tsx scripts/weekly-prob-baselines.ts"
+    "baselines:weekly-prob": "tsx scripts/weekly-prob-baselines.ts",
+    "gauntlet:weekly": "tsx scripts/model-gauntlet.ts",
+    "audit:model-data": "tsx scripts/audit-model-data.ts",
+    "holdout:weekly": "tsx scripts/holdout-weekly-gauntlet.ts",
+    "acquire:kdst": "tsx scripts/acquire-nflverse-kdst.ts",
+    "holdout:kdst": "tsx scripts/holdout-kdst-gauntlet.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

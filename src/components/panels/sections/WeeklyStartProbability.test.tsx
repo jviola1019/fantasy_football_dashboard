@@ -128,3 +128,111 @@ describe("the disclosure does not depend on this week's data", () => {
     expect(empty).toContain("Reliability diagram over");
   });
 });
+
+describe("the table never implies a ranking across positions", () => {
+  /**
+   * THE FLEX PROBLEM.
+   *
+   * Each position has its OWN start line — QB 18, RB 10, WR 8, TE 6 — so
+   * P(TE clears 6) and P(RB clears 10) are probabilities of DIFFERENT EVENTS.
+   * They cannot be ordered against each other, and a table sorted by
+   * probability across positions presents exactly that ordering: a TE at 72%
+   * renders above an RB at 65%, and a manager filling a FLEX slot reads the top
+   * of the list as the better play.
+   *
+   * This was shipped. The fix is to group by position so the only comparison
+   * the table invites is the valid one — within a position, against one line.
+   */
+  const flexPlayers = [
+    player("sleeper:10", "Low RB", "RB"),
+    player("sleeper:11", "High TE", "TE"),
+    player("sleeper:12", "Mid WR", "WR"),
+    player("sleeper:13", "Other RB", "RB")
+  ];
+  const flexEnvelope = envelope({
+    weeklyProjections: {
+      // Chosen so a global probability sort WOULD interleave the positions:
+      // the TE clears a 6-point line easily, the RBs face a 10-point line.
+      "sleeper:10": { ppr: 9, halfPpr: 9, standard: 9, position: "RB" },
+      "sleeper:11": { ppr: 14, halfPpr: 14, standard: 14, position: "TE" },
+      "sleeper:12": { ppr: 11, halfPpr: 11, standard: 11, position: "WR" },
+      "sleeper:13": { ppr: 16, halfPpr: 16, standard: 16, position: "RB" }
+    },
+    weeklyProjectionsMeta: { season: "2026", week: 3, fetchedAt: "2026-09-01T09:15:00.000Z" }
+  });
+
+  const html = renderToStaticMarkup(
+    <WeeklyStartProbability players={flexPlayers} envelope={flexEnvelope} />
+  );
+
+  it("keeps every row of a position contiguous", () => {
+    // The structural assertion. Extract the position cell of each row in render
+    // order; a position must appear as one unbroken run, never interleaved.
+    const positions = [...html.matchAll(/<td>(QB|RB|WR|TE)(?:<|\s)/g)].map((m) => m[1]!);
+    expect(positions.length).toBe(4);
+    const runs: string[] = [];
+    for (const p of positions) if (runs[runs.length - 1] !== p) runs.push(p);
+    expect(
+      runs.length,
+      `positions interleave in render order (${positions.join(", ")}), which presents a cross-position ranking`
+    ).toBe(new Set(positions).size);
+  });
+
+  it("says the probabilities are not comparable across positions", () => {
+    // The grouping removes the misreading; this sentence explains why the table
+    // is shaped that way, so nobody "tidies" it back into one sorted list.
+    expect(html).toMatch(/not comparable across positions|different start lines/i);
+  });
+
+  it("still orders WITHIN a position by probability", () => {
+    // The valid comparison must survive the fix: same line, so higher is better.
+    const rbBlock = html.slice(html.indexOf("Other RB") - 400, html.indexOf("Low RB") + 400);
+    expect(rbBlock.indexOf("Other RB")).toBeLessThan(rbBlock.indexOf("Low RB"));
+  });
+});
+
+describe("positions with no model are named, not silently dropped", () => {
+  /**
+   * "Never hide unavailable data." `weeklyStartProbability` returns null for any
+   * position without a fitted model — everything except QB/RB/WR/TE — and those
+   * rows were simply filtered out. A manager with a kicker saw no probability
+   * and no reason, which reads as "not worth showing" rather than "not
+   * modelled".
+   *
+   * K and DEF cannot be modelled from the data this project holds: nflverse's
+   * weekly table has no kicking columns and no team-defence rows, so there is
+   * nothing to fit against. That is worth stating on the screen rather than
+   * only in a report.
+   */
+  it("names the kicker it cannot model", () => {
+    const html = renderToStaticMarkup(
+      <WeeklyStartProbability players={PLAYERS} envelope={withProjections} />
+    );
+    // Still not given a fabricated probability...
+    expect(html).not.toContain("A Kicker");
+    // ...but its absence is now accounted for.
+    expect(html).toContain("1 K");
+    expect(html).toMatch(/barely better than a coin flip/i);
+    expect(html).toMatch(/1% Brier skill/i);
+  });
+
+  it("says nothing when every projected player is modelled", () => {
+    // The note must not appear as boilerplate on a roster it does not apply to.
+    const onlyModelled = [player("sleeper:1", "Bijan Robinson", "RB")];
+    const html = renderToStaticMarkup(
+      <WeeklyStartProbability players={onlyModelled} envelope={withProjections} />
+    );
+    expect(html).not.toContain("Not shown:");
+  });
+
+  it("counts a team defence too, not just kickers", () => {
+    const withDef = [player("sleeper:9", "Some Defence", "DEF" as PlayerMarketRecord["position"])];
+    const env = envelope({
+      weeklyProjections: { "sleeper:9": { ppr: 7, halfPpr: 7, standard: 7, position: "DEF" } },
+      weeklyProjectionsMeta: { season: "2026", week: 3, fetchedAt: "2026-09-01T09:15:00.000Z" }
+    });
+    expect(renderToStaticMarkup(<WeeklyStartProbability players={withDef} envelope={env} />)).toContain(
+      "1 DEF"
+    );
+  });
+});

@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { describeEspnCredentialCoverage, getAccountCredentialAge } from "@/lib/leagues";
+import { readOrUninitialised } from "@/db/missingRelation";
 import { ChangePasswordForm, DeleteAccountForm, SignOutButton } from "./AccountForms";
-import { EspnSignInForm } from "./EspnSignInForm";
+import { EspnSignInForm, type EspnCoverageRow } from "./EspnSignInForm";
 import { formatCredentialAge } from "./credentialAge";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +17,24 @@ export default async function AccountSettingsPage() {
 
   // Existence and AGE only. Nothing on this page decrypts a credential, because
   // nothing on this page displays one.
-  const [espnAge, espnCoverage] = await Promise.all([
-    getAccountCredentialAge(getDb(), user.id),
-    describeEspnCredentialCoverage(getDb(), user.id)
-  ]);
+  //
+  // Wrapped because `accountCredentials` is created by ONE token-gated operator
+  // action (`POST /api/admin/init-db`) and nothing applies that DDL
+  // automatically on Postgres. A deployment can therefore be running a build
+  // that knows about the table before the database has been told, and an
+  // unhandled "relation does not exist" here would 500 the whole page — taking
+  // change-password and delete-account down with a feature neither depends on.
+  //
+  // `ready: false` is NOT rendered as "nothing saved yet". That would be a false
+  // statement about storage the user cannot write to.
+  const espn = await readOrUninitialised(
+    async () => ({
+      ready: true,
+      age: await getAccountCredentialAge(getDb(), user.id),
+      coverage: await describeEspnCredentialCoverage(getDb(), user.id)
+    }),
+    { ready: false, age: null, coverage: [] as EspnCoverageRow[] }
+  );
 
   // requireUser() already returns the persisted email/name straight from the
   // users row (it has to read it to validate the session generation), so the
@@ -60,8 +75,9 @@ export default async function AccountSettingsPage() {
             and never sent back to your browser.
           </p>
           <EspnSignInForm
-            savedAt={formatCredentialAge(espnAge?.rotatedAt ?? null)}
-            coverage={espnCoverage}
+            savedAt={formatCredentialAge(espn.age?.rotatedAt ?? null)}
+            coverage={espn.coverage}
+            storageReady={espn.ready}
           />
         </section>
 

@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { decrypt, encrypt, getCredentialKey } from "./crypto";
 import { schema } from "../db";
+import { readOrUninitialised } from "../db/missingRelation";
 import { DEFAULT_FORMAT, type LeagueFormat } from "./trade/format";
 
 export type LeaguePlatform = "sleeper" | "espn";
@@ -76,7 +77,10 @@ export async function createLeague(db: Db, input: CreateLeagueInput): Promise<Le
   // actually protects the user is that no ESPN league is created which cannot
   // authenticate — so ask resolution, not the argument.
   if (input.platform === "espn" && !input.credentials) {
-    const account = await getAccountCredentialAge(db, input.userId);
+    // An uninitialised table reads as "no account pair", which is the truth
+    // from the caller's side: there is nothing to authenticate with, and the
+    // existing error tells the user to supply cookies.
+    const account = await readOrUninitialised(() => getAccountCredentialAge(db, input.userId), null);
     if (!account) {
       throw new Error("ESPN private leagues require espn_s2 + SWID cookies");
     }
@@ -346,7 +350,11 @@ export async function resolveEspnCredentials(
   if (override[0]) {
     return { ...open(override[0]), origin: "league-override", rotatedAt: override[0].rotatedAt };
   }
-  const account = await getAccountCredentials(db, userId);
+  // A missing table degrades to "no account pair", which the caller already
+  // reports honestly as missing credentials. It must not throw: this runs on
+  // EVERY request for an ESPN league, so an uninitialised database would take
+  // down every route rather than the one feature that needs the table.
+  const account = await readOrUninitialised(() => getAccountCredentials(db, userId), null);
   if (account) return { ...account, origin: "account" };
   return null;
 }
@@ -452,7 +460,8 @@ export async function describeEspnCredentialCoverage(
     .from(schema.leagueCredentials)
     .where(inArray(schema.leagueCredentials.leagueId, leagues.map((l) => l.id)));
   const overridden = new Set(overrides.map((r) => r.leagueId));
-  const hasAccount = (await getAccountCredentialAge(db, userId)) !== null;
+  const hasAccount =
+    (await readOrUninitialised(() => getAccountCredentialAge(db, userId), null)) !== null;
 
   return leagues.map((l) => ({
     leagueId: l.id,
