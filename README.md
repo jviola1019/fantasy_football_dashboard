@@ -424,6 +424,40 @@ ceiling in `docs/model-gauntlet.md` was a property of one snapshot's columns, no
 of the problem.
 
 
+### Interpretable interactions: `npm run basket:weekly`
+
+The ensembles in `holdout:weekly` can represent interactions and found none — but
+an ensemble that finds nothing cannot say *why*, and cannot be read by a person
+deciding who to start. `scripts/market-basket.ts` asks the narrower, legible
+question: is there a **nameable** combination of usage conditions — "high target
+share AND high air-yards share" — under which a player beats expectation, and
+does it still work on seasons nobody mined?
+
+Rules and tertile bin edges come from **train only**; every surviving rule is
+re-measured on the holdout under Holm correction. A **negative control** mines
+the identical pipeline against a *shuffled* outcome and must find nothing — it
+does, so a result here means something.
+
+**The first run reported 556 of 557 rules surviving, and that was the finding —
+about the method, not the football.** Nearly every "winner" was
+`priorMeanPpr HIGH AND …`: a rule that says *this player is good*. That is the
+**main effect the additive logistic already models**, restated as an association
+rule and then congratulated for being true. It is precisely the error
+[`docs/weekly-prob-baselines.md`](docs/weekly-prob-baselines.md) exists to
+correct — skill quoted against a constant instead of against the model you
+already have — reappearing in a new costume, which is how that error survives.
+
+Lift is now measured against **the additive model's own prediction for the same
+rows**, which is the only comparison under which "interaction" means anything.
+
+**Result: 0 of 557.** The report still prints the naive number (557 of 557 beat
+the raw base rate) as a standing warning, so the trap is visible rather than
+buried.
+
+Three methods with quite different failure modes — gradient boosting, a random
+forest, and association rules — now agree that there is no interaction here the
+additive form misses. That is a sturdier null than any one of them alone.
+
 ### Kickers and team defences: `npm run acquire:kdst` → `npm run holdout:kdst`
 
 The audit above once reported that kickers and team defences "cannot be modelled

@@ -1,6 +1,6 @@
 # Out-of-holdout start/sit — kickers and team defences
 
-**Executed** 2026-09-05T03:25:25.567Z  
+**Executed** 2026-09-05T18:18:10.383Z  
 
 
 **Train** 2017–2022 · **Holdout** 2023–2024 — scored once.
@@ -32,13 +32,13 @@ A base rate near 50% is the point of using a median: it is where a binary outcom
 | unit | family | Brier | skill vs climatology | ECE | AUC |
 |---|---|---|---|---|---|
 | K | logistic on prior mean points (baseline) | 0.2436 | 1.0% | 0.0130 | 0.5571 |
-| K | logistic + volume features | 0.2438 | 0.9% | 0.0059 | 0.5531 |
-| K | gradient boosting + volume | 0.2504 | -1.8% | 0.0569 | 0.5290 |
-| K | random forest + volume | 0.2447 | 0.5% | 0.0221 | 0.5418 |
+| K | logistic + volume + matchup | 0.2442 | 0.7% | 0.0144 | 0.5510 |
+| K | gradient boosting + volume + matchup | 0.2524 | -2.6% | 0.0593 | 0.5166 |
+| K | random forest + volume + matchup | 0.2453 | 0.2% | 0.0281 | 0.5370 |
 | DST | logistic on prior mean points (baseline) | 0.2412 | 0.9% | 0.0040 | 0.5548 |
-| DST | logistic + volume features | 0.2423 | 0.5% | 0.0106 | 0.5429 |
-| DST | gradient boosting + volume | 0.2475 | -1.7% | 0.0616 | 0.5289 |
-| DST | random forest + volume | 0.2428 | 0.2% | 0.0249 | 0.5388 |
+| DST | logistic + volume + matchup | 0.2355 | 3.2% | 0.0260 | 0.6085 |
+| DST | gradient boosting + volume + matchup | 0.2407 | 1.1% | 0.0401 | 0.5870 |
+| DST | random forest + volume + matchup | 0.2366 | 2.8% | 0.0135 | 0.5948 |
 
 ## THE HOLDOUT — 2023 and 2024, scored once
 
@@ -46,25 +46,25 @@ A base rate near 50% is the point of using a median: it is where a binary outcom
 | unit | family | Brier | skill vs climatology | ECE | AUC |
 |---|---|---|---|---|---|
 | K | logistic on prior mean points (baseline) | 0.2411 | 0.9% | 0.0214 | 0.5438 |
-| K | logistic + volume features | 0.2423 | 0.4% | 0.0267 | 0.5405 |
-| K | gradient boosting + volume | 0.2476 | -1.8% | 0.0548 | 0.5268 |
-| K | random forest + volume | 0.2431 | 0.1% | 0.0417 | 0.5240 |
+| K | logistic + volume + matchup | 0.2415 | 0.7% | 0.0183 | 0.5498 |
+| K | gradient boosting + volume + matchup | 0.2478 | -1.8% | 0.0591 | 0.5271 |
+| K | random forest + volume + matchup | 0.2434 | -0.0% | 0.0283 | 0.5307 |
 | DST | logistic on prior mean points (baseline) | 0.2403 | 1.1% | 0.0122 | 0.5661 |
-| DST | logistic + volume features | 0.2410 | 0.8% | 0.0187 | 0.5583 |
-| DST | gradient boosting + volume | 0.2493 | -2.6% | 0.0541 | 0.5196 |
-| DST | random forest + volume | 0.2435 | -0.2% | 0.0217 | 0.5387 |
+| DST | logistic + volume + matchup | 0.2386 | 1.8% | 0.0365 | 0.5871 |
+| DST | gradient boosting + volume + matchup | 0.2436 | -0.3% | 0.0581 | 0.5649 |
+| DST | random forest + volume + matchup | 0.2391 | 1.6% | 0.0152 | 0.5732 |
 
 ### Paired comparison against the baseline
 
 
 | unit | family | mean paired ΔBrier | 95% CI | p | Holm |
 |---|---|---|---|---|---|
-| DST | gradient boosting + volume | +0.0090 | [0.0032, 0.0151] | 4.00e-3 | **reject H0** |
-| K | gradient boosting + volume | +0.0064 | [0.0007, 0.0122] | 3.25e-2 | retain |
-| DST | logistic + volume features | +0.0008 | [-0.0001, 0.0017] | 9.50e-2 | retain |
-| DST | random forest + volume | +0.0032 | [-0.0005, 0.0070] | 9.50e-2 | retain |
-| K | logistic + volume features | +0.0011 | [-0.0008, 0.0032] | 2.68e-1 | retain |
-| K | random forest + volume | +0.0020 | [-0.0022, 0.0058] | 3.47e-1 | retain |
+| K | gradient boosting + volume + matchup | +0.0066 | [0.0008, 0.0122] | 2.60e-2 | retain |
+| K | random forest + volume + matchup | +0.0022 | [-0.0020, 0.0061] | 2.83e-1 | retain |
+| DST | gradient boosting + volume + matchup | +0.0034 | [-0.0041, 0.0109] | 3.73e-1 | retain |
+| DST | logistic + volume + matchup | -0.0017 | [-0.0072, 0.0036] | 5.54e-1 | retain |
+| DST | random forest + volume + matchup | -0.0012 | [-0.0065, 0.0043] | 6.69e-1 | retain |
+| K | logistic + volume + matchup | +0.0004 | [-0.0020, 0.0027] | 7.76e-1 | retain |
 
 ## Did selection on train generalise?
 
@@ -72,7 +72,7 @@ A base rate near 50% is the point of using a median: it is where a binary outcom
 | unit | CV would pick | holdout winner | agree |
 |---|---|---|---|
 | K | logistic on prior mean points (baseline) | logistic on prior mean points (baseline) | **yes** |
-| DST | logistic on prior mean points (baseline) | logistic on prior mean points (baseline) | **yes** |
+| DST | logistic + volume + matchup | logistic + volume + matchup | **yes** |
 
 **2 of 2 agree.**
 
@@ -80,7 +80,7 @@ A base rate near 50% is the point of using a median: it is where a binary outcom
 ## Verdict
 
 
-**0 of 6 combinations beat the prior-mean-points baseline on two unseen seasons after Holm correction. 1 are significantly worse.**
+**0 of 6 combinations beat the prior-mean-points baseline on two unseen seasons after Holm correction. 0 are significantly worse.**
 
 
 ### The finding is the SKILL LEVEL, not the comparison

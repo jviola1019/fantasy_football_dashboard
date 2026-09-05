@@ -62,7 +62,8 @@
     "audit:model-data": "tsx scripts/audit-model-data.ts",
     "holdout:weekly": "tsx scripts/holdout-weekly-gauntlet.ts",
     "acquire:kdst": "tsx scripts/acquire-nflverse-kdst.ts",
-    "holdout:kdst": "tsx scripts/holdout-kdst-gauntlet.ts"
+    "holdout:kdst": "tsx scripts/holdout-kdst-gauntlet.ts",
+    "basket:weekly": "tsx scripts/market-basket.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",
