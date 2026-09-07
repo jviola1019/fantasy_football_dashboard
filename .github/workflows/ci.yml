@@ -46,9 +46,18 @@ jobs:
   postgres:
     # Audit 2026-08-20 SS10. Without this job, 31 integration tests covering the
     # PRODUCTION database driver are silently skipped on every run:
-    #   src/db/postgres.integration.test.ts                13
-    #   src/lib/auth/throttle.pg.integration.test.ts       11
-    #   src/lib/lifecycle/reconcile.pg.integration.test.ts  7
+    #   src/db/postgres.integration.test.ts
+    #   src/lib/auth/throttle.pg.integration.test.ts
+    #   src/lib/lifecycle/reconcile.pg.integration.test.ts
+    #   src/lib/ops/schemaProbe.pg.integration.test.ts
+    #
+    # SELECTED BY PATTERN, NOT BY A HAND-KEPT LIST. The list used to be three
+    # literal paths repeated in two places, and a fourth Postgres test was added
+    # without being added here — so the production driver went unexercised and a
+    # `db.run` call that does not exist on postgres-js turned /api/health into a
+    # 500 while this job stayed green. `src/lib/ops/ciPgCoverage.test.ts` now
+    # fails if any *.pg.integration.test.ts on disk is not matched by these
+    # filters.
     # These are not duplicates of the SQLite coverage. The ON CONFLICT upsert,
     # the quoted camelCase identifiers, the timestamp mapping and the NOT IN
     # bound-array path all differ between drivers, and the throttle concurrency
@@ -94,13 +103,13 @@ jobs:
               .catch((e) => { console.error(e); process.exit(1); });
           "
       - name: Run the PostgreSQL integration suites
-        run: npx vitest run src/db/postgres.integration.test.ts src/lib/auth/throttle.pg.integration.test.ts src/lib/lifecycle/reconcile.pg.integration.test.ts --reporter=verbose
+        run: npx vitest run "postgres.integration.test.ts" "pg.integration.test.ts" --reporter=verbose
       - name: Fail if the suites were skipped rather than executed
         # The failure mode this guards: RAE_PG_TEST_URL not reaching the runner
         # turns every one of these into describe.skip, and the job goes green
         # having tested nothing. That is the exact condition SS10 exists to end.
         run: |
-          npx vitest run src/db/postgres.integration.test.ts src/lib/auth/throttle.pg.integration.test.ts src/lib/lifecycle/reconcile.pg.integration.test.ts --reporter=json --outputFile=pg-results.json
+          npx vitest run "postgres.integration.test.ts" "pg.integration.test.ts" --reporter=json --outputFile=pg-results.json
           node -e "
             const r = require('./pg-results.json');
             const passed = r.numPassedTests ?? 0;

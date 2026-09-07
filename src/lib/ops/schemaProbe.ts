@@ -31,9 +31,10 @@
  * stale in `reencrypt-credentials.ts`.
  */
 import { getTableName, is, sql, Table } from "drizzle-orm";
-import { getDb, schema } from "../../db";
+import { getDb, schema, type Db } from "../../db";
 import { SNAPSHOT_TABLES } from "../../db/schema-pg";
 import { isMissingRelation } from "../../db/missingRelation";
+import { execRaw } from "../../db/execRaw";
 
 /** Tables created only by `POST /api/admin/init-db`, derived from the schema. */
 export const CORE_TABLES: readonly string[] = (Object.values(schema) as unknown[])
@@ -47,13 +48,17 @@ export const CORE_TABLES: readonly string[] = (Object.values(schema) as unknown[
  * Probe each core table with a bounded read, returning the names that are
  * missing.
  *
+ * `db` is injectable so this can be exercised against a real Postgres instance.
+ * It could not be, and that is exactly why the driver defect reached production:
+ * `resetDbForTests()` hands back SQLite, so every test passed against a database
+ * that is not the one production runs.
+ *
  * A MISSING RELATION is the only failure treated as "missing". Anything else —
  * a permission error, a dropped connection mid-probe — is rethrown, because
  * reporting "your schema is incomplete" when the truth is "the database went
  * away" would send an operator to fix the wrong thing.
  */
-export async function probeCoreTables(): Promise<string[]> {
-  const db = getDb();
+export async function probeCoreTables(db: Db = getDb()): Promise<string[]> {
   const missing: string[] = [];
   for (const table of CORE_TABLES) {
     try {
@@ -61,7 +66,12 @@ export async function probeCoreTables(): Promise<string[]> {
       // compiled schema rather than from a request, so this is not a user-input
       // path. LIMIT 0 asks the planner to resolve the relation without reading
       // rows — the cheapest possible existence check.
-      await db.run(sql`SELECT 1 FROM ${sql.identifier(table)} LIMIT 0`);
+      //
+      // Through `execRaw` because the two drivers share NO raw-query method:
+      // this originally called `db.run`, which is better-sqlite3-only, and threw
+      // a TypeError on postgres-js — turning /api/health into a 500 in
+      // production while every test passed against SQLite.
+      await execRaw(db, sql`SELECT 1 FROM ${sql.identifier(table)} LIMIT 0`);
     } catch (err) {
       if (isMissingRelation(err)) {
         missing.push(table);
