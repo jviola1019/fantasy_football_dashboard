@@ -4,7 +4,7 @@ import { NoLeagueCTA } from "@/components/NoLeagueCTA";
 import { fixtureEnvelope } from "@/lib/fixtures";
 import { RAEEnvelopeSchema, type RAEEnvelope } from "@/lib/governance";
 import { loadRAEEnvelope } from "@/lib/sleeper";
-import { auth } from "@/lib/auth";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
 import { listLeagues } from "@/lib/leagues";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
@@ -83,10 +83,22 @@ async function resolveEnvelope(): Promise<HomeResolution> {
   }
 
   try {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const db = getDb();
+    // requireUser(), not a bare auth(). This loader is what `(app)/layout.tsx`
+    // and all eight route pages call, so a token claim trusted here is a token
+    // claim trusted by the whole authenticated app. `changeUserPassword` bumps
+    // `sessionVersion` for exactly one reason — to sign the user out everywhere
+    // — and `verifySessionUser` is the only thing that reads that column on a
+    // request path. Reading `session.user.id` off the JWT skipped it, so a
+    // revoked or deleted-account token still rendered that user's real rosters
+    // and league data here (audit F-004; `sessionRevocationCoverage.test.ts`
+    // now enforces it structurally rather than by comment).
+    //
+    // A rejected token falls through to the anonymous branch below, which is
+    // the correct destination: it is what a signed-out visitor sees.
+    const user = await requireUser(db);
+    const userId = user?.id;
     if (userId) {
-      const db = getDb();
       const leagues = await listLeagues(db, userId);
       if (leagues.length === 0) {
         return { kind: "no-league" };
