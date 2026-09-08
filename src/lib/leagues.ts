@@ -342,10 +342,22 @@ export async function resolveEspnCredentials(
   userId: string,
   leagueId: string
 ): Promise<ResolvedCredentials | null> {
+  // The join is the security boundary, not a convenience. Looking the override
+  // up by `leagueId` alone made this function READ as scoped — it takes a
+  // `userId` — while using that argument only for the account fallback below. It
+  // was safe solely because all three call sites ran `getLeagueForUser` first,
+  // and caller discipline is one forgetful edit away from handing a user another
+  // account's decrypted ESPN cookies. Now a foreign league id selects no row.
   const override = await db
-    .select()
+    .select({
+      iv: schema.leagueCredentials.iv,
+      authTag: schema.leagueCredentials.authTag,
+      ciphertext: schema.leagueCredentials.ciphertext,
+      rotatedAt: schema.leagueCredentials.rotatedAt
+    })
     .from(schema.leagueCredentials)
-    .where(eq(schema.leagueCredentials.leagueId, leagueId))
+    .innerJoin(schema.leagues, eq(schema.leagues.id, schema.leagueCredentials.leagueId))
+    .where(and(eq(schema.leagueCredentials.leagueId, leagueId), eq(schema.leagues.userId, userId)))
     .limit(1);
   if (override[0]) {
     return { ...open(override[0]), origin: "league-override", rotatedAt: override[0].rotatedAt };

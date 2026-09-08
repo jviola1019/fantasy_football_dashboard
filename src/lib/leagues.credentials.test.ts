@@ -171,6 +171,25 @@ describe("ESPN credentials resolve account-first, override-wins", () => {
     expect(await resolveEspnCredentials(db, other.id, leagueOfOther.id)).toBeNull();
   });
 
+  it("NEVER returns another user's league override, even for a real league id", async () => {
+    // The account fallback was scoped by userId from the first commit; the
+    // OVERRIDE branch was not — it looked the row up by leagueId alone while
+    // taking a `userId` parameter it used only further down. So the function
+    // read as scoped and was not.
+    //
+    // It was safe in practice because all three call sites happened to run
+    // `getLeagueForUser` first. That is caller discipline, and caller discipline
+    // is one forgetful edit away from decrypting somebody else's ESPN cookies.
+    // The guarantee belongs in the query.
+    const other = await createUserWithPassword(db, {
+      email: "attacker@example.com",
+      password: PASSWORD
+    });
+    // `leagueA` belongs to `userId` and carries a per-league override.
+    expect(await resolveEspnCredentials(db, userId, leagueA)).not.toBeNull();
+    expect(await resolveEspnCredentials(db, other.id, leagueA)).toBeNull();
+  });
+
   it("deletes cleanly", async () => {
     await setAccountCredentials(db, userId, ACCOUNT);
     await deleteAccountCredentials(db, userId);

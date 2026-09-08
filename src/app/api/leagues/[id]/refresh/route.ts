@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/db";
 import { fetchLeagueLive } from "@/lib/leagues/fetchLive";
-import { getLeagueCredentials, getLeagueForUser } from "@/lib/leagues";
+import { resolveEspnCredentials, getLeagueForUser } from "@/lib/leagues";
 import { EspnClient } from "@/lib/espn/client";
 import { getLeague as getEspnLeague } from "@/lib/espn/league";
 import { normalizeEspnTrades, indexByEspnId } from "@/lib/trade/transactions";
@@ -41,7 +41,14 @@ export async function POST(
   if (snapshot.league.platform === "espn") {
     try {
       const league = await getLeagueForUser(db, userId, id);
-      const creds = league ? await getLeagueCredentials(db, league.id) : null;
+      // resolveEspnCredentials, not getLeagueCredentials. The per-league row is
+      // an OVERRIDE for somebody whose leagues sit under two ESPN logins; the
+      // normal case is the account pair. Reading only the override meant an
+      // ESPN league authenticated by the account sign-in resolved to `null`
+      // here and silently returned zero graded trades — the same defect PR #44
+      // fixed in `fetchLive.ts`, one file over, left behind because this route
+      // has no in-app caller and nothing exercised it.
+      const creds = league ? await resolveEspnCredentials(db, userId, league.id) : null;
       if (league && creds) {
         const client = new EspnClient({ credentials: creds });
         const result = await getEspnLeague(

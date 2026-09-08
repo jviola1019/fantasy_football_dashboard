@@ -2,7 +2,7 @@
 
 import { requireUser } from "@/lib/auth/requireUser";
 import { getDb } from "@/db";
-import { getLeagueCredentials } from "@/lib/leagues";
+import { resolveEspnCredentials } from "@/lib/leagues";
 import { resolveActiveLeague, type ActiveLeagueResolution } from "@/lib/activeLeague";
 import type { SourceMeta } from "@/lib/governance";
 import { fetchTradeValues, type PlayerValue } from "@/lib/trade/values";
@@ -100,7 +100,10 @@ export async function loadLeagueTrades(): Promise<GradedTrade[]> {
   if (league.platform === "sleeper") {
     return fetchSleeperLeagueTrades(league.externalLeagueId, values);
   }
-  const creds = await getLeagueCredentials(getDb(), league.id);
+  // The account pair is the normal case; the per-league row is the two-logins
+  // override. Reading only the override returned no graded trades for every
+  // user who signed in at Settings -> Account (see refresh/route.ts).
+  const creds = await resolveEspnCredentials(getDb(), league.userId, league.id);
   if (!creds) return [];
   const client = new EspnClient({ credentials: creds });
   return fetchEspnLeagueTrades(
